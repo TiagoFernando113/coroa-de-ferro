@@ -1,0 +1,54 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.tiagofernando.coroadeferro'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'com.tiagofernando.coroadeferro'
+        minSdk 24
+        targetSdk 34
+        // O Actions passa o número da execução; cada APK novo instala por cima do anterior.
+        versionCode((project.findProperty('versionCode') ?: '1') as Integer)
+        versionName "dev-${versionCode}"
+    }
+
+    // Chave só de desenvolvimento, versionada de propósito: todo APK sai com a
+    // mesma assinatura, então atualizar não exige desinstalar (nem perder o save).
+    signingConfigs {
+        dev {
+            storeFile rootProject.file('dev.keystore')
+            storePassword 'coroadev'
+            keyAlias 'coroa'
+            keyPassword 'coroadev'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.dev
+        }
+    }
+
+    // O jogo (index.html, style.css, game.js, versao.json da raiz) vai DENTRO do APK:
+    // abre sem internet. Atualizações chegam depois pelo próprio app.
+    sourceSets {
+        main.assets.srcDir(layout.buildDirectory.dir('jogo-assets'))
+    }
+
+    lint {
+        checkReleaseBuilds false
+        abortOnError false
+    }
+}
+
+def copiarJogo = tasks.register('copiarJogo', Copy) {
+    from(rootProject.file('..')) {
+        include 'index.html', 'icones.css', 'style.css', 'game.js', 'ui.js', 'atlas.png', 'atlas.json', 'versao.json'
+    }
+    into(layout.buildDirectory.dir('jogo-assets/jogo'))
+}
+preBuild.dependsOn(copiarJogo)

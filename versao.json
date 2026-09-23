@@ -1,0 +1,12 @@
+{
+  "versao": 8,
+  "arquivos": [
+    "index.html",
+    "icones.css",
+    "style.css",
+    "game.js",
+    "ui.js",
+    "atlas.png",
+    "atlas.json"
+  ]
+}

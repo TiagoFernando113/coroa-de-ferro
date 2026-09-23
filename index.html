@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Coroa de Ferro</title>
+<meta name="description" content="Construa seu reino, treine tropas e conquiste o mapa.">
+<meta name="theme-color" content="#16110b">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&display=swap">
+<link rel="stylesheet" href="icones.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="scene"></canvas>
+
+<header id="top">
+  <button id="perfilBtn" data-act="panel" data-p="ranking"><span id="av"></span></button>
+  <div id="topR">
+    <div id="row1"><div id="resbar"></div><div id="gem" class="r gem"></div></div>
+    <div id="pw"></div>
+  </div>
+</header>
+
+<div id="marchas" hidden></div>
+
+<div id="hudR">
+  <button class="rb" data-act="panel" data-p="missoes"><b><i class="ico ico-missoes"></i></b><span>Eventos</span><i id="qdot" hidden></i></button>
+  <button class="rb" data-act="shield"><b><i class="ico ico-escudo"></i></b><span>Escudo</span></button>
+  <button class="rb" data-act="panel" data-p="alianca"><b><i class="ico ico-alianca"></i></b><span>Ajuda</span></button>
+</div>
+
+<div id="alerta" hidden></div>
+
+<div id="tools">
+  <button data-act="home" aria-label="Centralizar"><i class="ico ico-alvo"></i></button>
+</div>
+<div id="coords"></div>
+
+<button id="quest" data-act="quest"></button>
+<div id="news"></div>
+<div id="sheet" class="card" hidden></div>
+
+<nav id="nav">
+  <button data-act="panel" data-p="exercito"><b><i class="ico ico-exercito"></i></b>Exército</button>
+  <button data-act="panel" data-p="pesquisa"><b><i class="ico ico-pesquisa"></i></b>Pesquisa</button>
+  <button data-act="panel" data-p="alianca"><b><i class="ico ico-alianca"></i></b>Aliança</button>
+  <button data-act="panel" data-p="ranking"><b><i class="ico ico-ranking"></i></b>Ranking</button>
+  <button id="tgl" class="big" data-act="toggle"><b><i class="ico ico-mapa"></i></b>Mapa</button>
+</nav>
+
+<section id="panel" hidden>
+  <header><h2 id="ptitle"></h2><button class="x" data-act="closePanel" aria-label="Fechar">✕</button></header>
+  <div id="pbody"></div>
+</section>
+
+<div id="modal" hidden><div class="box" id="modalBox"></div></div>
+<div id="toast"></div>
+
+<script src="game.js"></script>
+<script src="ui.js"></script>
+</body>
+</html>
