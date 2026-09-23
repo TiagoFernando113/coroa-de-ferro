@@ -707,8 +707,8 @@ document.addEventListener('click', e => {
     case 'mapZoom': zoom(+d.v); return;
     case 'mapHome': cam.x = CX + 0.5; cam.y = CY + 0.5; sel = { home: 1 }; break;
     case 'reset':
-      if (confirm('Apagar todo o progresso e recomeçar?')) { newGame(); save(); toast('Novo reino fundado.'); }
-      break;
+      if (a.dataset.sure) { newGame(); save(); toast('Novo reino fundado.'); break; }
+      a.dataset.sure = 1; a.textContent = 'Toque de novo para apagar tudo'; return;
   }
   render();
 });
