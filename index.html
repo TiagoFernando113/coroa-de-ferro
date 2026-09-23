@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Coroa de Ferro</title>
+<meta name="description" content="Construa seu reino, treine tropas e conquiste o mapa.">
+<meta name="theme-color" content="#16110b">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header id="top">
+  <div id="resbar"></div>
+  <div id="meta"></div>
+</header>
+
+<main id="view"></main>
+
+<section id="mapWrap" hidden>
+  <canvas id="map"></canvas>
+  <div id="mapTools">
+    <button data-act="mapZoom" data-v="1.25">＋</button>
+    <button data-act="mapZoom" data-v="0.8">－</button>
+    <button data-act="mapHome">🏰</button>
+  </div>
+  <div id="mapPanel"></div>
+</section>
+
+<nav id="tabs">
+  <button data-tab="cidade" class="on"><b>🏰</b>Cidade</button>
+  <button data-tab="mapa"><b>🗺️</b>Mapa</button>
+  <button data-tab="exercito"><b>⚔️</b>Exército</button>
+  <button data-tab="pesquisa"><b>📜</b>Pesquisa</button>
+  <button data-tab="missoes"><b>🎯</b>Missões<i id="qdot" hidden></i></button>
+</nav>
+
+<div id="modal" hidden><div class="box" id="modalBox"></div></div>
+<div id="toast"></div>
+
+<script src="game.js"></script>
+</body>
+</html>
