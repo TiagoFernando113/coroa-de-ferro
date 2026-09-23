@@ -10,6 +10,7 @@
      No futuro isso roda num servidor e os bots são trocados por pessoas.
    ===================================================================== */
 
+const VERSAO = '0.3'; // sobe a cada entrega, para conferir no celular que chegou a versão nova
 const SAVE_KEY = 'coroa_save_v2';
 const MAXLV = 20, RMAX = 10, N = 60, CX = 30, CY = 30, NBOTS = 24;
 const RES = ['comida', 'madeira', 'pedra', 'ouro'];
@@ -760,7 +761,7 @@ function vRanking() {
     .forEach((x, i) => { h += `<tr class="${me.al === x.a.id ? 'meRow' : ''}"><td>${i + 1}</td><td style="color:${x.a.cor}">[${x.a.tag}] ${x.a.nome}</td><td>⚡${fmt(x.p)}</td></tr>`; });
   h += `</table></div><h3>Suas estatísticas</h3><div class="card"><div>🏆 Vitórias contra bárbaros: ${me.st.vitorias} (maior nv ${me.st.barbMax})</div>
     <div>⚔️ Ataques vencidos a reinos: ${me.st.pvp}</div><div>💀 Abates: ${fmt(me.st.abates)}</div><div>🎯 Tropas treinadas: ${fmt(me.st.treinadas)}</div><div>🧺 Coletado: ${fmt(me.st.coletado)}</div></div>
-    <h3>Jogo</h3><button class="btn sec sm" data-act="reset">Recomeçar do zero</button></div>`;
+    <h3>Jogo</h3><p class="mut">Versão ${VERSAO}</p><button class="btn sec sm" data-act="reset">Recomeçar do zero</button></div>`;
   return h;
 }
 

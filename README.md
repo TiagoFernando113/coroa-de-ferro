@@ -13,3 +13,11 @@ Jogo de estratégia de reino no navegador (estilo Kingshot / Rise of Kingdoms). 
 - **Missões** guiadas com recompensas; 💎 gemas aceleram; construções/pesquisas < 5 min são grátis.
 
 Rodar: abrir `index.html` (ou GitHub Pages).
+
+## App Android (desenvolvimento)
+
+`android/` é um app mínimo que abre o jogo publicado no GitHub Pages — toda mudança enviada aparece no app ao fechar e abrir, sem reinstalar.
+O workflow `APK` monta e publica em Releases quando `android/` muda. Link fixo:
+https://github.com/TiagoFernando113/coroa-de-ferro/releases/latest/download/CoroaDeFerro.apk
+
+`android/dev.keystore` é uma chave só de desenvolvimento (versionada para todo APK instalar por cima do anterior). Para a Play Store, usar outra chave, fora do repositório.

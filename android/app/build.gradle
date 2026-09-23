@@ -1,0 +1,40 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.tiagofernando.coroadeferro'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'com.tiagofernando.coroadeferro'
+        minSdk 24
+        targetSdk 34
+        // O Actions passa o número da execução; cada APK novo instala por cima do anterior.
+        versionCode((project.findProperty('versionCode') ?: '1') as Integer)
+        versionName "dev-${versionCode}"
+    }
+
+    // Chave só de desenvolvimento, versionada de propósito: todo APK sai com a
+    // mesma assinatura, então atualizar não exige desinstalar (nem perder o save).
+    signingConfigs {
+        dev {
+            storeFile rootProject.file('dev.keystore')
+            storePassword 'coroadev'
+            keyAlias 'coroa'
+            keyPassword 'coroadev'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.dev
+        }
+    }
+
+    lint {
+        checkReleaseBuilds false
+        abortOnError false
+    }
+}
