@@ -1,11 +1,15 @@
 # Coroa de Ferro
 
-Jogo de estratégia de reino no navegador (estilo Kingshot / Rise of Kingdoms). Single-player, salva no `localStorage`, timers correm com o jogo fechado.
+Jogo de estratégia de reino no navegador (estilo Kingshot / Rise of Kingdoms). Por enquanto o mundo é povoado por **24 reinos-bot** que usam exatamente as mesmas regras e ações do jogador — a ideia é trocá-los por jogadores reais depois (servidor autoritativo). Salva no `localStorage`; o mundo continua rodando com o jogo fechado.
 
 - **Cidade**: 8 construções com evolução por tempo (Castelo limita as demais), produção de 🌾🪵🪨🪙 e limite do Armazém.
 - **Exército**: Infantaria > Cavalaria > Arqueiros > Infantaria; treino em lotes no Quartel.
 - **Mapa 50×50**: ataque bárbaros (desbloqueio nível a nível), colete jazidas, marchas com ida/volta e chamar de volta.
 - **Pesquisa**: 6 tecnologias na Academia.
+- **Bots**: constroem, pesquisam, treinam, caçam bárbaros, coletam, saqueiam e se vingam; ficam offline por horas como gente.
+- **PvP**: ataque cidades, saque acima do protegido pelo Armazém, feridos vão ao Hospital, Muralha defende, escudo de iniciante (48h) e escudo por gemas.
+- **Alianças**: 4 alianças, ajuda que acelera construção/pesquisa, mural de atividade.
+- **Ranking** de poder de reinos e alianças; alerta de ataque chegando.
 - **Missões** guiadas com recompensas; 💎 gemas aceleram; construções/pesquisas < 5 min são grátis.
 
 Rodar: abrir `index.html` (ou GitHub Pages).
