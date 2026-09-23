@@ -10,7 +10,7 @@
      No futuro isso roda num servidor e os bots são trocados por pessoas.
    ===================================================================== */
 
-const VERSAO = 6; // igual ao versao.json — sobe a cada entrega; o app baixa sozinho
+const VERSAO = 7; // igual ao versao.json — sobe a cada entrega; o app baixa sozinho
 const SAVE_KEY = 'coroa_save_v2';
 const MAXLV = 20, RMAX = 10, N = 60, CX = 30, CY = 30, NBOTS = 24;
 const RES = ['comida', 'madeira', 'pedra', 'ouro'];

@@ -7,6 +7,7 @@
 <meta name="description" content="Construa seu reino, treine tropas e conquiste o mapa.">
 <meta name="theme-color" content="#16110b">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&display=swap">
+<link rel="stylesheet" href="icones.css">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -21,8 +22,8 @@
 </div>
 
 <div id="hudR">
-  <button class="rb" data-act="panel" data-p="missoes"><b>📜</b><span>Missões</span><i id="qdot" hidden></i></button>
-  <button class="rb" data-act="shield"><b>🛡️</b><span>Escudo</span></button>
+  <button class="rb" data-act="panel" data-p="missoes"><b><i class="ico ico-missoes"></i></b><span>Missões</span><i id="qdot" hidden></i></button>
+  <button class="rb" data-act="shield"><b><i class="ico ico-escudo"></i></b><span>Escudo</span></button>
 </div>
 
 <div id="alerta" hidden></div>
@@ -30,7 +31,7 @@
 <div id="tools">
   <button data-act="zoom" data-v="1.2" aria-label="Aproximar">＋</button>
   <button data-act="zoom" data-v="0.83" aria-label="Afastar">－</button>
-  <button data-act="home" aria-label="Centralizar">🎯</button>
+  <button data-act="home" aria-label="Centralizar"><i class="ico ico-alvo"></i></button>
 </div>
 <div id="coords"></div>
 
@@ -38,11 +39,11 @@
 <div id="sheet" class="card" hidden></div>
 
 <nav id="nav">
-  <button data-act="panel" data-p="exercito"><b>⚔️</b>Exército</button>
-  <button data-act="panel" data-p="pesquisa"><b>📜</b>Pesquisa</button>
-  <button data-act="panel" data-p="alianca"><b>🤝</b>Aliança</button>
-  <button data-act="panel" data-p="ranking"><b>🏆</b>Ranking</button>
-  <button id="tgl" class="big" data-act="toggle"><b>🗺️</b>Mapa</button>
+  <button data-act="panel" data-p="exercito"><b><i class="ico ico-exercito"></i></b>Exército</button>
+  <button data-act="panel" data-p="pesquisa"><b><i class="ico ico-pesquisa"></i></b>Pesquisa</button>
+  <button data-act="panel" data-p="alianca"><b><i class="ico ico-alianca"></i></b>Aliança</button>
+  <button data-act="panel" data-p="ranking"><b><i class="ico ico-ranking"></i></b>Ranking</button>
+  <button id="tgl" class="big" data-act="toggle"><b><i class="ico ico-mapa"></i></b>Mapa</button>
 </nav>
 
 <section id="panel" hidden>

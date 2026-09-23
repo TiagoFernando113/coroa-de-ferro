@@ -77,3 +77,18 @@ out.b_hospital = [...house(0, 0, { w: 'wall', door: 'wall-door', win: 'wall-wind
 out.b_muralha = [{ n: 'wall', x: -1 }, { n: 'wall-doorway', x: 0 }, { n: 'wall', x: 1 }, { n: 'gate', x: 0, z: 0.35, r: 90 }];
 out.b_academia = [{ st: ['tower-hexagon-base', 'tower-hexagon-mid', 'tower-hexagon-roof'] }, { k: 'town', n: 'lantern', x: 0.7, z: 0.4 }];
 module.exports = out;
+
+// ---- cidade cheia: muralha, casas, praça ----
+out.muro_x = [{ n: 'wall', r: 0 }];
+out.muro_z = [{ n: 'wall', r: 90 }];
+out.muro_torre = [{ st: ['tower-square-base', 'tower-square-mid', 'tower-square-top-roof'] }, { n: 'flag', x: 0.3, z: 0.3, y: 2.62 }];
+out.muro_portao = [{ n: 'wall-doorway', r: 0 }, { n: 'gate', z: 0.3, r: 90 }, { n: 'flag-banner-long', x: -0.45, z: 0.55 }, { n: 'flag-banner-long', x: 0.45, z: 0.55 }];
+out.casa1 = [...house(0, 0, { roof: 'roof-gable', s: 0.8 })];
+out.casa2 = [...house(0, 0, { w: 'wall', door: 'wall-door', win: 'wall-window-shutters', roof: 'roof-high-point', floors: 2, s: 0.75 })];
+out.casa3 = [...house(0, 0, { w: 'wall', door: 'wall-door', win: 'wall-window-round', roof: 'roof-gable', s: 0.8 }), { k: 'town', n: 'chimney', x: -0.1, y: 1.05, s: 0.6 }];
+out.casa4 = [...house(0, 0, { roof: 'roof-point', s: 0.8 }), ...house(0.8, 0, { w: 'wall-wood', door: 'wall-wood', win: 'wall-wood-window-small', roof: 'roof-gable', s: 0.8 })];
+out.barraca1 = [{ k: 'town', n: 'stall-red', s: 0.8 }];
+out.barraca2 = [{ k: 'town', n: 'stall-green', s: 0.8 }, { k: 'town', n: 'stall-bench', x: 0.7, z: 0.3, s: 0.8 }];
+out.fonte = [{ k: 'town', n: 'fountain-round', s: 0.9 }, { k: 'town', n: 'fountain-center', s: 0.9 }];
+out.lampiao = [{ k: 'town', n: 'lantern', s: 0.9 }];
+out.carroca = [{ k: 'town', n: 'cart-high', r: 30, s: 0.8 }];

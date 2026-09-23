@@ -351,40 +351,75 @@ function drawMap() {
 }
 
 /* ---------------- cena: CIDADE ---------------- */
-const CITY_N = 13;
-const SLOTS = { castelo: [6.5, 6.5], academia: [2.5, 3], quartel: [6.5, 2.2], armazem: [10.5, 3], serraria: [2.2, 6.8],
-  pedreira: [10.8, 6.8], fazenda: [3, 10.5], mina: [6.8, 11], hospital: [10.5, 10.5], muralha: [11.8, 12.2] };
+const CITY_N = 13, GATE = [6.5, 12.75];
+const SLOTS = { castelo: [6.5, 6.5], academia: [3, 3], quartel: [6.5, 2.4], armazem: [10, 3], serraria: [2.4, 6.5],
+  pedreira: [10.6, 6.3], fazenda: [3, 10], mina: [4.9, 10.9], hospital: [10, 10], muralha: GATE };
 const BSPR = { fazenda: 'b_fazenda', serraria: 'b_serraria', pedreira: 'b_pedreira', mina: 'b_mina', armazem: 'b_armazem',
-  quartel: 'b_quartel', hospital: 'b_hospital', muralha: 'b_muralha', academia: 'b_academia' };
+  quartel: 'b_quartel', hospital: 'b_hospital', academia: 'b_academia' };
+// casas e enfeites: aparecem aos poucos conforme o castelo cresce
+const DECOR = [[8.6, 9.2, 'barraca1'], [4.5, 8.7, 'barraca2'], [8.4, 11.1, 'fonte'], [1.3, 1.3, 'casa1'], [11.7, 1.4, 'casa4'],
+  [4.8, 1.2, 'casa2'], [8.4, 1.2, 'casa3'], [1.2, 4.7, 'casa2'], [11.8, 4.6, 'casa1'], [1.2, 8.4, 'casa3'], [11.8, 8.4, 'casa2'],
+  [1.4, 11.7, 'casa4'], [11.6, 11.6, 'casa1'], [8.2, 4.5, 'carroca'], [4.8, 4.4, 'lampiao'], [8.6, 8.3, 'lampiao'], [5.2, 12.2, 'casa3'], [11.9, 10.3, 'casa2']];
+const FOLK = Array.from({ length: 16 }, (_, i) => ({ to: Object.keys(SLOTS)[1 + (i % 9)], sp: 9000 + (i * 1373) % 7000, ph: (i * 0.137) % 1,
+  roupa: ['#b8452f', '#3f6fb0', '#6d8f3a', '#8a5a2b', '#c9a23a', '#7a4f9a'][i % 6], off: ((i * 37) % 10) / 25 - 0.2 }));
 function drawCity() {
+  const now = Date.now();
   ground(0, 0, CITY_N, CITY_N, '#2d4f25', 'rgba(60,40,20,.5)');
-  // caminhos de terra do castelo até cada construção
-  g.lineCap = 'round';
-  for (const id in SLOTS) if (id !== 'castelo') {
-    const [a, b] = w2s(...SLOTS.castelo), [c, d] = w2s(...SLOTS[id]);
-    g.strokeStyle = 'rgba(160,120,70,.75)'; g.lineWidth = TH() * 0.55; g.beginPath(); g.moveTo(a, b); g.lineTo(c, d); g.stroke();
+  // plantações perto da fazenda
+  if (me.b.fazenda) for (const [fx, fy] of [[1.4, 10.4], [3.4, 11.9]]) {
+    diamond(fx, fy, 0.7, '#8a6a3a');
+    g.strokeStyle = '#9fbf4a'; g.lineWidth = Math.max(1, 2 * cam().z);
+    for (let k = -0.55; k <= 0.55; k += 0.18) { const [a, b] = w2s(fx - 0.6, fy + k), [c, d] = w2s(fx + 0.6, fy + k); g.beginPath(); g.moveTo(a, b); g.lineTo(c, d); g.stroke(); }
   }
+  // caminhos de terra (castelo → construções e portão)
+  g.lineCap = 'round';
+  for (const pass of [['rgba(110,80,45,.8)', 0.7], ['rgba(190,150,95,.95)', 0.5]])
+    for (const id in SLOTS) if (id !== 'castelo') {
+      const [a, b] = w2s(...SLOTS.castelo), [c, d] = w2s(...SLOTS[id]);
+      g.strokeStyle = pass[0]; g.lineWidth = TH() * pass[1]; g.beginPath(); g.moveTo(a, b); g.lineTo(c, d); g.stroke();
+    }
   if (sel && sel.b) diamond(...SLOTS[sel.b], sel.b === 'castelo' ? 2.2 : 1.2, 'rgba(255,255,255,.2)', '#ffe08a');
   const objs = [];
-  for (let x = -4; x < CITY_N + 4; x++) for (let y = -4; y < CITY_N + 4; y++) {
-    const inside = x >= 0 && y >= 0 && x < CITY_N && y < CITY_N, h = hash(x + 99, y + 7);
-    const nearSlot = Object.values(SLOTS).some(([a, b]) => Math.abs(a - x - 0.5) < 2 && Math.abs(b - y - 0.5) < 2);
-    if (!nearSlot && (inside ? h < 0.08 : h < 0.55)) objs.push({ d: x + y, f: () => sprite(['arvore', 'arvore2', 'arvore3', 'arvore', 'rocha'][Math.floor(hash(y, x + 3) * 5)], x + 0.5, y + 0.5, 1.6) });
+  // floresta fora da muralha
+  for (let x = -5; x < CITY_N + 5; x++) for (let y = -5; y < CITY_N + 5; y++) {
+    const inside = x >= 0 && y >= 0 && x < CITY_N && y < CITY_N;
+    if (!inside && hash(x + 99, y + 7) < 0.6) objs.push({ d: x + y, f: () => sprite(['arvore', 'arvore2', 'arvore3', 'arvore', 'rocha'][Math.floor(hash(y, x + 3) * 5)], x + 0.5, y + 0.5, 1.5) });
   }
-  for (const id in SLOTS) objs.push({ d: SLOTS[id][0] + SLOTS[id][1], f: () => {
+  // muralha em volta (segmentos a cada ~0,65 tile), torres nos cantos
+  const e0 = 0.25, e1 = CITY_N - 0.25, st = 0.65;
+  for (let t = e0 + st; t < e1 - 0.3; t += st) {
+    objs.push({ d: t + e0, f: () => sprite('muro_x', t, e0, 1.55) });          // fundo
+    objs.push({ d: e0 + t, f: () => sprite('muro_z', e0, t, 1.55) });          // esquerda
+    objs.push({ d: e1 + t, f: () => sprite('muro_z', e1, t, 1.55) });          // direita (frente)
+    if (Math.abs(t - GATE[0]) > 0.7) objs.push({ d: t + e1, f: () => sprite('muro_x', t, e1, 1.55) }); // frente, com vão do portão
+  }
+  for (const [x, y] of [[e0, e0], [e1, e0], [e0, e1], [e1, e1]]) objs.push({ d: x + y + 0.1, f: () => sprite('muro_torre', x, y, 1.55) });
+  objs.push({ d: GATE[0] + GATE[1] + 0.1, f: () => sprite('muro_portao', GATE[0], GATE[1], 1.55) });
+  // casas e enfeites
+  const nDec = Math.min(DECOR.length, 3 + me.b.castelo * 2);
+  for (const [x, y, n] of DECOR.slice(0, nDec)) objs.push({ d: x + y, f: () => sprite(n, x, y, n.startsWith('casa') ? 1.7 : 1.6) });
+  // construções
+  for (const id in SLOTS) if (id !== 'muralha') objs.push({ d: SLOTS[id][0] + SLOTS[id][1], f: () => {
     const [x, y] = SLOTS[id];
     if (id === 'castelo') sprite(citySprite(me), x, y, 1.3);
     else if (me.b[id]) sprite(BSPR[id], x, y, 1.55);
     else { diamond(x, y, 0.8, 'rgba(120,85,45,.55)', 'rgba(233,185,73,.6)', [5, 4]); sprite('rocha', x - 0.4, y + 0.3, 2.6); }
   } });
+  // moradores andando pelos caminhos (vai e volta)
+  for (const f of FOLK) {
+    const [ax, ay] = SLOTS.castelo, [bx, by] = SLOTS[f.to];
+    let p = ((now / f.sp) + f.ph) % 2; p = p > 1 ? 2 - p : p; p = 0.25 + p * 0.6;
+    const x = ax + (bx - ax) * p + f.off, y = ay + (by - ay) * p - f.off;
+    objs.push({ d: x + y, f: () => person(x, y, f.roupa, now / 120 + f.ph * 10) });
+  }
   objs.sort((a, b) => a.d - b.d);
   for (const o of objs) o.f();
   // selos: nível, obra, pode evoluir
   for (const id in SLOTS) {
     const [x, y] = SLOTS[id], [sx, sy] = w2s(x, y), lv = me.b[id];
-    const oy = sy + TH() * (id === 'castelo' ? 1.9 : 0.9);
+    const oy = sy + TH() * (id === 'castelo' ? 1.9 : id === 'muralha' ? 0.5 : 0.9);
     if (me.bq && me.bq.id === id) {
-      const p = Math.min(1, (Date.now() - me.bq.start) / (me.bq.end - me.bq.start));
+      const p = Math.min(1, (now - me.bq.start) / (me.bq.end - me.bq.start));
       badge(sx, sy - TH() * 2.2, '🔨', '#c98a1c');
       g.fillStyle = 'rgba(0,0,0,.6)'; roundRect(sx - 30, oy + 12, 60, 7, 3); g.fill();
       g.fillStyle = '#6ee06a'; roundRect(sx - 30, oy + 12, 60 * p, 7, 3); g.fill();
@@ -392,6 +427,14 @@ function drawCity() {
     if (lv) plate(sx, oy, lv, B[id].n, '#f1e6d0'); else plate(sx, oy, '+', B[id].n + (canBuild(me, id) ? ' 🔒' : ''), '#c9b99a');
   }
   $('#coords').textContent = '';
+}
+// bonequinho: sombra, corpo com a cor da roupa, cabeça; balança ao andar
+function person(x, y, roupa, t) {
+  const [sx, sy] = w2s(x, y), k = cam().z, b = Math.abs(Math.sin(t)) * 2 * k;
+  if (sx < -20 || sx > W + 20 || sy < -20 || sy > H + 20) return;
+  g.fillStyle = 'rgba(0,0,0,.25)'; g.beginPath(); g.ellipse(sx, sy, 5 * k, 2.5 * k, 0, 0, 7); g.fill();
+  g.fillStyle = roupa; roundRect(sx - 3.5 * k, sy - 13 * k - b, 7 * k, 10 * k, 3 * k); g.fill();
+  g.fillStyle = '#f0c9a0'; g.beginPath(); g.arc(sx, sy - 16 * k - b, 3.2 * k, 0, 7); g.fill();
 }
 
 /* ---------------- toque / arrasto / zoom ---------------- */
@@ -497,11 +540,11 @@ function renderSheet() {
 /* ---------------- HUD ---------------- */
 function renderTop() {
   const c = cap(me), now = Date.now();
-  $('#resbar').innerHTML = RES.map(r => `<div class="r ${me.res[r] >= c ? 'full' : ''}"><i>${RI[r]}</i><b>${fmt(me.res[r])}</b></div>`).join('') +
-    `<div class="r gem"><i>💎</i><b>${fmt(me.gemas)}</b></div>`;
-  $('#perfil').innerHTML = `<div class="av">👑</div><div><div class="pw">⚡ ${fmt(power(me))}</div><div class="rk">#${rankOf(me)} · ${alTag(me) || 'sem aliança'}${shielded(me, now) ? ` · 🛡️<span class="cd" data-end="${me.escudo}">${ftime(me.escudo - now)}</span>` : ''}</div></div>`;
+  $('#resbar').innerHTML = RES.map(r => `<div class="r ${me.res[r] >= c ? 'full' : ''}"><i class="ico ico-${r}"></i><b>${fmt(me.res[r])}</b></div>`).join('') +
+    `<div class="r gem"><i class="ico ico-gema"></i><b>${fmt(me.gemas)}</b></div>`;
+  $('#perfil').innerHTML = `<div class="av"><i class="ico ico-coroa"></i><span class="avl">${me.b.castelo}</span></div><div><div class="pw">Poder ${fmt(power(me))}</div><div class="rk">#${rankOf(me)} · ${alTag(me) || 'sem aliança'}${shielded(me, now) ? ` · 🛡️<span class="cd" data-end="${me.escudo}">${ftime(me.escudo - now)}</span>` : ''}</div></div>`;
   const q = Q[S.q];
-  $('#quest').innerHTML = q ? `<b>🎯</b><span>${q.t}</span>${q.ok() ? '<em>Resgatar</em>' : ''}` : '<b>👑</b><span>Missões concluídas</span>';
+  $('#quest').innerHTML = q ? `<b><i class="ico ico-missoes"></i></b><span>${q.t}</span>${q.ok() ? '<em>Resgatar</em>' : ''}` : '<b>👑</b><span>Missões concluídas</span>';
   $('#quest').classList.toggle('ok', !!(q && q.ok()));
   const ms = marchesOf(me);
   $('#marchas').innerHTML = `<div class="mh" data-act="marchas">▾ Marchando ${ms.length}/${maxMarches(me)}</div>` + ms.map(m => {
@@ -514,7 +557,7 @@ function renderTop() {
   if (inc) $('#alerta').innerHTML = `⚠️ Ataque de ${esc(kById(inc.k).nome)} em <b class="cd" data-end="${inc.end}">${ftime(inc.end - now)}</b>`;
   const n = S.feed[0] || S.rel[0];
   $('#news').innerHTML = n ? (S.feed[0] ? `<b>Aliança:</b> ${esc(n.n)} ${n.txt}` : `<b>Relatório:</b> ${n.titulo}`) : '<b>Dica:</b> toque nas construções para evoluir.';
-  $('#tgl').innerHTML = view === 'cidade' ? '<b>🗺️</b>Mapa' : '<b>🏰</b>Cidade';
+  $('#tgl').innerHTML = view === 'cidade' ? '<b><i class="ico ico-mapa"></i></b>Mapa' : '<b><i class="ico ico-cidade"></i></b>Cidade';
   $('#qdot').hidden = !(Q[S.q] && Q[S.q].ok());
 }
 function timers() {
