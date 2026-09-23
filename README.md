@@ -14,6 +14,16 @@ Jogo de estratégia de reino no navegador (estilo Kingshot / Rise of Kingdoms). 
 
 Rodar: abrir `index.html` (ou GitHub Pages).
 
+## Visual
+
+A cena (cidade e mapa) é isométrica, desenhada em canvas com sprites gerados a partir dos kits 3D **Castle Kit** e **Fantasy Town Kit** da [Kenney](https://kenney.nl) (licença CC0). As composições ficam em `tools/sprites/pecas.js`; para regerar `atlas.png`/`atlas.json`:
+
+```sh
+sh tools/sprites/baixar-kits.sh
+(cd tools/sprites && npm i three@0.160.0)
+node tools/sprites/render.js
+```
+
 ## App Android
 
 Como no Cyron: o jogo vai **dentro do APK** (abre sem internet). A cada abertura o app confere `versao.json` no repositório (ramo de desenvolvimento, depois `main`); se a versão for maior, baixa os arquivos e recarrega. Para entregar uma mudança: subir `versao` em `versao.json` e `VERSAO` em `game.js` (o workflow Testes confere que batem).

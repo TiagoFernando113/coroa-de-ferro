@@ -1,4 +1,4 @@
 {
-  "versao": 5,
-  "arquivos": ["index.html", "style.css", "game.js"]
+  "versao": 6,
+  "arquivos": ["index.html", "style.css", "game.js", "ui.js", "atlas.png", "atlas.json"]
 }

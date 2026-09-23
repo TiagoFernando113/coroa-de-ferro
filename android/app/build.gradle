@@ -47,7 +47,7 @@ android {
 
 def copiarJogo = tasks.register('copiarJogo', Copy) {
     from(rootProject.file('..')) {
-        include 'index.html', 'style.css', 'game.js', 'versao.json'
+        include 'index.html', 'style.css', 'game.js', 'ui.js', 'atlas.png', 'atlas.json', 'versao.json'
     }
     into(layout.buildDirectory.dir('jogo-assets/jogo'))
 }

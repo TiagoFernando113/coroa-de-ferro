@@ -10,34 +10,50 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header id="top">
-  <div id="resbar"></div>
-  <div id="meta"></div>
-</header>
+<canvas id="scene"></canvas>
 
-<main id="view"></main>
+<header id="top"><div id="resbar"></div></header>
 
-<section id="mapWrap" hidden>
-  <canvas id="map"></canvas>
-  <div id="mapTools">
-    <button data-act="mapZoom" data-v="1.25">＋</button>
-    <button data-act="mapZoom" data-v="0.8">－</button>
-    <button data-act="mapHome">🏰</button>
-  </div>
-  <div id="mapPanel"></div>
-</section>
+<div id="hudL">
+  <div id="perfil"></div>
+  <button id="quest" data-act="quest"></button>
+  <div id="marchas"></div>
+</div>
 
-<nav id="tabs">
-  <button data-tab="cidade" class="on"><b>🏰</b>Cidade<i id="qdot" hidden></i></button>
-  <button data-tab="mapa"><b>🗺️</b>Mapa</button>
-  <button data-tab="exercito"><b>⚔️</b>Exército</button>
-  <button data-tab="alianca"><b>🤝</b>Aliança</button>
-  <button data-tab="ranking"><b>🏆</b>Ranking</button>
+<div id="hudR">
+  <button class="rb" data-act="panel" data-p="missoes"><b>📜</b><span>Missões</span><i id="qdot" hidden></i></button>
+  <button class="rb" data-act="shield"><b>🛡️</b><span>Escudo</span></button>
+</div>
+
+<div id="alerta" hidden></div>
+
+<div id="tools">
+  <button data-act="zoom" data-v="1.2" aria-label="Aproximar">＋</button>
+  <button data-act="zoom" data-v="0.83" aria-label="Afastar">－</button>
+  <button data-act="home" aria-label="Centralizar">🎯</button>
+</div>
+<div id="coords"></div>
+
+<div id="news"></div>
+<div id="sheet" class="card" hidden></div>
+
+<nav id="nav">
+  <button data-act="panel" data-p="exercito"><b>⚔️</b>Exército</button>
+  <button data-act="panel" data-p="pesquisa"><b>📜</b>Pesquisa</button>
+  <button data-act="panel" data-p="alianca"><b>🤝</b>Aliança</button>
+  <button data-act="panel" data-p="ranking"><b>🏆</b>Ranking</button>
+  <button id="tgl" class="big" data-act="toggle"><b>🗺️</b>Mapa</button>
 </nav>
+
+<section id="panel" hidden>
+  <header><h2 id="ptitle"></h2><button class="x" data-act="closePanel" aria-label="Fechar">✕</button></header>
+  <div id="pbody"></div>
+</section>
 
 <div id="modal" hidden><div class="box" id="modalBox"></div></div>
 <div id="toast"></div>
 
 <script src="game.js"></script>
+<script src="ui.js"></script>
 </body>
 </html>
