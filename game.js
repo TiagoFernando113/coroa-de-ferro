@@ -10,7 +10,7 @@
      No futuro isso roda num servidor e os bots são trocados por pessoas.
    ===================================================================== */
 
-const VERSAO = 4; // igual ao versao.json — sobe a cada entrega; o app baixa sozinho
+const VERSAO = 5; // igual ao versao.json — sobe a cada entrega; o app baixa sozinho
 const SAVE_KEY = 'coroa_save_v2';
 const MAXLV = 20, RMAX = 10, N = 60, CX = 30, CY = 30, NBOTS = 24;
 const RES = ['comida', 'madeira', 'pedra', 'ouro'];
@@ -751,7 +751,7 @@ function vAlianca() {
 
 function vRanking() {
   const rk = ranking();
-  let h = `<div><h2>🏆 Ranking do Reino</h2><div class="card tbw"><table class="tb"><tr class="mut"><td>#</td><td>Governante</td><td>🏰</td><td>⚡ Poder</td></tr>`;
+  let h = `<div><h2>🏆 Ranking do Reino</h2><div class="card quest"><b>Sua posição: #${rankOf(me)} de ${rk.length}</b> · ⚡ ${fmt(power(me))}</div><div class="card tbw"><table class="tb"><tr class="mut"><td>#</td><td>Governante</td><td>🏰</td><td>⚡ Poder</td></tr>`;
   rk.forEach((k, i) => {
     const a = k.al && alById(k.al);
     h += `<tr class="${k === me ? 'meRow' : ''}"><td>${i + 1}</td><td>${a ? `<span style="color:${a.cor}">[${a.tag}]</span> ` : ''}${esc(k.nome)}${k.bot ? ' <span class="tag">bot</span>' : ''}</td><td>${k.b.castelo}</td><td>${fmt(power(k))}</td></tr>`;
