@@ -33,8 +33,22 @@ android {
         }
     }
 
+    // O jogo (index.html, style.css, game.js, versao.json da raiz) vai DENTRO do APK:
+    // abre sem internet. Atualizações chegam depois pelo próprio app.
+    sourceSets {
+        main.assets.srcDir(layout.buildDirectory.dir('jogo-assets'))
+    }
+
     lint {
         checkReleaseBuilds false
         abortOnError false
     }
 }
+
+def copiarJogo = tasks.register('copiarJogo', Copy) {
+    from(rootProject.file('..')) {
+        include 'index.html', 'style.css', 'game.js', 'versao.json'
+    }
+    into(layout.buildDirectory.dir('jogo-assets/jogo'))
+}
+preBuild.dependsOn(copiarJogo)

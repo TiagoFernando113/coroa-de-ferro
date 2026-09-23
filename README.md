@@ -14,10 +14,11 @@ Jogo de estratégia de reino no navegador (estilo Kingshot / Rise of Kingdoms). 
 
 Rodar: abrir `index.html` (ou GitHub Pages).
 
-## App Android (desenvolvimento)
+## App Android
 
-`android/` é um app mínimo que abre o jogo publicado no GitHub Pages — toda mudança enviada aparece no app ao fechar e abrir, sem reinstalar.
-O workflow `APK` monta e publica em Releases quando `android/` muda. Link fixo:
+Como no Cyron: o jogo vai **dentro do APK** (abre sem internet). A cada abertura o app confere `versao.json` no repositório (ramo de desenvolvimento, depois `main`); se a versão for maior, baixa os arquivos e recarrega. Para entregar uma mudança: subir `versao` em `versao.json` e `VERSAO` em `game.js` (o workflow Testes confere que batem).
+
+APK novo só quando `android/` muda (workflow `APK`, publica em Releases). Link fixo:
 https://github.com/TiagoFernando113/coroa-de-ferro/releases/latest/download/CoroaDeFerro.apk
 
-`android/dev.keystore` é uma chave só de desenvolvimento (versionada para todo APK instalar por cima do anterior). Para a Play Store, usar outra chave, fora do repositório.
+`android/dev.keystore` é chave só de desenvolvimento (versionada para todo APK instalar por cima do anterior). Para a Play Store, usar outra chave fora do repositório.
