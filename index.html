@@ -13,28 +13,30 @@
 <body>
 <canvas id="scene"></canvas>
 
-<header id="top"><div id="resbar"></div></header>
+<header id="top">
+  <button id="perfilBtn" data-act="panel" data-p="ranking"><span id="av"></span></button>
+  <div id="topR">
+    <div id="row1"><div id="resbar"></div><div id="gem" class="r gem"></div></div>
+    <div id="pw"></div>
+  </div>
+</header>
 
-<div id="hudL">
-  <div id="perfil"></div>
-  <button id="quest" data-act="quest"></button>
-  <div id="marchas"></div>
-</div>
+<div id="marchas" hidden></div>
 
 <div id="hudR">
-  <button class="rb" data-act="panel" data-p="missoes"><b><i class="ico ico-missoes"></i></b><span>Missões</span><i id="qdot" hidden></i></button>
+  <button class="rb" data-act="panel" data-p="missoes"><b><i class="ico ico-missoes"></i></b><span>Eventos</span><i id="qdot" hidden></i></button>
   <button class="rb" data-act="shield"><b><i class="ico ico-escudo"></i></b><span>Escudo</span></button>
+  <button class="rb" data-act="panel" data-p="alianca"><b><i class="ico ico-alianca"></i></b><span>Ajuda</span></button>
 </div>
 
 <div id="alerta" hidden></div>
 
 <div id="tools">
-  <button data-act="zoom" data-v="1.2" aria-label="Aproximar">＋</button>
-  <button data-act="zoom" data-v="0.83" aria-label="Afastar">－</button>
   <button data-act="home" aria-label="Centralizar"><i class="ico ico-alvo"></i></button>
 </div>
 <div id="coords"></div>
 
+<button id="quest" data-act="quest"></button>
 <div id="news"></div>
 <div id="sheet" class="card" hidden></div>
 

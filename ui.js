@@ -103,26 +103,51 @@ function vPesquisa() {
 }
 
 const ago = t => { const m = Math.floor((Date.now() - t) / 60000); return m < 3 ? '🟢 online' : m < 60 ? `há ${m} min` : `há ${Math.floor(m / 60)} h`; };
+let allyTab = null;
 function vAlianca() {
   let h = `<div>`;
   if (!me.al) {
     h += `<p class="mut">Aliados ajudam a acelerar construções e pesquisas e nunca atacam você.</p><div class="list">`;
     for (const a of ALS) {
       const mem = S.K.filter(k => k.al === a.id);
-      h += `<div class="card"><div class="row" style="justify-content:space-between"><div><b style="color:${a.cor}">[${a.tag}] ${a.nome}</b>
-        <div class="mut">👥 ${mem.length} membros · ⚡ ${fmt(mem.reduce((s, k) => s + power(k), 0))}</div></div>
+      h += `<div class="card"><div class="row" style="justify-content:space-between"><div class="row"><span class="brasao" style="--c:${a.cor}">${a.tag}</span><div><b>[${a.tag}] ${a.nome}</b>
+        <div class="mut">${mem.length} membros · Poder ${fmt(mem.reduce((s, k) => s + power(k), 0))}</div></div></div>
         <button class="btn sm" data-act="join" data-id="${a.id}">Entrar</button></div></div>`;
     }
     return h + `</div></div>`;
   }
   const a = alById(me.al), mem = S.K.filter(k => k.al === a.id).sort((x, y) => power(y) - power(x));
-  h += `<div class="card"><b style="color:${a.cor};font-size:17px">[${a.tag}] ${a.nome}</b>
-    <div class="mut">👥 ${mem.length} membros · ⚡ ${fmt(mem.reduce((s, k) => s + power(k), 0))}</div>
-    <div class="row" style="margin-top:8px"><button class="btn sec sm" data-act="leave">Sair da aliança</button></div></div>
-    <h3>Mural</h3><div class="card feed">${S.feed.length ? S.feed.map(f => `<div><b>${esc(f.n)}</b> ${f.txt} <span class="tag">${ago(f.t)}</span></div>`).join('') : '<span class="mut">Ainda quieto por aqui…</span>'}</div>
-    <h3>Membros</h3><div class="card tbw"><table class="tb">`;
-  for (const k of mem) h += `<tr class="${k === me ? 'meRow' : ''}"><td>${esc(k.nome)}${k.bot ? ' <span class="tag">bot</span>' : ''}</td><td>🏰${k.b.castelo}</td><td>⚡${fmt(power(k))}</td><td class="mut">${k === me ? 'você' : ago(k.ai.visto)}</td></tr>`;
-  return h + `</table></div></div>`;
+  const lider = mem[0];
+  if (allyTab) {
+    h += `<button class="btn sec sm" data-act="allyTab" data-t="">← Voltar</button>`;
+    if (allyTab === 'mural') h += `<h3>Mural</h3><div class="card feed">${S.feed.length ? S.feed.map(f => `<div><b>${esc(f.n)}</b> ${f.txt} <span class="tag">${ago(f.t)}</span></div>`).join('') : '<span class="mut">Ainda quieto por aqui…</span>'}</div>`;
+    if (allyTab === 'membros') {
+      h += `<h3>Membros (${mem.length})</h3><div class="card tbw"><table class="tb">`;
+      for (const k of mem) h += `<tr class="${k === me ? 'meRow' : ''}"><td>${k === lider ? '👑 ' : ''}${esc(k.nome)}${k.bot ? ' <span class="tag">bot</span>' : ''}</td><td>🏰${k.b.castelo}</td><td>${fmt(power(k))}</td><td class="mut">${k === me ? 'você' : ago(k.ai.visto)}</td></tr>`;
+      h += `</table></div>`;
+    }
+    if (allyTab === 'ajuda') h += `<h3>Ajuda</h3><div class="card"><p>Cada membro reduz 1% do tempo (mínimo 1 min) da sua construção ou pesquisa.</p>
+      ${me.bq && !me.bq.help ? `<button class="btn" data-act="help" data-k="bq">Pedir ajuda na construção</button>` : '<span class="mut">Nenhuma construção esperando ajuda.</span>'}
+      ${me.rq && !me.rq.help ? `<button class="btn" data-act="help" data-k="rq">Pedir ajuda na pesquisa</button>` : ''}</div>`;
+    if (allyTab === 'territorio') h += `<h3>Território</h3><div class="card"><p>Membros espalhados pelo reino:</p>${mem.map(k => `<div class="mut">${esc(k.nome)} — (${k.x}, ${k.y})</div>`).join('')}</div>`;
+    return h + '</div>';
+  }
+  const pa = mem.reduce((s, k) => s + power(k), 0), rkA = ALS.map(x => S.K.filter(k => k.al === x.id).reduce((s, k) => s + power(k), 0)).sort((x, y) => y - x).indexOf(pa) + 1;
+  h += `<div class="allyTop"><span class="brasao big" style="--c:${a.cor}">${a.tag}</span><div class="card info">
+      <div><b>[${a.tag}] ${a.nome}</b></div>
+      <div class="kv"><span>Líder</span><b>${esc(lider.nome)}</b></div>
+      <div class="kv"><span>Poder</span><b>${fmt(pa)}</b></div>
+      <div class="kv"><span>Membros</span><b>${mem.length}/30</b></div>
+      <div class="kv"><span>Ranking</span><b>#${rkA}</b></div></div></div>
+    <div class="tiles">
+      <button class="tile" data-act="allyTab" data-t="membros"><i class="ico ico-herois"></i><span>Membros</span></button>
+      <button class="tile" data-act="allyTab" data-t="mural"><i class="ico ico-missoes"></i><span>Mural</span>${S.feed.length ? `<em>${Math.min(99, S.feed.length)}</em>` : ''}</button>
+      <button class="tile" data-act="allyTab" data-t="ajuda"><i class="ico ico-alianca"></i><span>Ajuda</span>${(me.bq && !me.bq.help) || (me.rq && !me.rq.help) ? '<em>!</em>' : ''}</button>
+      <button class="tile" data-act="allyTab" data-t="territorio"><i class="ico ico-mapa"></i><span>Território</span></button>
+      <button class="tile" data-act="panel" data-p="ranking"><i class="ico ico-ranking"></i><span>Poder</span></button>
+      <button class="tile" data-act="leave"><i class="ico ico-escudo"></i><span>Sair</span></button>
+    </div>`;
+  return h + '</div>';
 }
 
 function vRanking() {
@@ -202,7 +227,7 @@ const barbSprite = lv => lv >= 10 ? 'barbaro3' : lv >= 5 ? 'barbaro2' : 'barbaro
 /* ---------------- câmera isométrica 2:1 ---------------- */
 const cv = $('#scene'), g = cv.getContext('2d');
 let view = 'cidade';                       // 'cidade' | 'mapa'
-const cams = { cidade: { x: 6.5, y: 6.5, z: 0.82 }, mapa: { x: CX + 0.5, y: CY + 0.5, z: 1 } };
+const cams = { cidade: { x: 11, y: 11.5, z: 0.95 }, mapa: { x: CX + 0.5, y: CY + 0.5, z: 0.75 } };
 let W = 0, H = 0, DPR = 1;
 const cam = () => cams[view];
 const TW = () => 64 * cam().z, TH = () => 32 * cam().z;
@@ -279,14 +304,26 @@ function badge(sx, sy, txt, bg, fg = '#fff') {
 
 /* ---------------- cena: MAPA DO MUNDO ---------------- */
 const MAP_U = 1.9;
+const BIOMAS = Array.from({ length: 70 }, (_, i) => ({ x: hash(i, 3) * N, y: hash(7, i) * N, r: 3 + hash(i, i) * 6,
+  c: ['rgba(40,90,30,.35)', 'rgba(150,170,70,.28)', 'rgba(160,130,80,.22)', 'rgba(60,110,50,.3)'][i % 4] }));
 let sel = null; // {city:id} | {id: tileId}
 function drawMap() {
   const now = Date.now();
   ground(0, 0, N, N, '#2d4f25', 'rgba(30,50,20,.8)');
+  // manchas de terreno (campos, bosques escuros, terra seca) — fixas no mundo
+  for (const b of BIOMAS) {
+    const [sx, sy] = w2s(b.x, b.y), rx = b.r * TW() / 1.4, ry = b.r * TH() / 1.4;
+    if (sx + rx < 0 || sx - rx > W || sy + ry < 0 || sy - ry > H) continue;
+    const gr = g.createRadialGradient(sx, sy, 0, sx, sy, rx);
+    gr.addColorStop(0, b.c); gr.addColorStop(1, b.c.replace(/[\d.]+\)$/, '0)'));
+    g.save(); g.translate(sx, sy); g.scale(1, ry / rx); g.translate(-sx, -sy);
+    g.fillStyle = gr; g.beginPath(); g.arc(sx, sy, rx, 0, 7); g.fill(); g.restore();
+  }
   // territórios das cidades
   for (const k of S.K) {
     const col = k === me ? '#f2d16b' : k.al ? alById(k.al).cor : '#cfcfcf';
-    diamond(k.x + 0.5, k.y + 0.5, 2.4, col + '22', col + 'aa', [6, 5]);
+    const forte = k === me || (me.al && k.al === me.al);
+    diamond(k.x + 0.5, k.y + 0.5, 2.4, col + (forte ? '26' : '14'), forte ? col + 'aa' : null, [6, 5]);
   }
   if (sel) {
     const t = sel.city ? kById(sel.city) : tileById(sel.id);
@@ -343,88 +380,115 @@ function drawMap() {
   for (const t of S.map) {
     const [sx, sy] = w2s(t.x + 0.5, t.y + 0.5);
     if (sx < -50 || sx > W + 50 || sy < -50 || sy > H + 50) continue;
-    if (t.k === 'bar') plate(sx, sy + TH() * 0.55, t.lv > me.st.barbMax + 1 ? '🔒' : t.lv, null);
-    else if (cam().z > 0.7) badge(sx, sy + TH() * 0.55, t.busy ? '⛏' : t.lv, t.busy ? '#2f8f3a' : '#3a6ea5');
+    if (t.k === 'bar') { if (t.lv <= me.st.barbMax + 1) plate(sx, sy + TH() * 0.55, t.lv, null); }
+    else if (cam().z > 0.9) badge(sx, sy + TH() * 0.55, t.busy ? '⛏' : t.lv, t.busy ? '#2f8f3a' : '#3a6ea5');
   }
   const [wx, wy] = [Math.floor(cam().x), Math.floor(cam().y)];
   $('#coords').textContent = `X: ${wx}  Y: ${wy}`;
 }
 
 /* ---------------- cena: CIDADE ---------------- */
-const CITY_N = 13, GATE = [6.5, 12.75];
-const SLOTS = { castelo: [6.5, 6.5], academia: [3, 3], quartel: [6.5, 2.4], armazem: [10, 3], serraria: [2.4, 6.5],
-  pedreira: [10.6, 6.3], fazenda: [3, 10], mina: [4.9, 10.9], hospital: [10, 10], muralha: GATE };
+// Terreno grande, construções bem separadas (cada uma na sua base), nada por cima de nada.
+const CITY_N = 22, GATE = [11, 21.75];
+const SLOTS = { castelo: [11, 11], academia: [5, 5.5], quartel: [11, 4.2], armazem: [17, 5.5], serraria: [4.3, 11.5],
+  pedreira: [17.7, 11], fazenda: [4.8, 17], hospital: [9.6, 17.6], mina: [16.6, 16.8], muralha: GATE };
 const BSPR = { fazenda: 'b_fazenda', serraria: 'b_serraria', pedreira: 'b_pedreira', mina: 'b_mina', armazem: 'b_armazem',
   quartel: 'b_quartel', hospital: 'b_hospital', academia: 'b_academia' };
-// casas e enfeites: aparecem aos poucos conforme o castelo cresce
-const DECOR = [[8.6, 9.2, 'barraca1'], [4.5, 8.7, 'barraca2'], [8.4, 11.1, 'fonte'], [1.3, 1.3, 'casa1'], [11.7, 1.4, 'casa4'],
-  [4.8, 1.2, 'casa2'], [8.4, 1.2, 'casa3'], [1.2, 4.7, 'casa2'], [11.8, 4.6, 'casa1'], [1.2, 8.4, 'casa3'], [11.8, 8.4, 'casa2'],
-  [1.4, 11.7, 'casa4'], [11.6, 11.6, 'casa1'], [8.2, 4.5, 'carroca'], [4.8, 4.4, 'lampiao'], [8.6, 8.3, 'lampiao'], [5.2, 12.2, 'casa3'], [11.9, 10.3, 'casa2']];
-const FOLK = Array.from({ length: 16 }, (_, i) => ({ to: Object.keys(SLOTS)[1 + (i % 9)], sp: 9000 + (i * 1373) % 7000, ph: (i * 0.137) % 1,
-  roupa: ['#b8452f', '#3f6fb0', '#6d8f3a', '#8a5a2b', '#c9a23a', '#7a4f9a'][i % 6], off: ((i * 37) % 10) / 25 - 0.2 }));
+// casas e enfeites nos vãos (aparecem conforme o castelo cresce)
+const DECOR = [[14, 14.3, 'fonte'], [13.6, 18.4, 'barraca1'], [7.6, 13.9, 'barraca2'], [2, 2, 'casa1'], [20, 2.2, 'casa4'],
+  [8, 1.6, 'casa2'], [14, 1.6, 'casa3'], [1.6, 8, 'casa2'], [20.4, 8, 'casa1'], [1.6, 14.5, 'casa3'], [20.4, 14.2, 'casa2'],
+  [2, 20, 'casa4'], [20, 20, 'casa1'], [14.2, 8, 'carroca'], [8, 8, 'lampiao'], [14, 13, 'lampiao'], [6.8, 20.3, 'casa3'], [15.4, 20.3, 'casa2'],
+  [8.2, 3.2, 'lampiao'], [20.6, 17.4, 'casa3'], [1.4, 17.2, 'casa1']];
+const FOLK = Array.from({ length: 22 }, (_, i) => ({ to: Object.keys(SLOTS)[1 + (i % 9)], sp: 11000 + (i * 1373) % 8000, ph: (i * 0.137) % 1,
+  roupa: ['#b8452f', '#3f6fb0', '#6d8f3a', '#8a5a2b', '#c9a23a', '#7a4f9a'][i % 6], off: ((i * 37) % 10) / 30 - 0.15 }));
+// estrada curva: ponto de controle desviado para o lado (sempre o mesmo por construção)
+function roadPt(id, p) {
+  const [ax, ay] = SLOTS.castelo, [bx, by] = SLOTS[id], k = (hash(bx * 7, by * 3) - 0.5) * 3;
+  const mx = (ax + bx) / 2 - (by - ay) / 10 * k, my = (ay + by) / 2 + (bx - ax) / 10 * k, q = 1 - p;
+  return [q * q * ax + 2 * q * p * mx + p * p * bx, q * q * ay + 2 * q * p * my + p * p * by];
+}
+let hits = []; // balões tocáveis desenhados neste quadro
+function bubble(sx, sy, icon, act, extra) {
+  const r = 17 * Math.min(1.2, Math.max(0.8, cam().z));
+  g.fillStyle = 'rgba(0,0,0,.25)'; g.beginPath(); g.ellipse(sx, sy + r * 1.35, r * 0.5, r * 0.18, 0, 0, 7); g.fill();
+  g.fillStyle = '#fffaf0'; g.strokeStyle = '#b9a47c'; g.lineWidth = 2;
+  roundRect(sx - r, sy - r, r * 2, r * 2, r * 0.55); g.fill(); g.stroke();
+  g.beginPath(); g.moveTo(sx - r * 0.3, sy + r - 1); g.lineTo(sx, sy + r * 1.3); g.lineTo(sx + r * 0.3, sy + r - 1); g.closePath(); g.fill();
+  g.font = `${r * 1.15}px system-ui,"Apple Color Emoji","Segoe UI Emoji",sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#000';
+  g.fillText(icon, sx, sy + 1);
+  if (extra) { g.font = `800 ${r * 0.62}px system-ui`; g.fillStyle = '#fff'; g.strokeStyle = '#3a2412'; g.lineWidth = 3; g.strokeText(extra, sx, sy + r * 1.75); g.fillText(extra, sx, sy + r * 1.75); }
+  hits.push({ x: sx - r, y: sy - r, w: r * 2, h: r * 2.4, act });
+}
 function drawCity() {
   const now = Date.now();
+  hits = [];
   ground(0, 0, CITY_N, CITY_N, '#2d4f25', 'rgba(60,40,20,.5)');
-  // plantações perto da fazenda
-  if (me.b.fazenda) for (const [fx, fy] of [[1.4, 10.4], [3.4, 11.9]]) {
-    diamond(fx, fy, 0.7, '#8a6a3a');
-    g.strokeStyle = '#9fbf4a'; g.lineWidth = Math.max(1, 2 * cam().z);
-    for (let k = -0.55; k <= 0.55; k += 0.18) { const [a, b] = w2s(fx - 0.6, fy + k), [c, d] = w2s(fx + 0.6, fy + k); g.beginPath(); g.moveTo(a, b); g.lineTo(c, d); g.stroke(); }
-  }
-  // caminhos de terra (castelo → construções e portão)
-  g.lineCap = 'round';
-  for (const pass of [['rgba(110,80,45,.8)', 0.7], ['rgba(190,150,95,.95)', 0.5]])
+  // estradas curvas até cada construção
+  g.lineCap = 'round'; g.lineJoin = 'round';
+  for (const [col, wd] of [['rgba(120,90,55,.75)', 0.95], ['rgba(205,170,120,.95)', 0.7]])
     for (const id in SLOTS) if (id !== 'castelo') {
-      const [a, b] = w2s(...SLOTS.castelo), [c, d] = w2s(...SLOTS[id]);
-      g.strokeStyle = pass[0]; g.lineWidth = TH() * pass[1]; g.beginPath(); g.moveTo(a, b); g.lineTo(c, d); g.stroke();
+      g.strokeStyle = col; g.lineWidth = TH() * wd; g.beginPath();
+      for (let i = 0; i <= 16; i++) { const [sx, sy] = w2s(...roadPt(id, i / 16)); i ? g.lineTo(sx, sy) : g.moveTo(sx, sy); }
+      g.stroke();
     }
-  if (sel && sel.b) diamond(...SLOTS[sel.b], sel.b === 'castelo' ? 2.2 : 1.2, 'rgba(255,255,255,.2)', '#ffe08a');
+  // plantações perto da fazenda
+  if (me.b.fazenda) for (const [fx, fy] of [[2.2, 15.4], [2.6, 18.6], [6.8, 19.6]]) {
+    diamond(fx, fy, 0.9, '#8a6a3a');
+    g.strokeStyle = '#a8c850'; g.lineWidth = Math.max(1, 2.5 * cam().z);
+    for (let k = -0.75; k <= 0.75; k += 0.22) { const [a, b] = w2s(fx - 0.8, fy + k), [c, d] = w2s(fx + 0.8, fy + k); g.beginPath(); g.moveTo(a, b); g.lineTo(c, d); g.stroke(); }
+  }
+  // base de pedra de cada construção
+  for (const id in SLOTS) if (id !== 'muralha') {
+    const [x, y] = SLOTS[id], [sx, sy] = w2s(x, y), r = id === 'castelo' ? 3.1 : 1.9;
+    g.fillStyle = 'rgba(0,0,0,.18)'; g.beginPath(); g.ellipse(sx, sy + 3, TW() * r * 0.5, TH() * r * 0.5, 0, 0, 7); g.fill();
+    g.fillStyle = me.b[id] || id === 'castelo' ? '#d9c7a0' : 'rgba(150,110,65,.8)'; g.strokeStyle = '#a58c62'; g.lineWidth = 2;
+    g.beginPath(); g.ellipse(sx, sy, TW() * r * 0.5, TH() * r * 0.5, 0, 0, 7); g.fill(); g.stroke();
+  }
+  if (sel && sel.b && sel.b !== 'muralha') { const [sx, sy] = w2s(...SLOTS[sel.b]), r = sel.b === 'castelo' ? 3.1 : 1.9; g.strokeStyle = '#ffe08a'; g.lineWidth = 3; g.beginPath(); g.ellipse(sx, sy, TW() * r * 0.5, TH() * r * 0.5, 0, 0, 7); g.stroke(); }
   const objs = [];
-  // floresta fora da muralha
-  for (let x = -5; x < CITY_N + 5; x++) for (let y = -5; y < CITY_N + 5; y++) {
+  for (let x = -6; x < CITY_N + 6; x++) for (let y = -6; y < CITY_N + 6; y++) {
     const inside = x >= 0 && y >= 0 && x < CITY_N && y < CITY_N;
-    if (!inside && hash(x + 99, y + 7) < 0.6) objs.push({ d: x + y, f: () => sprite(['arvore', 'arvore2', 'arvore3', 'arvore', 'rocha'][Math.floor(hash(y, x + 3) * 5)], x + 0.5, y + 0.5, 1.5) });
+    if (!inside && hash(x + 99, y + 7) < 0.55) objs.push({ d: x + y, f: () => sprite(['arvore', 'arvore2', 'arvore3', 'arvore', 'rocha'][Math.floor(hash(y, x + 3) * 5)], x + 0.5, y + 0.5, 1.2) });
   }
-  // muralha em volta (segmentos a cada ~0,65 tile), torres nos cantos
-  const e0 = 0.25, e1 = CITY_N - 0.25, st = 0.65;
-  for (let t = e0 + st; t < e1 - 0.3; t += st) {
-    objs.push({ d: t + e0, f: () => sprite('muro_x', t, e0, 1.55) });          // fundo
-    objs.push({ d: e0 + t, f: () => sprite('muro_z', e0, t, 1.55) });          // esquerda
-    objs.push({ d: e1 + t, f: () => sprite('muro_z', e1, t, 1.55) });          // direita (frente)
-    if (Math.abs(t - GATE[0]) > 0.7) objs.push({ d: t + e1, f: () => sprite('muro_x', t, e1, 1.55) }); // frente, com vão do portão
+  const e0 = 0.25, e1 = CITY_N - 0.25, st = 0.83;
+  for (let t = e0 + st; t < e1 - 0.4; t += st) {
+    objs.push({ d: t + e0, f: () => sprite('muro_x', t, e0, 1.2) });
+    objs.push({ d: e0 + t, f: () => sprite('muro_z', e0, t, 1.2) });
+    objs.push({ d: e1 + t, f: () => sprite('muro_z', e1, t, 1.2) });
+    if (Math.abs(t - GATE[0]) > 0.9) objs.push({ d: t + e1, f: () => sprite('muro_x', t, e1, 1.2) });
   }
-  for (const [x, y] of [[e0, e0], [e1, e0], [e0, e1], [e1, e1]]) objs.push({ d: x + y + 0.1, f: () => sprite('muro_torre', x, y, 1.55) });
-  objs.push({ d: GATE[0] + GATE[1] + 0.1, f: () => sprite('muro_portao', GATE[0], GATE[1], 1.55) });
-  // casas e enfeites
-  const nDec = Math.min(DECOR.length, 3 + me.b.castelo * 2);
-  for (const [x, y, n] of DECOR.slice(0, nDec)) objs.push({ d: x + y, f: () => sprite(n, x, y, n.startsWith('casa') ? 1.7 : 1.6) });
-  // construções
+  for (const [x, y] of [[e0, e0], [e1, e0], [e0, e1], [e1, e1], [e0, 11], [11, e0], [e1, 11]]) objs.push({ d: x + y + 0.1, f: () => sprite('muro_torre', x, y, 1.2) });
+  objs.push({ d: GATE[0] + GATE[1] + 0.1, f: () => sprite('muro_portao', GATE[0], GATE[1], 1.2) });
+  const nDec = Math.min(DECOR.length, 4 + me.b.castelo * 2);
+  for (const [x, y, n] of DECOR.slice(0, nDec)) objs.push({ d: x + y, f: () => sprite(n, x, y, n.startsWith('casa') ? 1.25 : 1.2) });
   for (const id in SLOTS) if (id !== 'muralha') objs.push({ d: SLOTS[id][0] + SLOTS[id][1], f: () => {
     const [x, y] = SLOTS[id];
-    if (id === 'castelo') sprite(citySprite(me), x, y, 1.3);
-    else if (me.b[id]) sprite(BSPR[id], x, y, 1.55);
-    else { diamond(x, y, 0.8, 'rgba(120,85,45,.55)', 'rgba(233,185,73,.6)', [5, 4]); sprite('rocha', x - 0.4, y + 0.3, 2.6); }
+    if (id === 'castelo') sprite(citySprite(me), x, y, 0.95);
+    else if (me.b[id]) sprite(BSPR[id], x, y, 0.82);
+    else sprite('rocha', x - 0.3, y + 0.2, 1.8);
   } });
-  // moradores andando pelos caminhos (vai e volta)
   for (const f of FOLK) {
-    const [ax, ay] = SLOTS.castelo, [bx, by] = SLOTS[f.to];
-    let p = ((now / f.sp) + f.ph) % 2; p = p > 1 ? 2 - p : p; p = 0.25 + p * 0.6;
-    const x = ax + (bx - ax) * p + f.off, y = ay + (by - ay) * p - f.off;
-    objs.push({ d: x + y, f: () => person(x, y, f.roupa, now / 120 + f.ph * 10) });
+    let p = ((now / f.sp) + f.ph) % 2; p = p > 1 ? 2 - p : p; p = 0.2 + p * 0.65;
+    const [x, y] = roadPt(f.to, p);
+    objs.push({ d: x + y, f: () => person(x + f.off, y - f.off, f.roupa, now / 120 + f.ph * 10) });
   }
   objs.sort((a, b) => a.d - b.d);
   for (const o of objs) o.f();
-  // selos: nível, obra, pode evoluir
+  // nível na base + balão de ação (estilo Kingshot); o nome só aparece ao tocar
+  const bh = { castelo: 4.4, academia: 3.2, quartel: 1.9, armazem: 2.2, serraria: 2.2, pedreira: 1.6, fazenda: 2.7, hospital: 2.8, mina: 1.6, muralha: 2.8 };
   for (const id in SLOTS) {
     const [x, y] = SLOTS[id], [sx, sy] = w2s(x, y), lv = me.b[id];
-    const oy = sy + TH() * (id === 'castelo' ? 1.9 : id === 'muralha' ? 0.5 : 0.9);
-    if (me.bq && me.bq.id === id) {
-      const p = Math.min(1, (now - me.bq.start) / (me.bq.end - me.bq.start));
-      badge(sx, sy - TH() * 2.2, '🔨', '#c98a1c');
-      g.fillStyle = 'rgba(0,0,0,.6)'; roundRect(sx - 30, oy + 12, 60, 7, 3); g.fill();
-      g.fillStyle = '#6ee06a'; roundRect(sx - 30, oy + 12, 60 * p, 7, 3); g.fill();
-    } else if (!me.bq && !canBuild(me, id) && canPay(me, bcost(id, lv + 1))) badge(sx + 34, oy - 4, '⬆', '#2f8f3a');
-    if (lv) plate(sx, oy, lv, B[id].n, '#f1e6d0'); else plate(sx, oy, '+', B[id].n + (canBuild(me, id) ? ' 🔒' : ''), '#c9b99a');
+    const base = sy + TH() * (id === 'castelo' ? 1.45 : id === 'muralha' ? 0.3 : 0.85);
+    if (lv) plate(sx, base, lv, null);
+    const top = sy - TH() * bh[id] * (id === 'castelo' ? (0.65 + tierOf(lv) * 0.27) : 1.28);
+    let b = null;
+    if (me.bq && me.bq.id === id) b = ['🔨', 'sheet:' + id, ftime(me.bq.end - now)];
+    else if (id === 'quartel' && lv && !me.tq) b = ['⚔️', 'train'];
+    else if (id === 'quartel' && me.tq) b = ['⏳', 'panel:exercito', ftime(me.tq.end - now)];
+    else if (id === 'academia' && lv && !me.rq) b = ['📖', 'panel:pesquisa'];
+    else if (id === 'hospital' && sum(me.fer) && !me.hq) b = ['➕', 'panel:exercito'];
+    else if (!me.bq && !canBuild(me, id) && canPay(me, bcost(id, lv + 1))) b = [lv ? '⬆️' : '🏗️', 'sheet:' + id];
+    if (b) bubble(sx, top, ...b);
   }
   $('#coords').textContent = '';
 }
@@ -465,17 +529,25 @@ function person(x, y, roupa, t) {
   cv.addEventListener('pointercancel', e => pts.delete(e.pointerId));
   cv.addEventListener('wheel', e => { e.preventDefault(); zoom(e.deltaY < 0 ? 1.1 : 0.9); }, { passive: false });
 })();
-function zoom(f) { const c = cam(); c.z = Math.min(2.2, Math.max(view === 'mapa' ? 0.35 : 0.6, c.z * f)); }
+function zoom(f) { const c = cam(); c.z = Math.min(2, Math.max(view === 'mapa' ? 0.35 : 0.5, c.z * f)); }
 function clampCam() { const c = cam(), n = view === 'mapa' ? N : CITY_N; c.x = Math.min(n, Math.max(0, c.x)); c.y = Math.min(n, Math.max(0, c.y)); }
 function tap(sx, sy) {
   const [wx, wy] = s2w(sx, sy);
   if (view === 'cidade') {
+    const hb = hits.find(h => sx >= h.x && sx <= h.x + h.w && sy >= h.y && sy <= h.y + h.h);
+    if (hb) {
+      const [k, v] = hb.act.split(':');
+      if (k === 'sheet') { sel = { b: v }; renderSheet(); }
+      else if (k === 'panel') openPanel(v);
+      else if (k === 'train') trainModal(TT.filter(t => me.b.quartel >= T[t].req).pop());
+      return;
+    }
     let best = null, bd = 1e9;
     for (const id in SLOTS) {
-      const [x, y] = SLOTS[id], d = Math.hypot(x - wx, y - wy) - (id === 'castelo' ? 1.2 : 0);
+      const [x, y] = SLOTS[id], d = Math.hypot(x - wx, y - wy) - (id === 'castelo' ? 1.8 : 0.4);
       if (d < bd) { bd = d; best = id; }
     }
-    sel = bd < 1.6 ? { b: best } : null;
+    sel = bd < 1.7 ? { b: best } : null;
   } else {
     let best = null, bd = 1e9;
     for (const k of S.K) { const d = Math.hypot(k.x + 0.5 - wx, k.y + 0.5 - wy) - 0.3 * tierOf(k.b.castelo); if (d < bd) { bd = d; best = k; } }
@@ -540,14 +612,16 @@ function renderSheet() {
 /* ---------------- HUD ---------------- */
 function renderTop() {
   const c = cap(me), now = Date.now();
-  $('#resbar').innerHTML = RES.map(r => `<div class="r ${me.res[r] >= c ? 'full' : ''}"><i class="ico ico-${r}"></i><b>${fmt(me.res[r])}</b></div>`).join('') +
-    `<div class="r gem"><i class="ico ico-gema"></i><b>${fmt(me.gemas)}</b></div>`;
-  $('#perfil').innerHTML = `<div class="av"><i class="ico ico-coroa"></i><span class="avl">${me.b.castelo}</span></div><div><div class="pw">Poder ${fmt(power(me))}</div><div class="rk">#${rankOf(me)} · ${alTag(me) || 'sem aliança'}${shielded(me, now) ? ` · 🛡️<span class="cd" data-end="${me.escudo}">${ftime(me.escudo - now)}</span>` : ''}</div></div>`;
+  $('#av').innerHTML = `<i class="ico ico-coroa"></i><span class="avl">${me.b.castelo}</span>`;
+  $('#pw').innerHTML = `<i class="ico ico-exercito"></i>${fmt(power(me))}${shielded(me, now) ? ` <span class="esc">🛡️<span class="cd" data-end="${me.escudo}">${ftime(me.escudo - now)}</span></span>` : ''}`;
+  $('#resbar').innerHTML = RES.map(r => `<div class="r ${me.res[r] >= c ? 'full' : ''}"><i class="ico ico-${r}"></i><b>${fmt(me.res[r])}</b></div>`).join('');
+  $('#gem').innerHTML = `<i class="ico ico-gema"></i><b>${fmt(me.gemas)}</b>`;
   const q = Q[S.q];
-  $('#quest').innerHTML = q ? `<b><i class="ico ico-missoes"></i></b><span>${q.t}</span>${q.ok() ? '<em>Resgatar</em>' : ''}` : '<b>👑</b><span>Missões concluídas</span>';
+  $('#quest').innerHTML = q ? `<i class="ico ico-missoes"></i><span>${q.t}</span>${q.ok() ? '<em>Resgatar</em>' : ''}` : '<i class="ico ico-coroa"></i><span>Missões concluídas</span>';
   $('#quest').classList.toggle('ok', !!(q && q.ok()));
   const ms = marchesOf(me);
-  $('#marchas').innerHTML = `<div class="mh" data-act="marchas">▾ Marchando ${ms.length}/${maxMarches(me)}</div>` + ms.map(m => {
+  $('#marchas').hidden = !ms.length;
+  $('#marchas').innerHTML = `<div class="mh" data-act="marchas">Marchando ${ms.length}/${maxMarches(me)} ▾</div>` + ms.map(m => {
     const f = { ida: m.tipo === 'col' ? 'Indo coletar' : 'Indo atacar', col: 'Coletando', volta: 'Voltando' }[m.fase];
     return `<div class="mi"><span class="mic">${m.tipo === 'col' ? '⛏' : '⚔️'}</span><div class="mt"><b>${f}</b><div class="bar"><i class="pb" data-s="${m.start}" data-e="${m.end}"></i></div><span class="cd" data-end="${m.end}">${ftime(m.end - now)}</span></div>
       ${m.fase !== 'volta' ? `<button class="mr" data-act="recall" data-id="${m.id}" aria-label="Chamar de volta">↩</button>` : ''}</div>`;
@@ -556,8 +630,8 @@ function renderTop() {
   $('#alerta').hidden = !inc;
   if (inc) $('#alerta').innerHTML = `⚠️ Ataque de ${esc(kById(inc.k).nome)} em <b class="cd" data-end="${inc.end}">${ftime(inc.end - now)}</b>`;
   const n = S.feed[0] || S.rel[0];
-  $('#news').innerHTML = n ? (S.feed[0] ? `<b>Aliança:</b> ${esc(n.n)} ${n.txt}` : `<b>Relatório:</b> ${n.titulo}`) : '<b>Dica:</b> toque nas construções para evoluir.';
-  $('#tgl').innerHTML = view === 'cidade' ? '<b><i class="ico ico-mapa"></i></b>Mapa' : '<b><i class="ico ico-cidade"></i></b>Cidade';
+  $('#news').innerHTML = n ? (S.feed[0] ? `<b>[${alTag(me).slice(1, -1)}] ${esc(n.n)}:</b> ${n.txt}` : `<b>Relatório:</b> ${n.titulo}`) : '<b>Dica:</b> toque nos balões em cima das construções.';
+  $('#tgl').innerHTML = view === 'cidade' ? '<b><i class="ico ico-mapa"></i></b>Mundo' : '<b><i class="ico ico-cidade"></i></b>Cidade';
   $('#qdot').hidden = !(Q[S.q] && Q[S.q].ok());
 }
 function timers() {
@@ -581,7 +655,7 @@ function vMissoes() {
 }
 const PANELS = { exercito: ['⚔️ Exército', vExercito], pesquisa: ['📜 Academia', vPesquisa], alianca: ['🤝 Aliança', vAlianca], ranking: ['🏆 Ranking', vRanking], missoes: ['🎯 Missões', vMissoes] };
 let panel = null;
-function openPanel(p) { panel = p; sel = null; renderSheet(); $('#panel').hidden = false; $('#pbody').scrollTop = 0; renderPanel(); }
+function openPanel(p) { panel = p; allyTab = null; sel = null; renderSheet(); $('#panel').hidden = false; $('#pbody').scrollTop = 0; renderPanel(); }
 function closePanel() { panel = null; $('#panel').hidden = true; }
 function renderPanel() {
   if (!panel) return;
@@ -624,7 +698,8 @@ document.addEventListener('click', e => {
     case 'recall': recall(me, +d.id, now); break;
     case 'claim': claim(); break;
     case 'join': joinAlliance(me, +d.id); toast(`🤝 Bem-vindo à ${alById(+d.id).nome}!`); break;
-    case 'leave': me.al = null; S.feed = []; break;
+    case 'leave': me.al = null; S.feed = []; allyTab = null; break;
+    case 'allyTab': allyTab = d.t || null; break;
     case 'panel': openPanel(d.p); break;
     case 'closePanel': closePanel(); break;
     case 'toggle': setView(view === 'cidade' ? 'mapa' : 'cidade'); break;
@@ -639,7 +714,7 @@ document.addEventListener('click', e => {
     }
     case 'unsel': sel = null; break;
     case 'zoom': zoom(+d.v); return;
-    case 'home': if (view === 'mapa') { cams.mapa.x = me.x + 0.5; cams.mapa.y = me.y + 0.5; sel = { city: me.id }; } else { cams.cidade.x = cams.cidade.y = 6.5; } break;
+    case 'home': if (view === 'mapa') { cams.mapa.x = me.x + 0.5; cams.mapa.y = me.y + 0.5; sel = { city: me.id }; } else { cams.cidade.x = 11; cams.cidade.y = 11.5; } break;
     case 'marchas': $('#marchas').classList.toggle('min'); return;
     case 'reset':
       if (d.sure) { newGame(); toast('Novo reino fundado.'); closePanel(); setView('cidade'); break; }
