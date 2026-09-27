@@ -1,5 +1,5 @@
 {
-  "versao": 9,
+  "versao": 10,
   "arquivos": [
     "index.html",
     "icones.css",
@@ -8,6 +8,8 @@
     "ui.js",
     "boss.js",
     "atlas.png",
-    "atlas.json"
+    "atlas.json",
+    "chars.png",
+    "chars.json"
   ]
 }

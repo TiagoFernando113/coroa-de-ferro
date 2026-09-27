@@ -24,6 +24,10 @@ sh tools/sprites/baixar-kits.sh
 node tools/sprites/render.js
 ```
 
+### Personagens (Modo Chefão)
+
+`chars.png`/`chars.json` são personagens animados (parado, andando, atacando, morrendo em 4 direções) gerados dos kits **Mini Dungeon** e **Mini Characters** da Kenney (CC0): `node tools/sprites/personagens.js`.
+
 ## App Android
 
 Como no Cyron: o jogo vai **dentro do APK** (abre sem internet). A cada abertura o app confere `versao.json` no repositório (ramo de desenvolvimento, depois `main`); se a versão for maior, baixa os arquivos e recarrega. Para entregar uma mudança: subir `versao` em `versao.json` e `VERSAO` em `game.js` (o workflow Testes confere que batem).

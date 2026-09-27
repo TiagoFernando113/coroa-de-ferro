@@ -3,6 +3,7 @@
 <script type="module">
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 const PPU = 48; // pixels por unidade do modelo
 const loader = new GLTFLoader();
 const cache = {};
@@ -92,6 +93,51 @@ window.makeAtlas = async (items) => {
   const g = c.getContext('2d');
   for (const [it, im] of imgs) g.drawImage(im, meta[it.name].x, meta[it.name].y);
   return { url: c.toDataURL('image/png'), meta };
+};
+
+// ---- personagens animados: renderiza quadros de uma animação numa caixa fixa ----
+const gltfCache = {};
+async function gltf(kit, name) { const k = kit + '/' + name; if (!gltfCache[k]) gltfCache[k] = await loader.loadAsync(`./${kit}/${name}.glb`); return gltfCache[k]; }
+window.renderChar = async (c) => {
+  const base = await gltf(c.kit, c.model);
+  const o = SkeletonUtils.clone(base.scene);
+  o.traverse(m => { if (m.isMesh) { m.castShadow = true; m.frustumCulled = false; } });
+  // armas presas aos ossos
+  for (const w of c.armas || []) {
+    const wm = (await gltf(w.kit, w.n)).scene.clone(true);
+    wm.traverse(m => { if (m.isMesh) m.castShadow = true; });
+    const bone = o.getObjectByName(w.osso);
+    wm.position.set(...(w.pos || [0, 0, 0])); wm.rotation.set(...(w.rot || [0, 0, 0]).map(d => d * Math.PI / 180));
+    wm.scale.setScalar(w.s || 1);
+    (bone || o).add(wm);
+  }
+  const scene = new THREE.Scene();
+  const holder = new THREE.Group(); holder.add(o); holder.rotation.y = (c.face || 0) * Math.PI / 180; holder.scale.setScalar(c.escala || 1); scene.add(holder);
+  scene.add(new THREE.HemisphereLight(0xfff4e0, 0x5a4a6a, 1.7));
+  const sun = new THREE.DirectionalLight(0xffffff, 2.2); sun.position.set(-4, 10, 6); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024);
+  Object.assign(sun.shadow.camera, { left: -4, right: 4, top: 4, bottom: -4 }); scene.add(sun);
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), new THREE.ShadowMaterial({ opacity: 0.3 })); ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+  const e = (c.elev || 35) * Math.PI / 180, az = 45 * Math.PI / 180;
+  const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, -50, 50);
+  cam.position.set(Math.cos(e) * Math.sin(az) * 10, Math.sin(e) * 10, Math.cos(e) * Math.cos(az) * 10); cam.lookAt(0, (c.alvoY || 0.5) * (c.escala || 1), 0); cam.updateMatrixWorld();
+  const B = c.caixa || 0.9, Hh = c.altura || 1.6, sc = c.escala || 1;
+  // caixa fixa em volta do personagem (mesma para todos os quadros)
+  let minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
+  for (const x of [-B, B]) for (const y of [0, Hh]) for (const z of [-B, B]) { const v = new THREE.Vector3(x * sc, y * sc, z * sc).applyMatrix4(cam.matrixWorldInverse); minX = Math.min(minX, v.x); maxX = Math.max(maxX, v.x); minY = Math.min(minY, v.y); maxY = Math.max(maxY, v.y); }
+  Object.assign(cam, { left: minX, right: maxX, top: maxY, bottom: minY }); cam.updateProjectionMatrix();
+  const ppu = c.ppu || 48, w = Math.ceil((maxX - minX) * ppu), h = Math.ceil((maxY - minY) * ppu);
+  renderer.setSize(w, h, false);
+  const mixer = new THREE.AnimationMixer(o);
+  const clip = base.animations.find(a => a.name === c.anim);
+  const act = mixer.clipAction(clip); act.play(); if (c.umaVez) { act.setLoop(THREE.LoopOnce); act.clampWhenFinished = true; }
+  const frames = [], n = c.quadros || 1, dur = clip.duration * (c.ate || 1);
+  for (let i = 0; i < n; i++) {
+    mixer.setTime(n === 1 ? 0 : dur * i / (c.umaVez ? n - 1 : n));
+    renderer.render(scene, cam);
+    frames.push(renderer.domElement.toDataURL('image/png'));
+  }
+  const oo = new THREE.Vector3(0, 0, 0).applyMatrix4(cam.matrixWorldInverse);
+  return { frames, w, h, ax: Math.round((oo.x - minX) * ppu), ay: Math.round((maxY - oo.y) * ppu) };
 };
 window.ready = true;
 </script></body></html>
