@@ -30,7 +30,7 @@ node tools/sprites/render.js
 
 ### Modo Chefão em 3D
 
-A luta pode ser vista em 3D (câmera atrás do chefão). `boss3d.js` é gerado de `tools/boss3d/boss3d.src.js` com o three.js embutido (`node tools/boss3d/build.mjs`); `modelos3d.json` junta os modelos GLB com textura embutida e só as animações usadas (`node tools/boss3d/enxugar.mjs`). Dependências em `tools/sprites`: `npm i three@0.160.0 esbuild@0.24.0 @gltf-transform/core@4 @gltf-transform/functions@4 @gltf-transform/extensions@4`.
+A luta pode ser vista em 3D (câmera atrás do chefão). `boss3d.js` é gerado de `tools/boss3d/boss3d.src.js` com o three.js embutido (`node tools/boss3d/build.mjs`); `modelos3d.bin` junta os modelos GLB (personagens **KayKit Adventurers** e **KayKit Skeletons** de Kay Lousberg, CC0, baixados de github.com/KayKit-Game-Assets para `tools/sprites/kits/kaykit`; arena com peças da Kenney) com textura embutida e só as animações usadas (`node tools/boss3d/enxugar.mjs`). Dependências em `tools/sprites`: `npm i three@0.160.0 esbuild@0.24.0 @gltf-transform/core@4 @gltf-transform/functions@4 @gltf-transform/extensions@4`.
 
 ## App Android
 

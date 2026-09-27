@@ -1,5 +1,5 @@
 {
-  "versao": 11,
+  "versao": 12,
   "arquivos": [
     "index.html",
     "icones.css",
@@ -12,6 +12,6 @@
     "chars.png",
     "chars.json",
     "boss3d.js",
-    "modelos3d.json"
+    "modelos3d.bin"
   ]
 }

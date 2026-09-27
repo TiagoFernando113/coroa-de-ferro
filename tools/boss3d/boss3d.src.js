@@ -11,32 +11,28 @@ import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 
 const AW = 100, AH = 150, S = 0.1;           // unidades da arena → mundo
 const wx = x => (x - AW / 2) * S, wz = y => (y - AH / 2) * S;
-const CLIPS = { idle: 'idle', walk: 'walk', atk: 'attack-melee-right', die: 'die' };
-const ARMAS = {
-  espada: { m: 'espada', osso: 'arm-right', pos: [-0.02, -0.1, 0.04], rot: [90, 0, 0] },
-  lanca: { m: 'lanca', osso: 'arm-right', pos: [-0.02, -0.1, 0.04], rot: [90, 0, 0] },
-  escudoR: { m: 'escudoR', osso: 'arm-left', pos: [0.07, -0.07, 0.03], rot: [0, 90, 0], s: 0.75 },
-  escudoQ: { m: 'escudoQ', osso: 'arm-left', pos: [0.07, -0.16, 0.03], rot: [0, 90, 0], s: 0.85 },
-};
+// clipes por papel; 'atk' pode ter variação por poder do rei (q.esp)
+const BASE = { idle: 'Idle', walk: 'Running_A', atk: '1H_Melee_Attack_Chop', die: 'Death_A', dash: 'Dodge_Forward', vitoria: 'Cheer' };
 const TIPOS = {
-  rei: { m: 'orc', armas: ['lanca'], esc: 3.4, coroa: true },
-  cav: { m: 'humano', armas: ['espada', 'escudoR'], esc: 1.45 },
-  lan: { m: 'lanceira', armas: ['lanca'], esc: 1.45 },
-  mag: { m: 'maga', armas: [], esc: 1.45, cor: 0xc8a8ff, orbe: true },
-  pal: { m: 'paladino', armas: ['espada', 'escudoQ'], esc: 1.5, cor: 0xffe39a },
-  orc: { m: 'orc', armas: ['espada'], esc: 1.15 },
+  rei: { m: 'rei', esc: 0.85, armas: [['machado', 'handslot.r'], ['escudo', 'handslot.l']],
+    clips: { idle: 'Idle_Combat', walk: 'Walking_A', atk: '2H_Melee_Attack_Chop', pisao: '1H_Melee_Attack_Jump_Chop', fogo: 'Spellcast_Shoot', capangas: 'Spellcast_Summon', meteoro: 'Spellcast_Raise', ira: '2H_Melee_Attack_Spinning', vitoria: 'Taunt' } },
+  cav: { m: 'cavaleiro', esc: 0.42, clips: {} },
+  lan: { m: 'arqueira', esc: 0.42, clips: { atk: '1H_Ranged_Shoot' } },
+  mag: { m: 'maga', esc: 0.4, clips: { atk: 'Spellcast_Shoot' }, orbe: true },
+  pal: { m: 'barbaro', esc: 0.43, clips: { atk: '2H_Melee_Attack_Chop' } },
+  orc: { m: 'lacaio', esc: 0.38, armas: [['lamina', 'handslot.r']], clips: { walk: 'Walking_D_Skeletons', die: 'Death_C_Skeletons', surgir: 'Spawn_Ground_Skeletons' } },
 };
-
 let ok = false, falhou = false, renderer, scene, cam, modelos = {}, ents = new Map(), extras = new Map(), clock = 0;
 let pontos, pontosGeo, luzFuria;
 const ray = new THREE.Raycaster(), chaoPlano = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 
 async function carregar() {
-  const txt = await (await fetch('modelos3d.json')).text();
-  const dados = JSON.parse(txt), loader = new GLTFLoader();
-  for (const [k, b64] of Object.entries(dados)) {
-    const bin = Uint8Array.from(atob(b64), c => c.charCodeAt(0)).buffer;
-    modelos[k] = await new Promise((res, rej) => loader.parse(bin, '', res, rej));
+  const buf = await (await fetch('modelos3d.bin')).arrayBuffer();
+  const n = new DataView(buf).getUint32(0, true), cab = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 4, n)));
+  const loader = new GLTFLoader(), base = 4 + n;
+  for (const [k, [ini, tam]] of Object.entries(cab)) {
+    const glb = buf.slice(base + ini, base + ini + tam);
+    modelos[k] = await new Promise((res, rej) => loader.parse(glb, '', res, rej));
   }
 }
 
@@ -102,37 +98,22 @@ function criar(tipo) {
   const T = TIPOS[tipo], base = modelos[T.m];
   const o = SkeletonUtils.clone(base.scene);
   const mats = [];
-  o.traverse(m => {
-    if (m.isMesh) {
-      m.castShadow = true; m.frustumCulled = false;
-      m.material = m.material.clone(); mats.push(m.material);
-      if (T.cor) m.material.color.setHex(T.cor);
-    }
-  });
-  for (const a of T.armas) {
-    const A = ARMAS[a], w = copia(A.m, A.s || 1), osso = o.getObjectByName(A.osso);
-    w.position.set(...A.pos); w.rotation.set(...A.rot.map(d => d * Math.PI / 180));
-    w.traverse(m => { if (m.isMesh) { m.material = m.material.clone(); mats.push(m.material); } });
-    (osso || o).add(w);
-  }
-  if (T.coroa) { // coroa dourada presa na cabeça
-    const cab = o.getObjectByName('head'), coroa = new THREE.Group(), ouro = new THREE.MeshStandardMaterial({ color: 0xf2c94c, metalness: 0.7, roughness: 0.3, emissive: 0x3a2400 });
-    const aro = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.09, 0.04, 12, 1, true), ouro); coroa.add(aro);
-    for (let k = 0; k < 6; k++) { const p = new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.05, 4), ouro); const a = k / 6 * Math.PI * 2; p.position.set(Math.cos(a) * 0.085, 0.045, Math.sin(a) * 0.085); coroa.add(p); }
-    const rubi = new THREE.Mesh(new THREE.SphereGeometry(0.016, 8, 8), new THREE.MeshStandardMaterial({ color: 0xe0302a, emissive: 0x600000 })); rubi.position.set(0, 0.005, 0.09); coroa.add(rubi);
-    coroa.position.set(0, 0.34, 0.01); coroa.scale.setScalar(1.3); (cab || o).add(coroa);
+  o.traverse(m => { if (m.isMesh) { m.castShadow = true; m.frustumCulled = false; m.material = m.material.clone(); mats.push(m.material); } });
+  for (const [nome, osso] of T.armas || []) {
+    const w = modelos[nome].scene.clone(true), slot = o.getObjectByName(osso);
+    w.traverse(m => { if (m.isMesh) { m.castShadow = true; m.material = m.material.clone(); mats.push(m.material); } });
+    (slot || o).add(w);
   }
   let orbe = null;
-  if (T.orbe) { orbe = new THREE.Mesh(new THREE.SphereGeometry(0.07, 12, 12), new THREE.MeshBasicMaterial({ color: 0xd8b8ff })); const l = new THREE.PointLight(0xa070ff, 1.5, 2.5); orbe.add(l); const mao = o.getObjectByName('arm-right'); orbe.position.set(0, -0.14, 0.06); (mao || o).add(orbe); }
+  if (T.orbe) { orbe = new THREE.PointLight(0xa070ff, 2, 3); orbe.position.set(0, 2.4, 0.4); o.add(orbe); }
   const raiz = new THREE.Group(); raiz.add(o); o.scale.setScalar(T.esc); scene.add(raiz);
-  const mixer = new THREE.AnimationMixer(o), acoes = {};
-  for (const [k, n] of Object.entries(CLIPS)) {
+  const mixer = new THREE.AnimationMixer(o), acoes = {}, UMA = ['atk', 'die', 'dash', 'pisao', 'fogo', 'capangas', 'meteoro', 'ira', 'surgir', 'vitoria'];
+  for (const [k, n] of Object.entries({ ...BASE, ...T.clips })) {
     const clip = base.animations.find(a => a.name === n); if (!clip) continue;
-    const a = mixer.clipAction(clip); if (k === 'atk' || k === 'die') { a.setLoop(THREE.LoopOnce); a.clampWhenFinished = true; }
+    const a = mixer.clipAction(clip); if (UMA.includes(k)) { a.setLoop(k === 'vitoria' ? THREE.LoopRepeat : THREE.LoopOnce); a.clampWhenFinished = true; }
     acoes[k] = a;
   }
-  // sombra redonda por baixo (fica bonita mesmo sem luz direta)
-  const somb = new THREE.Mesh(new THREE.CircleGeometry(0.35 * T.esc / 1.45, 16), new THREE.MeshBasicMaterial({ color: 0, transparent: true, opacity: 0.35, depthWrite: false }));
+  const somb = new THREE.Mesh(new THREE.CircleGeometry(tipo === 'rei' ? 0.9 : 0.32, 20), new THREE.MeshBasicMaterial({ color: 0, transparent: true, opacity: 0.35, depthWrite: false }));
   somb.rotation.x = -Math.PI / 2; somb.position.y = 0.01; raiz.add(somb);
   return { raiz, o, mixer, acoes, anim: null, mats, orbe, tipo };
 }
@@ -152,12 +133,17 @@ function sync(q, tipo, dt) {
   const alvoRot = Math.atan2(q.fx, q.fy);
   let d = alvoRot - E.raiz.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d));
   E.raiz.rotation.y += d * Math.min(1, dt * 12);
-  tocar(E, q.anim === 'walk' && tipo !== 'rei' && q.dashT > 0 ? 'walk' : q.anim);
+  let an = q.anim;
+  if (q.dashT > 0) an = 'dash';
+  if (tipo === 'rei' && an === 'atk' && q.esp && E.acoes[q.esp]) an = q.esp;
+  if (tipo === 'orc' && q.nasce != null && clock - q.nasce < 0.9) an = 'surgir';
+  if (q.vitoria && E.acoes.vitoria) an = 'vitoria';
+  tocar(E, an);
   const f = q.flash > 0 ? 1 : 0;
   for (const m of E.mats) if (m.emissive) m.emissive.setScalar(f * 0.8);
-  if (q.morto) { const a = Math.max(0, 1 - Math.max(0, q.mt - 0.9)); E.raiz.visible = a > 0.02; E.raiz.position.y = -Math.max(0, q.mt - 0.9) * 0.6; }
+  if (q.morto) { E.raiz.position.y = -Math.max(0, q.mt - 1.6) * 0.5; E.raiz.visible = q.mt < 2.8; }
   E.mixer.update(dt * (q.dashT > 0 ? 1.8 : 1));
-  if (E.orbe) E.orbe.scale.setScalar(1 + Math.sin(clock * 6) * 0.15);
+  if (E.orbe) E.orbe.intensity = 2 + Math.sin(clock * 6) * 0.8;
 }
 function extra(chave, criarFn) { let e = extras.get(chave); if (!e) { e = criarFn(); scene.add(e); extras.set(chave, e); } e.userData.vivo = true; return e; }
 const MAT_ZONA = new THREE.MeshBasicMaterial({ color: 0xff2a14, transparent: true, opacity: 0.25, depthWrite: false });
@@ -174,8 +160,8 @@ function render(R, dt, overlay) {
   for (const o of scene.children) if (o.userData.tocha) { if (o.isLight) o.intensity = 5 + Math.sin(clock * 13 + o.position.x) * 1.2; else o.scale.setScalar(1 + Math.sin(clock * 17 + o.position.z) * 0.2); }
   if (R) {
     sync(R.boss, 'rei', dt);
-    for (const h of R.herois) if (!(h.morto && h.mt > 2)) sync(h, h.cls.id, dt);
-    for (const c of R.cap) sync(c, 'orc', dt);
+    for (const h of R.herois) if (!(h.morto && h.mt > 2.8)) sync(h, h.cls.id, dt);
+    for (const c of R.cap) { if (c.nasce == null) c.nasce = clock; sync(c, 'orc', dt); }
     // zonas de aviso (círculo que enche) e explosões
     for (const z of R.zonas) {
       const m = extra(z, () => { const g = new THREE.Group(); const disco = new THREE.Mesh(new THREE.CircleGeometry(1, 32), MAT_ZONA.clone()); disco.rotation.x = -Math.PI / 2; const anel = new THREE.Mesh(new THREE.RingGeometry(0.93, 1, 40), MAT_ANEL.clone()); anel.rotation.x = -Math.PI / 2; const cheio = new THREE.Mesh(new THREE.CircleGeometry(1, 32), MAT_ZONA.clone()); cheio.rotation.x = -Math.PI / 2; cheio.position.y = 0.01; g.add(disco, anel, cheio); if (z.tipo === 'meteoro') { const bola = new THREE.Mesh(new THREE.SphereGeometry(0.28, 12, 12), MAT_FOGO); bola.name = 'bola'; g.add(bola); const l = new THREE.PointLight(0xff7a2a, 3, 4); bola.add(l); } return g; });
@@ -189,7 +175,7 @@ function render(R, dt, overlay) {
       const m = extra(p, () => {
         if (p.dono === 'boss') { const b = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 12), MAT_FOGO); b.add(new THREE.PointLight(0xff7a2a, 2, 3)); return b; }
         if (p.magia) return new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 10), MAT_MAGIA);
-        const l = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.7, 6), MAT_LANCA); l.rotation.x = Math.PI / 2; const g = new THREE.Group(); g.add(l); return g;
+        const l = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.45, 6), MAT_LANCA); l.rotation.x = Math.PI / 2; const g = new THREE.Group(); g.add(l); return g;
       });
       m.position.set(wx(p.x), p.dono === 'boss' ? 1.2 : 0.8, wz(p.y));
       m.rotation.y = Math.atan2(p.vx, p.vy);

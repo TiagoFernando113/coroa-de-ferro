@@ -1,6 +1,6 @@
 'use strict';
 /* =====================================================================
-   Modo Chefão — você é o BOSS (o Rei Orc) e luta contra os heróis.
+   Modo Chefão — você é o BOSS (o Rei Esqueleto) e luta contra os heróis.
    Os heróis são IAs que percebem os avisos, desviam, rolam, se curam e
    atacam juntos. A cada vitória vem um grupo mais forte e mais esperto.
    Personagens: sprites animados de chars.png (Kenney Mini Dungeon /
@@ -10,10 +10,10 @@ const Boss = (() => {
   const KEY = 'coroa_boss_v1';
   const AW = 100, AH = 150;                       // arena em unidades
   const HEROIS = [
-    { id: 'cav', n: 'Cavaleiro', cor: '#3f6fb0', alcance: 8, arma: 'espada', fala: ['Pelo reino!', 'Sua hora chegou, orc!', 'Não tenho medo de você!'] },
-    { id: 'lan', n: 'Lanceira', cor: '#3f8f4a', alcance: 38, arma: 'lanca', fala: ['Nunca erro um alvo!', 'Fica paradinho aí...', 'Muito lento!'] },
+    { id: 'cav', n: 'Cavaleiro', cor: '#3f6fb0', alcance: 8, arma: 'espada', escudo: true, fala: ['Pelo reino!', 'Sua hora chegou, esqueleto!', 'Não tenho medo de você!'] },
+    { id: 'lan', n: 'Arqueira', cor: '#3f8f4a', alcance: 38, arma: 'lanca', fala: ['Nunca erro um alvo!', 'Fica paradinho aí...', 'Muito lento!'] },
     { id: 'mag', n: 'Maga', cor: '#7a4fb0', alcance: 34, arma: 'magia', cura: true, fala: ['Luz, nos proteja!', 'Sua magia é fraca!', 'Eu estudei você!'] },
-    { id: 'pal', n: 'Paladino', cor: '#c9a23a', alcance: 8, arma: 'espada', escudo: true, fala: ['A justiça chegou!', 'Meu escudo aguenta!', 'Renda-se, trevas!'] },
+    { id: 'pal', n: 'Bárbaro', cor: '#c9582a', alcance: 8, arma: 'machado', forte: 1.35, fala: ['RAAAAH!', 'Vou quebrar esses ossos!', 'Mais forte que você!'] },
   ];
   const HAB = [
     { id: 'pisao', n: 'Pisão', i: '💥', cd: 4 },
@@ -50,7 +50,7 @@ const Boss = (() => {
   function montar() {
     el = document.createElement('div'); el.id = 'boss'; el.hidden = true;
     el.innerHTML = `<canvas id="bcv"></canvas>
-      <div class="bTop"><div class="bBar boss"><span>👑 Você — Rei Orc</span><i></i><b></b></div><div class="bParty"></div></div>
+      <div class="bTop"><div class="bBar boss"><span>👑 Você — Rei Esqueleto</span><i></i><b></b></div><div class="bParty"></div></div>
       <button class="bX" data-b="sair" aria-label="Sair">✕</button>
       <div class="bHab"></div>
       <div class="bLobby"></div>`;
@@ -103,7 +103,7 @@ const Boss = (() => {
     const grp = grupoDe(P.nivel);
     $b('.bHab').hidden = true; $b('.bTop').hidden = true;
     const L = $b('.bLobby'); L.hidden = false;
-    L.innerHTML = `<h2>☠️ Covil do Rei Orc</h2>
+    L.innerHTML = `<h2>☠️ Covil do Rei Esqueleto</h2>
       <p class="mut">Você é o chefão. Os heróis do reino vêm te derrubar — e ficam mais espertos a cada vez.</p>
       <div class="bCard"><div><div class="mut">Próximo desafio — nível ${P.nivel}</div>
         ${grp.map(h => `<div><b style="color:${h.cor}">${h.n}</b> <span class="mut">❤️ ${Math.round(vidaHeroi(P.nivel, grp.length))}</span></div>`).join('')}
@@ -153,7 +153,7 @@ const Boss = (() => {
     if (id === 'ira') { if (R.ira < 100) return; R.ira = 0; }
     else R.cd[i] = HAB[i].cd * mulCd();
     if (!h) return;
-    olhar(b, h.x, h.y); anima(b, 'atk'); b.atkT = 0.45;
+    olhar(b, h.x, h.y); b.esp = id; anima(b, 'atk'); b.at = 0; b.atkT = id === 'fogo' ? 0.7 : 0.95;
     if (Math.random() < 0.3) falar(b, XINGA[Math.floor(Math.random() * XINGA.length)], 1.6);
     if (id === 'pisao') { b.carga = 0.55; R.zonas.push({ x: b.x, y: b.y, r: 22, t: 0, delay: 0.55, dano: 24, tipo: 'pisao', segue: true }); }
     if (id === 'fogo') {
@@ -240,7 +240,7 @@ const Boss = (() => {
           const v = cls.arma === 'lanca' ? 75 : 60, a = Math.atan2(alvo.y - h.y, alvo.x - h.x);
           R.proj.push({ x: h.x, y: h.y - 3, vx: Math.cos(a) * v, vy: Math.sin(a) * v, r: cls.arma === 'lanca' ? 1.4 : 2, dano: h.dano * (cls.arma === 'lanca' ? 0.8 : 0.95), dono: 'heroi', ttl: 1.5, magia: cls.arma === 'magia' });
           h.atk = cls.arma === 'lanca' ? 0.8 : 1.1;
-        } else { dano(alvo, h.dano * (alvo === b ? 1 : 1.5), '#ffe08a'); h.atk = 0.8; poeira(alvo.x, alvo.y - 4, '#fff', 5); }
+        } else { dano(alvo, h.dano * (cls.forte || 1) * (alvo === b ? 1 : 1.5), '#ffe08a'); h.atk = 0.8; poeira(alvo.x, alvo.y - 4, '#fff', 5); }
       }
     }
     h.dash -= dt; h.dashT -= dt;
@@ -268,7 +268,7 @@ const Boss = (() => {
     if (b.carga > 0) { mvx = mvy = 0; }
     b.x = clamp(b.x + mvx * dt, 10, AW - 10); b.y = clamp(b.y + mvy * dt, 12, AH - 10);
     b.carga -= dt; b.flash -= dt; b.atkT -= dt;
-    if (b.atkT <= 0) { if (mvx || mvy) { olhar(b, b.x + mvx, b.y + mvy); anima(b, 'walk'); } else { const h = maisPerto(b.x, b.y); if (h) olhar(b, h.x, h.y); anima(b, 'idle'); } }
+    if (b.atkT <= 0) { b.esp = null; if (mvx || mvy) { olhar(b, b.x + mvx, b.y + mvy); anima(b, 'walk'); } else { const h = maisPerto(b.x, b.y); if (h) olhar(b, h.x, h.y); anima(b, 'idle'); } }
     for (const h of R.herois) {
       if (h.morto) { h.mt += dt; continue; }
       if (Math.hypot(h.x - b.x, h.y - b.y) < b.r + h.r + 0.5) { h.contato = (h.contato || 0) + 6 * dt * mulDano(); if (h.contato >= 5) { dano(h, h.contato, '#ff8a6a'); h.contato = 0; } }
@@ -332,8 +332,8 @@ const Boss = (() => {
     const lv = R.lv, n = R.herois.length, almas = venceu ? 10 * lv * n : 3 * lv, gemas = venceu ? 5 * lv : 0;
     R.fim = { venceu, almas, gemas, t: 0 };
     P.almas += almas;
-    if (venceu) { P.nivel++; P.vitorias++; falar(R.boss, 'HAHAHAHA! Próximos!', 3); if (typeof me !== 'undefined' && me) { me.gemas += gemas; if (typeof save === 'function') save(); } }
-    else { P.derrotas++; const v = vivos()[0]; if (v) falar(v, 'O reino está salvo!', 3); }
+    if (venceu) { R.boss.vitoria = true; P.nivel++; P.vitorias++; falar(R.boss, 'HAHAHAHA! Próximos!', 3); if (typeof me !== 'undefined' && me) { me.gemas += gemas; if (typeof save === 'function') save(); } }
+    else { P.derrotas++; for (const h of vivos()) h.vitoria = true; const v = vivos()[0]; if (v) falar(v, 'O reino está salvo!', 3); }
     salvar();
     setTimeout(() => {
       if (!R || !R.fim) return;
