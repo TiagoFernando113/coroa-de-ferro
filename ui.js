@@ -671,7 +671,7 @@ function render() { dirty = false; renderTop(); renderPanel(); renderSheet(); ti
 /* ---------------- laço de desenho ---------------- */
 function frame() {
   g.setTransform(DPR, 0, 0, DPR, 0, 0);
-  if (view === 'mapa') drawMap(); else drawCity();
+  if (!window.bossAberto) { if (view === 'mapa') drawMap(); else drawCity(); }
   requestAnimationFrame(frame);
 }
 function setView(v) {
@@ -702,6 +702,7 @@ document.addEventListener('click', e => {
     case 'allyTab': allyTab = d.t || null; break;
     case 'panel': openPanel(d.p); break;
     case 'closePanel': closePanel(); break;
+    case 'boss': Boss.abrir(); return;
     case 'toggle': setView(view === 'cidade' ? 'mapa' : 'cidade'); break;
     case 'quest': Q[S.q] && Q[S.q].ok() ? claim() : openPanel('missoes'); break;
     case 'atk': case 'col': { const t = tileById(sel && sel.id); if (t) marchModal(d.act, t); return; }

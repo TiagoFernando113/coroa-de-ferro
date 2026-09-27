@@ -1,11 +1,12 @@
 {
-  "versao": 8,
+  "versao": 9,
   "arquivos": [
     "index.html",
     "icones.css",
     "style.css",
     "game.js",
     "ui.js",
+    "boss.js",
     "atlas.png",
     "atlas.json"
   ]
