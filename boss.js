@@ -159,7 +159,7 @@ const Boss = (() => {
     if (id === 'ira') { if (R.ira < 100) return; R.ira = 0; }
     else R.cd[i] = HAB[i].cd * mulCd();
     if (!h) return;
-    olhar(b, h.x, h.y); b.esp = id; anima(b, 'atk'); b.at = 0; b.atkT = id === 'fogo' ? 0.7 : 0.95;
+    if (!b.andando) olhar(b, h.x, h.y); b.esp = id; anima(b, 'atk'); b.at = 0; b.atkT = id === 'fogo' ? 0.7 : 0.95;
     if (Math.random() < 0.3) falar(b, XINGA[Math.floor(Math.random() * XINGA.length)], 1.6);
     if (id === 'pisao') { b.carga = 0.55; R.zonas.push({ x: b.x, y: b.y, r: 22, t: 0, delay: 0.55, dano: 24, tipo: 'pisao', segue: true }); }
     if (id === 'fogo') {
@@ -365,6 +365,7 @@ const Boss = (() => {
     let mvx = 0, mvy = 0;
     if (joy && joy.arr) { const dx = joy.x - joy.sx, dy = joy.y - joy.sy, m = Math.hypot(dx, dy); if (m > 8) { const f = Math.min(1, m / 60), s3 = usa3d() ? -1 : 1; mvx = s3 * dx / m * vel * f; mvy = s3 * dy / m * vel * f; } b.alvo = null; }
     else if (b.alvo) { const dx = b.alvo[0] - b.x, dy = b.alvo[1] - b.y, d = Math.hypot(dx, dy); if (d < 1) b.alvo = null; else { mvx = dx / d * vel; mvy = dy / d * vel; } }
+    b.andando = !!(mvx || mvy); if (b.andando) olhar(b, b.x + mvx, b.y + mvy); // olha para onde o jogador quer ir (até atacando)
     if (b.carga > 0 || b.atordoado > 0) { mvx = mvy = 0; }
     if (b.lento > 0) { mvx *= 0.5; mvy *= 0.5; }
     b.atordoado -= dt; b.lento -= dt;
@@ -375,12 +376,11 @@ const Boss = (() => {
     if (b.golpe <= 0 && b.atkT <= 0 && b.carga <= 0 && b.atordoado <= 0) {
       const perto = vivos().filter(h => Math.hypot(h.x - b.x, h.y - b.y) < b.r + h.r + 7);
       if (perto.length) {
-        olhar(b, perto[0].x, perto[0].y); b.esp = null; anima(b, 'atk'); b.at = 0; b.atkT = 0.5; b.golpe = R.furia ? 0.8 : 1.1;
+        if (!b.andando) olhar(b, perto[0].x, perto[0].y); b.esp = null; anima(b, 'atk'); b.at = 0; b.atkT = 0.5; b.golpe = R.furia ? 0.8 : 1.1;
         for (const h of perto) dano(h, 12 * mulDano(), '#ff8a6a');
         shake = Math.max(shake, 0.12); poeira(perto[0].x, perto[0].y, '#c9a36a', 8);
       }
     }
-    if ((mvx || mvy) && b.atkT <= 0) olhar(b, b.x + mvx, b.y + mvy); // olha para onde anda
     if (b.atkT <= 0) { b.esp = null; anima(b, mvx || mvy ? 'walk' : 'idle'); }
     for (const h of R.herois) {
       if (h.morto) { h.mt += dt; continue; }
