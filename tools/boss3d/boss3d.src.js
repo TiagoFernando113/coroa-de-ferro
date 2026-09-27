@@ -166,6 +166,7 @@ function render(R, dt, overlay) {
     // zonas de aviso (círculo que enche) e explosões
     for (const z of R.zonas) {
       const m = extra(z, () => { const g = new THREE.Group(); const disco = new THREE.Mesh(new THREE.CircleGeometry(1, 32), MAT_ZONA.clone()); disco.rotation.x = -Math.PI / 2; const anel = new THREE.Mesh(new THREE.RingGeometry(0.93, 1, 40), MAT_ANEL.clone()); anel.rotation.x = -Math.PI / 2; const cheio = new THREE.Mesh(new THREE.CircleGeometry(1, 32), MAT_ZONA.clone()); cheio.rotation.x = -Math.PI / 2; cheio.position.y = 0.01; g.add(disco, anel, cheio); if (z.tipo === 'meteoro') { const bola = new THREE.Mesh(new THREE.SphereGeometry(0.28, 12, 12), MAT_FOGO); bola.name = 'bola'; g.add(bola); const l = new THREE.PointLight(0xff7a2a, 3, 4); bola.add(l); } return g; });
+      if (z.dono === 'heroi' && !m.userData.azul) { m.userData.azul = true; m.traverse(o => { if (o.material && o.material.color) o.material.color.set(0x3aaaff); }); }
       const p = Math.min(1, z.t / z.delay), r = z.r * S;
       m.position.set(wx(z.x), 0.03, wz(z.y)); m.children[0].scale.setScalar(r); m.children[1].scale.setScalar(r); m.children[2].scale.setScalar(r * p);
       m.children[0].material.opacity = z.foi ? Math.max(0, 0.7 - (z.t - z.delay) * 3) : 0.2;

@@ -25,7 +25,14 @@ const Boss = (() => {
   // o chefão já nasce poderoso; quem evolui são os heróis
   const BOSS_VIDA = 1500, BOSS_DANO = 3, BOSS_CD = 0.7;
   // o que os heróis aprendem ao subir de nível
-  const NOVIDADES = { 2: 'Os heróis treinaram: mais vida e dano', 3: 'Agora vêm em DUPLA e aprendem a rolar para desviar', 5: 'Reagem mais rápido aos seus avisos', 7: 'Agora vêm em TRIO', 9: 'Rolam com mais frequência', 12: 'Agora vêm em QUARTETO', 15: 'Lendas do reino: reflexo máximo' };
+  const ESP_LV = 4; // nível em que os heróis aprendem golpes especiais
+  const ESPECIAIS = {
+    cav: { n: 'Escudo do Reino', d: 'avança com o escudo e te ATORDOA', cd: 9, grito: 'Escudo do Reino!' },
+    lan: { n: 'Chuva de Flechas', d: 'marca um círculo azul em você — saia dele!', cd: 8, grito: 'Chuva de flechas!' },
+    mag: { n: 'Raio de Gelo', d: 'te deixa LENTO por 3s', cd: 9, grito: 'Congela!' },
+    pal: { n: 'Fúria Bárbara', d: 'ataca muito mais rápido e forte por 5s', cd: 12, grito: 'FÚRIAAAA!' },
+  };
+  const NOVIDADES = { 2: 'Os heróis treinaram: mais vida e dano', 4: 'Aprenderam GOLPES ESPECIAIS: atordoar, chuva de flechas, gelo e fúria!', 3: 'Agora vêm em DUPLA e aprendem a rolar para desviar', 5: 'Reagem mais rápido aos seus avisos', 7: 'Agora vêm em TRIO', 9: 'Rolam com mais frequência', 12: 'Agora vêm em QUARTETO', 15: 'Lendas do reino: reflexo máximo' };
   const XINGA = ['Mais um herói pro meu museu!', 'Achou que ia ser fácil?', 'HAHAHAHA!', 'Vem, vem...', 'Meu castelo, minhas regras!', 'Esmagar!'];
 
   let P = { nivel: 1, vitorias: 0, derrotas: 0, recorde: 0 };
@@ -108,7 +115,8 @@ const Boss = (() => {
       <p class="mut">Você é o chefão: ❤️ ${BOSS_VIDA} de vida e golpes devastadores. Os heróis voltam a cada derrota <b>mais fortes</b> — até onde você aguenta?</p>
       <div class="bCard"><div style="flex:1"><div class="mut">Heróis — nível ${P.nivel}</div>
         ${grp.map(h => `<div><b style="color:${h.cor}">${h.n}</b> <span class="mut">❤️ ${Math.round(vidaHeroi(P.nivel, grp.length))} · ⚔️ ${Math.round(danoHeroi(P.nivel) * (h.forte || 1))}</span></div>`).join('')}
-        <div class="mut">reflexo ${Math.round((1 - reacao(P.nivel) / 0.5) * 100)}%</div></div></div>
+        <div class="mut">reflexo ${Math.round((1 - reacao(P.nivel) / 0.5) * 100)}%</div>
+        ${P.nivel >= ESP_LV ? grp.map(h => `<div class="mut">⭐ <b>${ESPECIAIS[h.id].n}</b>: ${ESPECIAIS[h.id].d}</div>`).join('') : `<div class="mut">⭐ Golpes especiais a partir do nível ${ESP_LV}</div>`}</div></div>
       <div class="bAlmas">🏆 ${P.vitorias} vitórias · recorde: nível ${P.recorde || 0}</div>
       <p class="mut">Arraste o dedo na arena para andar (ou toque num ponto). Os círculos vermelhos avisam os heróis — os bons desviam! Causar dano enche a <b>Ira do Rei</b>.</p>
       <div class="row" style="justify-content:center"><button class="btn sec sm" data-b="modo">🎥 Visão: ${P.modo3d !== false ? '3D' : '2D'}${window.M3D && M3D.falhou ? ' (3D indisponível)' : ''}</button></div>
@@ -117,17 +125,17 @@ const Boss = (() => {
 
   /* ---------------- luta ---------------- */
   const vidaHeroi = (lv, n) => 90 * 1.25 ** (lv - 1) * (n > 1 ? 0.8 : 1);
-  const danoHeroi = lv => 7 * 1.2 ** (lv - 1);
+  const danoHeroi = lv => 7 * 1.18 ** (lv - 1);
   const reacao = lv => Math.max(0.08, 0.45 - 0.026 * (lv - 1)); // segundos para perceber o perigo
   function lutar() {
     const lv = P.nivel, bv = BOSS_VIDA, grp = grupoDe(lv);
     R = {
       t: 0, fim: null, lv, ira: 0, furia: false,
-      boss: { x: AW / 2, y: 40, r: 10, hp: bv, max: bv, alvo: null, flash: 0, carga: 0, fala: null, anim: 'idle', at: 0, fx: 0, fy: 1, atkT: 0 },
+      boss: { x: AW / 2, y: 40, r: 10, hp: bv, max: bv, atordoado: 0, lento: 0, alvo: null, flash: 0, carga: 0, fala: null, anim: 'idle', at: 0, fx: 0, fy: 1, atkT: 0 },
       herois: grp.map((cls, k) => ({
         x: AW / 2 + (k - (grp.length - 1) / 2) * 14, y: AH - 16, r: 4, hp: vidaHeroi(lv, grp.length), max: vidaHeroi(lv, grp.length), cls,
         spd: 25 + lv * 1.2, dano: danoHeroi(lv), atk: 0.5 + k * 0.3, dash: 0, dashT: 0, cura: 5, orb: k * 2.1, flash: 0, fala: null,
-        vx: 0, vy: 0, fx: 0, fy: -1, anim: 'idle', at: 0, atkT: 0, morto: false, mt: 0,
+        vx: 0, vy: 0, fx: 0, fy: -1, anim: 'idle', at: 0, atkT: 0, morto: false, mt: 0, esp: 4 + k * 2.5, furiaT: 0, carrega: 0, investida: 0,
       })),
       cap: [], proj: [], zonas: [], ondas: [], part: [], txt: [], cd: HAB.map(() => 0),
     };
@@ -145,7 +153,8 @@ const Boss = (() => {
   function anima(q, a) { if (q.anim !== a) { q.anim = a; q.at = 0; } }
 
   function usar(i) {
-    if (!R || R.fim || R.cd[i] > 0) return;
+    if (!R || R.fim || R.cena || R.cd[i] > 0) return;
+    if (R.boss.atordoado > 0) { R.txt.push({ x: R.boss.x, y: R.boss.y - 16, s: 'atordoado!', cor: '#ffd76a', t: 0 }); return; }
     const b = R.boss, id = HAB[i].id, h = maisPerto(b.x, b.y);
     if (id === 'ira') { if (R.ira < 100) return; R.ira = 0; }
     else R.cd[i] = HAB[i].cd * mulCd();
@@ -297,9 +306,12 @@ const Boss = (() => {
           const v = cls.arma === 'lanca' ? 75 : 60, a = Math.atan2(alvo.y - h.y, alvo.x - h.x);
           R.proj.push({ x: h.x, y: h.y - 3, vx: Math.cos(a) * v, vy: Math.sin(a) * v, r: cls.arma === 'lanca' ? 1.4 : 2, dano: h.dano * (cls.arma === 'lanca' ? 0.8 : 0.95), dono: 'heroi', ttl: 1.5, magia: cls.arma === 'magia' });
           h.atk = cls.arma === 'lanca' ? 0.8 : 1.1;
-        } else { dano(alvo, h.dano * (cls.forte || 1) * (alvo === b ? 1 : 1.5), '#ffe08a'); h.atk = 0.8; poeira(alvo.x, alvo.y - 4, '#fff', 5); }
+        } else { dano(alvo, h.dano * (cls.forte || 1) * (alvo === b ? 1 : 1.5) * (h.furiaT > 0 ? 1.4 : 1), '#ffe08a'); h.atk = h.furiaT > 0 ? 0.4 : 0.8; poeira(alvo.x, alvo.y - 4, '#fff', 5); }
       }
     }
+    especial(h, dt, perigo);
+    if (h.carrega > 0) mx = my = 0; // parado preparando o golpe
+    if (h.investida > 0) { mx = b.x - h.x; my = b.y - h.y; }
     h.dash -= dt; h.dashT -= dt;
     const m = Math.hypot(mx, my), spd = h.spd * (h.dashT > 0 ? 3 : 1);
     if (m > 0.05) { h.vx = mx / m * spd; h.vy = my / m * spd; } else { h.vx = h.vy = 0; }
@@ -308,6 +320,37 @@ const Boss = (() => {
     if (db < min) { h.x = b.x + (h.x - b.x) / db * min; h.y = b.y + (h.y - b.y) / db * min; }
     if (h.atkT <= 0) { if (Math.hypot(h.vx, h.vy) > 1) { olhar(h, h.x + h.vx, h.y + h.vy); anima(h, 'walk'); } else { olhar(h, b.x, b.y); anima(h, 'idle'); } }
     if (Math.random() < dt * 0.06) falar(h, cls.fala[Math.floor(Math.random() * cls.fala.length)], 1.8);
+  }
+  // golpes especiais (a partir do nível ESP_LV) — sempre com aviso para o chefão reagir
+  function especial(h, dt, perigo) {
+    const b = R.boss, e = ESPECIAIS[h.cls.id], db = Math.hypot(b.x - h.x, b.y - h.y);
+    h.furiaT -= dt;
+    if (h.furiaT > 0 && Math.random() < dt * 20) poeira(h.x, h.y - 3, '#ff4a2a', 1);
+    if (h.carrega > 0) { // cavaleiro: prepara e avança
+      h.carrega -= dt; olhar(h, b.x, b.y);
+      if (h.carrega <= 0) { dash(h, b.x - h.x, b.y - h.y); h.dashT = 0.3; h.investida = 0.35; }
+      return;
+    }
+    if (h.investida > 0) {
+      h.investida -= dt;
+      if (db < b.r + h.r + 3) {
+        h.investida = 0; b.atordoado = 1.3; dano(b, h.dano * 2, '#ffe08a'); shake = Math.max(shake, 0.3);
+        R.txt.push({ x: b.x, y: b.y - 18, s: 'ATORDOADO!', cor: '#ffd76a', t: 0, grande: true }); poeira(b.x, b.y - 6, '#ffd76a', 14);
+        conversa('atordoado', [[b, 'Grr... minha cabeça!'], [h, 'Agora, pessoal! Ataquem!']]);
+      }
+      return;
+    }
+    if (R.lv < ESP_LV) return;
+    h.esp -= dt;
+    const id = h.cls.id;
+    if (h.esp > 0 || (perigo && id !== 'cav') || h.dashT > 0) return; // o cavaleiro é corajoso: avança mesmo sob perigo
+    if (id === 'cav' && db > b.r + 24) return; // só avança se estiver perto
+    h.esp = e.cd * Math.max(0.6, 1 - (R.lv - ESP_LV) * 0.03);
+    falar(h, e.grito, 1.3);
+    if (id === 'cav') { h.carrega = 0.7; R.txt.push({ x: h.x, y: h.y - 10, s: '❗', cor: '#ffd76a', t: 0, grande: true }); }
+    if (id === 'lan') { olhar(h, b.x, b.y); anima(h, 'atk'); h.atkT = 0.36; R.zonas.push({ x: b.x, y: b.y, r: 13, t: 0, delay: 1.3, dano: h.dano * 3, tipo: 'flechas', dono: 'heroi' }); }
+    if (id === 'mag') { const a = Math.atan2(b.y - h.y, b.x - h.x); olhar(h, b.x, b.y); anima(h, 'atk'); h.atkT = 0.36; R.proj.push({ x: h.x, y: h.y - 3, vx: Math.cos(a) * 50, vy: Math.sin(a) * 50, r: 3, dano: h.dano, dono: 'heroi', ttl: 2.5, magia: true, gelo: true }); }
+    if (id === 'pal') { h.furiaT = 5; poeira(h.x, h.y, '#ff4a2a', 18); conversa('furiaBarb', [[b, 'Fúria? Eu inventei a fúria!']]); }
   }
   function dash(h, dx, dy) { const m = Math.hypot(dx, dy) || 1; h.dash = Math.max(1.2, 3.2 - R.lv * 0.15); h.dashT = 0.22; h.vx = dx / m; h.vy = dy / m; poeira(h.x, h.y, '#ddd', 6); }
 
@@ -322,12 +365,14 @@ const Boss = (() => {
     let mvx = 0, mvy = 0;
     if (joy && joy.arr) { const dx = joy.x - joy.sx, dy = joy.y - joy.sy, m = Math.hypot(dx, dy); if (m > 8) { const f = Math.min(1, m / 60), s3 = usa3d() ? -1 : 1; mvx = s3 * dx / m * vel * f; mvy = s3 * dy / m * vel * f; } b.alvo = null; }
     else if (b.alvo) { const dx = b.alvo[0] - b.x, dy = b.alvo[1] - b.y, d = Math.hypot(dx, dy); if (d < 1) b.alvo = null; else { mvx = dx / d * vel; mvy = dy / d * vel; } }
-    if (b.carga > 0) { mvx = mvy = 0; }
+    if (b.carga > 0 || b.atordoado > 0) { mvx = mvy = 0; }
+    if (b.lento > 0) { mvx *= 0.5; mvy *= 0.5; }
+    b.atordoado -= dt; b.lento -= dt;
     b.x = clamp(b.x + mvx * dt, 10, AW - 10); b.y = clamp(b.y + mvy * dt, 12, AH - 10);
     b.carga -= dt; b.flash -= dt; b.atkT -= dt;
     // golpe automático de machado em quem chegar perto
     b.golpe = (b.golpe || 0) - dt;
-    if (b.golpe <= 0 && b.atkT <= 0 && b.carga <= 0) {
+    if (b.golpe <= 0 && b.atkT <= 0 && b.carga <= 0 && b.atordoado <= 0) {
       const perto = vivos().filter(h => Math.hypot(h.x - b.x, h.y - b.y) < b.r + h.r + 7);
       if (perto.length) {
         olhar(b, perto[0].x, perto[0].y); b.esp = null; anima(b, 'atk'); b.at = 0; b.atkT = 0.5; b.golpe = R.furia ? 0.8 : 1.1;
@@ -353,6 +398,11 @@ const Boss = (() => {
       z.t += dt;
       if (z.t >= z.delay && !z.foi) {
         z.foi = true;
+        if (z.dono === 'heroi') {
+          if (Math.hypot(b.x - z.x, b.y - z.y) < z.r + b.r * 0.5) { dano(b, z.dano, '#9fe3ff'); R.txt.push({ x: b.x, y: b.y - 18, s: 'flechas!', cor: '#9fe3ff', t: 0 }); }
+          else conversa('errou', [[b, 'Errou! HAHAHA!']]);
+          poeira(z.x, z.y, '#9fe3ff', 16); continue;
+        }
         for (const h of vivos()) if (Math.hypot(h.x - z.x, h.y - z.y) < z.r + h.r) dano(h, z.dano * mulDano(), '#ff8a6a');
         for (const c of R.cap) if (z.tipo === 'meteoro' && Math.hypot(c.x - z.x, c.y - z.y) < z.r) c.hp -= 5;
         shake = Math.max(shake, z.tipo === 'pisao' ? 0.35 : 0.2);
@@ -371,7 +421,7 @@ const Boss = (() => {
       if (p.dono === 'boss') {
         for (const h of vivos()) if (p.ttl > 0 && Math.hypot(p.x - h.x, p.y - h.y) < p.r + h.r) { dano(h, p.dano * mulDano(), '#ff8a6a'); p.ttl = 0; poeira(p.x, p.y, '#ff7a3a', 8); }
       } else {
-        if (Math.hypot(p.x - b.x, p.y - b.y + 4) < p.r + b.r) { dano(b, p.dano, '#ffe08a'); p.ttl = 0; poeira(p.x, p.y, p.magia ? '#c9a0ff' : '#fff', 5); }
+        if (Math.hypot(p.x - b.x, p.y - b.y + 4) < p.r + b.r) { dano(b, p.dano, '#ffe08a'); if (p.gelo) { b.lento = 3; R.txt.push({ x: b.x, y: b.y - 18, s: 'LENTO ❄️', cor: '#9fe3ff', t: 0, grande: true }); poeira(b.x, b.y, '#b8f0ff', 14); } p.ttl = 0; poeira(p.x, p.y, p.magia ? '#c9a0ff' : '#fff', 5); }
         for (const c of R.cap) if (p.ttl > 0 && Math.hypot(p.x - c.x, p.y - c.y) < p.r + c.r) { dano(c, p.dano * 1.3); p.ttl = 0; }
       }
       if (p.x < -5 || p.x > AW + 5 || p.y < -5 || p.y > AH + 5) p.ttl = 0;
@@ -411,7 +461,7 @@ const Boss = (() => {
       const L = $b('.bLobby'); L.hidden = false; $b('.bHab').hidden = true;
       L.innerHTML = `<h2>${venceu ? '🏆 Vitória do Chefão!' : '💀 Derrotado...'}</h2>
         <p>${venceu ? `Os heróis do nível ${lv} caíram diante de você.` : `Os heróis do nível ${lv} te derrubaram. Mude a estratégia e tente de novo!`}</p>
-        ${venceu ? `<div class="bCard"><div>⬆️ <b>Os heróis evoluíram para o nível ${lv + 1}</b><div class="mut">${NOVIDADES[lv + 1] || 'Mais vida (+25%) e mais dano (+20%)'}</div></div></div>` : ''}
+        ${venceu ? `<div class="bCard"><div>⬆️ <b>Os heróis evoluíram para o nível ${lv + 1}</b><div class="mut">${NOVIDADES[lv + 1] || 'Mais vida (+25%) e mais dano (+18%)'}</div></div></div>` : ''}
         ${gemas ? `<div class="bAlmas">+💎 ${gemas} gemas no reino</div>` : ''}
         <button class="btn bGo" data-b="lobby">Voltar ao covil</button>`;
     }, 1600);
@@ -494,9 +544,10 @@ const Boss = (() => {
     for (const z of R.zonas) {
       const [sx, sy] = a2s(z.x, z.y), r = z.r * sc, p = Math.min(1, z.t / z.delay);
       if (z.foi) { g.fillStyle = `rgba(255,140,40,${0.5 - (z.t - z.delay) * 2})`; g.beginPath(); g.ellipse(sx, sy, r, r, 0, 0, 7); g.fill(); continue; }
-      g.fillStyle = 'rgba(255,40,20,.18)'; circ(sx, sy, r); g.fill();
-      g.strokeStyle = 'rgba(255,60,30,.8)'; g.lineWidth = 2; g.stroke();
-      g.fillStyle = 'rgba(255,40,20,.35)'; circ(sx, sy, r * p); g.fill();
+      const az = z.dono === 'heroi';
+      g.fillStyle = az ? 'rgba(60,170,255,.2)' : 'rgba(255,40,20,.18)'; circ(sx, sy, r); g.fill();
+      g.strokeStyle = az ? 'rgba(90,200,255,.9)' : 'rgba(255,60,30,.8)'; g.lineWidth = 2; g.stroke();
+      g.fillStyle = az ? 'rgba(60,170,255,.35)' : 'rgba(255,40,20,.35)'; circ(sx, sy, r * p); g.fill();
       if (z.tipo === 'meteoro' && p > 0.4) { // meteoro caindo
         const my = sy - (1 - p) * 60 * sc / 3; g.fillStyle = '#ff9a3a'; g.shadowColor = '#ff5a14'; g.shadowBlur = 14; circ(sx, my, 2.2 * sc); g.fill(); g.shadowBlur = 0;
       }
@@ -573,7 +624,7 @@ const Boss = (() => {
     if (pp.innerHTML !== html) pp.innerHTML = html;
     const b = R.boss;
     $b('.bBar.boss i').style.width = Math.max(0, b.hp / b.max * 100) + '%';
-    $b('.bBar.boss b').textContent = `${Math.max(0, Math.ceil(b.hp))}/${Math.round(b.max)}${R.furia ? ' 🔥' : ''}`;
+    $b('.bBar.boss b').textContent = `${Math.max(0, Math.ceil(b.hp))}/${Math.round(b.max)}${R.furia ? ' 🔥' : ''}${b.atordoado > 0 ? ' 💫' : ''}${b.lento > 0 ? ' ❄️' : ''}`;
     R.herois.forEach((h, i) => { const e = $b(`.bBar.heroi[data-h="${i}"]`); if (!e) return; e.querySelector('i').style.width = Math.max(0, h.hp / h.max * 100) + '%'; e.querySelector('b').textContent = h.morto ? '💀' : Math.ceil(h.hp); });
     el.querySelectorAll('.hb').forEach((btn, i) => {
       if (HAB[i].id === 'ira') {
@@ -585,7 +636,7 @@ const Boss = (() => {
       const c = R.cd[i], tot = HAB[i].cd * mulCd();
       btn.style.setProperty('--p', c > 0 ? (c / tot * 360) + 'deg' : '0deg');
       btn.querySelector('em').textContent = c > 0 ? Math.ceil(c) : '';
-      btn.disabled = c > 0 || !!R.fim;
+      btn.disabled = c > 0 || !!R.fim || b.atordoado > 0;
     });
   }
   function loop(now) {
