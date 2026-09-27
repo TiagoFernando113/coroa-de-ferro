@@ -216,3 +216,16 @@ h3{margin:16px 0 8px;font:700 15px 'Cinzel',Georgia,serif;color:var(--gold)}
 .hb.ira em:empty{display:none}
 .bBar.heroi span{display:block;max-width:calc(100% - 38px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:0}
 .bBar.heroi b{padding:0 6px}
+.bCena{position:absolute;inset:0;z-index:5}
+.bCena[hidden]{display:none}
+.bCine{position:absolute;left:0;right:0;height:10vh;background:#000}
+.bCine.top{top:0}.bCine.bot{bottom:0}
+.bFalaBox{position:absolute;left:12px;right:12px;bottom:calc(10vh + 12px);max-width:560px;margin:auto;min-height:92px;padding:10px 14px 18px;
+  background:rgba(22,13,8,.93);border:2px solid var(--c,#e9b949);border-radius:12px;color:#fff;box-shadow:0 4px 16px rgba(0,0,0,.6)}
+.bFalaBox b{display:block;font-family:Cinzel,serif;color:var(--c,#e9b949);font-size:15px;margin-bottom:4px}
+.bFalaBox p{margin:0;font-size:16px;line-height:1.35}
+.bFalaBox small{position:absolute;right:10px;bottom:4px;color:#e9b949;font-size:11px}
+.bPular{position:absolute;right:12px;top:calc(10vh + 10px);border:1px solid #e9b949;border-radius:8px;background:rgba(0,0,0,.6);color:#fff;padding:6px 10px;font-weight:700}
+.bPapo{position:absolute;left:10px;right:10px;top:calc(max(8px,env(safe-area-inset-top)) + 86px);display:flex;justify-content:center;pointer-events:none}
+.bPapo div{background:rgba(22,13,8,.88);border:1px solid var(--c);border-radius:10px;padding:6px 10px;color:#fff;font-size:14px;max-width:92%;text-align:center}
+.bPapo b{color:var(--c)}

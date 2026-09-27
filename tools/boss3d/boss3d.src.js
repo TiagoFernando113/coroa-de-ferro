@@ -152,6 +152,7 @@ const MAT_FOGO = new THREE.MeshBasicMaterial({ color: 0xffa040 });
 const MAT_MAGIA = new THREE.MeshBasicMaterial({ color: 0xc9a0ff });
 const MAT_LANCA = new THREE.MeshStandardMaterial({ color: 0xc8ccd6, metalness: 0.6 });
 
+const olhar3d = new THREE.Vector3(0, 0, 0); let focoAnt = null;
 function render(R, dt, overlay) {
   if (!ok) return false;
   clock += dt;
@@ -188,10 +189,18 @@ function render(R, dt, overlay) {
     luzFuria.intensity = R.furia ? 6 + Math.sin(clock * 8) * 2 : 0; luzFuria.position.set(wx(R.boss.x), 2.5, wz(R.boss.y));
     // câmera atrás do rei, olhando para a frente (onde vêm os heróis)
     const bx = wx(R.boss.x), bz = wz(R.boss.y), tr = overlay.tremor || 0;
-    const alvo = new THREE.Vector3(bx * 0.5, 6.2, bz - 7.2);
+    let alvo = new THREE.Vector3(bx * 0.5, 6.2, bz - 7.2), olha = new THREE.Vector3(bx * 0.5, 0, bz + 3.8);
+    const f = overlay.foco;
+    if (f) { // cena de diálogo: close no personagem que está falando
+      const fx = wx(f.x), fz = wz(f.y);
+      if (f === R.boss) { alvo.set(fx + 1.2, 2.3, fz + 5.2); olha.set(fx, 1.2, fz); }
+      else { const dx = bx - fx, dz = bz - fz, m = Math.hypot(dx, dz) || 1; alvo.set(fx + dx / m * 3.4 + 0.5, 1.6, fz + dz / m * 3.4); olha.set(fx, 0.6, fz); }
+    }
+    if (f !== focoAnt) { cam.position.copy(alvo); olhar3d.copy(olha); focoAnt = f; } // corte de cena
     cam.position.lerp(alvo, Math.min(1, dt * 4));
+    olhar3d.lerp(olha, Math.min(1, dt * 6));
     cam.position.x += (Math.random() - 0.5) * tr * 0.4; cam.position.y += (Math.random() - 0.5) * tr * 0.4;
-    cam.lookAt(bx * 0.5, 0, bz + 3.8);
+    cam.lookAt(olhar3d);
   } else {
     // covil: câmera girando devagar pela arena vazia
     cam.position.set(Math.sin(clock * 0.15) * 7, 5, Math.cos(clock * 0.15) * 9); cam.lookAt(0, 0.5, 0);

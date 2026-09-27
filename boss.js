@@ -11,8 +11,8 @@ const Boss = (() => {
   const AW = 100, AH = 150;                       // arena em unidades
   const HEROIS = [
     { id: 'cav', n: 'Cavaleiro', cor: '#3f6fb0', alcance: 8, arma: 'espada', escudo: true, fala: ['Pelo reino!', 'Sua hora chegou, esqueleto!', 'Não tenho medo de você!'] },
-    { id: 'lan', n: 'Arqueira', cor: '#3f8f4a', alcance: 38, arma: 'lanca', fala: ['Nunca erro um alvo!', 'Fica paradinho aí...', 'Muito lento!'] },
-    { id: 'mag', n: 'Maga', cor: '#7a4fb0', alcance: 34, arma: 'magia', cura: true, fala: ['Luz, nos proteja!', 'Sua magia é fraca!', 'Eu estudei você!'] },
+    { id: 'lan', n: 'Arqueira', fem: true, cor: '#3f8f4a', alcance: 38, arma: 'lanca', fala: ['Nunca erro um alvo!', 'Fica paradinho aí...', 'Muito lento!'] },
+    { id: 'mag', n: 'Maga', fem: true, cor: '#7a4fb0', alcance: 34, arma: 'magia', cura: true, fala: ['Luz, nos proteja!', 'Sua magia é fraca!', 'Eu estudei você!'] },
     { id: 'pal', n: 'Bárbaro', cor: '#c9582a', alcance: 8, arma: 'machado', forte: 1.35, fala: ['RAAAAH!', 'Vou quebrar esses ossos!', 'Mais forte que você!'] },
   ];
   const HAB = [
@@ -50,6 +50,9 @@ const Boss = (() => {
       <div class="bTop"><div class="bBar boss"><span>👑 Você — Rei Esqueleto</span><i></i><b></b></div><div class="bParty"></div></div>
       <button class="bX" data-b="sair" aria-label="Sair">✕</button>
       <div class="bHab"></div>
+      <div class="bPapo"></div>
+      <div class="bCena" data-b="cena" hidden><div class="bCine top"></div><div class="bCine bot"></div>
+        <div class="bFalaBox"><b></b><p></p><small>toque ▸</small></div><button class="bPular" data-b="pular">Pular ⏭</button></div>
       <div class="bLobby"></div>`;
     document.body.appendChild(el);
     cv = $b('#bcv'); g = cv.getContext('2d');
@@ -62,6 +65,8 @@ const Boss = (() => {
       if (k === 'hab') usar(+a.dataset.i);
       if (k === 'lutar') lutar();
       if (k === 'lobby') lobby();
+      if (k === 'pular') fimCena();
+      if (k === 'cena') proxFala();
       if (k === 'modo') { P.modo3d = !(P.modo3d !== false); salvar(); lobby(); }
     });
     // joystick: arrastar move na hora; toque rápido manda andar até o ponto
@@ -97,7 +102,7 @@ const Boss = (() => {
   function lobby() {
     R = null;
     const grp = grupoDe(P.nivel);
-    $b('.bHab').hidden = true; $b('.bTop').hidden = true;
+    $b('.bHab').hidden = true; $b('.bTop').hidden = true; $b('.bCena').hidden = true;
     const L = $b('.bLobby'); L.hidden = false;
     L.innerHTML = `<h2>☠️ Covil do Rei Esqueleto</h2>
       <p class="mut">Você é o chefão: ❤️ ${BOSS_VIDA} de vida e golpes devastadores. Os heróis voltam a cada derrota <b>mais fortes</b> — até onde você aguenta?</p>
@@ -126,8 +131,9 @@ const Boss = (() => {
       })),
       cap: [], proj: [], zonas: [], ondas: [], part: [], txt: [], cd: HAB.map(() => 0),
     };
-    falar(R.herois[0], R.herois[0].cls.fala[0], 2.5);
-    $b('.bLobby').hidden = true; $b('.bHab').hidden = false; $b('.bTop').hidden = false;
+    R.ditos = new Set(); R.papo = [];
+    $b('.bLobby').hidden = true;
+    cenaInicio();
     $b('.bParty').innerHTML = R.herois.map((h, i) => `<div class="bBar heroi" data-h="${i}" style="--c:${h.cls.cor}"><span>${h.cls.n}</span><i></i><b></b></div>`).join('');
   }
   const vivos = () => R.herois.filter(h => !h.morto);
@@ -180,6 +186,63 @@ const Boss = (() => {
     R.txt.push({ x: q.x + (Math.random() - 0.5) * 4, y: q.y - 8, s: Math.round(v), cor: cor || '#fff', t: 0, grande: v >= 15 });
   }
   function poeira(x, y, cor, n) { for (let i = 0; i < n; i++) { const a = Math.random() * 6.28, v = 10 + Math.random() * 30; R.part.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, t: 0, vida: 0.4 + Math.random() * 0.4, cor }); } }
+
+  /* ---------------- diálogos ---------------- */
+  const COR_REI = '#ff6a4a';
+  const sorteia = a => a[Math.floor(Math.random() * a.length)];
+  const FALA_CLS = {
+    cav: [['Meu escudo aguentou seu último pisão. Aguenta o próximo!', 'Vou transformar esse escudo em prato de sopa.'], ['Juro pela coroa do reino: hoje você cai!', 'A única coroa aqui é a minha.']],
+    lan: [['Uma flecha no joelho e você cai, ossudo!', 'Eu nem tenho joelho... só osso! HAHAHA!'], ['Minha mira não erra duas vezes.', 'Então erra uma vez só e pronto.']],
+    mag: [['Estudei seus feitiços. Sei onde cada meteoro vai cair.', 'Então estude isto: CORRA!'], ['A luz vai apagar essa sua fogueira.', 'Minha chama queima há mil anos, mocinha.']],
+    pal: [['RAAAH! Vim quebrar essa coroa!', 'Essa coroa já rachou cabeças mais duras que a sua.'], ['Meu machado é maior que o seu!', 'Tamanho não é força, bárbaro.']],
+  };
+  // conversa antes da luta: [quem, fala] — quem é 'rei' ou o índice do herói
+  function roteiro(lv, hs) {
+    const L = [];
+    if (lv === 1) L.push([0, 'Então é você o tal Rei Esqueleto que assusta o reino?'], ['rei', 'Assustar? Eu GOVERNO este castelo. Quem ousa entrar no meu covil?'], [0, `Sou ${hs[0].cls.fem ? 'a' : 'o'} ${hs[0].cls.n}, e vim acabar com seu reinado de ossos!`], ['rei', 'Sozinho? Vou pendurar seu elmo na minha parede. HAHAHA!']);
+    else {
+      if (P.ultima === 'derrota') L.push([0, 'Lembra da última vez? Você caiu feio, esqueleto.'], ['rei', 'Um tropeço. Hoje eu levanto... e vocês deitam.']);
+      else L.push([0, sorteia(['Voltamos, esqueleto! Treinamos dia e noite.', 'O reino inteiro está torcendo por nós!', 'Seus capangas não vão nos segurar desta vez.'])], ['rei', sorteia(['Treinaram? Eu tenho a eternidade inteira pra treinar.', 'Mais heróis pro meu museu. Que gentileza.', 'Vocês de novo? Nem limpei o chão da última vez.'])]);
+      if (hs.length > tamGrupo(lv - 1)) { const k = hs.length - 1; L.push([k, `Desta vez eu vim junto. Prepare-se para ${hs[k].cls.fem ? 'a' : 'o'} ${hs[k].cls.n}!`], ['rei', 'Mais um? Ótimo. Mais ossos pra coleção!']); }
+      const k = lv % hs.length, f = FALA_CLS[hs[k].cls.id][lv % 2];
+      L.push([k, f[0]], ['rei', f[1]]);
+    }
+    L.push([0, hs.length > 1 ? 'Todos juntos! PELO REINO!' : 'PELO REINO!'], ['rei', 'Venham! Meu castelo, minhas regras!']);
+    return L;
+  }
+  const quemFala = k => k === 'rei' ? R.boss : R.herois[k];
+  function cenaInicio() {
+    R.cena = { falas: roteiro(R.lv, R.herois), i: 0, t: 0 };
+    const b = R.boss; olhar(b, AW / 2, AH); for (const h of R.herois) { olhar(h, b.x, b.y); anima(h, 'idle'); }
+    $b('.bHab').hidden = true; $b('.bTop').hidden = true; $b('.bCena').hidden = false;
+  }
+  function proxFala() {
+    const c = R && R.cena; if (!c) return;
+    if (c.t * 40 < c.falas[c.i][1].length) { c.t = 99; return; } // completa o texto primeiro
+    c.i++; c.t = 0;
+    if (c.i >= c.falas.length) fimCena();
+  }
+  function fimCena() {
+    if (!R || !R.cena) return;
+    R.cena = null; $b('.bCena').hidden = true; $b('.bHab').hidden = false; $b('.bTop').hidden = false;
+    falar(R.herois[0], 'Ataquem!', 1.5);
+  }
+  // conversa rápida durante a luta (uma vez por luta cada)
+  function conversa(id, linhas) {
+    if (!R || R.ditos.has(id)) return; R.ditos.add(id);
+    for (const [q, txt] of linhas) if (q) R.papo.push({ q, txt, t: 2.6 });
+  }
+  function papo(dt) {
+    const p = R.papo[0]; if (!p) return;
+    if (!p.dito) { p.dito = true; falar(p.q, p.txt, 2.4); }
+    p.t -= dt; if (p.t <= 0) R.papo.shift();
+  }
+  function gatilhos() {
+    const b = R.boss, vv = vivos();
+    if (!vv.length) return;
+    if (b.hp < b.max * 0.7) { const h = sorteia(vv); conversa('rei70', [[h, sorteia(['Ele está rachando! Continuem!', 'Olha só, o osso trincou!', 'Ele não é invencível!'])], [b, sorteia(['Foi só um arranhão no osso.', 'Isso? Cócegas.', 'Agora vocês me irritaram.'])]]); }
+    for (const h of vv) if (h.hp < h.max * 0.3) { const m = vv.find(o => o.cls.cura && o !== h); conversa('ferido', [[h, h.cls.fem ? 'Estou muito ferida!' : 'Estou muito ferido!'], m ? [m, 'Aguenta! Vou te curar!'] : [b, 'Já pode escolher sua lápide.']]); }
+  }
 
   /* ---------------- IA dos heróis ---------------- */
   function pensarHeroi(h, dt) {
@@ -253,7 +316,7 @@ const Boss = (() => {
     R.t += dt;
     const b = R.boss;
     for (let i = 0; i < R.cd.length; i++) R.cd[i] = Math.max(0, R.cd[i] - dt);
-    if (!R.furia && b.hp < b.max * 0.35) { R.furia = true; falar(b, 'AGORA CHEGA!!!', 2.5); shake = 0.5; poeira(b.x, b.y, '#ff3a2a', 30); }
+    if (!R.furia && b.hp < b.max * 0.35) { R.furia = true; conversa('furia', [[b, 'AGORA CHEGA!!! Chega de brincadeira!'], [sorteia(vivos()), 'Cuidado! Ele ficou furioso!']]); shake = 0.5; poeira(b.x, b.y, '#ff3a2a', 30); }
     // movimento do rei: joystick tem prioridade sobre o toque
     const vel = R.furia ? 24 : 19;
     let mvx = 0, mvy = 0;
@@ -279,7 +342,11 @@ const Boss = (() => {
       if (Math.hypot(h.x - b.x, h.y - b.y) < b.r + h.r + 0.5) { h.contato = (h.contato || 0) + 6 * dt * mulDano(); if (h.contato >= 5) { dano(h, h.contato, '#ff8a6a'); h.contato = 0; } }
       if (!R.fim) pensarHeroi(h, dt);
       h.flash -= dt; h.atkT -= dt;
-      if (h.hp <= 0) { h.morto = true; h.mt = 0; anima(h, 'die'); poeira(h.x, h.y, '#c9a0ff', 16); falar(h, 'Nããão...', 1.5); if (vivos().length) falar(b, 'Um a menos!', 1.5); }
+      if (h.hp <= 0) { h.morto = true; h.mt = 0; anima(h, 'die'); poeira(h.x, h.y, '#c9a0ff', 16); falar(h, 'Nããão...', 1.5);
+        const vv = vivos();
+        if (vv.length > 1) conversa('morte1', [[vv[0], `${h.cls.n}! NÃÃÃO!`], [b, 'Um a menos. Quem é o próximo?']]);
+        else if (vv.length === 1) conversa('ultimo', [[vv[0], 'Sobrou só eu... mas não vou fugir!'], [b, 'Coragem não é armadura, pequeno.']]);
+      }
     }
     for (const z of R.zonas) {
       if (z.segue) { z.x = b.x; z.y = b.y; }
@@ -336,8 +403,8 @@ const Boss = (() => {
   function terminar(venceu) {
     const lv = R.lv, gemas = venceu ? 5 * lv : 0;
     R.fim = { venceu, gemas, t: 0 };
-    if (venceu) { R.boss.vitoria = true; P.nivel++; P.vitorias++; P.recorde = Math.max(P.recorde || 0, lv); falar(R.boss, 'HAHAHAHA! Próximos!', 3); if (typeof me !== 'undefined' && me) { me.gemas += gemas; if (typeof save === 'function') save(); } }
-    else { P.derrotas++; for (const h of vivos()) h.vitoria = true; const v = vivos()[0]; if (v) falar(v, 'O reino está salvo!', 3); }
+    if (venceu) { R.boss.vitoria = true; P.nivel++; P.vitorias++; P.recorde = Math.max(P.recorde || 0, lv); P.ultima = 'vitoria'; R.papo = [{ q: R.boss, txt: sorteia(['HAHAHAHA! Voltem quando crescerem!', 'Próximos! Meu museu tem espaço.', 'Ninguém derruba o Rei Esqueleto!']), t: 3 }]; if (typeof me !== 'undefined' && me) { me.gemas += gemas; if (typeof save === 'function') save(); } }
+    else { P.derrotas++; for (const h of vivos()) h.vitoria = true; P.ultima = 'derrota'; const v = vivos()[0]; R.papo = [v && { q: v, txt: 'O reino está salvo!', t: 1.6 }, { q: R.boss, txt: 'Isso... não... acabou...', t: 2 }].filter(Boolean); }
     salvar();
     setTimeout(() => {
       if (!R || !R.fim) return;
@@ -493,7 +560,17 @@ const Boss = (() => {
     if (R.furia) { g.fillStyle = 'rgba(160,0,0,.1)'; g.fillRect(0, 0, W, H); }
   }
   function hud() {
-    if (!R) return;
+    const pp = $b('.bPapo');
+    if (!R) { pp.innerHTML = ''; return; }
+    if (R.cena) {
+      const [k, txt] = R.cena.falas[R.cena.i], q = quemFala(k), box = $b('.bFalaBox');
+      box.style.setProperty('--c', k === 'rei' ? COR_REI : q.cls.cor);
+      box.querySelector('b').textContent = k === 'rei' ? '👑 Rei Esqueleto (você)' : q.cls.n;
+      box.querySelector('p').textContent = txt.slice(0, Math.floor(R.cena.t * 40));
+      return;
+    }
+    const p = R.papo[0], html = p ? `<div style="--c:${p.q === R.boss ? COR_REI : p.q.cls.cor}"><b>${p.q === R.boss ? 'Rei' : p.q.cls.n}:</b> ${p.txt}</div>` : '';
+    if (pp.innerHTML !== html) pp.innerHTML = html;
     const b = R.boss;
     $b('.bBar.boss i').style.width = Math.max(0, b.hp / b.max * 100) + '%';
     $b('.bBar.boss b').textContent = `${Math.max(0, Math.ceil(b.hp))}/${Math.round(b.max)}${R.furia ? ' 🔥' : ''}`;
@@ -514,8 +591,10 @@ const Boss = (() => {
   function loop(now) {
     let dt = Math.min(0.05, (now - last) / 1000); last = now;
     if (freeze > 0) { freeze -= dt; dt = 0; }
-    if (R && !R.fim) passo(dt); else if (R) { R.t += dt; fx(dt); for (const h of R.herois) if (h.morto) h.mt += dt; }
-    if (usa3d()) { M3D.mostrar(true); M3D.render(R, dt, { tremor: shake }); desenhar3d(); }
+    if (R && R.cena) { R.cena.t += dt; fx(dt); }
+    else if (R && !R.fim) { passo(dt); gatilhos(); papo(dt); }
+    else if (R) { R.t += dt; fx(dt); papo(dt); for (const h of R.herois) if (h.morto) h.mt += dt; }
+    if (usa3d()) { M3D.mostrar(true); M3D.render(R, dt, { tremor: shake, foco: R && R.cena ? quemFala(R.cena.falas[R.cena.i][0]) : null }); desenhar3d(); }
     else { if (window.M3D) M3D.mostrar(false); desenhar(); }
     hud();
     raf = requestAnimationFrame(loop);
