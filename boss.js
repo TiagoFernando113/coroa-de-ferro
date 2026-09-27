@@ -56,6 +56,7 @@ const Boss = (() => {
       <div class="bLobby"></div>`;
     document.body.appendChild(el);
     cv = $b('#bcv'); g = cv.getContext('2d');
+    if (window.M3D) M3D.iniciar(el); // cena 3D por trás do canvas 2D
     $b('.bHab').innerHTML = HAB.map((h, i) => `<button class="hb${h.id === 'ira' ? ' ira' : ''}" data-b="hab" data-i="${i}"><b>${h.i}</b><span>${h.n}</span><em></em></button>`).join('');
     el.addEventListener('click', e => {
       const a = e.target.closest('[data-b]'); if (!a) return;
@@ -65,12 +66,13 @@ const Boss = (() => {
       if (k === 'lutar') lutar();
       if (k === 'up') comprar(a.dataset.u);
       if (k === 'lobby') lobby();
+      if (k === 'modo') { P.modo3d = !(P.modo3d !== false); salvar(); lobby(); }
     });
     // joystick: arrastar move na hora; toque rápido manda andar até o ponto
     cv.addEventListener('pointerdown', e => { cv.setPointerCapture(e.pointerId); joy = { sx: e.clientX, sy: e.clientY, x: e.clientX, y: e.clientY, arr: false }; });
     cv.addEventListener('pointermove', e => { if (!joy) return; joy.x = e.clientX; joy.y = e.clientY; if (Math.hypot(joy.x - joy.sx, joy.y - joy.sy) > 12) joy.arr = true; });
     const solta = e => {
-      if (joy && !joy.arr && R && !R.fim) { const [x, y] = s2a(e.clientX, e.clientY); R.boss.alvo = [clamp(x, 10, AW - 10), clamp(y, 12, AH - 12)]; }
+      if (joy && !joy.arr && R && !R.fim) { const [x, y] = (usa3d() && M3D.tap(e.clientX, e.clientY)) || s2a(e.clientX, e.clientY); R.boss.alvo = [clamp(x, 10, AW - 10), clamp(y, 12, AH - 12)]; }
       joy = null;
     };
     cv.addEventListener('pointerup', solta); cv.addEventListener('pointercancel', () => { joy = null; });
@@ -84,6 +86,7 @@ const Boss = (() => {
     ox = (W - AW * sc) / 2; oy = topo + (H - topo - base - AH * sc) / 2;
   }
   const a2s = (x, y) => [ox + x * sc, oy + y * sc];
+  const usa3d = () => P.modo3d !== false && window.M3D && M3D.pronto && !M3D.falhou;
   const s2a = (x, y) => [(x - ox) / sc, (y - oy) / sc];
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
@@ -109,6 +112,7 @@ const Boss = (() => {
       <div class="bUps">${UPS.map(u => `<button class="bUp" data-b="up" data-u="${u.id}" ${P.almas < upCusto(u.id) ? 'disabled' : ''}>
         <b>${u.i} ${u.n} <small>nv ${P.up[u.id]}</small></b><span>${u.d}</span><em>👻 ${upCusto(u.id)}</em></button>`).join('')}</div>
       <p class="mut">Arraste o dedo na arena para andar (ou toque num ponto). Os círculos vermelhos avisam os heróis — os bons desviam! Causar dano enche a <b>Ira do Rei</b>.</p>
+      <div class="row" style="justify-content:center"><button class="btn sec sm" data-b="modo">🎥 Visão: ${P.modo3d !== false ? '3D' : '2D'}${window.M3D && M3D.falhou ? ' (3D indisponível)' : ''}</button></div>
       <button class="btn bGo" data-b="lutar">⚔️ Lutar!</button>`;
   }
   function comprar(id) {
@@ -259,7 +263,7 @@ const Boss = (() => {
     // movimento do rei: joystick tem prioridade sobre o toque
     const vel = R.furia ? 24 : 19;
     let mvx = 0, mvy = 0;
-    if (joy && joy.arr) { const dx = joy.x - joy.sx, dy = joy.y - joy.sy, m = Math.hypot(dx, dy); if (m > 8) { const f = Math.min(1, m / 60); mvx = dx / m * vel * f; mvy = dy / m * vel * f; } b.alvo = null; }
+    if (joy && joy.arr) { const dx = joy.x - joy.sx, dy = joy.y - joy.sy, m = Math.hypot(dx, dy); if (m > 8) { const f = Math.min(1, m / 60), s3 = usa3d() ? -1 : 1; mvx = s3 * dx / m * vel * f; mvy = s3 * dy / m * vel * f; } b.alvo = null; }
     else if (b.alvo) { const dx = b.alvo[0] - b.x, dy = b.alvo[1] - b.y, d = Math.hypot(dx, dy); if (d < 1) b.alvo = null; else { mvx = dx / d * vel; mvy = dy / d * vel; } }
     if (b.carga > 0) { mvx = mvy = 0; }
     b.x = clamp(b.x + mvx * dt, 10, AW - 10); b.y = clamp(b.y + mvy * dt, 12, AH - 10);
@@ -459,6 +463,30 @@ const Boss = (() => {
     }
     if (R.furia) { g.fillStyle = 'rgba(160,0,0,.08)'; g.fillRect(0, 0, W, H); }
   }
+  function desenhar3d() {
+    g.setTransform(DPR, 0, 0, DPR, 0, 0); g.clearRect(0, 0, W, H);
+    if (!R) return;
+    const P3 = (x, y, h) => M3D.proj(x, y, h);
+    for (const h of R.herois) if (!h.morto) {
+      const [sx, sy, vis] = P3(h.x, h.y, 1.35); if (!vis) continue;
+      g.fillStyle = 'rgba(20,10,10,.8)'; g.fillRect(sx - 22, sy, 44, 6); g.fillStyle = h.cls.cor; g.fillRect(sx - 22, sy, 44 * Math.max(0, h.hp / h.max), 6);
+    }
+    for (const c of R.cap) { const [sx, sy, vis] = P3(c.x, c.y, 1.0); if (!vis) continue; g.fillStyle = '#2a1a0a'; g.fillRect(sx - 14, sy, 28, 4); g.fillStyle = '#7ad46a'; g.fillRect(sx - 14, sy, 28 * c.hp / c.max, 4); }
+    for (const t of R.txt) { const [sx, sy, vis] = P3(t.x, t.y, 1.2 + t.t * 1.2); if (!vis) continue; g.globalAlpha = 1 - t.t / 0.9; g.font = `800 ${t.grande ? 24 : 17}px system-ui`; g.textAlign = 'center'; g.lineWidth = 3; g.strokeStyle = '#000'; g.strokeText(t.s, sx, sy); g.fillStyle = t.cor; g.fillText(t.s, sx, sy); }
+    g.globalAlpha = 1;
+    for (const q of [R.boss, ...R.herois]) if (q.fala && !(q.morto && q.mt > 1.5)) {
+      const [sx, sy, vis] = P3(q.x, q.y, q === R.boss ? 3.0 : 1.55); if (!vis) continue;
+      g.font = '700 13px system-ui'; const w = g.measureText(q.fala.txt).width + 14;
+      g.fillStyle = 'rgba(255,250,240,.95)'; g.beginPath(); g.roundRect ? g.roundRect(sx - w / 2, sy - 24, w, 22, 8) : g.rect(sx - w / 2, sy - 24, w, 22); g.fill();
+      g.fillStyle = '#2a1a0a'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(q.fala.txt, sx, sy - 13); g.textBaseline = 'alphabetic';
+    }
+    if (joy && joy.arr) {
+      g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 3; circ(joy.sx, joy.sy, 60); g.stroke();
+      const dx = joy.x - joy.sx, dy = joy.y - joy.sy, m = Math.hypot(dx, dy), f = Math.min(1, 60 / (m || 1));
+      g.fillStyle = 'rgba(255,255,255,.45)'; circ(joy.sx + dx * f, joy.sy + dy * f, 22); g.fill();
+    }
+    if (R.furia) { g.fillStyle = 'rgba(160,0,0,.1)'; g.fillRect(0, 0, W, H); }
+  }
   function hud() {
     if (!R) return;
     const b = R.boss;
@@ -482,7 +510,9 @@ const Boss = (() => {
     let dt = Math.min(0.05, (now - last) / 1000); last = now;
     if (freeze > 0) { freeze -= dt; dt = 0; }
     if (R && !R.fim) passo(dt); else if (R) { R.t += dt; fx(dt); for (const h of R.herois) if (h.morto) h.mt += dt; }
-    desenhar(); hud();
+    if (usa3d()) { M3D.mostrar(true); M3D.render(R, dt, { tremor: shake }); desenhar3d(); }
+    else { if (window.M3D) M3D.mostrar(false); desenhar(); }
+    hud();
     raf = requestAnimationFrame(loop);
   }
   return { abrir, fechar, P };

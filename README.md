@@ -28,6 +28,10 @@ node tools/sprites/render.js
 
 `chars.png`/`chars.json` são personagens animados (parado, andando, atacando, morrendo em 4 direções) gerados dos kits **Mini Dungeon** e **Mini Characters** da Kenney (CC0): `node tools/sprites/personagens.js`.
 
+### Modo Chefão em 3D
+
+A luta pode ser vista em 3D (câmera atrás do chefão). `boss3d.js` é gerado de `tools/boss3d/boss3d.src.js` com o three.js embutido (`node tools/boss3d/build.mjs`); `modelos3d.json` junta os modelos GLB com textura embutida e só as animações usadas (`node tools/boss3d/enxugar.mjs`). Dependências em `tools/sprites`: `npm i three@0.160.0 esbuild@0.24.0 @gltf-transform/core@4 @gltf-transform/functions@4 @gltf-transform/extensions@4`.
+
 ## App Android
 
 Como no Cyron: o jogo vai **dentro do APK** (abre sem internet). A cada abertura o app confere `versao.json` no repositório (ramo de desenvolvimento, depois `main`); se a versão for maior, baixa os arquivos e recarrega. Para entregar uma mudança: subir `versao` em `versao.json` e `VERSAO` em `game.js` (o workflow Testes confere que batem).
