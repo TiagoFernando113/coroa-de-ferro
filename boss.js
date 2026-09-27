@@ -363,7 +363,13 @@ const Boss = (() => {
     // movimento do rei: joystick tem prioridade sobre o toque
     const vel = R.furia ? 24 : 19;
     let mvx = 0, mvy = 0;
-    if (joy && joy.arr) { const dx = joy.x - joy.sx, dy = joy.y - joy.sy, m = Math.hypot(dx, dy); if (m > 8) { const f = Math.min(1, m / 60), s3 = usa3d() ? -1 : 1; mvx = s3 * dx / m * vel * f; mvy = s3 * dy / m * vel * f; } b.alvo = null; }
+    if (joy && joy.arr) { const dx = joy.x - joy.sx, dy = joy.y - joy.sy, m = Math.hypot(dx, dy); if (m > 8) {
+      const f = Math.min(1, m / 60) * vel, ux = dx / m, uy = dy / m;
+      if (usa3d()) { // relativo à câmera 3D: cima = frente da câmera
+        const yw = M3D.yaw || 0, sy = Math.sin(yw), cy = Math.cos(yw);
+        mvx = (-uy * sy - ux * cy) * f; mvy = (-uy * cy + ux * sy) * f;
+      } else { mvx = ux * f; mvy = uy * f; }
+    } b.alvo = null; }
     else if (b.alvo) { const dx = b.alvo[0] - b.x, dy = b.alvo[1] - b.y, d = Math.hypot(dx, dy); if (d < 1) b.alvo = null; else { mvx = dx / d * vel; mvy = dy / d * vel; } }
     b.andando = !!(mvx || mvy); if (b.andando) olhar(b, b.x + mvx, b.y + mvy); // olha para onde o jogador quer ir (até atacando)
     if (b.carga > 0 || b.atordoado > 0) { mvx = mvy = 0; }

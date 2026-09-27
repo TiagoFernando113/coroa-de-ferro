@@ -152,7 +152,7 @@ const MAT_FOGO = new THREE.MeshBasicMaterial({ color: 0xffa040 });
 const MAT_MAGIA = new THREE.MeshBasicMaterial({ color: 0xc9a0ff });
 const MAT_LANCA = new THREE.MeshStandardMaterial({ color: 0xc8ccd6, metalness: 0.6 });
 
-const olhar3d = new THREE.Vector3(0, 0, 0); let focoAnt = null;
+const olhar3d = new THREE.Vector3(0, 0, 0); let focoAnt = null, camYaw = 0;
 function render(R, dt, overlay) {
   if (!ok) return false;
   clock += dt;
@@ -190,7 +190,11 @@ function render(R, dt, overlay) {
     luzFuria.intensity = R.furia ? 6 + Math.sin(clock * 8) * 2 : 0; luzFuria.position.set(wx(R.boss.x), 2.5, wz(R.boss.y));
     // câmera atrás do rei, olhando para a frente (onde vêm os heróis)
     const bx = wx(R.boss.x), bz = wz(R.boss.y), tr = overlay.tremor || 0;
-    let alvo = new THREE.Vector3(bx * 0.5, 6.2, bz - 7.2), olha = new THREE.Vector3(bx * 0.5, 0, bz + 3.8);
+    // câmera em 3ª pessoa: gira devagar para ficar atrás de onde o rei está indo
+    if (R.boss.andando) { let d = Math.atan2(R.boss.fx, R.boss.fy) - camYaw; d = Math.atan2(Math.sin(d), Math.cos(d)); camYaw += Math.sin(d) * 1.1 * dt; } // suave; andando de volta para a câmera não gira
+    const sy = Math.sin(camYaw), cy = Math.cos(camYaw);
+    const lx = AW * S / 2 - 0.3, lz = AH * S / 2 - 0.3; // câmera fica dentro das paredes
+    let alvo = new THREE.Vector3(Math.max(-lx, Math.min(lx, bx - sy * 7.2)), 6.2, Math.max(-lz, Math.min(lz, bz - cy * 7.2))), olha = new THREE.Vector3(bx + sy * 3.8, 0, bz + cy * 3.8);
     const f = overlay.foco;
     if (f) { // cena de diálogo: close no personagem que está falando
       const fx = wx(f.x), fz = wz(f.y);
@@ -203,6 +207,7 @@ function render(R, dt, overlay) {
     cam.position.x += (Math.random() - 0.5) * tr * 0.4; cam.position.y += (Math.random() - 0.5) * tr * 0.4;
     cam.lookAt(olhar3d);
   } else {
+    camYaw = 0;
     // covil: câmera girando devagar pela arena vazia
     cam.position.set(Math.sin(clock * 0.15) * 7, 5, Math.cos(clock * 0.15) * 9); cam.lookAt(0, 0.5, 0);
     pontosGeo.setDrawRange(0, 0);
@@ -223,7 +228,7 @@ function tap(sx, sy) {
 }
 
 window.M3D = {
-  get pronto() { return ok; }, get falhou() { return falhou; },
+  get pronto() { return ok; }, get yaw() { return camYaw; }, get falhou() { return falhou; },
   iniciar(host) {
     try {
       const t = document.createElement('canvas');
