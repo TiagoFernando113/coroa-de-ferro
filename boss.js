@@ -268,7 +268,8 @@ const Boss = (() => {
     if (b.carga > 0) { mvx = mvy = 0; }
     b.x = clamp(b.x + mvx * dt, 10, AW - 10); b.y = clamp(b.y + mvy * dt, 12, AH - 10);
     b.carga -= dt; b.flash -= dt; b.atkT -= dt;
-    if (b.atkT <= 0) { b.esp = null; if (mvx || mvy) { olhar(b, b.x + mvx, b.y + mvy); anima(b, 'walk'); } else { const h = maisPerto(b.x, b.y); if (h) olhar(b, h.x, h.y); anima(b, 'idle'); } }
+    if (mvx || mvy) olhar(b, b.x + mvx, b.y + mvy); // sempre olha para onde anda
+    if (b.atkT <= 0) { b.esp = null; anima(b, mvx || mvy ? 'walk' : 'idle'); }
     for (const h of R.herois) {
       if (h.morto) { h.mt += dt; continue; }
       if (Math.hypot(h.x - b.x, h.y - b.y) < b.r + h.r + 0.5) { h.contato = (h.contato || 0) + 6 * dt * mulDano(); if (h.contato >= 5) { dano(h, h.contato, '#ff8a6a'); h.contato = 0; } }
