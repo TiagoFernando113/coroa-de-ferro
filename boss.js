@@ -2,7 +2,7 @@
 /* =====================================================================
    Modo Chefão — você é o BOSS (o Rei Esqueleto) e luta contra os heróis.
    Os heróis são IAs que percebem os avisos, desviam, rolam, se curam e
-   atacam juntos. A cada vitória vem um grupo mais forte e mais esperto.
+   atacam juntos. O chefão já nasce forte; quem evolui são os heróis.
    Personagens: sprites animados de chars.png (Kenney Mini Dungeon /
    Mini Characters, CC0; gerados por tools/sprites/personagens.js).
    ===================================================================== */
@@ -22,19 +22,16 @@ const Boss = (() => {
     { id: 'meteoro', n: 'Meteoros', i: '☄️', cd: 8 },
     { id: 'ira', n: 'Ira do Rei', i: '👑', cd: 0 },
   ];
-  const UPS = [
-    { id: 'vida', n: 'Vida', i: '❤️', d: '+15% de vida' },
-    { id: 'forca', n: 'Força', i: '💪', d: '+12% de dano' },
-    { id: 'rapidez', n: 'Rapidez', i: '⚡', d: '-7% de recarga' },
-    { id: 'capangas', n: 'Horda', i: '👹', d: '+1 capanga por invocação' },
-  ];
+  // o chefão já nasce poderoso; quem evolui são os heróis
+  const BOSS_VIDA = 1500, BOSS_DANO = 3, BOSS_CD = 0.7;
+  // o que os heróis aprendem ao subir de nível
+  const NOVIDADES = { 2: 'Os heróis treinaram: mais vida e dano', 3: 'Agora vêm em DUPLA e aprendem a rolar para desviar', 5: 'Reagem mais rápido aos seus avisos', 7: 'Agora vêm em TRIO', 9: 'Rolam com mais frequência', 12: 'Agora vêm em QUARTETO', 15: 'Lendas do reino: reflexo máximo' };
   const XINGA = ['Mais um herói pro meu museu!', 'Achou que ia ser fácil?', 'HAHAHAHA!', 'Vem, vem...', 'Meu castelo, minhas regras!', 'Esmagar!'];
 
-  let P = { nivel: 1, almas: 0, up: { vida: 0, forca: 0, rapidez: 0, capangas: 0 }, vitorias: 0, derrotas: 0 };
-  try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.up) P = s; } catch (e) {}
+  let P = { nivel: 1, vitorias: 0, derrotas: 0, recorde: 0 };
+  try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.nivel) P = Object.assign(P, s); } catch (e) {}
   const salvar = () => { try { localStorage.setItem(KEY, JSON.stringify(P)); } catch (e) {} };
-  const upCusto = id => Math.round(20 * (P.up[id] + 1) ** 1.5);
-  const tamGrupo = lv => lv >= 7 ? 3 : lv >= 3 ? 2 : 1;
+  const tamGrupo = lv => lv >= 12 ? 4 : lv >= 7 ? 3 : lv >= 3 ? 2 : 1;
   const grupoDe = lv => Array.from({ length: tamGrupo(lv) }, (_, k) => HEROIS[(lv - 1 + k) % HEROIS.length]);
 
   // sprites animados
@@ -64,7 +61,6 @@ const Boss = (() => {
       if (k === 'sair') fechar();
       if (k === 'hab') usar(+a.dataset.i);
       if (k === 'lutar') lutar();
-      if (k === 'up') comprar(a.dataset.u);
       if (k === 'lobby') lobby();
       if (k === 'modo') { P.modo3d = !(P.modo3d !== false); salvar(); lobby(); }
     });
@@ -104,33 +100,28 @@ const Boss = (() => {
     $b('.bHab').hidden = true; $b('.bTop').hidden = true;
     const L = $b('.bLobby'); L.hidden = false;
     L.innerHTML = `<h2>☠️ Covil do Rei Esqueleto</h2>
-      <p class="mut">Você é o chefão. Os heróis do reino vêm te derrubar — e ficam mais espertos a cada vez.</p>
-      <div class="bCard"><div><div class="mut">Próximo desafio — nível ${P.nivel}</div>
-        ${grp.map(h => `<div><b style="color:${h.cor}">${h.n}</b> <span class="mut">❤️ ${Math.round(vidaHeroi(P.nivel, grp.length))}</span></div>`).join('')}
+      <p class="mut">Você é o chefão: ❤️ ${BOSS_VIDA} de vida e golpes devastadores. Os heróis voltam a cada derrota <b>mais fortes</b> — até onde você aguenta?</p>
+      <div class="bCard"><div style="flex:1"><div class="mut">Heróis — nível ${P.nivel}</div>
+        ${grp.map(h => `<div><b style="color:${h.cor}">${h.n}</b> <span class="mut">❤️ ${Math.round(vidaHeroi(P.nivel, grp.length))} · ⚔️ ${Math.round(danoHeroi(P.nivel) * (h.forte || 1))}</span></div>`).join('')}
         <div class="mut">reflexo ${Math.round((1 - reacao(P.nivel) / 0.5) * 100)}%</div></div></div>
-      <div class="bAlmas">👻 ${P.almas} almas · 🏆 ${P.vitorias} vitórias</div>
-      <div class="bUps">${UPS.map(u => `<button class="bUp" data-b="up" data-u="${u.id}" ${P.almas < upCusto(u.id) ? 'disabled' : ''}>
-        <b>${u.i} ${u.n} <small>nv ${P.up[u.id]}</small></b><span>${u.d}</span><em>👻 ${upCusto(u.id)}</em></button>`).join('')}</div>
+      <div class="bAlmas">🏆 ${P.vitorias} vitórias · recorde: nível ${P.recorde || 0}</div>
       <p class="mut">Arraste o dedo na arena para andar (ou toque num ponto). Os círculos vermelhos avisam os heróis — os bons desviam! Causar dano enche a <b>Ira do Rei</b>.</p>
       <div class="row" style="justify-content:center"><button class="btn sec sm" data-b="modo">🎥 Visão: ${P.modo3d !== false ? '3D' : '2D'}${window.M3D && M3D.falhou ? ' (3D indisponível)' : ''}</button></div>
       <button class="btn bGo" data-b="lutar">⚔️ Lutar!</button>`;
   }
-  function comprar(id) {
-    const c = upCusto(id); if (P.almas < c) return;
-    P.almas -= c; P.up[id]++; salvar(); lobby();
-  }
 
   /* ---------------- luta ---------------- */
-  const vidaHeroi = (lv, n) => 90 * 1.22 ** (lv - 1) * (n > 1 ? 0.8 : 1);
-  const reacao = lv => Math.max(0.1, 0.45 - 0.035 * (lv - 1)); // segundos para perceber o perigo
+  const vidaHeroi = (lv, n) => 90 * 1.25 ** (lv - 1) * (n > 1 ? 0.8 : 1);
+  const danoHeroi = lv => 7 * 1.2 ** (lv - 1);
+  const reacao = lv => Math.max(0.08, 0.45 - 0.026 * (lv - 1)); // segundos para perceber o perigo
   function lutar() {
-    const lv = P.nivel, bv = 320 * (1 + 0.15 * P.up.vida), grp = grupoDe(lv);
+    const lv = P.nivel, bv = BOSS_VIDA, grp = grupoDe(lv);
     R = {
       t: 0, fim: null, lv, ira: 0, furia: false,
       boss: { x: AW / 2, y: 40, r: 10, hp: bv, max: bv, alvo: null, flash: 0, carga: 0, fala: null, anim: 'idle', at: 0, fx: 0, fy: 1, atkT: 0 },
       herois: grp.map((cls, k) => ({
         x: AW / 2 + (k - (grp.length - 1) / 2) * 14, y: AH - 16, r: 4, hp: vidaHeroi(lv, grp.length), max: vidaHeroi(lv, grp.length), cls,
-        spd: 25 + lv * 1.2, dano: 7 * 1.17 ** (lv - 1), atk: 0.5 + k * 0.3, dash: 0, dashT: 0, cura: 5, orb: k * 2.1, flash: 0, fala: null,
+        spd: 25 + lv * 1.2, dano: danoHeroi(lv), atk: 0.5 + k * 0.3, dash: 0, dashT: 0, cura: 5, orb: k * 2.1, flash: 0, fala: null,
         vx: 0, vy: 0, fx: 0, fy: -1, anim: 'idle', at: 0, atkT: 0, morto: false, mt: 0,
       })),
       cap: [], proj: [], zonas: [], ondas: [], part: [], txt: [], cd: HAB.map(() => 0),
@@ -140,8 +131,8 @@ const Boss = (() => {
     $b('.bParty').innerHTML = R.herois.map((h, i) => `<div class="bBar heroi" data-h="${i}" style="--c:${h.cls.cor}"><span>${h.cls.n}</span><i></i><b></b></div>`).join('');
   }
   const vivos = () => R.herois.filter(h => !h.morto);
-  const mulDano = () => 1 + 0.12 * P.up.forca;
-  const mulCd = () => Math.max(0.4, 1 - 0.07 * P.up.rapidez) * (R && R.furia ? 0.6 : 1);
+  const mulDano = () => BOSS_DANO * (R && R.furia ? 1.3 : 1);
+  const mulCd = () => BOSS_CD * (R && R.furia ? 0.6 : 1);
   function falar(q, txt, t = 2) { q.fala = { txt, t }; }
   function maisPerto(x, y) { let best = null, bd = 1e9; for (const h of vivos()) { const d = Math.hypot(h.x - x, h.y - y); if (d < bd) { bd = d; best = h; } } return best; }
   function olhar(q, x, y) { const dx = x - q.x, dy = y - q.y, m = Math.hypot(dx, dy) || 1; q.fx = dx / m; q.fy = dy / m; }
@@ -162,7 +153,7 @@ const Boss = (() => {
       const n = R.furia ? 5 : 3;
       for (let k = 0; k < n; k++) { const off = (k - (n - 1) / 2) * 0.2; R.proj.push({ x: b.x, y: b.y - 4, vx: Math.cos(a + off) * 55, vy: Math.sin(a + off) * 55, r: 2.6, dano: 11, dono: 'boss', ttl: 3, nasce: R.t }); }
     }
-    if (id === 'capangas') for (let k = 0; k < 2 + P.up.capangas; k++) {
+    if (id === 'capangas') for (let k = 0; k < 3; k++) {
       const a = Math.random() * 6.28;
       R.cap.push({ x: b.x + Math.cos(a) * 14, y: b.y + Math.sin(a) * 10 + 6, r: 2.6, hp: 14 + R.lv * 2, max: 14 + R.lv * 2, atk: 0, flash: 0, anim: 'walk', at: Math.random(), fx: 0, fy: 1, atkT: 0 });
       poeira(b.x + Math.cos(a) * 14, b.y + Math.sin(a) * 10 + 6, '#7ad46a', 10);
@@ -233,8 +224,11 @@ const Boss = (() => {
       else if (d < quer * 0.6 && cls.alcance > 10) { mx -= ax / d; my -= ay / d; }
       h.orb += dt * (0.6 + R.lv * 0.05);
       mx += -ay / d * 0.6 * Math.sin(h.orb); my += ax / d * 0.6 * Math.sin(h.orb);
+    }
+    { // ataca mesmo enquanto desvia (mas não no meio de uma rolada)
+      const quer = cls.alcance + (alvo === b ? b.r : 0);
       h.atk -= dt;
-      if (h.atk <= 0 && d <= quer + 2) {
+      if (h.atk <= 0 && d <= quer + 2 && h.dashT <= 0) {
         olhar(h, alvo.x, alvo.y); anima(h, 'atk'); h.atkT = 0.36;
         if (cls.alcance > 10) {
           const v = cls.arma === 'lanca' ? 75 : 60, a = Math.atan2(alvo.y - h.y, alvo.x - h.x);
@@ -268,7 +262,17 @@ const Boss = (() => {
     if (b.carga > 0) { mvx = mvy = 0; }
     b.x = clamp(b.x + mvx * dt, 10, AW - 10); b.y = clamp(b.y + mvy * dt, 12, AH - 10);
     b.carga -= dt; b.flash -= dt; b.atkT -= dt;
-    if (mvx || mvy) olhar(b, b.x + mvx, b.y + mvy); // sempre olha para onde anda
+    // golpe automático de machado em quem chegar perto
+    b.golpe = (b.golpe || 0) - dt;
+    if (b.golpe <= 0 && b.atkT <= 0 && b.carga <= 0) {
+      const perto = vivos().filter(h => Math.hypot(h.x - b.x, h.y - b.y) < b.r + h.r + 7);
+      if (perto.length) {
+        olhar(b, perto[0].x, perto[0].y); b.esp = null; anima(b, 'atk'); b.at = 0; b.atkT = 0.5; b.golpe = R.furia ? 0.8 : 1.1;
+        for (const h of perto) dano(h, 12 * mulDano(), '#ff8a6a');
+        shake = Math.max(shake, 0.12); poeira(perto[0].x, perto[0].y, '#c9a36a', 8);
+      }
+    }
+    if ((mvx || mvy) && b.atkT <= 0) olhar(b, b.x + mvx, b.y + mvy); // olha para onde anda
     if (b.atkT <= 0) { b.esp = null; anima(b, mvx || mvy ? 'walk' : 'idle'); }
     for (const h of R.herois) {
       if (h.morto) { h.mt += dt; continue; }
@@ -330,18 +334,18 @@ const Boss = (() => {
     shake = Math.max(0, shake - dt);
   }
   function terminar(venceu) {
-    const lv = R.lv, n = R.herois.length, almas = venceu ? 10 * lv * n : 3 * lv, gemas = venceu ? 5 * lv : 0;
-    R.fim = { venceu, almas, gemas, t: 0 };
-    P.almas += almas;
-    if (venceu) { R.boss.vitoria = true; P.nivel++; P.vitorias++; falar(R.boss, 'HAHAHAHA! Próximos!', 3); if (typeof me !== 'undefined' && me) { me.gemas += gemas; if (typeof save === 'function') save(); } }
+    const lv = R.lv, gemas = venceu ? 5 * lv : 0;
+    R.fim = { venceu, gemas, t: 0 };
+    if (venceu) { R.boss.vitoria = true; P.nivel++; P.vitorias++; P.recorde = Math.max(P.recorde || 0, lv); falar(R.boss, 'HAHAHAHA! Próximos!', 3); if (typeof me !== 'undefined' && me) { me.gemas += gemas; if (typeof save === 'function') save(); } }
     else { P.derrotas++; for (const h of vivos()) h.vitoria = true; const v = vivos()[0]; if (v) falar(v, 'O reino está salvo!', 3); }
     salvar();
     setTimeout(() => {
       if (!R || !R.fim) return;
       const L = $b('.bLobby'); L.hidden = false; $b('.bHab').hidden = true;
       L.innerHTML = `<h2>${venceu ? '🏆 Vitória do Chefão!' : '💀 Derrotado...'}</h2>
-        <p>${venceu ? `Os heróis do nível ${lv} caíram diante de você.` : `Os heróis do nível ${lv} te derrubaram. Fortaleça-se e tente de novo.`}</p>
-        <div class="bAlmas">+👻 ${almas} almas${gemas ? ` · +💎 ${gemas} gemas no reino` : ''}</div>
+        <p>${venceu ? `Os heróis do nível ${lv} caíram diante de você.` : `Os heróis do nível ${lv} te derrubaram. Mude a estratégia e tente de novo!`}</p>
+        ${venceu ? `<div class="bCard"><div>⬆️ <b>Os heróis evoluíram para o nível ${lv + 1}</b><div class="mut">${NOVIDADES[lv + 1] || 'Mais vida (+25%) e mais dano (+20%)'}</div></div></div>` : ''}
+        ${gemas ? `<div class="bAlmas">+💎 ${gemas} gemas no reino</div>` : ''}
         <button class="btn bGo" data-b="lobby">Voltar ao covil</button>`;
     }, 1600);
   }
@@ -516,5 +520,5 @@ const Boss = (() => {
     hud();
     raf = requestAnimationFrame(loop);
   }
-  return { abrir, fechar, P };
+  return { abrir, fechar, P, get luta() { return R; } };
 })();

@@ -211,3 +211,8 @@ h3{margin:16px 0 8px;font:700 15px 'Cinzel',Georgia,serif;color:var(--gold)}
 .hb.ira{grid-column:1/-1;width:auto;height:min(15vw,58px);flex-direction:row;gap:6px;font-size:12px;border-color:#ffd76a;background:radial-gradient(#8a6a10,#3a2206)}
 .hb.ira.pronto{animation:brilho 0.8s infinite alternate;box-shadow:0 0 16px #ffd76a}
 .hb span{white-space:nowrap}
+.hb.ira b{font-size:24px}
+.hb.ira em{position:static;font-size:16px;order:3}
+.hb.ira em:empty{display:none}
+.bBar.heroi span{display:block;max-width:calc(100% - 38px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:0}
+.bBar.heroi b{padding:0 6px}
