@@ -441,6 +441,7 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;paddin
 .iIco{flex:none;width:40px;height:40px;border-radius:10px;display:grid;place-items:center;background:color-mix(in srgb,var(--ri) 30%,#fff);color:#4a2c12}.iIco .ico{width:26px;height:26px}
 .bauAberto{font-size:0;color:#c98a3a;animation:pop .5s}.bauAberto .ico{width:70px;height:70px}
 .espacos{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.espacos .espaco small{font-size:10px}
 .espaco{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 2px;border-radius:12px;background:var(--creme2);border:3px dashed #c9b38a;color:var(--madeira2);font-size:10px;min-height:74px}
 .espaco.cheio{border:3px solid var(--ri);background:color-mix(in srgb,var(--ri) 18%,#fff);box-shadow:0 0 10px color-mix(in srgb,var(--ri) 50%,transparent)}
 .espaco .ico{width:26px;height:26px}.espaco small{line-height:1.1;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
@@ -475,3 +476,10 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;paddin
 .doacoes div.eu{background:#fff3c4;box-shadow:inset 0 0 0 2px #ffd23a}
 .doacoes em{font-style:normal;font-family:var(--fT);width:20px;color:var(--madeira2)}.doacoes b{flex:1;font-weight:600}.doacoes span{display:flex;align-items:center;gap:3px;font-size:13px}
 .bauG{color:#c98a3a}.link{color:var(--azul2);text-decoration:underline;font-size:inherit}
+/* raças no criador */
+.crRacas{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:4px 0 8px}
+.crRaca{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 4px;border-radius:14px;background:#fff;border:2px solid var(--creme2);box-shadow:0 3px 0 var(--creme2)}
+.crRaca svg{width:32px;height:32px}
+.crRaca b{font-size:12px}
+.crRaca.on{background:linear-gradient(#ffe27a,#f0a820);border-color:#c07808;box-shadow:0 3px 0 #a86a08;color:#5a3408}
+.mochila>p{grid-column:1/-1}

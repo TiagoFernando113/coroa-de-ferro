@@ -62,8 +62,9 @@ export function equipar(id) {
 }
 export function desequipar(slot) { mochila(); const it = S.equip[slot]; if (!it || S.mochila.length >= MOCHILA_MAX) return false; delete S.equip[slot]; S.mochila.push(it); aplicarVisualEquip(); return true; }
 export function venderItem(id) { mochila(); const i = S.mochila.findIndex(x => x.id === id); if (i < 0) return 0; const v = precoItem(S.mochila[i]); S.mochila.splice(i, 1); ganharOuro(v); return v; }
-// a arma e o elmo equipados aparecem no boneco do líder
-export function aplicarVisualEquip() { const l = heroi(S.lider); if (!l) return; if (S.equip.arma?.visual) l.visual.arma = S.equip.arma.visual; if (S.equip.elmo?.visual) l.visual.cha = S.equip.elmo.visual; }
+// o que está equipado aparece no boneco do líder
+const PARTE_EQUIP = { arma: 'arma', elmo: 'cha', armadura: 'tro', luvas: 'bra', botas: 'per', capa: 'capa', escudo: 'esq' };
+export function aplicarVisualEquip() { const l = heroi(S.lider); if (!l) return; for (const [slot, k] of Object.entries(PARTE_EQUIP)) if (S.equip[slot]?.visual) l.visual[k] = S.equip[slot].visual; }
 export const novoItem = gerarItem;
 export const precoBau = () => custoBau(S.st.baus || 0);
 // baús de itens (como o recrutamento, mas para o seu herói)

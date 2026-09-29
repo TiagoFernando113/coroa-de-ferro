@@ -5,7 +5,7 @@ import { montarBase, atualizarHerois, efeitosBase, posHeroi, revestir } from './
 import { abrirCriador, passoCriador, criadorAberto } from './criador.js';
 import { montarMundoMapa, atualizarMundo } from './mundo.js';
 import { passoLuta } from './luta.js';
-import { montar, atualizar, ui, carregarRecursos, boasVindas, flutuar3d, som, novidadeCriador } from './ui.js';
+import { montar, atualizar, ui, carregarRecursos, boasVindas, flutuar3d, som, novidadeCriador, novidadeRacas } from './ui.js';
 import { VERSAO } from './dados.js';
 import { iniciarEtapas } from './etapas.js';
 
@@ -43,8 +43,10 @@ function entrar(novo) {
   const off = novo ? null : E.offline();
   iniciarEtapas(); montarBase(); montarMundoMapa(); montar();
   C.camera.yaw = Math.PI - 0.45; C.camera.pitch = 0.95; C.camera.dist = 74;
+  if (novo) E.S.viuRacas = true;
   if (novo) abrirCriador(E.S.lider, { primeiro: true, aoFechar: () => revestir(E.S.lider) });
   else if (!E.S.lider) novidadeCriador();
+  else if (!E.S.viuRacas) { E.S.viuRacas = true; novidadeRacas(); }
   else if (off) boasVindas(off);
   let ultimo = performance.now(), salvarT = 0;
   const laco = agora => {

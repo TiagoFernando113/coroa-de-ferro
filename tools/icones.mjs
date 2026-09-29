@@ -17,6 +17,8 @@ const USADOS = {
   h_lamina: 'backstab', h_adagas: 'thrown-daggers', h_fumaca: 'smoke-bomb', esquiva: 'sprint', pocao: 'heart-bottle', masmorra: 'dungeon-gate', sair: 'exit-door',
   forca: 'fist', agi: 'running-shoe', vit: 'heart-plus', int: 'brain', sombras: 'raise-skeleton', rank: 'rank-3', caveira: 'broken-skull',
   c_estilo: 'person', c_rosto: 'woman-elf-face', c_corpo: 'body-height', c_roupa: 'cape', c_armas: 'sword-brandish', c_cores: 'palette', c_nome: 'quill-ink',
+  c_raca: 'elf-ear', r_humano: 'person', r_bebe: 'baby-face', r_elfo: 'woman-elf-face', r_anao: 'dwarf-face', r_orc: 'orc-head', r_demonio: 'devil-mask',
+  r_fera: 'cat', r_anjo: 'angel-wings', r_gigante: 'troll', monstro: 'slime', capa: 'wing-cloak', botas: 'boots', luvas: 'gauntlet',
   dado: 'perspective-dice-six-faces-random', girar: 'clockwise-rotation', pincel: 'paint-brush', andar: 'walk', festa: 'party-popper', mao2: 'hand',
 };
 const out = {}, faltam = [];

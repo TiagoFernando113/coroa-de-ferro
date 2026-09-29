@@ -1,17 +1,21 @@
 // Loot e equipamento do herói: 5 espaços, 5 raridades, atributos aleatórios.
-// A arma e o elmo aparecem no boneco (mudam a arma na mão e o chapéu).
-import { ARMAS } from './aparencia.js';
+// Quase tudo aparece no boneco: arma, escudo, elmo, armadura (tronco), luvas (braços), botas (pernas) e capa.
+import { ARMAS, ESQUERDA, ORIGENS } from './aparencia.js';
 
 export const RARIDADE_ITEM = [
   { nome: 'Comum', cor: '#b8bcc4', mult: 1 }, { nome: 'Incomum', cor: '#5fd84a', mult: 1.35 }, { nome: 'Raro', cor: '#3aa0ff', mult: 1.8 },
   { nome: 'Épico', cor: '#b36bff', mult: 2.5 }, { nome: 'Lendário', cor: '#ff9a1a', mult: 3.6 },
 ];
-export const ESPACOS = { arma: { nome: 'Arma', icone: 'c_armas' }, elmo: { nome: 'Elmo', icone: 'escudo' }, armadura: { nome: 'Armadura', icone: 'c_roupa' },
+export const ESPACOS = { arma: { nome: 'Arma', icone: 'c_armas' }, elmo: { nome: 'Elmo', icone: 'cav' }, armadura: { nome: 'Armadura', icone: 'c_roupa' },
+  luvas: { nome: 'Luvas', icone: 'luvas' }, botas: { nome: 'Botas', icone: 'botas' }, capa: { nome: 'Capa', icone: 'capa' }, escudo: { nome: 'Mão esquerda', icone: 'escudo' },
   amuleto: { nome: 'Amuleto', icone: 'estrela' }, anel: { nome: 'Anel', icone: 'gema' } };
 export const ATR_ITEM = { atk: ['Ataque', '%'], vida: ['Vida', ''], crit: ['Crítico', '%'], def: ['Defesa', '%'], vel: ['Velocidade', '%'] };
 const SUFIXOS = [['', 'Velho', 'de Ferro'], ['de Aço', 'do Caçador', 'Afiado'], ['Rúnico', 'do Lobo', 'Élfico'], ['Flamejante', 'do Dragão', 'Sombrio'], ['do Rei Esqueleto', 'Celestial', 'do Monarca']];
 const ELMOS = [['elmo', 'Elmo'], ['viseira', 'Elmo com viseira'], ['urso', 'Pele de urso'], ['mago', 'Chapéu de mago']];
 const ARMADURAS = ['Gibão', 'Cota de malha', 'Couraça', 'Armadura de placas', 'Manto encantado'];
+// estilo de cada origem de peças (o visual do item troca a parte do corpo)
+const ESTILO_ORIGEM = { Knight: 'de cavaleiro', Barbarian: 'bárbaras', Mage: 'de mago', Ranger: 'de patrulheiro', Rogue: 'de ladino', Rogue_Hooded: 'das sombras' };
+const LUVAS = ['Luvas', 'Braçadeiras', 'Manoplas'], BOTAS = ['Botas', 'Grevas', 'Botas de viagem'];
 const AMULETOS = ['Amuleto', 'Talismã', 'Pingente', 'Relíquia', 'Coração de dragão'];
 const ANEIS = ['Anel', 'Anel de prata', 'Anel rúnico', 'Anel do vazio', 'Anel do monarca'];
 const sorte = l => l[Math.floor(Math.random() * l.length)];
@@ -29,6 +33,11 @@ export function gerarItem(nivel, rar = sortearRaridade(), slot = sorte(Object.ke
   if (slot === 'arma') { const a = sorte(ARMAS.filter(x => x.id)); it.visual = a.id; it.nome = `${a.nome} ${sorte(SUFIXOS[rar])}`.trim(); it.st.atk = Math.round(base * 1.4 + 3); }
   if (slot === 'elmo') { const [v, n] = sorte(ELMOS); it.visual = v; it.nome = `${n} ${sorte(SUFIXOS[rar])}`.trim(); it.st.vida = Math.round(base * 1.5); it.st.def = Math.round(base * 0.3 + 1); }
   if (slot === 'armadura') { it.nome = `${ARMADURAS[Math.min(4, rar + (Math.random() < 0.3 ? 1 : 0))]} ${sorte(SUFIXOS[rar])}`.trim(); it.st.vida = Math.round(base * 2.5); it.st.def = Math.round(base * 0.5 + 2); }
+  if (slot === 'armadura') it.visual = sorte(Object.keys(ORIGENS));
+  if (slot === 'luvas') { const o = sorte(Object.keys(ORIGENS)); it.visual = o; it.nome = `${sorte(LUVAS)} ${ESTILO_ORIGEM[o]} ${sorte(SUFIXOS[rar])}`.trim(); it.st.atk = Math.round(base * 0.5 + 1); it.st.crit = Math.round(base * 0.2 + 1); }
+  if (slot === 'botas') { const o = sorte(Object.keys(ORIGENS)); it.visual = o; it.nome = `${sorte(BOTAS)} ${ESTILO_ORIGEM[o]} ${sorte(SUFIXOS[rar])}`.trim(); it.st.vel = Math.round(base * 0.25 + 1); it.st.vida = Math.round(base * 0.8); }
+  if (slot === 'capa') { const o = sorte(Object.keys(ORIGENS).filter(x => x !== 'Barbarian')); it.visual = o; it.nome = `Capa ${ESTILO_ORIGEM[o]} ${sorte(SUFIXOS[rar])}`.trim(); it.st.def = Math.round(base * 0.3 + 1); it.st.vida = Math.round(base * 0.8); }
+  if (slot === 'escudo') { const e = sorte(ESQUERDA.filter(x => x.id)); it.visual = e.id; it.nome = `${e.nome} ${sorte(SUFIXOS[rar])}`.trim(); it.st.def = Math.round(base * 0.4 + 1); it.st.vida = Math.round(base * 0.9); }
   if (slot === 'amuleto') { it.nome = `${AMULETOS[rar]} ${sorte(SUFIXOS[rar])}`.trim(); it.st.crit = Math.round(base * 0.4 + 2); }
   if (slot === 'anel') { it.nome = `${ANEIS[rar]} ${sorte(SUFIXOS[rar])}`.trim(); it.st.atk = Math.round(base * 0.6 + 1); }
   for (let i = 0; i < rar; i++) extra(); // raridades altas têm mais atributos

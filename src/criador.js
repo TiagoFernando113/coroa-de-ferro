@@ -1,13 +1,13 @@
 // Criador de heróis: escolhe peças, cores (cada zona da roupa), corpo e armas, com prévia 3D girando no palco.
 import * as C from './cena.js';
 import { S, heroi, salvar } from './estado.js';
-import { PARTES, ARMAS, ESQUERDA, PELES, PALETA, CORPO, ESTILOS, visualPadrao, visualAleatorio, animAtaque } from './aparencia.js';
+import { PARTES, ARMAS, ESQUERDA, PELES, PALETA, CORPO, ESTILOS, RACAS, ACESSORIOS, PELOS, aplicarRaca, visualPadrao, visualAleatorio, animAtaque } from './aparencia.js';
 import { CLASSES, nomeAleatorio } from './dados.js';
 import { ico, som, ui } from './ui.js';
 
 const $ = s => document.querySelector(s);
 const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const ABAS = [['estilo', 'Estilo', 'c_estilo'], ['rosto', 'Rosto', 'c_rosto'], ['corpo', 'Corpo', 'c_corpo'], ['roupa', 'Roupa', 'c_roupa'],
+const ABAS = [['estilo', 'Estilo', 'c_estilo'], ['raca', 'Raça', 'c_raca'], ['rosto', 'Rosto', 'c_rosto'], ['corpo', 'Corpo', 'c_corpo'], ['roupa', 'Roupa', 'c_roupa'],
   ['armas', 'Armas', 'c_armas'], ['cores', 'Cores', 'c_cores'], ['nome', 'Nome', 'c_nome']];
 const ROTULO = { cab: 'Rosto', cha: 'Chapéu', mas: 'Máscara', tro: 'Tronco', bra: 'Braços', per: 'Pernas', capa: 'Capa', cos: 'Costas' };
 let E = null; // estado do criador aberto
@@ -16,7 +16,7 @@ export const criadorAberto = () => !!E;
 export function abrirCriador(id, { primeiro = false, aoFechar = null } = {}) {
   const h = heroi(id); if (!h || E) return;
   const v = JSON.parse(JSON.stringify(h.visual || visualPadrao(h.cls)));
-  E = { h, v, nome: h.nome, cls: h.cls, primeiro, aoFechar, aba: primeiro ? 'estilo' : 'rosto', zona: null, giro: 0, anim: 'Idle', camAntes: { ...C.camera, alvo: null }, focoAntes: { ...ui.foco } };
+  E = { h, v, nome: h.nome, cls: h.cls, primeiro, aoFechar, aba: primeiro ? 'estilo' : 'raca', zona: null, giro: 0, anim: 'Idle', camAntes: { ...C.camera, alvo: null }, focoAntes: { ...ui.foco } };
   C.estudio(true);
   E.P = C.heroi(v); E.P.raiz.position.set(C.ESTUDIO.x, 0, C.ESTUDIO.z); E.P.tocar('Idle');
   ui.foco = { x: C.ESTUDIO.x, z: C.ESTUDIO.z }; C.camera.yaw = Math.PI; C.camera.pitch = 0.18; C.camera.dist = 12; C.camera.suave = 30;
@@ -74,6 +74,12 @@ function desenhar() {
     h += `<h4>Visual pronto</h4><div class="crOps">${ESTILOS.map(e => `<button class="crOp" data-estilo="${e.id}">${e.nome}</button>`).join('')}<button class="crOp dado" data-estilo="?">${ico('dado')} Aleatório</button></div>
       <p class="suave">Depois ajuste cada detalhe nas outras abas: rosto, corpo, roupa, armas e a cor de cada pedacinho.</p>`;
   }
+  if (E.aba === 'raca') {
+    h += `<div class="crRacas">${RACAS.map(r => `<button class="crRaca ${(v.raca || 'humano') === r.id ? 'on' : ''}" data-raca="${r.id}">${ico(r.icone)}<b>${r.nome}</b></button>`).join('')}</div>`;
+    for (const [k, g] of Object.entries(ACESSORIOS)) h += `<h4>${g.nome}</h4><div class="crOps">${g.ops.map(([id, n]) => chip(k, id, n, (v[k] || '') === id)).join('')}</div>`;
+    h += `<h4>Cor dos pelos, barba e rabo</h4><div class="crCores">${PELOS.map(c => `<button class="crCor ${(v.corPelo || '#4a2e1c') === c ? 'on' : ''}" data-pelo="${c}" style="--cor:${c}"></button>`).join('')}</div>
+      <h4>Cor dos chifres e asas</h4><div class="crCores">${PELOS.map(c => `<button class="crCor ${(v.corChifre || '#2a2226') === c ? 'on' : ''}" data-chifre="${c}" style="--cor:${c}"></button>`).join('')}</div>`;
+  }
   if (E.aba === 'rosto') h += grupo('Rosto e cabelo', 'cab') + `<h4>Pele</h4><div class="crCores">${['', ...PELES].map(c => `<button class="crCor ${v.pele === c ? 'on' : ''}" data-pele="${c}" style="--cor:${c || '#f3bd98'}">${c ? '' : ico('check')}</button>`).join('')}<button class="crCor livre" data-livre="pele">${ico('pincel')}</button></div>${E.livre?.alvo === 'pele' ? seletorHtml() : ''}`
     + barra('cabT') + grupo('Chapéu e elmo', 'cha') + grupo('Máscara', 'mas');
   if (E.aba === 'corpo') h += barra('alt') + barra('larg') + barra('musc') + grupo('Tronco', 'tro') + grupo('Braços', 'bra') + grupo('Pernas', 'per');
@@ -106,6 +112,9 @@ function clique(e) {
   if (d.cls) { E.cls = d.cls; E.v = { ...visualPadrao(d.cls), cores: {} }; som('clique'); mudou(); tocar('ataque'); return; }
   if (d.estilo) { E.v = d.estilo === '?' ? visualAleatorio(E.cls) : visualPadrao(d.estilo); if (d.estilo === '?') { E.v.cores = {}; } som('clique'); mudou(); tocar('Cheering'); return; }
   if (d.k) { E.v[d.k] = d.v; som('clique'); mudou(); if (d.k === 'arma' || d.k === 'esq') tocar('ataque'); return; }
+  if (d.raca) { aplicarRaca(E.v, d.raca); som('clique'); mudou(); tocar('Cheering'); return; }
+  if (d.pelo) { E.v.corPelo = d.pelo; som('clique'); mudou(); return; }
+  if (d.chifre) { E.v.corChifre = d.chifre; som('clique'); mudou(); return; }
   if (d.pele != null) { E.v.pele = d.pele; som('clique'); mudou(); return; }
   if (d.livre) { if (d.livre === 'ok') { E.livre = null; som('confirma'); desenhar(); return; } E.livre = { alvo: d.livre, ...(E.livre = { alvo: d.livre }, hex2hsv(corAtual())) }; som('clique'); desenhar(); return; }
   if (d.zona) { E.livre = null; E.zona = E.zona === d.zona ? null : d.zona; som('clique'); desenhar(); return; }

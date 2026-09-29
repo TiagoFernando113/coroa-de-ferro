@@ -3,6 +3,7 @@
 // personagens animados, efeitos e a câmera (orbitando um ponto que pode ser arrastado).
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { ORIGENS, pecasDo } from './aparencia.js';
@@ -51,7 +52,7 @@ export async function carregar(url, progresso) {
   } else buf = await resp.arrayBuffer();
   const tam = new DataView(buf).getUint32(0, true);
   const cab = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 4, tam)));
-  const base = 4 + tam, loader = new GLTFLoader();
+  const base = 4 + tam, loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   await Promise.all(Object.entries(cab).map(async ([nome, [ini, len]]) => {
     modelos[nome] = await loader.parseAsync(buf.slice(base + ini, base + ini + len), '');
   }));
@@ -384,6 +385,65 @@ function texturaPintada(at, v, extra) {
   const cv = document.createElement('canvas'); cv.width = cv.height = TX; cv.getContext('2d').putImageData(img, 0, 0);
   const t = new THREE.CanvasTexture(cv); t.flipY = false; t.colorSpace = THREE.SRGBColorSpace; t.magFilter = THREE.LinearFilter; return t;
 }
+
+// ---------------- acessórios de raça: orelhas, barba, chifres, presas, rabo, asas, auréola ----------------
+// malhas simples (low poly) presas nos ossos; medidas no espaço do osso da cabeça (cabeça ~1,05 de altura, ±0,54 de largura, rosto em z≈0,53)
+const matAc = (cor, extra = {}) => new THREE.MeshStandardMaterial({ color: cor, roughness: 0.8, metalness: 0, flatShading: true, ...extra });
+const cone = (r, h, seg, mat) => new THREE.Mesh(new THREE.ConeGeometry(r, h, seg), mat);
+function pos(o, x, y, z, rx = 0, ry = 0, rz = 0, sx = 1, sy = 1, sz = 1) { o.position.set(x, y, z); o.rotation.set(rx, ry, rz); o.scale.set(sx, sy, sz); o.castShadow = true; return o; }
+function tubo(pts, r, mat, seg = 16) { return new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(...p))), seg, r, 6, false), mat); }
+export function acessorios(v) {
+  const pele = matAc(v.pele || '#f3bd98'), pelo = matAc(v.corPelo || '#4a2e1c'), chifre = matAc(v.corChifre || '#2a2226'), rosa = matAc('#f0a0a8');
+  const cab = [], quadril = [], peito = [];
+  for (const s of [-1, 1]) {
+    if (v.orelha === 'elfo') cab.push(pos(cone(0.1, 0.55, 5, pele), s * 0.6, 0.5, -0.05, -0.35, 0, -s * 1.15, 1, 1, 0.45));
+    if (v.orelha === 'gato' || v.orelha === 'lobo') {
+      const g = new THREE.Group(), h = v.orelha === 'lobo' ? 0.46 : 0.36;
+      g.add(pos(cone(0.19, h, 4, pelo), 0, 0, 0, 0, Math.PI / 4, 0, 1, 1, 0.55), pos(cone(0.11, h * 0.7, 4, rosa), 0, -0.03, 0.05, 0, Math.PI / 4, 0, 1, 1, 0.4));
+      cab.push(pos(g, s * 0.33, 1.08, -0.05, 0, 0, -s * 0.35));
+    }
+    if (v.orelha === 'coelho') { const g = new THREE.Group(); g.add(pos(new THREE.Mesh(new THREE.SphereGeometry(0.13, 8, 6), pelo), 0, 0.35, 0, 0, 0, 0, 1, 3, 0.5), pos(new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 6), rosa), 0, 0.35, 0.05, 0, 0, 0, 1, 3.2, 0.4)); cab.push(pos(g, s * 0.22, 0.95, -0.05, -0.15, 0, -s * 0.2)); }
+    if (v.chifre === 'demonio') { const c = tubo([[0, 0, 0], [s * 0.12, 0.14, -0.02], [s * 0.2, 0.28, -0.1], [s * 0.15, 0.4, -0.22]], 0.07, chifre, 10), ponta = pos(cone(0.07, 0.16, 6, chifre), s * 0.13, 0.46, -0.27, -0.9, 0, s * 0.3), base = pos(cone(0.13, 0.2, 6, chifre), 0, 0.02, 0, 0, 0, 0); cab.push(pos(new THREE.Group().add(c, ponta, base), s * 0.3, 0.98, 0.12, 0, 0, -s * 0.25)); }
+    if (v.chifre === 'carneiro') cab.push(pos(new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.08, 6, 14, Math.PI * 1.6), chifre), s * 0.52, 0.72, -0.02, 0, s * Math.PI / 2, 0.4));
+    if (v.chifre === 'cervo') { const g = new THREE.Group(); g.add(tubo([[0, 0, 0], [s * 0.15, 0.3, 0], [s * 0.3, 0.6, -0.05], [s * 0.35, 0.85, -0.1]], 0.04, chifre, 8), tubo([[s * 0.15, 0.3, 0], [s * 0.05, 0.55, 0.05]], 0.03, chifre, 4), tubo([[s * 0.27, 0.55, -0.04], [s * 0.45, 0.7, 0]], 0.03, chifre, 4)); cab.push(pos(g, s * 0.25, 1, 0)); }
+    if (v.presas === 'sim') cab.push(pos(cone(0.05, 0.16, 5, matAc('#fff6e0')), s * 0.17, 0.2, 0.52, 0.2, 0, 0));
+  }
+  if (v.chifre === 'unicornio') cab.push(pos(cone(0.08, 0.55, 8, matAc('#ffd84a', { emissive: 0x6a4a00 })), 0, 1.05, 0.35, 0.55, 0, 0));
+  if (v.barba === 'curta' || v.barba === 'longa') {
+    const longa = v.barba === 'longa';
+    cab.push(pos(new THREE.Mesh(new THREE.SphereGeometry(0.36, 10, 8), pelo), 0, 0.04, 0.36, 0, 0, 0, 1.15, 0.6, 0.5));
+    if (longa) cab.push(pos(cone(0.28, 0.6, 8, pelo), 0, -0.28, 0.42, Math.PI + 0.15, 0, 0, 1, 1, 0.5));
+    cab.push(pos(new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 0.4, 3, 6), pelo), 0, 0.32, 0.56, 0, 0, Math.PI / 2));
+  }
+  if (v.barba === 'bigode') for (const s of [-1, 1]) cab.push(pos(new THREE.Mesh(new THREE.CapsuleGeometry(0.06, 0.22, 3, 6), pelo), s * 0.14, 0.3, 0.56, 0, 0, s * 1.2));
+  if (v.barba === 'cavanhaque') cab.push(pos(cone(0.12, 0.3, 6, pelo), 0, 0.02, 0.52, Math.PI + 0.3, 0, 0, 1, 1, 0.6));
+  if (v.aura === 'sim') cab.push(pos(new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.045, 6, 24), matAc('#ffe27a', { emissive: 0xffc830, emissiveIntensity: 0.9 })), 0, 1.4, -0.05, Math.PI / 2 - 0.25, 0, 0));
+  // rabo (no quadril): sai das costas e sobe fazendo curva
+  const R = { gato: [0.055, pelo], raposa: [0.13, pelo], demonio: [0.035, chifre], dragao: [0.1, pele] }[v.rabo];
+  if (R) {
+    const pts = [[0, 0.05, -0.25], [0, -0.1, -0.55], [0, 0.05, -0.9], [0, 0.4, -1.05], [0, 0.65, -0.95]];
+    quadril.push(tubo(pts, R[0], R[1], 20));
+    if (v.rabo === 'raposa') quadril.push(pos(new THREE.Mesh(new THREE.SphereGeometry(0.17, 8, 6), matAc('#f5f0e8')), 0, 0.68, -0.93, 0, 0, 0, 1, 1.4, 1));
+    if (v.rabo === 'demonio') quadril.push(pos(cone(0.12, 0.2, 3, chifre), 0, 0.72, -0.93, -0.3, 0, 0, 1, 1, 0.35));
+    if (v.rabo === 'dragao') quadril.push(pos(cone(0.1, 0.3, 4, pele), 0, 0.3, -0.35, -2.2, 0, 0));
+  }
+  // asas (no peito, atrás das costas)
+  if (v.asas) {
+    const cor = { anjo: '#ffffff', morcego: v.corChifre || '#3a2030', fada: '#a8e8ff' }[v.asas];
+    const m = matAc(cor, v.asas === 'fada' ? { transparent: true, opacity: 0.55, emissive: 0x3a8aaa, side: THREE.DoubleSide, flatShading: false } : { side: THREE.DoubleSide });
+    for (const s of [-1, 1]) {
+      const g = new THREE.Group();
+      if (v.asas === 'anjo') for (let i = 0; i < 5; i++) g.add(pos(new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 6), m), s * (0.25 + i * 0.17), 0.35 - i * 0.12 + (i === 4 ? -0.05 : 0), 0, 0, 0, -s * (0.5 + i * 0.22), 1, 3.2 - i * 0.35, 0.3));
+      else {
+        const f = new THREE.Shape(); if (v.asas === 'morcego') { f.moveTo(0, 0); f.lineTo(0.5, 0.55); f.lineTo(1.2, 0.5); f.lineTo(1, 0.05); f.lineTo(0.8, -0.2); f.lineTo(0.55, 0); f.lineTo(0.35, -0.3); f.lineTo(0.2, 0); }
+        else { f.moveTo(0, 0); f.bezierCurveTo(0.3, 0.9, 1.1, 0.9, 0.9, 0.3); f.bezierCurveTo(0.8, 0, 0.3, 0, 0, 0); f.bezierCurveTo(0.4, -0.2, 0.7, -0.6, 0.35, -0.6); f.bezierCurveTo(0.1, -0.6, 0.05, -0.3, 0, 0); }
+        const me = new THREE.Mesh(new THREE.ShapeGeometry(f, 6), m); me.scale.set(s, 1, 1); g.add(me);
+      }
+      peito.push(pos(g, s * 0.1, 0.1, -0.42, 0, -s * 0.5, 0));
+    }
+  }
+  return { head: cab, hips: quadril, chest: peito };
+}
 export function heroi(v) {
   if (!H) prepararHerois();
   const raiz = new THREE.Group(), corpo = new THREE.Group(), rig = H.raizOsso.clone(true);
@@ -421,6 +481,7 @@ export function heroi(v) {
       const a = clonar(src); a.traverse(o => { if (o.isMesh) { o.castShadow = true; o.material = o.material.clone(); mats.push(o.material); } });
       const osso = ossos[H.nomes.indexOf('handslot' + lado)]; if (osso) { osso.add(a); armas.push(a); }
     }
+    for (const [osso, l] of Object.entries(acessorios(nv))) { const o = ossos[H.nomes.indexOf(osso)]; if (!o) continue; for (const m of l) { o.add(m); armas.push(m); m.traverse(x => { if (x.isMesh) mats.push(x.material); }); } }
     corpo.scale.set(ESC_HEROI * (nv.larg || 1), ESC_HEROI * (nv.alt || 1), ESC_HEROI * (nv.larg || 1));
   }
   vestir(v);
@@ -571,3 +632,4 @@ export function debugHerois() { const g = modelos.herois.scene.children[0]; cons
 export function debugCena(f) { scene.traverse(f); }
 export function neblina(perto, longe) { scene.fog.near = perto; scene.fog.far = longe; cam.far = longe + 80; cam.updateProjectionMatrix(); }
 export const Cor = THREE.Color;
+export const Caixa = THREE.Box3;

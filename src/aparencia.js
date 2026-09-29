@@ -47,7 +47,36 @@ export const armaInfo = id => ARMAS.find(a => a.id === id) || ARMAS[0];
 export const PELES = ['#ffe0c7', '#f7c9a5', '#e8b38a', '#d99a6c', '#b87a4b', '#8d5a36', '#6a3f25', '#4a2a18', '#9fd4a0', '#a9c4ff', '#c8a2ff', '#e0e0e0'];
 export const PALETA = ['#ffffff', '#c8ccd2', '#7d848c', '#3a3f45', '#161819', '#f2d27a', '#e0a02a', '#c0602a', '#8a3a1a', '#5a3620', '#ff6a5a', '#d8243a',
   '#8a1030', '#ff8ac0', '#c040a0', '#7a3ab0', '#3a2a80', '#2a60d8', '#3aa0e0', '#2ac0b0', '#2a8a5a', '#5ab83a', '#a8d84a', '#e8e070'];
-export const CORPO = { alt: [0.85, 1.15, 'Altura'], larg: [0.85, 1.25, 'Porte'], cabT: [0.8, 1.35, 'Cabeça'], musc: [0.8, 1.4, 'Músculos'] };
+export const CORPO = { alt: [0.6, 1.25, 'Altura'], larg: [0.85, 1.35, 'Porte'], cabT: [0.8, 1.6, 'Cabeça'], musc: [0.8, 1.45, 'Músculos'] };
+// raças: só aparência (proporções + acessórios); depois dá para ajustar tudo à mão
+export const RACAS = [
+  { id: 'humano', nome: 'Humano', icone: 'r_humano', c: { alt: 1, larg: 1, cabT: 1, musc: 1 }, a: {} },
+  { id: 'bebe', nome: 'Bebê', icone: 'r_bebe', c: { alt: 0.62, larg: 1.08, cabT: 1.5, musc: 0.85 }, a: {} },
+  { id: 'elfo', nome: 'Meio-elfo', icone: 'r_elfo', c: { alt: 1.05, larg: 0.92, cabT: 1, musc: 0.9 }, a: { orelha: 'elfo' } },
+  { id: 'anao', nome: 'Anão', icone: 'r_anao', c: { alt: 0.74, larg: 1.3, cabT: 1.12, musc: 1.3 }, a: { barba: 'longa', orelha: '' } },
+  { id: 'orc', nome: 'Orc', icone: 'r_orc', c: { alt: 1.1, larg: 1.25, cabT: 1, musc: 1.4 }, a: { presas: 'sim', orelha: 'elfo' }, pele: '#8fb86a' },
+  { id: 'demonio', nome: 'Demônio', icone: 'r_demonio', c: { alt: 1.05, larg: 1, cabT: 1, musc: 1.1 }, a: { chifre: 'demonio', rabo: 'demonio', orelha: 'elfo' }, pele: '#d8675a' },
+  { id: 'fera', nome: 'Meio-fera', icone: 'r_fera', c: { alt: 0.97, larg: 0.95, cabT: 1.05, musc: 1 }, a: { orelha: 'gato', rabo: 'gato' } },
+  { id: 'anjo', nome: 'Celestial', icone: 'r_anjo', c: { alt: 1.05, larg: 0.95, cabT: 1, musc: 1 }, a: { asas: 'anjo', aura: 'sim' } },
+  { id: 'gigante', nome: 'Meio-gigante', icone: 'r_gigante', c: { alt: 1.25, larg: 1.35, cabT: 0.85, musc: 1.45 }, a: { barba: 'curta' } },
+];
+// acessórios (malhas simples presas nos ossos da cabeça, quadril e peito)
+export const ACESSORIOS = {
+  orelha: { nome: 'Orelhas', ops: [['', 'Normais'], ['elfo', 'Pontudas'], ['gato', 'De gato'], ['lobo', 'De lobo'], ['coelho', 'De coelho']] },
+  barba: { nome: 'Barba', ops: [['', 'Nenhuma'], ['curta', 'Curta'], ['longa', 'Longa'], ['bigode', 'Bigode'], ['cavanhaque', 'Cavanhaque']] },
+  chifre: { nome: 'Chifres', ops: [['', 'Nenhum'], ['demonio', 'De demônio'], ['carneiro', 'De carneiro'], ['unicornio', 'Unicórnio'], ['cervo', 'Galhada']] },
+  presas: { nome: 'Presas', ops: [['', 'Não'], ['sim', 'Sim']] },
+  rabo: { nome: 'Rabo', ops: [['', 'Nenhum'], ['gato', 'De gato'], ['raposa', 'De raposa'], ['demonio', 'De demônio'], ['dragao', 'De dragão']] },
+  asas: { nome: 'Asas', ops: [['', 'Nenhuma'], ['anjo', 'De anjo'], ['morcego', 'De morcego'], ['fada', 'De fada']] },
+  aura: { nome: 'Auréola', ops: [['', 'Não'], ['sim', 'Sim']] },
+};
+export const PELOS = ['#1e1a18', '#4a2e1c', '#7a4a26', '#b0703a', '#d8a860', '#f0e0b0', '#e8e8e8', '#8a8a8a', '#c8402a', '#ff8ac0', '#6a4ab0', '#3a8ad8', '#2a8a5a', '#ffd84a'];
+export function aplicarRaca(v, id) {
+  const r = RACAS.find(x => x.id === id) || RACAS[0];
+  Object.assign(v, r.c); for (const k of Object.keys(ACESSORIOS)) v[k] = r.a[k] || ''; v.raca = r.id;
+  if (r.pele) v.pele = r.pele; else if (RACAS.some(x => x.pele && x.pele === v.pele)) v.pele = ''; // tira a pele verde/vermelha ao voltar
+  return v;
+}
 
 // visual padrão de cada classe
 const PRESET = {
@@ -76,6 +105,7 @@ export function visualAleatorio(cls) {
   if (Math.random() < 0.3) v.cha = sorte(PARTES.cha.ops).id;
   if (Math.random() < 0.5) v.pele = sorte(PELES.slice(0, 8));
   v.alt = +(0.93 + Math.random() * 0.14).toFixed(2); v.larg = +(0.92 + Math.random() * 0.18).toFixed(2);
+  if (Math.random() < 0.45) { const r = sorte(RACAS.slice(1)); const a = v.alt, l = v.larg; aplicarRaca(v, r.id); v.alt = +(v.alt * a).toFixed(2); v.larg = +(v.larg * l).toFixed(2); v.corPelo = sorte(PELOS.slice(0, 8)); }
   v.tinta = sorte(PALETA.slice(5)); // cor principal da roupa (aplicada na zona mais usada do tronco)
   return v;
 }

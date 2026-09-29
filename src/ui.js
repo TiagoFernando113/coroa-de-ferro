@@ -203,6 +203,13 @@ export function novidadeCriador() {
     <button class="btn verde grande" data-cria>Criar meu herói</button><button class="btn cinza peq" data-ok>Depois</button>`);
   c.querySelector('[data-cria]').onclick = () => { $('#modal').hidden = true; abrirCriador(forte.id, { aoFechar: () => revestir(forte.id) }); };
 }
+export function novidadeRacas() {
+  const c = modal(`<div class="faixaTit">Novidades!</div><div class="famaG">${ico('c_raca')}</div>
+    <p><b>Raças:</b> bebê, meio-elfo, anão, orc, demônio, meio-fera, celestial e meio-gigante, com orelhas, barbas, chifres, rabos, asas e auréola.</p>
+    <p><b>48 monstros novos</b> no mundo e nas emboscadas, com Monstros Únicos!</p><p><b>Novos equipamentos</b> que aparecem no herói: luvas, botas, capa e escudo.</p>
+    <button class="btn verde grande" data-cria>Mudar meu herói</button><button class="btn cinza peq" data-ok>Depois</button>`);
+  c.querySelector('[data-cria]').onclick = () => { $('#modal').hidden = true; abrirCriador(S.lider, { aoFechar: () => revestir(S.lider) }); };
+}
 export function boasVindas(off) {
   const partes = [];
   if (off.ouro > 0) partes.push(`<div class="ganho">${ico('ouro')}<b>+${fmt(off.ouro)}</b><span>ouro da taverna</span></div>`);
@@ -417,7 +424,7 @@ function htmlMissoes() {
 }
 function htmlRecrutar() {
   const agora = Date.now(), barras = l => `<div class="chances">${l.map((x, i) => `<span style="--r:${RARIDADE_ITEM[i].cor}"><i style="width:${Math.max(2, x * 100)}%"></i>${RARIDADE_ITEM[i].nome} ${(x * 100).toFixed(1)}%</span>`).join('')}</div>`;
-  return `<div class="portalG bauG">${ico('bau')}</div><p class="suave">Abra baús para ganhar armas, elmos, armaduras, amuletos e anéis para o seu herói. O nível do item acompanha o seu nível.</p>
+  return `<div class="portalG bauG">${ico('bau')}</div><p class="suave">Abra baús para ganhar armas, escudos, elmos, armaduras, luvas, botas, capas, amuletos e anéis (quase tudo aparece no seu herói) para o seu herói. O nível do item acompanha o seu nível.</p>
     <div class="recrut"><h3>${BAUS.comum.nome}</h3>${barras(chancesItem(0))}${botaoCompra('Abrir baú', E.precoBau(), 'bau', 'verde')}
       ${agora >= S.gratisEm ? `<button class="btn amarelo" data-a="gratis"><span>${ico('presente')} Baú grátis!</span></button>` : `<p class="suave">${ico('relogio')} Baú grátis de novo em ${fmtTempo((S.gratisEm - agora) / 1000)}</p>`}</div>
     <div class="recrut premium"><h3>${BAUS.gemas.nome}</h3>${barras(chancesItem(0.6, 1))}<button class="btn roxo ${S.gemas >= GEMAS_BAU ? '' : 'sem'}" data-a="bauGemas"><span>Abrir</span><em>${ico('gema')}${GEMAS_BAU}</em></button></div>

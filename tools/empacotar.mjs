@@ -4,7 +4,8 @@
 //    para as texturas repetidas (colormap) virem uma só.
 // Formato: [u32 tamanho do cabeçalho][cabeçalho JSON {nome:[início,tamanho]}][GLBs]
 import { NodeIO, Document } from '@gltf-transform/core';
-import { prune, dedup, resample, quantize, mergeDocuments } from '@gltf-transform/functions';
+import { prune, dedup, resample, quantize, mergeDocuments, meshopt, getBounds } from '@gltf-transform/functions';
+import { MeshoptEncoder } from 'meshoptimizer';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
 import fs from 'fs'; import path from 'path'; import { fileURLToPath } from 'url';
 
@@ -75,7 +76,8 @@ const CENARIO = {
     'rocks', 'stones', 'trap', 'dirt', 'floor', 'floor-detail', 'wood-support', 'table'],
 };
 
-const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
+await MeshoptEncoder.ready;
+const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.encoder': MeshoptEncoder });
 const Q = quantize({ quantizePosition: 14, quantizeNormal: 10, quantizeTexcoord: 12 });
 const out = {};
 
@@ -96,6 +98,23 @@ for (const n of ANIMAIS) {
   await doc.transform(resample({ tolerance: 1e-3 }), prune(), dedup());
   out['bicho:' + n] = Buffer.from(await io.writeBinary(doc));
 }
+// monstros (Quaternius Ultimate Monsters, CC0): animações renomeadas para o padrão dos bichos
+// (Idle, Gallop = andar, Attack, Death, Idle_HitReact1) e comprimidas com meshopt
+const MONSTROS = {
+  mg: ['big', { Idle: 'Idle', Run: 'Gallop', Punch: 'Attack', Weapon: 'Attack2', Death: 'Death', HitReact: 'Idle_HitReact1' }],
+  mb: ['blob', { Idle: 'Idle', Walk: 'Gallop', Bite_Front: 'Attack', Jump: 'Attack2', Death: 'Death', HitRecieve: 'Idle_HitReact1' }],
+  mv: ['flying', { Flying_Idle: 'Idle', Fast_Flying: 'Gallop', Headbutt: 'Attack', Punch: 'Attack2', Death: 'Death', HitReact: 'Idle_HitReact1' }],
+};
+const alturas = {};
+for (const [pre, [dir, ren]] of Object.entries(MONSTROS)) for (const f of fs.readdirSync(path.join(KITS, 'monstros', dir)).filter(f => f.endsWith('.gltf'))) {
+  const doc = await io.read(path.join(KITS, 'monstros', dir, f));
+  const an = doc.getRoot().listAnimations(); if (an.length < 3) continue; // sem animações suficientes
+  for (const a of an) if (ren[a.getName()]) a.setName(ren[a.getName()]); else { for (const s of a.listSamplers()) s.dispose(); for (const c of a.listChannels()) c.dispose(); a.dispose(); }
+  const b = getBounds(doc.getRoot().listScenes()[0]); alturas[pre + ':' + f.replace('.gltf', '')] = +(b.max[1] - b.min[1]).toFixed(2);
+  await doc.transform(resample({ tolerance: 1e-3 }), prune(), dedup(), meshopt({ encoder: MeshoptEncoder, level: 'medium' }));
+  out[pre + ':' + f.replace('.gltf', '')] = Buffer.from(await io.writeBinary(doc));
+}
+fs.writeFileSync(path.join(AQUI, 'alturas.json'), JSON.stringify(alturas, null, 1));
 for (const [k, [dir, arq]] of Object.entries(AVULSOS)) {
   const doc = await io.read(path.join(dir, arq));
   await doc.transform(prune(), dedup(), Q);

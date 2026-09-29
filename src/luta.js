@@ -8,6 +8,7 @@ import { armaInfo, animAtaque } from './aparencia.js';
 import { GUILDA_W, posCampo, ESC_MUNDO, CENTROS } from './mundo.js';
 import { ico, som, ui } from './ui.js';
 import { gerarItem, sortearRaridade, atributosEquip, RARIDADE_ITEM } from './itens.js';
+import { MONSTROS } from './bestiario.js';
 
 const $ = s => document.querySelector(s);
 const difAng = (a, b) => Math.atan2(Math.sin(b - a), Math.cos(b - a));
@@ -15,6 +16,7 @@ const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 let L = null;
 export const emLuta = () => !!L;
 window.__luta = () => L; // para testes
+window.__monstro = (tp, dx, dz, elite) => L && L.inimigos.push(criarMonstro(tp, 0, L.lider.x + dx, L.lider.z + dz, elite));
 
 // monstros de cada tipo de missão: [modelo, armas, escala, vida, dano, alcance, distância?]
 const TIPOS = {
@@ -26,6 +28,7 @@ const TIPOS = {
 // animais das emboscadas: [modelo, escala, vida, dano, anim de ataque]
 const BICHOS = { lobo: ['bicho:Wolf', 1, 90, 9, 'Attack'], raposa: ['bicho:Fox', 0.9, 60, 7, 'Attack'], touro: ['bicho:Bull', 1, 220, 14, 'Attack_Headbutt'],
   cervo: ['bicho:Stag', 1, 160, 11, 'Attack_Headbutt'], husky: ['bicho:Husky', 1, 120, 10, 'Attack'] };
+for (const [k, [mod, e0, vida, dano, nome, longe]] of Object.entries(MONSTROS)) BICHOS[k] = [mod, e0, vida, dano, 'Attack', nome, longe];
 // encontros no caminho (como nos animes de MMO): bando comum, monstro raro ou um Monstro Único com nome
 const ENCONTROS = [
   { txt: 'Um bando de lobos cercou você!', grupo: [['lobo'], ['lobo'], ['lobo']], peso: 5 },
@@ -34,6 +37,19 @@ const ENCONTROS = [
   { txt: 'Um TOURO SELVAGEM investe contra você!', grupo: [['touro', 'Touro Selvagem', 1.5, 3, 0x6a3a2a]], peso: 2, raro: true },
   { txt: 'MONSTRO ÚNICO: Fenrir, o Lobo do Crepúsculo!', grupo: [['husky', 'Fenrir, o Lobo do Crepúsculo', 2.6, 12, 0x3a2a6a]], peso: 0.5, unico: true },
   { txt: 'MONSTRO ÚNICO: Cervo Espectral de Prata!', grupo: [['cervo', 'Cervo Espectral de Prata', 2.2, 10, 0x9ad8ff]], peso: 0.5, unico: true },
+  { txt: 'Gosmas pularam do mato!', grupo: [['gosma'], ['gosmaR'], ['gosma'], ['gosmaR']], peso: 4 },
+  { txt: 'Uma galinha possuída e seus capangas!', grupo: [['galinha', 'Galinha do Caos', 1.6, 3, 0xff4a2a], ['piu'], ['piu']], peso: 2, raro: true },
+  { txt: 'Orquinhos saqueadores!', grupo: [['orquinho'], ['orquinho'], ['orc']], peso: 3 },
+  { txt: 'Ninjas caíram das árvores!', grupo: [['ninjinha'], ['ninja'], ['ninjinha']], peso: 2 },
+  { txt: 'Um enxame de abelhas blindadas!', grupo: [['abelha'], ['abelha'], ['abelha'], ['vespa']], peso: 3 },
+  { txt: 'Fantasmas saíram da névoa...', grupo: [['fantasma'], ['espectro'], ['fantasma']], peso: 2 },
+  { txt: 'Um COELHO BRUTAMONTES quer briga!', grupo: [['coelho', 'Coelho Brutamontes', 1.4, 4, 0xffffff]], peso: 2, raro: true },
+  { txt: 'Um YETI furioso desceu da montanha!', grupo: [['yeti', 'Yeti Furioso', 1.4, 4, 0x9ad8ff], ['yetinho'], ['yetinho']], peso: 2, raro: true },
+  { txt: 'Visitantes estelares desceram!', grupo: [['alien'], ['alienzinho'], ['alienzinho']], peso: 1.5, raro: true },
+  { txt: 'MONSTRO ÚNICO: Rei Cogumelo, Senhor dos Esporos!', grupo: [['reiCogu', 'Rei Cogumelo, Senhor dos Esporos', 1.8, 12, 0xb84aff], ['cogu'], ['cogu']], peso: 0.5, unico: true },
+  { txt: 'MONSTRO ÚNICO: Tiamat, a Dragoa Escarlate!', grupo: [['draco', 'Tiamat, a Dragoa Escarlate', 2, 14, 0xff2a2a]], peso: 0.4, unico: true },
+  { txt: 'MONSTRO ÚNICO: Grumak, o Orc Imortal!', grupo: [['orcCaveira', 'Grumak, o Orc Imortal', 1.8, 13, 0x5a2a8a], ['orquinho'], ['orquinho']], peso: 0.4, unico: true },
+  { txt: 'MONSTRO ÚNICO: Sr. Fofinho, o Coelho do Apocalipse!', grupo: [['coelho', 'Sr. Fofinho, o Coelho do Apocalipse', 2, 12, 0xff6ab8]], peso: 0.4, unico: true },
 ];
 const GRUPOS = [['lacaio', 'lacaio'], ['lacaio', 'batedor', 'lacaio'], ['guerreiro', 'batedor', 'lacaio', 'lacaio', 'batedor'], ['chefe', 'lacaio', 'lacaio']];
 const alcanceArma = v => ({ arco: 14, besta: 13, magia: 12 }[armaInfo(v.arma).tipo] || 2.8);
@@ -67,8 +83,15 @@ export function iniciarLuta(qid, ids, aoFim) {
 
 // ---------------- mundo aberto: explorar livremente ----------------
 // monstros de cada região (reaparecem): tipos de TIPOS (esqueletos) ou BICHOS (animais)
-const FAUNA = [['lobo', 'raposa', 'lacaio'], ['lacaio', 'raposa', 'husky'], ['husky', 'touro', 'lobo'], ['batedor', 'touro', 'lacaio'],
-  ['guerreiro', 'cervo', 'batedor'], ['guerreiro', 'touro', 'lacaio'], ['lacaio', 'batedor', 'guerreiro'], ['guerreiro', 'guerreiro', 'batedor']];
+const FAUNA = [
+  ['lobo', 'raposa', 'gosma', 'gosmaR', 'cogu', 'galinha', 'gato', 'cao', 'abelha', 'pombo', 'coelho'],
+  ['sapo', 'peixe', 'tritao', 'glub', 'lula', 'espinho', 'bruxo', 'reiCogu', 'lacaio'],
+  ['yeti', 'yetinho', 'alpaca', 'passaro', 'piu', 'husky', 'lobo'],
+  ['cactoro', 'cactinho', 'raptor', 'mangusto', 'xama', 'redemoinho', 'batedor', 'touro'],
+  ['golenzinho', 'golem', 'cogumelao', 'ninja', 'ninjinha', 'alien', 'alienzinho', 'cervo'],
+  ['demonio', 'demonioA', 'draguinho', 'draco', 'mascara', 'vespa', 'guerreiro'],
+  ['fantasma', 'espectro', 'orcCaveira', 'glubao', 'lacaio', 'batedor', 'guerreiro'],
+  ['orc', 'orquinho', 'orcCaveira', 'alpacaRei', 'draco', 'guerreiro', 'batedor']];
 export function iniciarExploracao(aoFim) {
   if (L) return false; const h = E.lider(); if (!h || h.estado !== 'livre') return false;
   h.estado = 'missao'; const st = E.statsHeroi();
@@ -84,12 +107,12 @@ export function iniciarExploracao(aoFim) {
 function criarMonstro(tp, r, x, z, elite = false) {
   const bicho = !!BICHOS[tp], hpM = 1.9 ** r * (elite ? 3 : 1), dM = 1.65 ** r * (elite ? 1.6 : 1);
   let v, d;
-  if (bicho) { const [mod, e0, vida, dano, atk] = BICHOS[tp]; v = C.personagem(mod, [], 1); v.raiz.scale.setScalar(ESC_MUNDO * e0 * (elite ? 1.5 : 1)); d = { vida, dano, alc: 2.8 * (elite ? 1.5 : 1), atkAnim: atk }; }
+  if (bicho) { const [mod, e0, vida, dano, atk, nome, longe] = BICHOS[tp]; v = C.personagem(mod, [], 1); v.raiz.scale.setScalar(ESC_MUNDO * e0 * (elite ? 1.5 : 1)); d = { vida, dano, alc: longe ? 11 : 2.8 * (elite ? 1.5 : 1), atkAnim: atk, nome, longe }; }
   else { const [mod, armas, esc, vida, dano, alc, longe] = TIPOS[tp]; v = C.personagem(mod, armas, esc * (elite ? 1.4 : 1)); v.raiz.scale.setScalar(ESC_MUNDO); d = { vida, dano, alc, longe }; }
   if (elite) v.corpo.traverse(o => { if (o.isMesh) o.material.color.lerp(new C.Cor(0xff4a2a), 0.35); });
   v.raiz.position.set(x, 0, z); v.tocar('Idle');
   return { tp, v, x, z, hp: d.vida * hpM, max: d.vida * hpM, dano: d.dano * dM, alc: d.alc, longe: d.longe, atkAnim: d.atkAnim, bicho, cd: 1, ang: Math.random() * 6, acordado: false,
-    r, raro: elite, grande: elite, nome: elite ? `${bicho ? 'Alfa' : 'Capitão'} · Nv ${Math.round(1 + r * 8)}` : null, mundo: true };
+    r, raro: elite, grande: elite, nome: d.nome || elite ? `${[elite && (bicho ? 'Alfa' : 'Capitão'), d.nome].filter(Boolean).join(' ')} · Nv ${Math.round(1 + r * 8) + (elite ? 3 : 0)}` : null, mundo: true, alt: altura(v) };
 }
 function povoarMundo(dt) {
   const j = L.lider; L.spawnT -= dt; if (L.spawnT > 0) return; L.spawnT = 1.2;
@@ -103,9 +126,12 @@ function povoarMundo(dt) {
   if (vivos >= 7 || Math.hypot(GUILDA_W.x - j.x, GUILDA_W.z - j.z) < 25) return;
   const a = Math.random() * 6.28, dd = 26 + Math.random() * 22, x = j.x + Math.cos(a) * dd, z = j.z + Math.sin(a) * dd;
   const elite = Math.random() < 0.06, tipos = FAUNA[r], tp = tipos[Math.floor(Math.random() * tipos.length)];
-  const grupo = BICHOS[tp] && !elite ? 1 + Math.floor(Math.random() * 3) : 1;
+  const grupo = BICHOS[tp] && !elite && BICHOS[tp][2] < 130 ? 1 + Math.floor(Math.random() * 3) : 1; // só os pequenos andam em bando
   for (let k = 0; k < grupo; k++) L.inimigos.push(criarMonstro(tp, r, x + k * 2.5, z + k * 1.5, elite));
 }
+// altura real do modelo na tela (barra de vida e nome logo acima da cabeça)
+const _cx = new C.Caixa();
+function altura(v) { v.raiz.updateMatrixWorld(true); _cx.setFromObject(v.corpo); return Math.max(2.5, _cx.max.y - _cx.min.y); }
 function recompensaMundo(e) {
   const xp = Math.round(12 * 2.2 ** e.r * (e.raro ? 5 : 1)), ouro = Math.round(6 * 2.6 ** e.r * (e.raro ? 6 : 1) * (0.7 + Math.random() * 0.6));
   E.ganharXPSis(xp); S.ouro += ouro; S.st.ouroTotal += ouro; L.ganhos.xp += xp; L.ganhos.ouro += ouro; L.ganhos.mortes++;
@@ -187,12 +213,12 @@ function sortearEncontro() {
 function emboscar() {
   const enc = sortearEncontro(), j = L.lider; L.emboscada = null; L.encontro = enc;
   enc.grupo.forEach(([tp, nome, esc = 1, vidaX = 1, cor], i) => {
-    const [mod, e0, vida, dano, atk] = BICHOS[tp], v = C.personagem(mod, [], 1); v.raiz.scale.setScalar(ESC_MUNDO * e0 * esc);
+    const [mod, e0, vida, dano, atk, nome0, longe] = BICHOS[tp], v = C.personagem(mod, [], 1); v.raiz.scale.setScalar(ESC_MUNDO * e0 * esc);
     if (cor != null) v.corpo.traverse(o => { if (o.isMesh) { o.material.color.lerp(new C.Cor(cor), 0.55); if (o.material.emissive) o.material.emissive.setHex(cor).multiplyScalar(0.15); } });
     const a = Math.random() * 6.28, x = j.x + Math.cos(a) * (10 + i * 2), z = j.z + Math.sin(a) * (10 + i * 2); v.raiz.position.set(x, 0, z); v.tocar('Idle');
     const vv = vida * vidaX * (1 + L.q.r * 0.3);
-    L.inimigos.push({ tp, v, x, z, hp: vv, max: vv, dano: dano * (1 + L.q.r * 0.2) * (enc.unico ? 1.6 : 1) / L.forca, alc: 2.8 * esc, cd: 1.5, ang: 0, acordado: true, bicho: true, atkAnim: atk,
-      nome, raro: enc.raro, unico: enc.unico, grande: esc > 1.4, emb: true });
+    L.inimigos.push({ tp, v, x, z, hp: vv, max: vv, dano: dano * (1 + L.q.r * 0.2) * (enc.unico ? 1.6 : 1) / L.forca, alc: longe ? 11 : 2.8 * esc, longe, cd: 1.5, ang: 0, acordado: true, bicho: true, atkAnim: atk,
+      nome: nome || nome0, alt: altura(v), raro: enc.raro, unico: enc.unico, grande: esc > 1.4, emb: true });
   });
   faixa(enc.unico ? '★ MONSTRO ÚNICO ★' : 'EMBOSCADA!', enc.txt, enc.unico ? 'unico' : ''); C.camera.tremor = 0.4; som(enc.unico ? 'lendario' : 'falha');
 }
@@ -253,7 +279,7 @@ export function passoLuta(dt) {
     if (d0 > e.alc * 0.9) { const v = e.chefe ? 5 : e.bicho ? 8 : 6.5; e.x += Math.sin(e.ang) * v * dt; e.z += Math.cos(e.ang) * v * dt; e.v.tocar(e.bicho ? 'Gallop' : 'Running_A'); }
     else if (e.cd <= 0) {
       e.cd = e.chefe ? 1.6 : e.longe ? 2 : 1.4; e.v.tocar(e.bicho ? e.atkAnim : e.longe ? '2H_Ranged_Shoot' : '1H_Melee_Attack_Chop', { loop: false, reinicia: true });
-      if (e.longe) atirar(e, e.ang, 'virote', 20, e.dano, false);
+      if (e.longe) atirar(e, e.ang, e.bicho ? 'fogo' : 'virote', e.bicho ? 16 : 20, e.dano, false);
       else { const a0 = alvo; setTimeout(() => { if (L && e.hp > 0 && dist(e, a0) < e.alc + 1.2) { ferirHeroi(a0, e.dano); if (e.chefe) { C.onda(e.x, e.z, 4, 0xff7a3a, 0.4); } } }, 400); }
     } else e.v.tocar(e.v.tem('Idle_Combat') ? 'Idle_Combat' : 'Idle');
   }
@@ -286,7 +312,7 @@ function desenharHud(dt) {
   // barras de vida e números
   const g = L.g; g.clearRect(0, 0, innerWidth, innerHeight);
   if (L.joy) { g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = 3; g.beginPath(); g.arc(L.joy.sx, L.joy.sy, 55, 0, 7); g.stroke(); const dx = L.joy.x - L.joy.sx, dy = L.joy.y - L.joy.sy, m = Math.hypot(dx, dy), f = Math.min(1, 55 / (m || 1)); g.fillStyle = 'rgba(255,255,255,.6)'; g.beginPath(); g.arc(L.joy.sx + dx * f, L.joy.sy + dy * f, 24, 0, 7); g.fill(); }
-  for (const e of L.inimigos) { if (e.hp <= 0) continue; const p = C.tela(e.x, e.chefe || e.grande ? 8 : 4.6, e.z); if (!p) continue; const w = e.chefe || e.grande ? 90 : 46;
+  for (const e of L.inimigos) { if (e.hp <= 0) continue; const p = C.tela(e.x, e.alt ? e.alt + 1 : e.chefe || e.grande ? 8 : 4.6, e.z); if (!p) continue; const w = e.chefe || e.grande ? 90 : 46;
     if (e.nome) { g.font = '800 13px system-ui'; g.textAlign = 'center'; g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,.8)'; g.strokeText(e.nome, p[0], p[1] - 6); g.fillStyle = e.unico ? '#ffb02e' : '#ff8a7a'; g.fillText(e.nome, p[0], p[1] - 6); }
     g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(p[0] - w / 2 - 1, p[1] - 1, w + 2, 7); g.fillStyle = e.chefe ? '#ff7a2a' : '#e2412f'; g.fillRect(p[0] - w / 2, p[1], w * e.hp / e.max, 5); }
   for (const t of L.txt) { t.t += dt; const p = C.tela(t.x, t.y + t.t * 2, t.z); if (!p) continue; g.globalAlpha = Math.max(0, 1 - t.t / 1.1); g.font = `800 ${t.grande ? 26 : 18}px system-ui`; g.textAlign = 'center'; g.lineWidth = 4; g.strokeStyle = 'rgba(0,0,0,.75)'; g.strokeText(t.txt, p[0], p[1]); g.fillStyle = t.cor; g.fillText(t.txt, p[0], p[1]); g.globalAlpha = 1; }
