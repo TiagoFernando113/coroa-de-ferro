@@ -405,7 +405,7 @@ function escolherEquipe(qid) {
   const auto = () => { const l = E.melhorEquipe(r, t); if (l.some(ok)) return l; const cap = E.livres().filter(h => ok(h.id)).sort((a, b) => E.poder(b, r) - E.poder(a, r))[0]; return cap ? [cap.id, ...l.filter(x => x !== cap.id)].slice(0, m.max) : l; };
   let sel = auto();
   const desenhar = () => {
-    const pw = E.poderEquipe(sel, r), ch = chanceSucesso(pw, m.req), hs = E.livres().sort((a, b) => E.poder(b, r) - E.poder(a, r)), temRank = sel.some(ok) || (E.lider()?.estado === 'livre' && ok(S.lider)), liderLivre = E.lider()?.estado === 'livre';
+    const pw = E.poderEquipe(sel, r), ch = chanceSucesso(pw, m.req), hs = E.livres().sort((a, b) => E.poder(b, r) - E.poder(a, r)), temRank = sel.some(ok), liderLivre = E.lider()?.estado === 'livre', guia = sel.includes(S.lider) ? E.lider() : sel.map(E.heroi).sort((a, b) => E.poder(b, r) - E.poder(a, r))[0];
     const cx = modal(`<div class="faixaTit">${esc(q.nome)}</div><p class="suave">${ico(REGIOES[r].icone)} ${REGIOES[r].nome} · exige herói ${selo(q.rank, 'mini')} ou maior</p>
       <div class="chance"><div class="medidor" style="--p:${ch * 360}deg;--cor:${ch >= 0.8 ? '#5fd84a' : ch >= 0.4 ? '#ffcf3a' : '#ff5a4a'}"><b>${Math.round(ch * 100)}%</b><small>sucesso</small></div>
         <div><small>Poder da equipe</small><b>${fmt(pw)} / ${fmt(m.req)}</b><small>${sel.length}/${m.max} heróis</small></div></div>
@@ -414,12 +414,12 @@ function escolherEquipe(qid) {
       <div class="linha"><button class="btn cinza peq" data-auto>Escolher melhores</button></div>
       <div class="modoM">
         <button class="btn verde" data-ir ${sel.length && temRank ? '' : 'disabled'}><span>${ico('missoes')} Automático</span><small>Os heróis vão sozinhos</small></button>
-        <button class="btn roxo" data-manual ${liderLivre && temRank ? '' : 'disabled'}><span>${ico('c_armas')} Manual</span><small>${liderLivre ? 'Você controla o líder (+25%)' : 'Líder ocupado'}</small></button></div>`);
+        <button class="btn roxo" data-manual ${guia && temRank ? '' : 'disabled'}><span>${ico('c_armas')} Manual</span><small>${guia ? `Você guia ${esc(guia.nome)} (+25%)` : 'Escolha a equipe'}</small></button></div>`);
     cx.onclick = e => {
       e.stopPropagation(); const b = e.target.closest('button'); if (!b) return;
       if (b.dataset.h) { const id = b.dataset.h; sel = sel.includes(id) ? sel.filter(x => x !== id) : sel.length < m.max ? [...sel, id] : sel; som('clique'); desenhar(); }
       if (b.dataset.auto != null) { sel = auto(); som('clique'); desenhar(); }
-      if (b.dataset.manual != null) { $('#modal').hidden = true; abrirAba(null); irMundo(true); const eq = [S.lider, ...sel.filter(x => x !== S.lider)].slice(0, m.max);
+      if (b.dataset.manual != null) { $('#modal').hidden = true; abrirAba(null); irMundo(true); const eq = sel.slice(0, m.max);
         iniciarLuta(q.id, eq, (venceu, desistiu) => { if (!desistiu) aviso(venceu ? `${ico('check')} Missão cumprida no modo manual!` : `${ico('ferido')} Seu líder caiu... tente de novo`, venceu ? 'ok' : 'erro', 3500); }); }
       if (b.dataset.ir != null) { if (E.pegar(q.id, sel)) { som('enviar'); $('#modal').hidden = true; aviso(`${ico('missoes')} Missão aceita: ${esc(q.nome)}`); desenharFolha(true); } else som('erro'); }
     };

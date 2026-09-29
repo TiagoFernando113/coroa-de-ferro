@@ -27,14 +27,16 @@ const alcanceArma = v => ({ arco: 14, besta: 13, magia: 12 }[armaInfo(v.arma).ti
 
 export function iniciarLuta(qid, ids, aoFim) {
   const q = S.quadro.find(x => x.id === qid); if (!q || L) return false;
-  if (!ids.includes(S.lider)) ids = [S.lider, ...ids].slice(0, missao(q.r, q.t).max);
+  // você guia o líder se ele estiver na equipe; senão, o herói mais forte dela
+  ids = ids.filter(id => E.heroi(id)?.estado === 'livre'); if (!ids.length) return false;
+  const guiaId = ids.includes(S.lider) ? S.lider : [...ids].sort((a, b) => E.poder(E.heroi(b), q.r) - E.poder(E.heroi(a), q.r))[0];
   const m = missao(q.r, q.t), razao = Math.max(0.2, E.poderEquipe(ids, q.r) / m.req), forca = Math.sqrt(razao);
   q.emLuta = true; for (const id of ids) E.heroi(id).estado = 'missao';
   const campo = posCampo(q.r, q.dx, q.dy), s = E.sis();
   const mk = (h, x, z) => { const v = C.heroi(h.visual); v.raiz.scale.setScalar(ESC_MUNDO); v.raiz.position.set(x, 0, z); v.tocar('Idle_A'); return { h, v, x, z, ang: 0, cd: 0, alc: alcanceArma(h.visual) }; };
-  const lider = mk(E.lider(), GUILDA_W.x + 6, GUILDA_W.z - 6);
-  lider.max = lider.hp = 120 + s.a.vit * 8; lider.dano = 26 * forca; lider.cds = [0, 0, 0];
-  const aliados = ids.filter(id => id !== S.lider).map((id, i) => { const a = mk(E.heroi(id), lider.x - 3 - i * 2, lider.z + 3); a.dano = 12 * forca; return a; });
+  const lider = mk(E.heroi(guiaId), GUILDA_W.x + 6, GUILDA_W.z - 6);
+  lider.max = lider.hp = 120 + (guiaId === S.lider ? s.a.vit * 8 : 0); lider.dano = 26 * forca; lider.cds = [0, 0, 0];
+  const aliados = ids.filter(id => id !== guiaId).map((id, i) => { const a = mk(E.heroi(id), lider.x - 3 - i * 2, lider.z + 3); a.dano = 12 * forca; return a; });
   const inimigos = GRUPOS[q.t].map((tp, i) => {
     const [mod, armas, esc, vida, dano, alc, longe] = TIPOS[tp], v = C.personagem(mod, armas, esc); v.raiz.scale.setScalar(ESC_MUNDO * (tp === 'chefe' ? 1 : 1));
     const a = i * 2.1, x = campo.x + Math.cos(a) * (i ? 5 : 0), z = campo.z + Math.sin(a) * (i ? 5 : 0);
@@ -131,7 +133,8 @@ export function passoLuta(dt) {
     j.cd -= dt; const alvo = maisPerto(j, j.alc + 1);
     if (alvo && !j.dash) { if (mv < 0.05) j.ang += difAng(j.ang, Math.atan2(alvo.x - j.x, alvo.z - j.z)) * Math.min(1, dt * 12);
       if (j.cd <= 0) { j.cd = j.alc > 5 ? 0.8 : 0.65; j.v.tocar(animAtaque(j.h.visual), { loop: false, reinicia: true, vel: 1.3 });
-        if (j.alc > 5) atirar(j, Math.atan2(alvo.x - j.x, alvo.z - j.z), armaInfo(j.h.visual.arma).tipo === 'magia' ? 'magia' : 'flecha', 30, j.dano, true);
+        if (j.alc > 5 && dist(alvo, j) > 3) atirar(j, Math.atan2(alvo.x - j.x, alvo.z - j.z), armaInfo(j.h.visual.arma).tipo === 'magia' ? 'magia' : 'flecha', 30, j.dano, true);
+        else if (j.alc > 5) ferir(alvo, j.dano); // colado no monstro: acerta direto
         else setTimeout(() => { if (L && alvo.hp > 0 && dist(alvo, j) < j.alc + 1.5) { ferir(alvo, j.dano); C.arco(j.x, j.z, j.ang, 3, 120, 0xfff2c0); } }, 180); } }
     else if (mv <= 0.05 && !j.dash && j.cd < 0.2) j.v.tocar('Idle_A');
   }
@@ -141,7 +144,7 @@ export function passoLuta(dt) {
     if (!alvo) { const ang = j.ang + Math.PI + (i - 0.5) * 0.9; dest = { x: j.x + Math.sin(ang) * 4, z: j.z + Math.cos(ang) * 4 }; perto = 1; }
     const d = dist(a, dest);
     if (d > perto) { const v = 10; a.x += (dest.x - a.x) / d * v * dt; a.z += (dest.z - a.z) / d * v * dt; a.ang = Math.atan2(dest.x - a.x, dest.z - a.z); a.v.tocar('Running_A'); }
-    else if (alvo) { a.ang = Math.atan2(alvo.x - a.x, alvo.z - a.z); a.cd -= dt; if (a.cd <= 0) { a.cd = 1.1; a.v.tocar(animAtaque(a.h.visual), { loop: false, reinicia: true }); if (a.alc > 5) atirar(a, a.ang, 'flecha', 28, a.dano, true); else ferir(alvo, a.dano); } }
+    else if (alvo) { a.ang = Math.atan2(alvo.x - a.x, alvo.z - a.z); a.cd -= dt; if (a.cd <= 0) { a.cd = 1.1; a.v.tocar(animAtaque(a.h.visual), { loop: false, reinicia: true }); if (a.alc > 5 && dist(a, alvo) > 3) atirar(a, a.ang, 'flecha', 28, a.dano, true); else ferir(alvo, a.dano); } }
     else a.v.tocar('Idle_A');
   });
   // monstros
@@ -182,7 +185,7 @@ function desenharHud(dt) {
   document.querySelectorAll('#luta [data-hab]').forEach(bt => { const i = +bt.dataset.hab, cd = j.cds[i], tot = [6, 8, 1.2][i]; bt.style.setProperty('--p', cd > 0 ? (cd / tot * 360) + 'deg' : '0deg'); bt.querySelector('i').textContent = cd > 0 ? Math.ceil(cd) : ''; });
   // seta até o acampamento quando ele está fora da tela
   const s = $('#lSeta'), c = L.campo, t = C.tela(c.x, 2, c.z), dCampo = Math.hypot(c.x - j.x, c.z - j.z);
-  if (dCampo > 22 && L.inimigos.some(e => e.hp > 0)) { const cx = innerWidth / 2, cy = innerHeight / 2; let ax = (t ? t[0] : cx) - cx, ay = (t ? t[1] : cy) - cy; const m = Math.hypot(ax, ay) || 1; ax /= m; ay /= m;
+  if (dCampo > 22 && L.inimigos.some(e => e.hp > 0) && !L.inimigos.some(e => e.acordado)) { const cx = innerWidth / 2, cy = innerHeight / 2; let ax = (t ? t[0] : cx) - cx, ay = (t ? t[1] : cy) - cy; const m = Math.hypot(ax, ay) || 1; ax /= m; ay /= m;
     s.hidden = false; s.style.transform = `translate(${cx + ax * Math.min(cx, cy) * 0.7}px,${cy + ay * Math.min(cx, cy) * 0.7}px) translate(-50%,-50%) rotate(${Math.atan2(ay, ax)}rad)`; s.dataset.d = Math.round(dCampo) + 'm'; }
   else s.hidden = true;
   // barras de vida e números
