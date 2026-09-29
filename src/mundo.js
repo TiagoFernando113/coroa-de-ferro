@@ -72,7 +72,7 @@ const campos = {}; // id do papel ou da missão → { vis, x, z }
 const marchas = {}; // uid da missão → { herois: [{id, v}] }
 const MODELO = [['lacaio', [['lamina', 'r']], 1], ['batedor', [['besta', 'r']], 1], ['guerreiro', [['machado', 'r'], ['escudoP', 'l']], 1.15], ['guerreiro', [['machado', 'r'], ['escudoG', 'l']], 2]];
 // acampamento numa clareira em volta do centro da região, fora da estrada
-function posCampo(r, dx, dy) {
+export function posCampo(r, dx, dy) {
   const c = CENTROS[r]; let a = Math.atan2(dy || 0.3, dx || 0.3); const d = 12 + Math.abs(dx || 0) * 0.9;
   for (let k = 0; k < 12; k++, a += 0.52) { const p = { x: c.x + Math.cos(a) * d, z: c.z + Math.sin(a) * d }; if (!pertoTrilha(p)) return p; }
   return { x: c.x + d, z: c.z };
@@ -103,7 +103,7 @@ export function atualizarMundo(dt) {
   if (!montado) return;
   const agora = Date.now(), vivos = new Set();
   // papéis do quadro = acampamentos esperando heróis
-  for (const q of S.quadro || []) { vivos.add(q.id); if (!campos[q.id]) criarCampo(q.id, q.r, q.t, q.dx, q.dy).q = q; }
+  for (const q of S.quadro || []) { if (q.emLuta) continue; vivos.add(q.id); if (!campos[q.id]) criarCampo(q.id, q.r, q.t, q.dx, q.dy).q = q; }
   // missões em andamento
   for (const ms of S.missoes) {
     const ck = 'm' + ms.uid; vivos.add(ck);

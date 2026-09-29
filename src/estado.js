@@ -25,7 +25,11 @@ export function novo(agora = Date.now()) {
   S.herois.push(novoHeroi('cav', 0, [])); S.herois.push(novoHeroi('arq', 0, [S.herois[0].nome])); S.lider = S.herois[0].id;
   return S;
 }
-export function carregar() { try { const s = JSON.parse(localStorage.getItem(SAVE)); if (s && s.v === 1) { S = s; for (const h of S.herois) if (!h.visual) h.visual = visualAleatorio(h.cls); return true; } } catch (e) {} return false; }
+export function carregar() { try { const s = JSON.parse(localStorage.getItem(SAVE)); if (s && s.v === 1) { S = s; for (const h of S.herois) if (!h.visual) h.visual = visualAleatorio(h.cls);
+    // luta manual interrompida (jogo fechado no meio): libera tudo
+    for (const q of S.quadro || []) delete q.emLuta;
+    for (const h of S.herois) if (h.estado === 'missao' && !S.missoes.some(m => m.herois.includes(h.id))) h.estado = 'livre';
+    return true; } } catch (e) {} return false; }
 export function salvar(agora = Date.now()) { if (!S) return; S.ultimo = agora; try { localStorage.setItem(SAVE, JSON.stringify(S)); } catch (e) {} }
 export function apagar() { try { localStorage.removeItem(SAVE); } catch (e) {} }
 
@@ -177,6 +181,14 @@ export const custoAcelerar = (ms, agora = Date.now()) => Math.max(1, Math.ceil((
 export function acelerar(uidM, agora = Date.now()) {
   const ms = S.missoes.find(x => x.uid === uidM); if (!ms) return false; const c = custoAcelerar(ms, agora);
   if (S.gemas < c) return false; S.gemas -= c; ms.fim = agora; return true;
+}
+// missão feita no modo manual: ok = venceu a luta (recompensa 25% maior)
+export function concluirManual(qid, ids, ok, agora = Date.now()) {
+  const q = S.quadro.find(x => x.id === qid); if (!q) return null; delete q.emLuta;
+  const ms = { uid: uid(), r: q.r, t: q.t, herois: ids, inicio: agora, fim: agora, chance: 1, nome: q.nome, mult: q.mult * 1.25, ok, manual: true };
+  for (const id of ids) { const h = heroi(id); if (h) h.estado = 'missao'; }
+  S.missoes.push(ms); if (ok) S.quadro = S.quadro.filter(x => x !== q);
+  return concluir(ms, agora, false);
 }
 function concluir(ms, agora, silencioso) {
   const m = { ...missao(ms.r, ms.t), nome: ms.nome || missao(ms.r, ms.t).nome }, ok = ms.ok ?? Math.random() < ms.chance, res = { m, ok, ouro: 0, gemas: 0, xp: 0, herois: ms.herois, feridos: [], desbloqueou: null };

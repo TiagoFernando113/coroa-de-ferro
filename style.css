@@ -397,3 +397,31 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;paddin
 .campoM::after{content:'';position:absolute;left:50%;bottom:-8px;margin-left:-6px;border:6px solid transparent;border-top-color:#8a5a2b}
 .campoM.chefeM{background:linear-gradient(#ff6a4a,#b8201a);color:#fff;border-color:#fff;font-family:var(--fT)}
 .campoM.lutaM{pointer-events:none;background:#3a1a10;color:#ffd8a0;border-color:#ff7a3a}
+
+/* ---------- missão manual ---------- */
+.modoM{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.modoM .btn{flex-direction:column;gap:2px;padding:10px 6px}
+.modoM .btn small{font-family:var(--fX);font-size:11px;font-weight:400;opacity:.9}
+#luta{position:fixed;inset:0;z-index:40;pointer-events:none}
+#luta>*{pointer-events:auto}
+#lJoy{position:absolute;inset:0;width:100%;height:100%;touch-action:none}
+.lTopo{position:absolute;top:max(10px,env(safe-area-inset-top));left:10px;right:10px;display:flex;gap:8px;align-items:center;z-index:2}
+.lTopo .btn{width:auto}
+.lMissao{flex:1;padding:6px 12px;border-radius:14px;background:rgba(30,18,8,.8);color:#ffe9c2}
+.lMissao b{display:block;font-family:var(--fT);font-weight:400;font-size:15px}.lMissao small{font-size:12px;display:flex;gap:4px;align-items:center}
+.lVida{position:absolute;top:calc(max(10px,env(safe-area-inset-top)) + 58px);left:10px;width:min(60vw,260px);display:flex;align-items:center;gap:6px;z-index:2;pointer-events:none}
+.lVida .retrato{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:#4a7bd0;border:2px solid #fff;color:#fff}
+.lVida .barra{flex:1;height:18px}
+.barra.vida i{background:linear-gradient(90deg,#e2412f,#ff8a5a)}
+#lSeta{position:absolute;left:0;top:0;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:rgba(255,210,58,.9);color:#5a3408;pointer-events:none;box-shadow:0 0 12px #ffd23a;z-index:2}
+#lSeta .ico{width:26px;height:26px}
+#lSeta::after{content:attr(data-d);position:absolute;top:46px;font-family:var(--fT);font-size:12px;color:#fff;text-shadow:0 1px 2px #000;transform:rotate(calc(-1 * 0rad))}
+.lAcoes{position:absolute;right:14px;bottom:calc(max(14px,env(safe-area-inset-bottom)) + 10px);width:170px;height:170px;z-index:2;pointer-events:none}
+.lb{position:absolute;width:74px;height:74px;border-radius:50%;display:grid;place-items:center;color:#fff;pointer-events:auto;touch-action:none;
+  background:radial-gradient(circle at 35% 30%,#ffb07a,#d8543a);border:3px solid #fff;box-shadow:0 4px 0 #7a2a10,0 6px 12px rgba(0,0,0,.4)}
+.lb::before{content:'';position:absolute;inset:-3px;border-radius:50%;background:conic-gradient(rgba(0,0,0,.6) var(--p,0deg),transparent 0)}
+.lb .ico{width:38px;height:38px;position:relative}
+.lb i{position:absolute;font-style:normal;font-family:var(--fT);font-size:24px;text-shadow:0 2px 3px #000}
+.lb.h1{right:0;bottom:84px}.lb.h2{right:84px;bottom:0}
+.lb.esq{right:0;bottom:0;width:66px;height:66px;background:radial-gradient(circle at 35% 30%,#9fe3ff,#2a8ad8);box-shadow:0 4px 0 #0a4a8a,0 6px 12px rgba(0,0,0,.4)}
+.lb:active{transform:scale(.92)}
