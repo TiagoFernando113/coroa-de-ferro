@@ -8,7 +8,7 @@ import { EDIFICIOS, EF, custoEd, descEfeito, proxMarco, marcosAte, CLASSES, RARI
 import { POS, atualizarPredio, revestir } from './base.js';
 import { abrirCriador } from './criador.js';
 import { MUNDO, GUILDA_W, mostrarMundo, mundoVisivel, camposVisiveis } from './mundo.js';
-import { iniciarLuta } from './luta.js';
+import { iniciarLuta, iniciarExploracao } from './luta.js';
 import { RARIDADE_ITEM, ESPACOS, ATR_ITEM, textoAtr, precoItem, atributosEquip } from './itens.js';
 import { ETAPAS, avancar, etapaAtual, revelado, visivel, livre, proximoTrancado } from './etapas.js';
 
@@ -50,6 +50,7 @@ export function montar() {
     <div id="dica" hidden></div>
     <div id="rotulos"></div><div id="rotulosMundo" hidden></div>
     <button id="bMundo" class="bMundo">${ico('missoes')}<span>Mundo</span></button>
+    <button id="bExplorar" class="bMundo bExplorar" hidden>${ico('c_armas')}<span>Explorar</span></button>
     <nav id="nav">
       ${[['guilda', 'Guilda'], ['herois', 'Herói'], ['missoes', 'Missões'], ['recrutar', 'Convidar'], ['objetivos', 'Objetivos']].map(([k, t]) => `<button data-aba="${k}">${ico(k)}<span>${t}</span><em class="selo" hidden></em></button>`).join('')}
     </nav>
@@ -64,6 +65,7 @@ export function montar() {
   $('#bFama').onclick = () => { som('clique'); janelaFama(); };
   $('#ativas').onclick = () => { som('clique'); if (!mundoVisivel()) irMundo(true); };
   $('#bMundo').onclick = () => { som('abrir'); irMundo(!mundoVisivel()); };
+  $('#bExplorar').onclick = () => { som('abrir'); explorar(); };
   $('#rotulosMundo').onclick = e => { const b = e.target.closest('[data-q]'); if (b) { som('abrir'); escolherEquipe(b.dataset.q); } };
   // rótulos dos prédios
   $('#rotulos').innerHTML = Object.keys(EDIFICIOS).map(id => `<button class="rotulo" data-ed="${id}"><span class="rIco" style="--c:${EDIFICIOS[id].cor}">${ico(EDIFICIOS[id].icone)}</span><b></b><i class="seta">${ico('xp')}</i></button>`).join('');
@@ -104,8 +106,16 @@ export function irMundo(sim) {
   else { ui.foco = { x: focoGuilda?.x || 0, z: focoGuilda?.z || 0 }; C.camera.dist = focoGuilda?.dist || 74; }
   C.camera.suave = 60; if (sim) C.neblina(160, 420); else C.neblina(70, 150);
   $('#bMundo').innerHTML = sim ? `${ico('guilda')}<span>Guilda</span>` : `${ico('missoes')}<span>Mundo</span>`;
-  $('#rotulos').hidden = sim; $('#rotulosMundo').hidden = !sim;
-  if (sim) aviso(`${ico('missoes')} Mapa do mundo: toque num acampamento para enviar heróis`, '', 3200);
+  $('#rotulos').hidden = sim; $('#rotulosMundo').hidden = !sim; $('#bExplorar').hidden = !sim;
+  if (sim) aviso(`${ico('missoes')} Mapa do mundo: toque num acampamento ou em Explorar para andar livre`, '', 3200);
+}
+// mundo aberto: seu herói anda livre, luta com os monstros das regiões e evolui
+function explorar() {
+  if (E.lider()?.estado !== 'livre') { som('erro'); aviso(`${ico('missoes')} Seu herói está numa missão`, 'erro'); return; }
+  iniciarExploracao((ok, desistiu, loot, g) => {
+    aviso(`${ico('xp')} Exploração: ${g.mortes} monstros · +${fmt(g.xp)} XP · +${fmt(g.ouro)} ouro`, 'ok', 4000);
+    if (loot && loot.length) setTimeout(() => janelaLoot(loot), 400);
+  });
 }
 function rotulosMundo() {
   if (!mundoVisivel()) return;
@@ -543,7 +553,7 @@ function guiar() {
   etapaVista = S.etapa;
   // o que já foi revelado aparece
   for (const b of document.querySelectorAll('#nav [data-aba]')) b.hidden = !revelado('nav:' + b.dataset.aba);
-  $('#bMundo').hidden = !revelado('nav:missoes'); $('#pGema').hidden = !revelado('gemas'); $('#bFama').hidden = !revelado('fama');
+  $('#bMundo').hidden = !revelado('nav:missoes'); if (!mundoVisivel()) $('#bExplorar').hidden = true;$('#pGema').hidden = !revelado('gemas'); $('#bFama').hidden = !revelado('fama');
   const e = etapaAtual(), dica = $('#dica'), guia = $('#guia');
   if (e && folhaAtual == null && $('#modal').hidden) {
     dica.hidden = false; const k = S.etapa + '|' + e.txt;

@@ -1,7 +1,7 @@
 // Dados da Guilda de Heróis: prédios, heróis, raridades, regiões/missões e objetivos.
 // Os números crescem de forma exponencial (estilo idle): cada melhoria custa mais e rende mais.
 
-export const VERSAO = 36;
+export const VERSAO = 37;
 
 // ---------------- números grandes ----------------
 const SUF = ['', 'K', 'M', 'B', 'T', 'aa', 'ab', 'ac', 'ad', 'ae', 'af', 'ag', 'ah'];
@@ -147,10 +147,10 @@ export const gemasObjetivo = i => 5 * 2 ** i;
 // ---------------- Sistema do líder (evolução estilo "Solo Leveling") ----------------
 // o líder ganha XP com tudo o que a guilda faz; cada nível dá pontos de atributo que dão bônus à guilda inteira
 export const ATRIBUTOS = {
-  for: { nome: 'Força', icone: 'forca', cor: '#ff6a4a', txt: v => `+${v * 2}% de poder para todos os heróis` },
-  agi: { nome: 'Agilidade', icone: 'agi', cor: '#5fd84a', txt: v => `missões ${Math.round((1 - Math.max(0.5, 1 - 0.01 * v)) * 100)}% mais rápidas` },
-  vit: { nome: 'Vitalidade', icone: 'vit', cor: '#ff5a8a', txt: v => `${Math.round((1 - Math.max(0.3, 1 - 0.02 * v)) * 100)}% menos ferimentos` },
-  int: { nome: 'Inteligência', icone: 'int', cor: '#5ab8ff', txt: v => `+${v * 2}% de ouro (taverna e missões)` },
+  for: { nome: 'Força', icone: 'forca', cor: '#ff6a4a', txt: v => `+${v * 3}% de dano` },
+  agi: { nome: 'Agilidade', icone: 'agi', cor: '#5fd84a', txt: v => `+${(v * 1.2).toFixed(1)}% vel. de ataque e passo · +${(v * 0.3).toFixed(1)}% crítico` },
+  vit: { nome: 'Vitalidade', icone: 'vit', cor: '#ff5a8a', txt: v => `+${v * 12} de vida · +${(v * 0.4).toFixed(1)}% defesa` },
+  int: { nome: 'Inteligência', icone: 'int', cor: '#5ab8ff', txt: v => `+${v * 4}% dano das habilidades · -${Math.min(40, v)}% recarga` },
 };
 export const PONTOS_NIVEL = 3;
 export const xpSistema = n => Math.round(40 * 1.3 ** (n - 1));

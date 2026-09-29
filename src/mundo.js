@@ -10,7 +10,7 @@ export const MUNDO = { x: 900, z: 0 };
 const ESC = 3.4; // 1 unidade do mapa (0–100) = 3,4 m
 const W = (px, py) => ({ x: MUNDO.x + (px - 50) * ESC, z: MUNDO.z + (py - 50) * ESC });
 export const GUILDA_W = W(8, 94);
-const CENTROS = REGIOES.map(r => W(r.x, r.y));
+export const CENTROS = REGIOES.map(r => W(r.x, r.y));
 const ESTILO = [
   { chao: '#2f6a2a', pecas: ['Q:Pine_1', 'Q:Pine_3', 'Q:CommonTree_2', 'Q:Pine_5', 'Q:CommonTree_4', 'Q:Fern_1'], s: 5 },
   { chao: '#4a5a2a', pecas: ['Q:DeadTree_1', 'Q:DeadTree_3', 'N:tree_blocks_dark', 'Q:Fern_1', 'N:lily_large', 'Q:Rock_Medium_2'], s: 5 },

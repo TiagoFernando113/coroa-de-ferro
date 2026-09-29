@@ -1,4 +1,5 @@
 /* Guilda dos Heróis — visual de idle/tycoon de celular: botões com relevo, painéis claros, ícones vetoriais */
+.bMundo.bExplorar{right:84px;background:radial-gradient(circle at 35% 30%,#ffb07a,#d8543a);box-shadow:0 4px 0 #7a2a10,0 6px 12px rgba(0,0,0,.4)}
 :root{
   --madeira:#6b3f1d;--madeira2:#8a5a2b;--creme:#fff6e3;--creme2:#f3e2bf;--tinta:#4a2c12;--suave:#8a6a4a;
   --verde:#5fd84a;--verde2:#2f9a2a;--azul:#4aa8ff;--azul2:#2466c8;--roxo:#b36bff;--roxo2:#6a2ac8;--amarelo:#ffd23a;--amarelo2:#d8901a;

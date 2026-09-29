@@ -68,7 +68,15 @@ export const novoItem = gerarItem;
 
 // ---------------- Sistema do líder ----------------
 export function sis() { if (!S.sis) S.sis = { nivel: 1, xp: 0, pontos: 0, a: { for: 0, agi: 0, vit: 0, int: 0 } }; return S.sis; }
-export const bonus = () => { const a = sis().a; return { poder: 1 + 0.02 * a.for, tempo: Math.max(0.5, 1 - 0.01 * a.agi), ferir: Math.max(0.3, 1 - 0.02 * a.vit), ouro: 1 + 0.02 * a.int }; };
+// bônus da guilda vindos do líder: agora os atributos valem só para o herói (ver statsHeroi)
+export const bonus = () => ({ poder: 1, tempo: 1, ferir: 1, ouro: 1 });
+// atributos de luta do herói principal (nível do Sistema + pontos + equipamento)
+export function statsHeroi() {
+  const s = sis(), a = s.a, q = atributosEquip(S.equip), n = s.nivel;
+  return { dano: 18 * 1.09 ** (n - 1) * (1 + a.for * 0.03) * (1 + q.atk / 100), vida: Math.round(140 * 1.08 ** (n - 1) + a.vit * 12 + q.vida),
+    crit: 0.1 + a.agi * 0.003 + q.crit / 100, vel: Math.min(0.5, a.agi * 0.012 + q.vel / 100), def: Math.min(0.7, a.vit * 0.004 + q.def / 100),
+    hab: 1 + a.int * 0.04, recarga: 1 - Math.min(0.4, a.int * 0.01) };
+}
 export function ganharXPSis(v) {
   const s = sis(); s.xp += v;
   while (s.xp >= xpSistema(s.nivel)) {
@@ -85,7 +93,7 @@ export const vagasMissao = () => EF.quadro(nivel('quadro')).vagas;
 export function poder(h, r = null) {
   const c = CLASSES[h.cls];
   let p = c.poder * RARIDADES[h.rar].mult * 1.1 ** (h.nivel - 1) * EF.forja(nivel('forja')) * bonus().poder;
-  if (h.id === S.lider) { p *= 1.06 ** (sis().nivel - 1); const q = atributosEquip(S.equip); p *= 1 + (q.atk + q.crit + q.def) / 100 + q.vida / 2000; } // o líder cresce com o Sistema e o equipamento
+  if (h.id === S.lider) { const a = sis().a; p *= 1.06 ** (sis().nivel - 1) * (1 + (a.for * 3 + a.agi * 1.2 + a.vit + a.int * 2) / 100); const q = atributosEquip(S.equip); p *= 1 + (q.atk + q.crit + q.def) / 100 + q.vida / 2000; } // o líder cresce com o Sistema e o equipamento
   if (r != null && REGIOES[r].afin === h.cls) p *= 1.25;
   return p;
 }
