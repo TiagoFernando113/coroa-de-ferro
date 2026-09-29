@@ -2,7 +2,7 @@
 // O tempo das missões e o ganho offline usam o relógio real (Date.now).
 import { visualAleatorio } from './aparencia.js';
 import { EDIFICIOS, EF, custoEd, CLASSES, RARIDADES, chancesRecrutar, xpHeroi, custoTreinar, custoRecrutar, GEMAS_RECRUTAR, nomeAleatorio,
-  REGIOES, missao, chanceSucesso, xpFama, OBJETIVOS, gemasObjetivo, OFFLINE_MAX } from './dados.js';
+  REGIOES, missao, chanceSucesso, xpFama, OBJETIVOS, gemasObjetivo, OFFLINE_MAX, xpSistema, PONTOS_NIVEL, rankDe } from './dados.js';
 
 const SAVE = 'coroa_guilda_v1';
 export let S = null;
@@ -30,12 +30,26 @@ export function apagar() { try { localStorage.removeItem(SAVE); } catch (e) {} }
 
 // ---------------- números derivados ----------------
 export const nivel = id => S.ed[id] || 0;
-export const renda = () => EF.taverna(nivel('taverna')) * EF.mercado(nivel('mercado'));
+// ---------------- Sistema do líder ----------------
+export function sis() { if (!S.sis) S.sis = { nivel: 1, xp: 0, pontos: 0, a: { for: 0, agi: 0, vit: 0, int: 0 } }; return S.sis; }
+export const bonus = () => { const a = sis().a; return { poder: 1 + 0.02 * a.for, tempo: Math.max(0.5, 1 - 0.01 * a.agi), ferir: Math.max(0.3, 1 - 0.02 * a.vit), ouro: 1 + 0.02 * a.int }; };
+export function ganharXPSis(v) {
+  const s = sis(); s.xp += v;
+  while (s.xp >= xpSistema(s.nivel)) {
+    s.xp -= xpSistema(s.nivel); const rAntes = rankDe(s.nivel)[1]; s.nivel++; s.pontos += PONTOS_NIVEL;
+    const r = rankDe(s.nivel); ev('sistema', { nivel: s.nivel, rank: r[1] !== rAntes ? r : null });
+  }
+}
+export function distribuir(at, n = 1) { const s = sis(); n = Math.min(n, s.pontos); if (n <= 0) return 0; s.pontos -= n; s.a[at] += n; return n; }
+export const lider = () => heroi(S.lider) || S.herois[0];
+export const poderCombate = () => { const h = lider(); return h ? Math.round(poder(h) * 10) : 0; };
+export const renda = () => EF.taverna(nivel('taverna')) * EF.mercado(nivel('mercado')) * bonus().ouro;
 export const capacidade = () => EF.alojamento(nivel('alojamento'));
 export const vagasMissao = () => EF.quadro(nivel('quadro')).vagas;
 export function poder(h, r = null) {
   const c = CLASSES[h.cls];
-  let p = c.poder * RARIDADES[h.rar].mult * 1.1 ** (h.nivel - 1) * EF.forja(nivel('forja'));
+  let p = c.poder * RARIDADES[h.rar].mult * 1.1 ** (h.nivel - 1) * EF.forja(nivel('forja')) * bonus().poder;
+  if (h.id === S.lider) p *= 1.06 ** (sis().nivel - 1); // o líder cresce com o Sistema
   if (r != null && REGIOES[r].afin === h.cls) p *= 1.25;
   return p;
 }
@@ -65,7 +79,7 @@ export function melhorar(id) {
   if (!desbloqueado(id)) return false;
   const c = custoEd(id, nivel(id)); if (S.ouro < c) return false;
   S.ouro -= c; S.ed[id] = nivel(id) + 1; ganharFama(1 + Math.floor(S.ed[id] / 10));
-  ev('melhorou', { id, nivel: S.ed[id] }); return true;
+  ganharXPSis(2 + Math.floor(S.ed[id] / 5)); ev('melhorou', { id, nivel: S.ed[id] }); return true;
 }
 // compra várias vezes seguidas (x10, máx.)
 export function melhorarVarias(id, qtd) { let n = 0; while (n < qtd && melhorar(id)) n++; return n; }
@@ -105,7 +119,7 @@ export function enviar(r, t, ids, agora = Date.now()) {
   if (S.missoes.length >= vagasMissao()) { ev('aviso', { txt: 'Sem vagas no Quadro de Missões.' }); return null; }
   if (r > S.regiao || (t === 3 && S.chefes[r])) return null;
   const m = missao(r, t); ids = ids.filter(id => heroi(id)?.estado === 'livre').slice(0, m.max); if (!ids.length) return null;
-  const dur = m.dur * EF.biblioteca(nivel('biblioteca'));
+  const dur = m.dur * EF.biblioteca(nivel('biblioteca')) * bonus().tempo;
   const ms = { uid: uid(), r, t, herois: ids, inicio: agora, fim: agora + dur * 1000, chance: chanceSucesso(poderEquipe(ids, r), m.req) };
   for (const id of ids) heroi(id).estado = 'missao';
   S.missoes.push(ms); ev('enviou', { m: ms }); return ms;
@@ -119,14 +133,15 @@ function concluir(ms, agora, silencioso) {
   const m = missao(ms.r, ms.t), ok = Math.random() < ms.chance, res = { m, ok, ouro: 0, gemas: 0, xp: 0, herois: ms.herois, feridos: [], desbloqueou: null };
   const hs = ms.herois.map(heroi).filter(Boolean);
   if (ok) {
-    res.ouro = Math.round(m.ouro * EF.quadro(nivel('quadro')).bonus * EF.mercado(nivel('mercado'))); ganharOuro(res.ouro);
+    res.ouro = Math.round(m.ouro * EF.quadro(nivel('quadro')).bonus * EF.mercado(nivel('mercado')) * bonus().ouro); ganharOuro(res.ouro);
+    ganharXPSis(m.xp * (ms.herois.includes(S.lider) ? 1.2 : 0.5));
     res.xp = m.xp; for (const h of hs) ganharXP(h, m.xp);
     ganharFama(m.fama); S.st.missoes++;
     if (Math.random() < m.bau) { res.gemas = 1 + Math.floor(Math.random() * (2 + ms.r)); S.gemas += res.gemas; const extra = Math.round(renda() * 60); res.ouro += extra; ganharOuro(extra); res.bau = true; }
     if (m.chefe) { S.chefes[ms.r] = true; if (S.regiao < REGIOES.length - 1 && S.regiao === ms.r) { S.regiao++; res.desbloqueou = S.regiao; } }
   } else {
     S.st.falhas++; res.xp = Math.round(m.xp * 0.3); const enf = EF.enfermaria(nivel('enfermaria'));
-    for (const h of hs) { ganharXP(h, res.xp); if (Math.random() < enf.chance) { h.estado = 'ferido'; h.ate = agora + m.dur * 0.6 * enf.tempo * 1000; res.feridos.push(h.id); } }
+    for (const h of hs) { ganharXP(h, res.xp); if (Math.random() < enf.chance * bonus().ferir) { h.estado = 'ferido'; h.ate = agora + m.dur * 0.6 * enf.tempo * 1000; res.feridos.push(h.id); } }
   }
   for (const h of hs) if (h.estado === 'missao') h.estado = 'livre';
   S.missoes = S.missoes.filter(x => x !== ms);
@@ -144,13 +159,13 @@ export function progressoObj(id) {
   return 0;
 }
 export function objetivoAtual(o) { const i = S.obj[o.id] || 0; return i < o.metas.length ? { i, meta: o.metas[i], feito: progressoObj(o.id) >= o.metas[i], gemas: gemasObjetivo(i) } : null; }
-export function coletarObjetivo(id) { const o = OBJETIVOS.find(x => x.id === id), a = objetivoAtual(o); if (!a || !a.feito) return 0; S.obj[id] = a.i + 1; S.gemas += a.gemas; return a.gemas; }
+export function coletarObjetivo(id) { const o = OBJETIVOS.find(x => x.id === id), a = objetivoAtual(o); if (!a || !a.feito) return 0; S.obj[id] = a.i + 1; S.gemas += a.gemas; ganharXPSis(15 * (a.i + 1)); return a.gemas; }
 export const objetivosProntos = () => OBJETIVOS.filter(o => objetivoAtual(o)?.feito).length;
 
 // ---------------- tempo ----------------
 export function passo(dt, agora = Date.now()) {
   ganharOuro(renda() * dt);
-  const xps = EF.treino(nivel('treino')) * dt; if (xps > 0) for (const h of S.herois) if (h.estado === 'livre') ganharXP(h, xps);
+  const xps = EF.treino(nivel('treino')) * dt; if (xps > 0) { for (const h of S.herois) if (h.estado === 'livre') ganharXP(h, xps); ganharXPSis(xps * 0.15); }
   for (const h of S.herois) if (h.estado === 'ferido' && agora >= h.ate) { h.estado = 'livre'; ev('curado', { id: h.id }); }
   for (const ms of [...S.missoes]) if (agora >= ms.fim) concluir(ms, agora, false);
 }
@@ -160,7 +175,7 @@ export function offline(agora = Date.now()) {
   const antes = S.ouro, missoesAntes = S.st.missoes;
   if (seg > 5) {
     ganharOuro(renda() * seg);
-    const xps = EF.treino(nivel('treino')) * seg; if (xps > 0) for (const h of S.herois) if (h.estado === 'livre') ganharXP(h, xps);
+    const xps = EF.treino(nivel('treino')) * seg; if (xps > 0) { for (const h of S.herois) if (h.estado === 'livre') ganharXP(h, xps); ganharXPSis(xps * 0.15); }
   }
   for (const h of S.herois) if (h.estado === 'ferido' && agora >= h.ate) h.estado = 'livre';
   for (const ms of [...S.missoes]) if (agora >= ms.fim) concluir(ms, agora, true);

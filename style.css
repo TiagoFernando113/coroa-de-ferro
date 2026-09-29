@@ -295,3 +295,27 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;paddin
 .heroi.lider{box-shadow:0 0 0 3px #ffd23a,0 4px 0 rgba(0,0,0,.15)}
 .coroaL{position:absolute;top:-10px;left:50%;translate:-50% 0;color:#ffd23a;filter:drop-shadow(0 1px 1px #7a4a08)}
 .coroaL .ico{width:24px;height:24px}
+
+/* ---------- Sistema do líder ---------- */
+.sisCard{width:100%;display:flex;align-items:center;gap:10px;padding:10px 12px;margin-bottom:10px;border-radius:16px;text-align:left;color:#dff4ff;
+  background:linear-gradient(135deg,#0d1c3a,#16325e);border:2px solid #4ab8ff;box-shadow:0 0 14px rgba(74,184,255,.45),0 4px 0 #0a1428}
+.sisCard .cTxt{flex:1;min-width:0}.sisCard b{font-family:var(--fT);font-weight:400;font-size:17px;display:block}.sisCard small{color:#9fd8ff;font-size:12px}
+.rank{flex:none;width:42px;height:42px;border-radius:12px;display:grid;place-items:center;font-family:var(--fT);font-size:26px;color:#fff;background:var(--rk);box-shadow:0 0 12px var(--rk),inset 0 2px 0 rgba(255,255,255,.4);text-shadow:0 2px 0 rgba(0,0,0,.4)}
+.rank.g{width:64px;height:64px;font-size:40px;border-radius:16px}
+.pts{font-style:normal;font-family:var(--fT);background:#ffd23a;color:#5a3408;padding:4px 10px;border-radius:12px;animation:pula2 .8s ease-in-out infinite}
+.barra.sis i{background:linear-gradient(90deg,#3a8aff,#7ae0ff)}
+.sisCard .barra{margin-top:4px;height:8px}
+.sisJan{width:min(92vw,380px);padding:16px;border-radius:16px;color:#dff4ff;background:linear-gradient(160deg,rgba(10,24,52,.97),rgba(20,44,90,.97));border:2px solid #4ab8ff;box-shadow:0 0 30px rgba(74,184,255,.6),inset 0 0 20px rgba(74,184,255,.2);display:flex;flex-direction:column;gap:10px;text-align:left}
+.sisTopo{align-self:center;font-family:var(--fT);font-size:20px;letter-spacing:4px;color:#7ae0ff;text-shadow:0 0 10px #4ab8ff;display:flex;gap:8px;align-items:center;padding:2px 16px;border:1px solid #4ab8ff;border-radius:8px}
+.sisNome{display:flex;gap:12px;align-items:center}.sisNome b{font-family:var(--fT);font-weight:400;font-size:22px;display:block}.sisNome small{color:#9fd8ff}
+.sisLinha{display:flex;justify-content:space-between;border-bottom:1px solid rgba(74,184,255,.25);padding-bottom:4px}.sisLinha b{font-family:var(--fT);font-weight:400;font-size:18px}
+.sisLinha .brilha{color:#ffd23a;text-shadow:0 0 8px #ffd23a}
+.sisAt{display:flex;align-items:center;gap:10px}.sisAt>div{flex:1}.sisAt b{font-weight:600}.sisAt b i{font-style:normal;color:var(--ac);font-family:var(--fT);font-size:18px;margin-left:4px}
+.sisAt small{display:block;color:#9fd8ff;font-size:12px}
+.ai{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;background:color-mix(in srgb,var(--ac) 25%,#0a1834);border:1px solid var(--ac);color:var(--ac)}.ai .ico{width:22px;height:22px}
+.sisMais{width:38px;height:38px;border-radius:10px;font-family:var(--fT);font-size:26px;color:#0a1834;background:linear-gradient(#9fe8ff,#4ab8ff);box-shadow:0 3px 0 #1a5a9a}
+.sisMais:disabled{opacity:.3}.sisMais:active{transform:translateY(2px)}
+.sisDica{font-size:12px;color:#9fd8ff;margin:0}
+.rankUp{align-self:center;animation:pop .4s}.sisJan>p{text-align:center;margin:0}
+.aviso.sis{background:linear-gradient(90deg,#0d1c3a,#16325e);border-left-color:#4ab8ff;color:#dff4ff}
+.sisJan .barra,.sisCard .barra{background:#0a1428;border-color:#2a5a9a}.sisJan .barra span{color:#dff4ff}

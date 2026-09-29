@@ -1,7 +1,7 @@
 // Dados da Guilda de Heróis: prédios, heróis, raridades, regiões/missões e objetivos.
 // Os números crescem de forma exponencial (estilo idle): cada melhoria custa mais e rende mais.
 
-export const VERSAO = 24;
+export const VERSAO = 25;
 
 // ---------------- números grandes ----------------
 const SUF = ['', 'K', 'M', 'B', 'T', 'aa', 'ab', 'ac', 'ad', 'ae', 'af', 'ag', 'ah'];
@@ -129,4 +129,17 @@ export const OBJETIVOS = [
   { id: 'lendarios', nome: 'Heróis lendários', icone: 'estrela', metas: [1, 3, 5, 10] },
 ];
 export const gemasObjetivo = i => 5 * 2 ** i;
+// ---------------- Sistema do líder (evolução estilo "Solo Leveling") ----------------
+// o líder ganha XP com tudo o que a guilda faz; cada nível dá pontos de atributo que dão bônus à guilda inteira
+export const ATRIBUTOS = {
+  for: { nome: 'Força', icone: 'forca', cor: '#ff6a4a', txt: v => `+${v * 2}% de poder para todos os heróis` },
+  agi: { nome: 'Agilidade', icone: 'agi', cor: '#5fd84a', txt: v => `missões ${Math.round((1 - Math.max(0.5, 1 - 0.01 * v)) * 100)}% mais rápidas` },
+  vit: { nome: 'Vitalidade', icone: 'vit', cor: '#ff5a8a', txt: v => `${Math.round((1 - Math.max(0.3, 1 - 0.02 * v)) * 100)}% menos ferimentos` },
+  int: { nome: 'Inteligência', icone: 'int', cor: '#5ab8ff', txt: v => `+${v * 2}% de ouro (taverna e missões)` },
+};
+export const PONTOS_NIVEL = 3;
+export const xpSistema = n => Math.round(40 * 1.3 ** (n - 1));
+export const RANKS = [[1, 'E', '#a8b0b8', 'Caçador iniciante'], [10, 'D', '#5fb83a', 'Caçador promissor'], [20, 'C', '#3aa0e0', 'Caçador experiente'],
+  [35, 'B', '#8a5ad8', 'Caçador de elite'], [50, 'A', '#e0a02a', 'Caçador lendário'], [75, 'S', '#ff4a3a', 'Monarca']];
+export const rankDe = n => RANKS.filter(r => n >= r[0]).pop();
 export const OFFLINE_MAX = 4 * 3600; // ganhos offline até 4h
