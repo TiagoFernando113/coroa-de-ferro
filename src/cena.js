@@ -255,7 +255,8 @@ function prepararHerois() {
         atlas[aid] = { id: aid, tex, dados, media, pele };
       }
       // religa os ossos na ordem do Cavaleiro
-      const mapa = m.skeleton.bones.map(b => nomes.indexOf(b.name)), si = m.geometry.attributes.skinIndex, novo = new Uint16Array(si.count * 4);
+      const mapa = m.skeleton.bones.map(b => nomes.indexOf(b.name.replace(/_\d+$/, ''))), // ossos repetidos vêm como hips_1...
+        si = m.geometry.attributes.skinIndex, novo = new Uint16Array(si.count * 4);
       for (let i = 0; i < si.count; i++) for (let c = 0; c < 4; c++) novo[i * 4 + c] = Math.max(0, mapa[si.getComponent ? si.getComponent(i, c) : [si.getX, si.getY, si.getZ, si.getW][c].call(si, i)]);
       const geo = new THREE.BufferGeometry();
       for (const [n, a] of Object.entries(m.geometry.attributes)) if (n !== 'skinIndex') geo.setAttribute(n, a);
@@ -352,6 +353,8 @@ export function heroi(v) {
   let atual = null, nomeAtual = '';
   const P = {
     raiz, corpo, mixer, acoes, vestir,
+    // só proporções (sem trocar peças)
+    ajustarCorpo(nv) { visual = nv; corpo.scale.set(ESC_HEROI * (nv.larg || 1), ESC_HEROI * (nv.alt || 1), ESC_HEROI * (nv.larg || 1)); },
     tem: n => !!acao(n),
     tocar(n, { loop = true, fade = 0.15, vel = 1, reinicia = false } = {}) {
       const a = acao(n); if (!a) return;
@@ -490,3 +493,4 @@ export const info = () => {
 };
 export function medida(m) { const p = pecas[m.replace(':', '')]; if (!p) return null; const b = new THREE.Box3().setFromObject(p), s = b.getSize(new THREE.Vector3()); return [+s.x.toFixed(2), +s.y.toFixed(2), +s.z.toFixed(2), +b.min.x.toFixed(2), +b.min.z.toFixed(2)]; }
 export function debugHerois() { const g = modelos.herois.scene.children[0]; const out = []; g.traverse(o => out.push(o.type + ' ' + o.name + ' p' + o.position.toArray().map(v => v.toFixed(2)) + ' r' + o.rotation.toArray().slice(0, 3).map(v => v.toFixed(2)) + ' s' + o.scale.toArray().map(v => v.toFixed(2)))); return out.slice(0, 14).join('\n'); }
+export function debugCena(f) { scene.traverse(f); }

@@ -51,12 +51,17 @@ export function passoCriador(dt) {
   if (!E) return;
   E.giro *= 1; E.P.raiz.rotation.y = E.giro + Math.sin(C.tempo() * 0.5) * 0.08;
   E.P.mixer.update(dt);
-  if (E.animFim && C.tempo() > E.animFim) { E.animFim = 0; E.P.tocar('Idle'); }
+  if (E.animFim && C.tempo() > E.animFim) { E.animFim = 0; E.animAtual = 'Idle'; E.P.tocar('Idle'); }
 }
-function mudou() { E.P.vestir(E.v); desenhar(); }
+// troca de peça/cor: recria o boneco inteiro (religar peças novas num esqueleto já animado deixava o corpo parado)
+function refazer() {
+  const P = C.heroi(E.v); P.raiz.position.copy(E.P.raiz.position); P.raiz.rotation.y = E.P.raiz.rotation.y;
+  E.P.remover(); E.P = P; P.tocar(E.animAtual || 'Idle', { loop: !E.animFim });
+}
+function mudou() { refazer(); desenhar(); }
 function tocar(a) {
   const n = a === 'ataque' ? animAtaque(E.v) : a;
-  E.P.tocar(n, { loop: a === 'Idle' || a === 'Walking_A', reinicia: true });
+  E.animAtual = n; E.P.tocar(n, { loop: a === 'Idle' || a === 'Walking_A', reinicia: true });
   E.animFim = a === 'Idle' || a === 'Walking_A' ? 0 : C.tempo() + 1.6;
 }
 const chip = (k, id, nome, on) => `<button class="crOp ${on ? 'on' : ''}" data-k="${k}" data-v="${esc(id)}">${esc(nome)}</button>`;
@@ -112,9 +117,9 @@ function clique(e) {
 let tEntrada = 0;
 function entrada(e) {
   const t = e.target, d = t.dataset; if (!E) return;
-  if (d.corpo) { E.v[d.corpo] = +t.value; t.nextElementSibling.textContent = Math.round(t.value * 100) + '%'; E.P.vestir(E.v); return; }
+  if (d.corpo) { E.v[d.corpo] = +t.value; t.nextElementSibling.textContent = Math.round(t.value * 100) + '%'; E.P.ajustarCorpo(E.v); return; }
   if (d.nome != null) { E.nome = t.value; return; }
   // seletor de cor livre: repinta com um pequeno intervalo (gerar textura custa um pouco)
-  const aplicar = () => { if (d.pelelivre != null) E.v.pele = t.value; if (d.pintarlivre != null) E.v.cores[E.zona] = t.value; E.P.vestir(E.v); t.parentElement.style.setProperty('--cor', t.value); };
+  const aplicar = () => { if (d.pelelivre != null) E.v.pele = t.value; if (d.pintarlivre != null) E.v.cores[E.zona] = t.value; refazer(); t.parentElement.style.setProperty('--cor', t.value); };
   clearTimeout(tEntrada); tEntrada = setTimeout(aplicar, 60);
 }
