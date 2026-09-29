@@ -108,6 +108,38 @@ export function montarMundo(M) {
   }
   return filhos.length;
 }
+// peças estáticas fundidas por material em blocos de 40 m (outra área além da guilda); devolve o grupo
+export function montarEstatico(lista) {
+  const grupos = new Map(), tmp = new THREE.Object3D(), raiz = new THREE.Group();
+  for (const p of lista) {
+    const modelo = pecas[p.m.replace(':', '')]; if (!modelo) { console.warn('peça ausente', p.m); continue; }
+    tmp.position.set(p.x, p.y || 0, p.z); tmp.rotation.set(0, p.ry || 0, 0); tmp.scale.setScalar(p.s || 1); tmp.updateMatrixWorld(true);
+    modelo.updateMatrixWorld(true); const inv = new THREE.Matrix4().copy(modelo.matrixWorld).invert();
+    modelo.traverse(o => {
+      if (!o.isMesh) return;
+      const g = new THREE.BufferGeometry();
+      for (const nome of ['position', 'normal', 'uv']) if (o.geometry.attributes[nome]) g.setAttribute(nome, toF32(o.geometry.attributes[nome]));
+      g.setIndex(o.geometry.index ? Array.from(o.geometry.index.array) : [...Array(o.geometry.attributes.position.count).keys()]);
+      g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(tmp.matrixWorld, new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld)));
+      const chave = o.material.uuid + '|' + Object.keys(g.attributes).join(',') + '|' + Math.floor(p.x / 40) + ',' + Math.floor(p.z / 40);
+      if (!grupos.has(chave)) grupos.set(chave, { mat: o.material, geos: [] });
+      grupos.get(chave).geos.push(g);
+    });
+  }
+  for (const { mat, geos } of grupos.values()) {
+    const g = mergeGeometries(geos, false); if (!g) continue; g.computeBoundingSphere();
+    const mesh = new THREE.Mesh(g, mat); mesh.castShadow = true; mesh.receiveShadow = true; mesh.matrixAutoUpdate = false; raiz.add(mesh);
+  }
+  scene.add(raiz); return raiz;
+}
+// chão pintado num canvas: desenhar(g, W, k) com W(x|z) → pixel e k = px por metro
+export function chaoPintado(x0, z0, tam, desenhar) {
+  const N = 2048, cv = document.createElement('canvas'); cv.width = cv.height = N; const g = cv.getContext('2d'), k = N / tam;
+  desenhar(g, (v, eixo) => (v - (eixo === 'z' ? z0 : x0) + tam / 2) * k, k);
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(tam, tam), new THREE.MeshLambertMaterial({ map: t }));
+  m.rotation.x = -Math.PI / 2; m.position.set(x0, 0.02, z0); m.receiveShadow = true; scene.add(m); return m;
+}
 const clonar = o => { const c = o.clone(); c.position.set(0, 0, 0); c.rotation.set(0, 0, 0); c.scale.set(1, 1, 1); return c; };
 
 function texturaChao(M) {
@@ -183,7 +215,7 @@ export function personagem(nome, armas = [], esc = 1) {
   const gltf = modelos[nome], raiz = new THREE.Group(), corpo = SkeletonUtils.clone(gltf.scene);
   corpo.scale.setScalar(ESC_PERS * esc); raiz.add(corpo);
   for (const [arma, lado] of armas) {
-    const osso = corpo.getObjectByName(lado === 'l' ? 'handslot.l' : 'handslot.r');
+    const osso = corpo.getObjectByName(lado === 'l' ? 'handslotl' : 'handslotr') || corpo.getObjectByName(lado === 'l' ? 'handslot.l' : 'handslot.r');
     if (osso && modelos[arma]) osso.add(modelos[arma].scene.clone());
   }
   // todas as partes do corpo usam o mesmo esqueleto (1 textura de ossos por personagem, não 10)

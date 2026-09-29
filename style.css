@@ -380,3 +380,20 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;paddin
 .chave{width:52px;height:30px;border-radius:15px;background:#c9c3b8;position:relative;transition:.2s}
 .chave::after{content:'';position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 2px 3px rgba(0,0,0,.3);transition:.2s}
 .chave.on{background:#5fd84a}.chave.on::after{left:25px}
+
+/* ---------- mapa do mundo ---------- */
+.bMundo{position:absolute;right:10px;bottom:calc(max(8px,env(safe-area-inset-bottom)) + 88px);z-index:7;pointer-events:auto;width:64px;height:64px;border-radius:50%;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;color:#fff;font-family:var(--fT);font-size:12px;
+  background:radial-gradient(circle at 35% 30%,#7ac8ff,#2466c8);border:3px solid #fff;box-shadow:0 4px 0 #123a7a,0 6px 12px rgba(0,0,0,.4)}
+.bMundo .ico{width:30px;height:30px}
+.bMundo:active{transform:translateY(3px)}
+#rotulosMundo{position:absolute;inset:0;pointer-events:none}
+.regM,.campoM{position:absolute;left:0;top:0;display:flex;align-items:center;gap:4px;white-space:nowrap}
+.regM{padding:3px 10px 3px 6px;border-radius:12px;background:rgba(40,24,10,.75);color:#ffe9c2;font-family:var(--fT);font-size:13px}
+.regM.trancado{opacity:.7}
+.regM b{font-weight:400}
+.campoM{pointer-events:auto;padding:4px 10px 4px 4px;border-radius:14px;background:linear-gradient(#fdf6e0,#f1e2bc);color:var(--tinta);font-size:12px;box-shadow:0 3px 6px rgba(0,0,0,.4);border:2px solid #8a5a2b;max-width:170px}
+.campoM b{overflow:hidden;text-overflow:ellipsis;font-weight:600}
+.campoM::after{content:'';position:absolute;left:50%;bottom:-8px;margin-left:-6px;border:6px solid transparent;border-top-color:#8a5a2b}
+.campoM.chefeM{background:linear-gradient(#ff6a4a,#b8201a);color:#fff;border-color:#fff;font-family:var(--fT)}
+.campoM.lutaM{pointer-events:none;background:#3a1a10;color:#ffd8a0;border-color:#ff7a3a}

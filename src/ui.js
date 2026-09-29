@@ -7,6 +7,7 @@ import { EDIFICIOS, EF, custoEd, descEfeito, proxMarco, marcosAte, CLASSES, RARI
   REGIOES, missao, reqRegiao, chanceSucesso, xpFama, OBJETIVOS, fmt, fmtTempo, ATRIBUTOS, xpSistema, rankDe, RANKS, RANK_REGIAO, LETRAS, GEMAS_TROCAR } from './dados.js';
 import { POS, atualizarPredio, revestir } from './base.js';
 import { abrirCriador } from './criador.js';
+import { MUNDO, GUILDA_W, mostrarMundo, mundoVisivel, camposVisiveis } from './mundo.js';
 import { ETAPAS, avancar, etapaAtual, revelado, visivel, livre, proximoTrancado } from './etapas.js';
 
 const $ = s => document.querySelector(s);
@@ -45,7 +46,8 @@ export function montar() {
     </div>
     <div id="ativas"></div>
     <div id="dica" hidden></div>
-    <div id="rotulos"></div>
+    <div id="rotulos"></div><div id="rotulosMundo" hidden></div>
+    <button id="bMundo" class="bMundo">${ico('missoes')}<span>Mundo</span></button>
     <nav id="nav">
       ${[['guilda', 'Guilda'], ['herois', 'Heróis'], ['missoes', 'Missões'], ['recrutar', 'Recrutar'], ['objetivos', 'Objetivos']].map(([k, t]) => `<button data-aba="${k}">${ico(k)}<span>${t}</span><em class="selo" hidden></em></button>`).join('')}
     </nav>
@@ -58,7 +60,9 @@ export function montar() {
   $('#folha').addEventListener('click', e => { if (e.target.closest('[data-fechar]')) { som('fechar'); abrirAba(null); } });
   $('#bConfig').onclick = () => { som('clique'); configuracoes(); };
   $('#bFama').onclick = () => { som('clique'); janelaFama(); };
-  $('#ativas').onclick = () => { som('clique'); abrirAba('missoes'); };
+  $('#ativas').onclick = () => { som('clique'); if (!mundoVisivel()) irMundo(true); };
+  $('#bMundo').onclick = () => { som('abrir'); irMundo(!mundoVisivel()); };
+  $('#rotulosMundo').onclick = e => { const b = e.target.closest('[data-q]'); if (b) { som('abrir'); escolherEquipe(b.dataset.q); } };
   // rótulos dos prédios
   $('#rotulos').innerHTML = Object.keys(EDIFICIOS).map(id => `<button class="rotulo" data-ed="${id}"><span class="rIco" style="--c:${EDIFICIOS[id].cor}">${ico(EDIFICIOS[id].icone)}</span><b></b><i class="seta">${ico('xp')}</i></button>`).join('');
   $('#rotulos').onclick = e => { const b = e.target.closest('[data-ed]'); if (b) { som('abrir'); abrirPredio(b.dataset.ed); } };
@@ -74,19 +78,50 @@ function controles() {
     if (dedos.size === 2) {
       const [a, b] = [...dedos.values()], antes = Math.hypot(a.x - b.x, a.y - b.y); d.x = e.clientX; d.y = e.clientY;
       const [a2, b2] = [...dedos.values()], agora = Math.hypot(a2.x - b2.x, a2.y - b2.y);
-      if (pinca) C.camera.dist = Math.max(22, Math.min(100, C.camera.dist * antes / agora)); pinca = 1; arrastou = true; return;
+      if (pinca) C.camera.dist = Math.max(22, Math.min(mundoVisivel() ? 160 : 100, C.camera.dist * antes / agora)); pinca = 1; arrastou = true; return;
     }
     const p0 = C.chaoEm(d.x, d.y), p1 = C.chaoEm(e.clientX, e.clientY);
     if (Math.hypot(e.clientX - ini.x, e.clientY - ini.y) > 8) arrastou = true;
-    if (p0 && p1 && arrastou) { ui.foco.x = Math.max(-26, Math.min(26, ui.foco.x + p0.x - p1.x)); ui.foco.z = Math.max(-24, Math.min(30, ui.foco.z + p0.z - p1.z)); C.camera.suave = 30; }
+    if (p0 && p1 && arrastou) { const m = mundoVisivel(), cx = m ? MUNDO.x : 0, cz = m ? MUNDO.z : 0, L = m ? 190 : 26; ui.foco.x = Math.max(cx - L, Math.min(cx + L, ui.foco.x + p0.x - p1.x)); ui.foco.z = Math.max(cz - L, Math.min(cz + (m ? L : 30), ui.foco.z + p0.z - p1.z)); C.camera.suave = 30; }
     d.x = e.clientX; d.y = e.clientY;
   });
   const fim = e => {
-    if (dedos.size === 1 && !arrastou) { const id = C.tocado(e.clientX, e.clientY); if (id) { som('abrir'); abrirPredio(id); } }
+    if (dedos.size === 1 && !arrastou && !mundoVisivel()) { const id = C.tocado(e.clientX, e.clientY); if (id) { som('abrir'); abrirPredio(id); } }
     dedos.delete(e.pointerId); if (!dedos.size) C.camera.suave = 10;
   };
   area.addEventListener('pointerup', fim); area.addEventListener('pointercancel', e => dedos.delete(e.pointerId));
-  area.addEventListener('wheel', e => { C.camera.dist = Math.max(22, Math.min(100, C.camera.dist + e.deltaY * 0.03)); }, { passive: true });
+  area.addEventListener('wheel', e => { C.camera.dist = Math.max(22, Math.min(mundoVisivel() ? 160 : 100, C.camera.dist + e.deltaY * 0.03)); }, { passive: true });
+}
+
+// ---------------- mapa do mundo ----------------
+let focoGuilda = null;
+export function irMundo(sim) {
+  if (sim === mundoVisivel()) return;
+  mostrarMundo(sim); abrirAba(null);
+  if (sim) { focoGuilda = { x: ui.foco.x, z: ui.foco.z, dist: C.camera.dist }; ui.foco = { x: GUILDA_W.x + 40, z: GUILDA_W.z - 40 }; C.camera.dist = 95; }
+  else { ui.foco = { x: focoGuilda?.x || 0, z: focoGuilda?.z || 0 }; C.camera.dist = focoGuilda?.dist || 74; }
+  C.camera.suave = 60;
+  $('#bMundo').innerHTML = sim ? `${ico('guilda')}<span>Guilda</span>` : `${ico('missoes')}<span>Mundo</span>`;
+  $('#rotulos').hidden = sim; $('#rotulosMundo').hidden = !sim;
+  if (sim) aviso(`${ico('missoes')} Mapa do mundo: toque num acampamento para enviar heróis`, '', 3200);
+}
+function rotulosMundo() {
+  if (!mundoVisivel()) return;
+  const box = $('#rotulosMundo'), vivos = new Set();
+  const por = (chave, x, y, z, html, cls, dataQ) => {
+    vivos.add(chave); let el = box.querySelector(`[data-k="${chave}"]`);
+    if (!el) { el = document.createElement(dataQ ? 'button' : 'div'); el.dataset.k = chave; el.className = cls; if (dataQ) el.dataset.q = dataQ; box.append(el); }
+    if (el._h !== html) { el._h = html; el.innerHTML = html; }
+    const t = C.tela(x, y, z); if (!t || t[1] < 50 || t[1] > innerHeight - 80) { el.style.display = 'none'; return; }
+    el.style.display = ''; el.style.transform = `translate(${t[0]}px,${t[1]}px) translate(-50%,-100%)`;
+  };
+  REGIOES.forEach((r, i) => { const p = { x: MUNDO.x + (r.x - 50) * 3.4, z: MUNDO.z + (r.y - 50) * 3.4 };
+    por('r' + i, p.x, 14, p.z - 12, `${i > S.regiao ? ico('cadeado') : ico(r.icone)}<b>${r.nome}</b>${selo(RANK_REGIAO[i], 'mini')}`, 'regM ' + (i > S.regiao ? 'trancado' : '')); });
+  for (const [k, c] of camposVisiveis()) {
+    if (c.q) { const q = c.q; por(k, c.x, c.t === 3 ? 7 : 4.5, c.z, `${selo(q.rank, 'mini')}<b>${q.t === 3 ? 'PROCURADO' : esc(q.nome)}</b>`, 'campoM ' + (q.t === 3 ? 'chefeM' : ''), q.id); }
+    else { const ms = S.missoes.find(m => 'm' + m.uid === k); if (ms) por(k, c.x, 5, c.z, `${ico('poder')}<b>${fmtTempo((ms.fim - Date.now()) / 1000)}</b>`, 'campoM lutaM'); }
+  }
+  for (const el of [...box.children]) if (!vivos.has(el.dataset.k)) el.remove();
 }
 
 // ---------------- avisos e números flutuantes ----------------
@@ -242,7 +277,7 @@ function htmlHeroi() {
     <button class="btn azul" data-a="visual">${ico('pincel')} Personalizar aparência</button>
     ${h.id === S.lider ? `<p class="suave">${ico('coroa')} Líder da guilda</p>` : `<div class="linha"><button class="btn amarelo peq" data-a="lider">${ico('coroa')} Tornar líder</button><button class="btn cinza peq" data-a="aposentar">Aposentar</button></div>`}`;
 }
-let vistaM = 'mapa', filtroReg = null;
+let vistaM = 'quadro', filtroReg = null;
 const GUILDA_M = { x: 8, y: 94 };
 // posição ao longo da trilha (guilda → região 0 → ... → região r), f de 0 a 1
 function pontoTrilha(r, f) {
@@ -283,7 +318,7 @@ function htmlMissoes() {
     return `<div class="ativa"><span class="circ peq" style="--c:${reg.cor}">${ico(reg.icone)}</span><div class="cTxt"><b>${esc(ms.nome || m.nome)}</b><div class="barra verde"><i style="width:${k * 100}%"></i><span>${fmtTempo((ms.fim - agora) / 1000)} · ${Math.round(ms.chance * 100)}%</span></div></div>
       <button class="btn roxo peq" data-acel="${ms.uid}">${ico('raio')}${E.custoAcelerar(ms, agora)}${ico('gema', 'mini')}</button></div>`; }).join('') + '</div>';
   h += `<div class="autoM"><b>Modo automático<small>Heróis livres pegam sozinhos papéis com 80%+ de chance</small></b><button class="chave ${S.auto ? 'on' : ''}" data-a="auto"></button></div>`;
-  h += `<div class="vistas"><button class="${vistaM === 'quadro' ? 'on' : ''}" data-vista="quadro">${ico('quadro')} Quadro</button><button class="${vistaM === 'mapa' ? 'on' : ''}" data-vista="mapa">${ico('missoes')} Mapa</button></div>`;
+  h += `<div class="vistas"><button class="${vistaM === 'quadro' ? 'on' : ''}" data-vista="quadro">${ico('quadro')} Quadro</button><button data-a="irmundo">${ico('missoes')} Ver no mapa</button></div>`;
   const papeis = (S.quadro || []).filter(q => filtroReg == null || q.r === filtroReg).sort((a, b) => (b.t === 3) - (a.t === 3) || a.rank - b.rank);
   if (vistaM === 'mapa') {
     h += `<div class="mapa"><svg class="trilhas" viewBox="0 0 100 100" preserveAspectRatio="none"><polyline points="${[GUILDA_M, ...REGIOES].map(r => r.x + ',' + r.y).join(' ')}"/></svg>
@@ -345,6 +380,7 @@ function cliqueFolha(e) {
   if (b.dataset.a === 'lider') { S.lider = heroiAberto; som('confirma'); aviso(`${ico('coroa')} ${esc(E.heroi(heroiAberto).nome)} agora é o líder!`, 'ouro'); }
   if (b.dataset.a === 'aposentar') { const h = E.heroi(heroiAberto); if (h && confirm(`Aposentar ${h.nome}? Você recebe um pouco de ouro.`)) { const v = E.aposentar(h.id); if (v) { som('moedas'); aviso(`${esc(h.nome)} se aposentou. +${fmt(v)} ouro`); abrirAba('herois'); } } return; }
   if (b.dataset.a === 'auto') { S.auto = !S.auto; som('clique'); aviso(S.auto ? `${ico('raio')} Modo automático ligado` : 'Modo automático desligado'); }
+  if (b.dataset.a === 'irmundo') { som('abrir'); irMundo(true); return; }
   if (b.dataset.vista) { vistaM = b.dataset.vista; som('livro'); desenharFolha(true); return; }
   if (b.dataset.lugar != null) { const r = +b.dataset.lugar; if (r > S.regiao) { som('erro'); aviso(`${ico('cadeado')} Derrote o chefe anterior para liberar`, 'erro'); return; } filtroReg = r < 0 ? null : r; vistaM = 'quadro'; som('livro'); desenharFolha(true); return; }
   if (b.dataset.q) { som('abrir'); escolherEquipe(b.dataset.q); return; }
@@ -438,7 +474,7 @@ function guiar() {
   etapaVista = S.etapa;
   // o que já foi revelado aparece
   for (const b of document.querySelectorAll('#nav [data-aba]')) b.hidden = !revelado('nav:' + b.dataset.aba);
-  $('#pGema').hidden = !revelado('gemas'); $('#bFama').hidden = !revelado('fama');
+  $('#bMundo').hidden = !revelado('nav:missoes'); $('#pGema').hidden = !revelado('gemas'); $('#bFama').hidden = !revelado('fama');
   const e = etapaAtual(), dica = $('#dica'), guia = $('#guia');
   if (e && folhaAtual == null && $('#modal').hidden) {
     dica.hidden = false; const k = S.etapa + '|' + e.txt;
@@ -473,6 +509,6 @@ export function atualizar(dt) {
     const b = el.querySelector('b'); if (b.textContent !== texto) b.textContent = texto;
     el.classList.toggle('pode', ok && S.ouro >= custoEd(id, n)); el.classList.toggle('trancado', !ok); el.classList.toggle('novo', !!S.novos[id]);
   }
-  desenharFlutuantes(dt); animarMapa();
+  desenharFlutuantes(dt); rotulosMundo();
   tFolha += dt; if (tFolha > 0.25) { tFolha = 0; desenharFolha(); }
 }

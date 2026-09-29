@@ -168,7 +168,8 @@ export function enviar(r, t, ids, agora = Date.now(), q = null) {
   if (r > S.regiao || (t === 3 && S.chefes[r])) return null;
   const m = missao(r, t); ids = ids.filter(id => heroi(id)?.estado === 'livre').slice(0, m.max); if (!ids.length) return null;
   const dur = m.dur * EF.biblioteca(nivel('biblioteca')) * bonus().tempo;
-  const ms = { uid: uid(), r, t, herois: ids, inicio: agora, fim: agora + dur * 1000, chance: chanceSucesso(poderEquipe(ids, r), m.req), nome: q?.nome, mult: q?.mult || 1 };
+  const ms = { uid: uid(), r, t, herois: ids, inicio: agora, fim: agora + dur * 1000, chance: chanceSucesso(poderEquipe(ids, r), m.req), nome: q?.nome, mult: q?.mult || 1, dx: q?.dx || 0, dy: q?.dy || 0 };
+  ms.ok = Math.random() < ms.chance; // o resultado já é sorteado (o mapa mostra a luta)
   for (const id of ids) heroi(id).estado = 'missao';
   S.missoes.push(ms); ev('enviou', { m: ms }); return ms;
 }
@@ -178,7 +179,7 @@ export function acelerar(uidM, agora = Date.now()) {
   if (S.gemas < c) return false; S.gemas -= c; ms.fim = agora; return true;
 }
 function concluir(ms, agora, silencioso) {
-  const m = { ...missao(ms.r, ms.t), nome: ms.nome || missao(ms.r, ms.t).nome }, ok = Math.random() < ms.chance, res = { m, ok, ouro: 0, gemas: 0, xp: 0, herois: ms.herois, feridos: [], desbloqueou: null };
+  const m = { ...missao(ms.r, ms.t), nome: ms.nome || missao(ms.r, ms.t).nome }, ok = ms.ok ?? Math.random() < ms.chance, res = { m, ok, ouro: 0, gemas: 0, xp: 0, herois: ms.herois, feridos: [], desbloqueou: null };
   const hs = ms.herois.map(heroi).filter(Boolean);
   if (ok) {
     res.ouro = Math.round(m.ouro * EF.quadro(nivel('quadro')).bonus * EF.mercado(nivel('mercado')) * bonus().ouro * (ms.mult || 1)); ganharOuro(res.ouro);

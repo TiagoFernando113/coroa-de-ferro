@@ -58,6 +58,7 @@ const CENARIO = {
     'rock_largeA', 'rock_largeC', 'rock_tallA', 'stone_tallB', 'stone_largeB', 'grass', 'grass_large', 'flower_redA', 'flower_yellowA', 'flower_purpleA',
     'plant_bush', 'plant_bushLarge', 'mushroom_red', 'mushroom_redGroup', 'stump_round', 'log', 'campfire_stones', 'campfire_logs', 'tent_detailedOpen',
     'statue_column', 'statue_columnDamaged', 'statue_obelisk', 'statue_head', 'sign', 'cliff_block_rock', 'pot_large', 'crop_pumpkin',
+    'cactus_short', 'cactus_tall', 'tree_palmTall', 'tree_palmShort', 'tree_blocks_dark', 'tree_blocks_fall', 'rock_largeD', 'rock_tallE', 'rock_tallJ', 'tree_pineSmallA', 'tree_pineRoundD', 'lily_large',
     'crops_wheatStageB', 'fence_simple', 'log_stack'],
   A: ['sword_1handed', 'sword_2handed', 'sword_2handed_color', 'axe_1handed', 'axe_2handed', 'dagger', 'staff', 'wand', 'bow_withString', 'crossbow_1handed',
     'crossbow_2handed', 'shield_badge', 'shield_badge_color', 'shield_round', 'shield_round_barbarian', 'shield_round_color', 'shield_spikes',
