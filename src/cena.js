@@ -133,6 +133,49 @@ export function montarEstatico(lista) {
   scene.add(raiz); return raiz;
 }
 // chão pintado num canvas: desenhar(g, W, k) com W(x|z) → pixel e k = px por metro
+// estrada de pedras: faixa 3D que segue uma curva suave pelos pontos, com calçamento desenhado
+let texPedra = null;
+function texturaPedras() {
+  if (texPedra) return texPedra;
+  const N = 512, cv = document.createElement('canvas'); cv.width = cv.height = N; const g = cv.getContext('2d');
+  let sd = 3; const r = () => ((sd = (sd * 16807) % 2147483647) / 2147483647);
+  g.fillStyle = '#5a4a3a'; g.fillRect(0, 0, N, N); // rejunte
+  const linhas = 7, alt = N / linhas;
+  for (let l = 0; l < linhas; l++) {
+    let x = -r() * 40; const y = l * alt;
+    while (x < N + 40) {
+      const w = 50 + r() * 40, tom = 150 + r() * 40, cor = `rgb(${tom},${tom * 0.93},${tom * 0.82})`;
+      for (const dx of [0, -N, N]) { // repete nas bordas (textura contínua)
+        const px = x + dx + 3, py = y + 3, pw = w - 6, ph = alt - 6;
+        g.fillStyle = '#3a2e22'; g.beginPath(); g.roundRect(px + 2, py + 3, pw, ph, 12); g.fill();
+        const gr = g.createLinearGradient(0, py, 0, py + ph); gr.addColorStop(0, cor); gr.addColorStop(1, `rgb(${tom * 0.75},${tom * 0.7},${tom * 0.6})`);
+        g.fillStyle = gr; g.beginPath(); g.roundRect(px, py, pw, ph, 12); g.fill();
+        g.fillStyle = 'rgba(255,255,255,.12)'; g.beginPath(); g.ellipse(px + pw * 0.35, py + ph * 0.3, pw * 0.25, ph * 0.15, 0, 0, 7); g.fill();
+      }
+      x += w;
+    }
+  }
+  for (let i = 0; i < 400; i++) { g.fillStyle = `rgba(${r() < 0.5 ? '40,60,20' : '0,0,0'},${0.08 + r() * 0.12})`; g.fillRect(r() * N, r() * N, 2 + r() * 4, 2 + r() * 4); }
+  texPedra = new THREE.CanvasTexture(cv); texPedra.wrapS = texPedra.wrapT = THREE.RepeatWrapping; texPedra.colorSpace = THREE.SRGBColorSpace; texPedra.anisotropy = 8;
+  return texPedra;
+}
+export function estrada(pts, largura = 5) {
+  const curva = new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(p.x, 0, p.z)), false, 'centripetal', 0.5);
+  const n = Math.max(2, Math.ceil(curva.getLength() / 1.2)), grupo = new THREE.Group();
+  for (const [w, y, mat] of [[largura + 1.6, 0.04, new THREE.MeshLambertMaterial({ color: 0x6a5238 })], [largura, 0.07, new THREE.MeshLambertMaterial({ map: texturaPedras() })]]) {
+    const pos = [], uv = [], idx = []; let dist = 0, ant = null;
+    for (let i = 0; i <= n; i++) {
+      const t = i / n, p = curva.getPointAt(t), tg = curva.getTangentAt(t), nx = -tg.z, nz = tg.x;
+      if (ant) dist += p.distanceTo(ant); ant = p;
+      pos.push(p.x + nx * w / 2, y, p.z + nz * w / 2, p.x - nx * w / 2, y, p.z - nz * w / 2); uv.push(0, dist / largura, 1, dist / largura);
+      if (i) { const a = (i - 1) * 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
+    }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
+    const m = new THREE.Mesh(g, mat); m.receiveShadow = true; grupo.add(m);
+  }
+  scene.add(grupo);
+  return { grupo, pontos: n => Array.from({ length: n }, (_, i) => { const t = (i + 0.5) / n, p = curva.getPointAt(t), tg = curva.getTangentAt(t); return { x: p.x, z: p.z, nx: -tg.z, nz: tg.x }; }) };
+}
 export function chaoPintado(x0, z0, tam, desenhar) {
   const N = 2048, cv = document.createElement('canvas'); cv.width = cv.height = N; const g = cv.getContext('2d'), k = N / tam;
   desenhar(g, (v, eixo) => (v - (eixo === 'z' ? z0 : x0) + tam / 2) * k, k);
@@ -526,3 +569,4 @@ export const info = () => {
 export function medida(m) { const p = pecas[m.replace(':', '')]; if (!p) return null; const b = new THREE.Box3().setFromObject(p), s = b.getSize(new THREE.Vector3()); return [+s.x.toFixed(2), +s.y.toFixed(2), +s.z.toFixed(2), +b.min.x.toFixed(2), +b.min.z.toFixed(2)]; }
 export function debugHerois() { const g = modelos.herois.scene.children[0]; const out = []; g.traverse(o => out.push(o.type + ' ' + o.name + ' p' + o.position.toArray().map(v => v.toFixed(2)) + ' r' + o.rotation.toArray().slice(0, 3).map(v => v.toFixed(2)) + ' s' + o.scale.toArray().map(v => v.toFixed(2)))); return out.slice(0, 14).join('\n'); }
 export function debugCena(f) { scene.traverse(f); }
+export function neblina(perto, longe) { scene.fog.near = perto; scene.fog.far = longe; cam.far = longe + 80; cam.updateProjectionMatrix(); }

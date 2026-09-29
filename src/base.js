@@ -141,7 +141,8 @@ export function montarBase() {
       L.push({ m: 'Q:Pebble_Round_' + (1 + Math.floor(r() * 3)), x: x0 + (x1 - x0) * k + nx * off, z: z0 + (z1 - z0) * k + nz * off, ry: r() * 6, s: 1.2 + r() * 0.8 });
     }
   }
-  C.montarMundo({ tam: 130, pecas: L, caminhos, pracas: [{ x: 0, z: 0, r: 10 }] });
+  C.montarMundo({ tam: 130, pecas: L, caminhos: [], pracas: [{ x: 0, z: 0, r: 10 }] });
+  for (const c of caminhos) C.estrada(c.pts.map(([x, z]) => ({ x, z })), c.w); // ruas de pedra
   for (const id of Object.keys(EDIFICIOS)) atualizarPredio(id, true);
 }
 

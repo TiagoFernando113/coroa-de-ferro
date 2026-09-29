@@ -41,10 +41,18 @@ export function montarMundoMapa() {
       if (i === 5) { g.strokeStyle = '#ff6a1a'; g.lineWidth = 6; for (let k = 0; k < 6; k++) { g.beginPath(); g.moveTo(P(c.x), P(c.z, 'z')); g.lineTo(P(c.x + (r() - 0.5) * 50), P(c.z + (r() - 0.5) * 50, 'z')); g.stroke(); } }
     });
     g.lineCap = 'round'; g.lineJoin = 'round';
-    for (const [cor, w] of [['#6a4a26', 7], ['#b89a64', 5]]) { g.strokeStyle = cor; g.lineWidth = w * 2048 / TAM; g.beginPath(); TRILHA.forEach((p, i) => i ? g.lineTo(P(p.x), P(p.z, 'z')) : g.moveTo(P(p.x), P(p.z, 'z'))); g.stroke(); }
   });
   let sd = 11; const rnd = () => ((sd = (sd * 16807) % 2147483647) / 2147483647);
   const L = [];
+  // estrada de pedras com pedrinhas, grama e postes de sinalização nas beiradas
+  const est = C.estrada(TRILHA, 5);
+  for (const p of est.pontos(260)) for (const lado of [-1, 1]) {
+    const d = (3.4 + rnd() * 1.2) * lado, x = p.x + p.nx * d, z = p.z + p.nz * d, k = rnd();
+    if (k < 0.45) L.push({ m: 'Q:Pebble_Round_' + (1 + Math.floor(rnd() * 3)), x, z, ry: rnd() * 6, s: 1.5 + rnd() });
+    else if (k < 0.8) L.push({ m: rnd() < 0.5 ? 'Q:Grass_Common_Short' : 'Q:Grass_Wispy_Tall', x, z, ry: rnd() * 6, s: 1 + rnd() * 0.6 });
+    else if (k < 0.86) L.push({ m: 'Q:Flower_3_Group', x, z, ry: rnd() * 6, s: 1 });
+  }
+  for (const p of est.pontos(14)) L.push({ m: 'T:lantern', x: p.x + p.nx * 4.2, z: p.z + p.nz * 4.2, s: 3 });
   // cenário de cada região (com uma clareira no meio para os acampamentos)
   CENTROS.forEach((c, i) => {
     const e = ESTILO[i];

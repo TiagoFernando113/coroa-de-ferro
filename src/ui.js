@@ -101,7 +101,7 @@ export function irMundo(sim) {
   mostrarMundo(sim); abrirAba(null);
   if (sim) { focoGuilda = { x: ui.foco.x, z: ui.foco.z, dist: C.camera.dist }; ui.foco = { x: GUILDA_W.x + 40, z: GUILDA_W.z - 40 }; C.camera.dist = 95; }
   else { ui.foco = { x: focoGuilda?.x || 0, z: focoGuilda?.z || 0 }; C.camera.dist = focoGuilda?.dist || 74; }
-  C.camera.suave = 60;
+  C.camera.suave = 60; if (sim) C.neblina(160, 420); else C.neblina(70, 150);
   $('#bMundo').innerHTML = sim ? `${ico('guilda')}<span>Guilda</span>` : `${ico('missoes')}<span>Mundo</span>`;
   $('#rotulos').hidden = sim; $('#rotulosMundo').hidden = !sim;
   if (sim) aviso(`${ico('missoes')} Mapa do mundo: toque num acampamento para enviar heróis`, '', 3200);
