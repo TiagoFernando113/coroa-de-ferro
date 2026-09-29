@@ -456,3 +456,20 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;paddin
 .lFaixa b{font-family:var(--fT);font-size:32px;letter-spacing:2px;text-shadow:0 3px 0 #000}.lFaixa span{font-size:15px;font-weight:700}
 .lFaixa.unico{background:linear-gradient(90deg,transparent,rgba(60,20,100,.9) 20%,rgba(60,20,100,.9) 80%,transparent)}.lFaixa.unico b{color:#ffb02e}
 @keyframes faixaE{0%{opacity:0;scale:1.4}10%{opacity:1;scale:1}85%{opacity:1}100%{opacity:0}}
+
+/* ---------- ranking do herói e guilda ---------- */
+.medidor2{display:flex;gap:3px;margin:4px 0}
+.medidor2 span{flex:1;text-align:center;padding:4px 0;border-radius:6px;font-family:var(--fT);font-size:13px;color:rgba(255,255,255,.35);background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12)}
+.medidor2 span.feito{color:#fff;background:color-mix(in srgb,var(--rk) 45%,#0a1834)}
+.medidor2 span.atual{color:#fff;background:var(--rk);box-shadow:0 0 12px var(--rk);transform:scale(1.12)}
+.sisCard .medidor2 span{font-size:11px}
+.estrelasR{display:flex;align-items:center;gap:2px;flex-wrap:wrap}.estrelasR i{color:rgba(255,255,255,.2)}.estrelasR i.on{color:#ffd23a;filter:drop-shadow(0 0 4px #ffd23a)}
+.estrelasR small{margin-left:6px;font-size:11px;color:#9fd8ff}
+.despertar{animation:pop .5s}.despertar .rank.g{width:90px;height:90px;font-size:52px;animation:pula2 1s infinite}
+.secT{display:flex;align-items:center;gap:6px;margin:12px 0 6px;font-family:var(--fT);font-weight:400;font-size:16px;color:var(--madeira2)}
+.gCard{display:flex;align-items:center;gap:10px;padding:10px;border-radius:14px;background:linear-gradient(#ffe9b8,#f3d08a);border:2px solid #c98a3a;margin-bottom:6px}
+.gCard b{font-family:var(--fT);font-weight:400;font-size:18px;display:block}.gCard small{color:var(--suave)}
+.doacoes{display:flex;flex-direction:column;gap:3px}
+.doacoes div{display:flex;align-items:center;gap:8px;padding:5px 10px;border-radius:10px;background:#fff}
+.doacoes div.eu{background:#fff3c4;box-shadow:inset 0 0 0 2px #ffd23a}
+.doacoes em{font-style:normal;font-family:var(--fT);width:20px;color:var(--madeira2)}.doacoes b{flex:1;font-weight:600}.doacoes span{display:flex;align-items:center;gap:3px;font-size:13px}

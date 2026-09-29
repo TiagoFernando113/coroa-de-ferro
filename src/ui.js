@@ -4,7 +4,7 @@ import * as E from './estado.js';
 import { S } from './estado.js';
 import { ICONES } from './icones.js';
 import { EDIFICIOS, EF, custoEd, descEfeito, proxMarco, marcosAte, CLASSES, RARIDADES, chancesRecrutar, xpHeroi, custoTreinar, custoRecrutar, GEMAS_RECRUTAR,
-  REGIOES, missao, reqRegiao, chanceSucesso, xpFama, OBJETIVOS, fmt, fmtTempo, ATRIBUTOS, xpSistema, rankDe, RANKS, RANK_REGIAO, LETRAS, GEMAS_TROCAR, ORDEM_SEG, GEMAS_ORDENS } from './dados.js';
+  REGIOES, missao, reqRegiao, chanceSucesso, xpFama, OBJETIVOS, fmt, fmtTempo, ATRIBUTOS, xpSistema, rankDe, RANKS, RANKING, rankPoder, RANK_REGIAO, LETRAS, GEMAS_TROCAR, ORDEM_SEG, GEMAS_ORDENS } from './dados.js';
 import { POS, atualizarPredio, revestir } from './base.js';
 import { abrirCriador } from './criador.js';
 import { MUNDO, GUILDA_W, mostrarMundo, mundoVisivel, camposVisiveis } from './mundo.js';
@@ -51,7 +51,7 @@ export function montar() {
     <div id="rotulos"></div><div id="rotulosMundo" hidden></div>
     <button id="bMundo" class="bMundo">${ico('missoes')}<span>Mundo</span></button>
     <nav id="nav">
-      ${[['guilda', 'Guilda'], ['herois', 'Heróis'], ['missoes', 'Missões'], ['recrutar', 'Recrutar'], ['objetivos', 'Objetivos']].map(([k, t]) => `<button data-aba="${k}">${ico(k)}<span>${t}</span><em class="selo" hidden></em></button>`).join('')}
+      ${[['guilda', 'Guilda'], ['herois', 'Herói'], ['missoes', 'Missões'], ['recrutar', 'Convidar'], ['objetivos', 'Objetivos']].map(([k, t]) => `<button data-aba="${k}">${ico(k)}<span>${t}</span><em class="selo" hidden></em></button>`).join('')}
     </nav>
     <section id="folha" hidden><header><div id="fIco"></div><h2 id="fTit"></h2><button class="xis" data-fechar>${ico('fechar')}</button></header><div id="fCorpo"></div></section>
     <div id="modal" hidden></div>
@@ -232,7 +232,7 @@ function folha(tipo, titulo, icone, cor) {
 export function abrirAba(aba) {
   ui.aba = aba; document.querySelectorAll('#nav [data-aba]').forEach(b => { b.classList.toggle('on', b.dataset.aba === aba); if (b.dataset.aba === aba) b.classList.remove('novo'); });
   if (!aba) { $('#folha').hidden = true; folhaAtual = null; return; }
-  const T = { guilda: ['Prédios da Guilda', 'guilda', '#c98a3a'], herois: ['Heróis', 'herois', '#4a7bd0'], missoes: ['Missões', 'missoes', '#3f8f4a'], recrutar: ['Portal de Recrutamento', 'recrutar', '#8a5ad8'], objetivos: ['Objetivos', 'objetivos', '#e0a83a'] }[aba];
+  const T = { guilda: ['Guilda', 'guilda', '#c98a3a'], herois: ['Seu herói e companheiros', 'herois', '#4a7bd0'], missoes: ['Missões', 'missoes', '#3f8f4a'], recrutar: ['Convidar membros', 'recrutar', '#8a5ad8'], objetivos: ['Objetivos', 'objetivos', '#e0a83a'] }[aba];
   folha(aba, ...T);
 }
 let predioAberto = null, heroiAberto = null, regiaoAberta = 0;
@@ -261,10 +261,14 @@ function htmlPredio() {
     ${m ? `<div class="marco"><div class="barra ouro"><i style="width:${(n - ant) / (m - ant) * 100}%"></i><span>Marco ${m}: efeito ×2</span></div></div>` : ''}
     <div class="efeito"><div><small>Agora</small><b>${n ? descEfeito(id, n) : '—'}</b></div><div class="seta">${ico('seta')}</div><div class="prox"><small>Nível ${n + qtd}</small><b>${descEfeito(id, n + qtd)}</b></div></div>
     <div class="modos">${[[1, 'x1'], [10, 'x10'], [0, 'MÁX']].map(([v, t]) => `<button class="modo ${modoCompra === v ? 'on' : ''}" data-modo="${v}">${t}</button>`).join('')}</div>
-    ${botaoCompra(n ? `Melhorar ${qtd > 1 ? `×${qtd}` : ''}` : 'Construir', custo, 'melhorar', 'verde grande')}`;
+    ${botaoCompra(n ? `Doar e melhorar ${qtd > 1 ? `×${qtd}` : ''}` : 'Doar para construir', custo, 'melhorar', 'verde grande')}`;
 }
 function htmlGuilda() {
-  return `<p class="suave">Toque nos prédios (aqui ou no mapa) para melhorar. Cada marco de nível dobra o efeito!</p><div class="lista">` +
+  const doa = Object.entries(S.doacoes || {}).map(([id, v]) => ({ h: E.heroi(id), v })).filter(x => x.h).sort((a, b) => b.v - a.v).slice(0, 12);
+  return `<div class="gCard"><span class="circ" style="--c:#c98a3a">${ico('guilda')}</span><div class="cTxt"><b>${esc(S.nomeGuilda || 'Guilda dos Heróis')}</b><small>Nível (Fama) ${S.fama.nivel} · ${S.herois.length}/12 membros</small></div></div>
+    <p class="suave">Os prédios são da guilda: todos os membros doam ouro para melhorar e todos ganham os bônus.</p>
+    ${doa.length ? `<h3 class="secT">${ico('objetivos')} Maiores doadores</h3><div class="doacoes">${doa.map((x, i) => `<div class="${x.h.id === S.lider ? 'eu' : ''}"><em>${i + 1}</em><b>${esc(x.h.nome)}${x.h.id === S.lider ? ' (você)' : ''}</b><span>${ico('ouro')}${fmt(x.v)}</span></div>`).join('')}</div>` : ''}
+    <h3 class="secT">${ico('guilda')} Prédios da guilda</h3><div class="lista">` +
     Object.entries(EDIFICIOS).filter(([id]) => visivel(id) || id === proximoTrancado()).map(([id, e]) => {
       const n = E.nivel(id), ok = E.desbloqueado(id), c = custoEd(id, n);
       return `<button class="card ${ok ? '' : 'trancado'}" data-predio="${id}"><span class="circ" style="--c:${e.cor}">${ico(ok ? e.icone : 'cadeado')}</span>
@@ -273,16 +277,27 @@ function htmlGuilda() {
     }).join('') + '</div>';
 }
 // ---------------- Sistema do líder ----------------
+function medidorRanking(p) {
+  const rk = rankPoder(p);
+  return `<div class="medidor2">${RANKING.map(([, l, c], i) => `<span class="${i < rk.i ? 'feito' : i === rk.i ? 'atual' : ''}" style="--rk:${c}">${l}</span>`).join('')}</div>
+    <div class="estrelasR">${Array.from({ length: 5 }, (_, i) => `<i class="${i < rk.estrelas ? 'on' : ''}">${ico('estrela')}</i>`).join('')}<small>${rk.prox ? `${fmt(p)} / ${fmt(rk.prox)} para o rank ${RANKING[rk.i + 1][1]}` : 'Rank máximo!'}</small></div>`;
+}
 function cartaoSistema() {
-  const s = E.sis(), l = E.lider(), r = rankDe(s.nivel);
+  const s = E.sis(), l = E.lider(), rk = rankPoder(E.poderCombate()), r = [0, rk.letra, rk.cor, rk.titulo];
   return `<button class="sisCard" data-a="sistema" style="--rk:${r[2]}"><span class="rank">${r[1]}</span><div class="cTxt"><b>${esc(l?.nome || 'Líder')} · Nv ${s.nivel}</b>
     <small>${r[3]} · Poder de combate ${fmt(E.poderCombate())}</small><div class="barra sis"><i style="width:${s.xp / xpSistema(s.nivel) * 100}%"></i></div></div>
     ${s.pontos ? `<em class="pts">+${s.pontos}</em>` : ''}</button>`;
 }
+function despertar(rk) {
+  som('lendario');
+  modal(`<div class="sisJan despertar"><div class="sisTopo">${ico('rank')} DESPERTAR</div><div class="rankUp"><span class="rank g" style="--rk:${rk.cor}">${rk.letra}</span></div>
+    <p><b>Seu herói alcançou o rank ${rk.letra}!</b><br>${rk.titulo}</p>${medidorRanking(E.poderCombate())}<button class="btn azul grande" data-ok>Continuar</button></div>`, 'semFundo');
+}
 export function janelaSistema() {
-  const s = E.sis(), l = E.lider(), r = rankDe(s.nivel), prox = RANKS.find(x => x[0] > s.nivel), b = E.bonus();
+  const s = E.sis(), l = E.lider(), rk = rankPoder(E.poderCombate()), r = [0, rk.letra, rk.cor, rk.titulo], prox = null, b = E.bonus();
   const c = modal(`<div class="sisJan"><div class="sisTopo">${ico('rank')} STATUS DO LÍDER</div>
-    <div class="sisNome"><span class="rank g" style="--rk:${r[2]}">${r[1]}</span><div><b>${esc(l?.nome || 'Líder')}</b><small>${r[3]}${prox ? ` · Rank ${prox[1]} no nível ${prox[0]}` : ''}</small></div></div>
+    <div class="sisNome"><span class="rank g" style="--rk:${r[2]}">${r[1]}</span><div><b>${esc(l?.nome || 'Líder')}</b><small>Rank ${r[1]} · ${r[3]}</small></div></div>
+    ${medidorRanking(E.poderCombate())}
     <div class="sisLinha"><span>Nível</span><b>${s.nivel}</b></div>
     <div class="barra sis"><i style="width:${s.xp / xpSistema(s.nivel) * 100}%"></i><span>XP ${fmt(s.xp)} / ${fmt(xpSistema(s.nivel))}</span></div>
     <div class="sisLinha"><span>Poder de combate</span><b>${fmt(E.poderCombate())}</b></div>
@@ -302,9 +317,9 @@ function chipEstado(h) {
 }
 function htmlHerois() {
   const hs = [...S.herois].sort((a, b) => E.poder(b) - E.poder(a));
-  return cartaoSistema() + `<div class="resumo"><span>${ico('herois')}${S.herois.length}/${E.capacidade()} heróis</span><span>${ico('treino')}Treino: +${fmt(EF.treino(E.nivel('treino')))} XP/s</span></div><div class="grade">` +
+  return cartaoSistema() + `<h3 class="secT">Companheiros da guilda</h3><div class="resumo"><span>${ico('herois')}${S.herois.length}/${E.capacidade()} membros</span><span>${ico('treino')}Treino: +${fmt(EF.treino(E.nivel('treino')))} XP/s</span></div><div class="grade">` +
     hs.map(h => { const c = CLASSES[h.cls], r = RARIDADES[h.rar];
-      return `<button class="heroi ${h.id === S.lider ? 'lider' : ''}" data-heroi="${h.id}" style="--r:${r.cor};--c:${c.cor}">${h.id === S.lider ? `<i class="coroaL">${ico('coroa')}</i>` : ''}${selo(E.rankHeroi(h), 'mini canto')}<span class="retrato">${ico(c.icone)}</span>${estrelas(h.rar)}<b>${esc(h.nome)}</b><small>${c.nome} · Nv ${h.nivel}</small>
+      return `<button class="heroi ${h.id === S.lider ? 'lider' : ''}" data-heroi="${h.id}" style="--r:${r.cor};--c:${c.cor}">${h.id === S.lider ? `<i class="coroaL">${ico('coroa')}</i>` : ''}${selo(E.rankHeroi(h), 'mini canto')}<span class="retrato">${ico(c.icone)}</span>${estrelas(h.rar)}<b>${esc(h.nome)}${h.id === S.lider ? ' (você)' : ''}</b><small>${c.nome} · Nv ${h.nivel}</small>
         <div class="poder">${ico('poder')}${fmt(E.poder(h))}</div>${chipEstado(h)}</button>`; }).join('') + '</div>';
 }
 function htmlHeroi() {
@@ -316,7 +331,7 @@ function htmlHeroi() {
     <p class="suave">${chipEstado(h)} ${afins ? `Bônus de +25% em: ${afins}.` : ''}</p>
     ${botaoCompra('Treinar (+1 nível)', custoTreinar(h), 'treinar', 'verde grande')}
     <div class="linha"><button class="btn azul" data-a="visual">${ico('pincel')} Aparência</button>${h.id === S.lider ? `<button class="btn roxo" data-a="equip">${ico('c_armas')} Equipamento</button>` : ''}</div>
-    ${h.id === S.lider ? `<p class="suave">${ico('coroa')} Líder da guilda</p>` : `<div class="linha"><button class="btn amarelo peq" data-a="lider">${ico('coroa')} Tornar líder</button><button class="btn cinza peq" data-a="aposentar">Aposentar</button></div>`}`;
+    ${h.id === S.lider ? `<p class="suave">${ico('coroa')} Seu herói principal</p>` : `<p class="suave">Membro da guilda: ajuda nas missões e doa para os prédios.</p><button class="btn cinza peq" data-a="aposentar">Expulsar da guilda</button>`}`;
 }
 let vistaM = 'quadro', filtroReg = null;
 const GUILDA_M = { x: 8, y: 94 };
@@ -391,10 +406,11 @@ function htmlMissoes() {
 function htmlRecrutar() {
   const ch = chancesRecrutar(E.nivel('portal')), chP = chancesRecrutar(E.nivel('portal'), true), c = custoRecrutar(S.st.recrutados), agora = Date.now(), cheio = S.herois.length >= E.capacidade();
   const barras = (l) => `<div class="chances">${l.map((x, i) => `<span style="--r:${RARIDADES[i].cor}"><i style="width:${Math.max(2, x * 100)}%"></i>${RARIDADES[i].nome} ${(x * 100).toFixed(1)}%</span>`).join('')}</div>`;
-  return `<div class="portalG">${ico('portal')}</div>${cheio ? `<div class="alerta">${ico('alojamento')} Alojamento cheio (${S.herois.length}/${E.capacidade()}). Melhore o Alojamento ou aposente alguém.</div>` : ''}
-    <div class="recrut"><h3>Chamado comum</h3>${barras(ch)}${botaoCompra('Recrutar', c, 'recrutar', 'verde')}
-      ${agora >= S.gratisEm ? `<button class="btn amarelo" data-a="gratis"><span>${ico('presente')} Recrutamento grátis!</span></button>` : `<p class="suave">${ico('relogio')} Grátis de novo em ${fmtTempo((S.gratisEm - agora) / 1000)}</p>`}</div>
-    <div class="recrut premium"><h3>Invocação mística</h3>${barras(chP)}<button class="btn roxo ${S.gemas >= GEMAS_RECRUTAR ? '' : 'sem'}" data-a="premium"><span>Invocar</span><em>${ico('gema')}${GEMAS_RECRUTAR}</em></button></div>
+  return `<div class="portalG">${ico('portal')}</div>${cheio ? `<div class="alerta">${ico('alojamento')} Guilda cheia (${S.herois.length}/${E.capacidade()}). Melhore o Alojamento (até 12 membros).</div>` : ''}
+    <p class="suave">Convide aventureiros para a guilda. Eles doam para os prédios e o herói deles luta ao seu lado.</p>
+    <div class="recrut"><h3>Convite comum</h3>${barras(ch)}${botaoCompra('Convidar', c, 'recrutar', 'verde')}
+      ${agora >= S.gratisEm ? `<button class="btn amarelo" data-a="gratis"><span>${ico('presente')} Convite grátis!</span></button>` : `<p class="suave">${ico('relogio')} Grátis de novo em ${fmtTempo((S.gratisEm - agora) / 1000)}</p>`}</div>
+    <div class="recrut premium"><h3>Convite de elite</h3>${barras(chP)}<button class="btn roxo ${S.gemas >= GEMAS_RECRUTAR ? '' : 'sem'}" data-a="premium"><span>Invocar</span><em>${ico('gema')}${GEMAS_RECRUTAR}</em></button></div>
     <p class="suave">O Portal de Recrutamento aumenta a chance de heróis raros.</p>`;
 }
 function htmlObjetivos() {
@@ -410,7 +426,7 @@ function cliqueFolha(e) {
   if (b.dataset.modo != null) { modoCompra = +b.dataset.modo; som('clique'); desenharFolha(true); return; }
   if (b.dataset.a === 'melhorar') {
     const id = predioAberto, qtd = modoCompra === 0 ? E.quantasPode(id) : modoCompra, antes = E.nivel(id);
-    const feitas = E.melhorarVarias(id, qtd || 1);
+    const feitas = E.doar(id, qtd || 1);
     if (!feitas) { som('erro'); aviso(`${ico('ouro')} Ouro insuficiente`, 'erro'); return; }
     som(marcosAte(E.nivel(id)) > marcosAte(antes) ? 'marco' : 'compra'); atualizarPredio(id);
     if (marcosAte(E.nivel(id)) > marcosAte(antes)) aviso(`${ico('estrela')} Marco atingido! ${EDIFICIOS[id].nome}: efeito ×2`, 'ouro');
@@ -422,7 +438,6 @@ function cliqueFolha(e) {
   if (b.dataset.a === 'sistema') { som('abrir'); janelaSistema(); return; }
   if (b.dataset.a === 'equip') { som('abrir'); itemAberto = null; janelaEquip(); return; }
   if (b.dataset.a === 'visual') { som('abrir'); const id = heroiAberto; abrirCriador(id, { aoFechar: () => { revestir(id); abrirHeroi(id); } }); return; }
-  if (b.dataset.a === 'lider') { S.lider = heroiAberto; som('confirma'); aviso(`${ico('coroa')} ${esc(E.heroi(heroiAberto).nome)} agora é o líder!`, 'ouro'); }
   if (b.dataset.a === 'aposentar') { const h = E.heroi(heroiAberto); if (h && confirm(`Aposentar ${h.nome}? Você recebe um pouco de ouro.`)) { const v = E.aposentar(h.id); if (v) { som('moedas'); aviso(`${esc(h.nome)} se aposentou. +${fmt(v)} ouro`); abrirAba('herois'); } } return; }
   if (b.dataset.a === 'auto') { S.auto = !S.auto; som('clique'); aviso(S.auto ? `${ico('raio')} Modo automático ligado` : 'Modo automático desligado'); }
   if (b.dataset.a === 'ordens') { if (E.recarregarOrdens()) { som('confirma'); aviso(`${ico('pergaminho')} Ordens recarregadas!`); } else { som('erro'); aviso(`${ico('gema')} Gemas insuficientes`, 'erro'); } }
@@ -451,24 +466,23 @@ function escolherEquipe(qid) {
   const auto = () => { const l = lideraPrimeiro(E.melhorEquipe(r, t)); if (l.some(ok)) return l; const cap = E.livres().filter(h => ok(h.id)).sort((a, b) => E.poder(b, r) - E.poder(a, r))[0]; return cap ? [cap.id, ...l.filter(x => x !== cap.id)].slice(0, m.max) : l; };
   let sel = auto();
   const desenhar = () => {
-    const pw = E.poderEquipe(sel, r), ch = chanceSucesso(pw, m.req), hs = E.livres().sort((a, b) => E.poder(b, r) - E.poder(a, r)), temRank = sel.some(ok), liderLivre = E.lider()?.estado === 'livre', guia = E.heroi(sel[0]);
+    const pw = E.poderEquipe(sel, r), ch = chanceSucesso(pw, m.req), hs = E.livres().sort((a, b) => E.poder(b, r) - E.poder(a, r)), temRank = sel.some(ok), liderLivre = E.lider()?.estado === 'livre', guia = E.lider()?.estado === 'livre' ? E.lider() : null;
     const cx = modal(`<div class="faixaTit">${esc(q.nome)}</div><p class="suave">${ico(REGIOES[r].icone)} ${REGIOES[r].nome} · exige herói ${selo(q.rank, 'mini')} ou maior</p>
       <div class="chance"><div class="medidor" style="--p:${ch * 360}deg;--cor:${ch >= 0.8 ? '#5fd84a' : ch >= 0.4 ? '#ffcf3a' : '#ff5a4a'}"><b>${Math.round(ch * 100)}%</b><small>sucesso</small></div>
         <div><small>Poder da equipe</small><b>${fmt(pw)} / ${fmt(m.req)}</b><small>${sel.length}/${m.max} heróis</small></div></div>
-      ${guia ? `<p class="suave">${ico('coroa')} <b>${esc(guia.nome)}</b> assumirá a liderança no modo manual (o primeiro escolhido lidera).</p>` : ''}
+      <p class="suave">${ico('coroa')} No modo manual você controla seu herói; os companheiros escolhidos lutam ao lado.</p>
       ${temRank ? '' : `<div class="alerta">${ico('cadeado')} Coloque um herói rank ${LETRAS[q.rank]} ou maior na equipe.</div>`}
       <div class="escolha">${hs.map(h => { const c = CLASSES[h.cls], rk = E.rankHeroi(h); return `<button class="mini ${sel.includes(h.id) ? 'on' : ''}" data-h="${h.id}" style="--r:${RARIDADES[h.rar].cor};--c:${c.cor}">${sel[0] === h.id ? `<i class="coroaL">${ico('coroa')}</i>` : ''}${selo(rk, 'mini canto')}<span class="retrato">${ico(c.icone)}</span><b>${esc(h.nome)}</b><small>${ico('poder')}${fmt(E.poder(h, r))}${REGIOES[r].afin === h.cls ? ' ★' : ''}</small></button>`; }).join('') || '<p class="suave">Nenhum herói livre.</p>'}</div>
       <div class="linha"><button class="btn cinza peq" data-auto>Escolher melhores</button></div>
       <div class="modoM">
         <button class="btn verde" data-ir ${sel.length && temRank ? '' : 'disabled'}><span>${ico('missoes')} Automático</span><small>Os heróis vão sozinhos</small></button>
-        <button class="btn roxo" data-manual ${guia && temRank ? '' : 'disabled'}><span>${ico('c_armas')} Manual</span><small>${guia ? `${esc(guia.nome)} lidera (+25%)` : 'Escolha a equipe'}</small></button></div>`);
+        <button class="btn roxo" data-manual ${guia && temRank ? '' : 'disabled'}><span>${ico('c_armas')} Manual</span><small>${guia ? `Você luta com ${esc(guia.nome)} (+25%)` : 'Seu herói está ocupado'}</small></button></div>`);
     cx.onclick = e => {
       e.stopPropagation(); const b = e.target.closest('button'); if (!b) return;
       if (b.dataset.h) { const id = b.dataset.h; sel = sel.includes(id) ? sel.filter(x => x !== id) : sel.length < m.max ? [...sel, id] : sel; som('clique'); desenhar(); }
       if (b.dataset.auto != null) { sel = auto(); som('clique'); desenhar(); }
-      if (b.dataset.manual != null) { $('#modal').hidden = true; abrirAba(null); irMundo(true); const eq = sel.slice(0, m.max);
-        aviso(`${ico('coroa')} ${esc(E.heroi(eq[0]).nome)} assumiu a liderança!`, 'ouro', 3000);
-        iniciarLuta(q.id, eq, (venceu, desistiu, loot) => { if (!desistiu) aviso(venceu ? `${ico('check')} Missão cumprida no modo manual!` : `${ico('ferido')} Seu líder caiu... tente de novo`, venceu ? 'ok' : 'erro', 3500); if (loot && loot.length) setTimeout(() => janelaLoot(loot), 400); }); }
+      if (b.dataset.manual != null) { $('#modal').hidden = true; abrirAba(null); irMundo(true); const eq = [S.lider, ...sel.filter(x => x !== S.lider)].slice(0, m.max);
+                iniciarLuta(q.id, eq, (venceu, desistiu, loot) => { if (!desistiu) aviso(venceu ? `${ico('check')} Missão cumprida no modo manual!` : `${ico('ferido')} Seu líder caiu... tente de novo`, venceu ? 'ok' : 'erro', 3500); if (loot && loot.length) setTimeout(() => janelaLoot(loot), 400); }); }
       if (b.dataset.ir != null) { if (E.pegar(q.id, sel)) { som('enviar'); $('#modal').hidden = true; aviso(`${ico('missoes')} Missão aceita: ${esc(q.nome)}`); desenharFolha(true); } else som('erro'); }
     };
   };
@@ -480,6 +494,7 @@ function processarEventos() {
   while (E.fila.length) {
     const e = E.fila.shift();
     if (e.tipo === 'aviso') { som('erro'); aviso(e.txt, 'erro'); }
+    if (e.tipo === 'doacao') { aviso(`${ico('ouro')} <b>${esc(e.nome)}</b> doou ${fmt(e.valor)} para ${EDIFICIOS[e.ed].nome}!`, 'ouro', 3000); atualizarPredio(e.ed); }
     if (e.tipo === 'sistema') {
       som('nivel'); aviso(`${ico('rank')} <b>Líder</b> subiu para o nível ${e.nivel}! +3 pontos de atributo`, 'sis', 3500);
       if (e.rank) modal(`<div class="sisJan"><div class="sisTopo">${ico('rank')} STATUS DO LÍDER</div><div class="rankUp" style="--rk:${e.rank[2]}"><span class="rank g">${e.rank[1]}</span></div>
@@ -554,6 +569,7 @@ export function atualizar(dt) {
   const agora = Date.now(), at = S.missoes.map(ms => { const reg = REGIOES[ms.r], k = Math.min(1, (agora - ms.inicio) / (ms.fim - ms.inicio)); return `<div class="miniM" style="--c:${reg.cor}">${ico(reg.icone)}<i style="--k:${k}"></i><small>${fmtTempo((ms.fim - agora) / 1000)}</small></div>`; }).join('');
   if ($('#ativas').innerHTML !== at) $('#ativas').innerHTML = at;
   guiar();
+  { const rk = rankPoder(E.poderCombate()); if (S.rankMax == null) S.rankMax = rk.i; else if (rk.i > S.rankMax && $('#modal').hidden) { S.rankMax = rk.i; despertar(rk); } }
   // rótulos 3D dos prédios
   for (const el of document.querySelectorAll('.rotulo')) {
     const id = el.dataset.ed, p = POS[id], t = C.tela(p.x, id === 'quadro' ? 5.5 : id === 'biblioteca' || id === 'portal' ? 10 : 8, p.z);

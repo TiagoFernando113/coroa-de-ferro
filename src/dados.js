@@ -1,7 +1,7 @@
 // Dados da Guilda de Heróis: prédios, heróis, raridades, regiões/missões e objetivos.
 // Os números crescem de forma exponencial (estilo idle): cada melhoria custa mais e rende mais.
 
-export const VERSAO = 35;
+export const VERSAO = 36;
 
 // ---------------- números grandes ----------------
 const SUF = ['', 'K', 'M', 'B', 'T', 'aa', 'ab', 'ac', 'ad', 'ae', 'af', 'ag', 'ah'];
@@ -40,7 +40,7 @@ export const custoEd = (id, n) => Math.ceil(EDIFICIOS[id].base * EDIFICIOS[id].c
 export const EF = {
   taverna: n => n <= 0 ? 0 : 1.5 * n * 2 ** marcosAte(n),                 // ouro/s
   quadro: n => ({ vagas: Math.min(6, 1 + Math.floor(n / 4)), bonus: 1 + 0.04 * n }),
-  alojamento: n => Math.min(30, 3 + n),                                   // capacidade de heróis
+  alojamento: n => Math.min(12, 3 + n),                                   // vagas na guilda (até 12 membros)
   portal: n => n,                                                         // nível do portal
   treino: n => n <= 0 ? 0 : 0.6 * n * 1.06 ** n,                          // XP/s por herói na guilda
   forja: n => 1 + 0.06 * n * (1 + 0.5 * marcosAte(n)),                    // multiplicador de poder
@@ -53,7 +53,7 @@ export function descEfeito(id, n) {
   switch (id) {
     case 'taverna': return `${fmt(e)} de ouro/s`;
     case 'quadro': return `${e.vagas} missões ao mesmo tempo · recompensas +${Math.round((e.bonus - 1) * 100)}%`;
-    case 'alojamento': return `${e} vagas para heróis`;
+    case 'alojamento': return `${e} vagas na guilda (máx. 12)`;
     case 'portal': return `Chance de raros: ${chancesRecrutar(n).slice(1).map((c, i) => `${RARIDADES[i + 1].nome} ${(c * 100).toFixed(1)}%`).join(' · ')}`;
     case 'treino': return `+${fmt(e)} XP/s por herói descansando`;
     case 'forja': return `Poder dos heróis ×${e.toFixed(2)}`;
@@ -157,4 +157,13 @@ export const xpSistema = n => Math.round(40 * 1.3 ** (n - 1));
 export const RANKS = [[1, 'E', '#a8b0b8', 'Caçador iniciante'], [10, 'D', '#5fb83a', 'Caçador promissor'], [20, 'C', '#3aa0e0', 'Caçador experiente'],
   [35, 'B', '#8a5ad8', 'Caçador de elite'], [50, 'A', '#e0a02a', 'Caçador lendário'], [75, 'S', '#ff4a3a', 'Monarca']];
 export const rankDe = n => RANKS.filter(r => n >= r[0]).pop();
+// ranking do herói principal pelo Poder de combate (como no Solo Leveling): E → SSS, com 5 estrelas em cada rank
+export const RANKING = [[0, 'E', '#a8b0b8', 'Iniciante'], [300, 'D', '#5fb83a', 'Aventureiro'], [1000, 'C', '#3aa0e0', 'Veterano'], [3000, 'B', '#8a5ad8', 'Elite'],
+  [9000, 'A', '#e0a02a', 'Herói'], [27000, 'S', '#ff4a3a', 'Lenda'], [81000, 'SS', '#ff2a8a', 'Mito'], [243000, 'SSS', '#ffd23a', 'Monarca']];
+export function rankPoder(p) {
+  let i = 0; for (let k = 0; k < RANKING.length; k++) if (p >= RANKING[k][0]) i = k;
+  const [ini, letra, cor, titulo] = RANKING[i], fim = RANKING[i + 1]?.[0];
+  const f = fim ? Math.log(Math.max(1, p) / Math.max(1, ini || 100)) / Math.log(fim / Math.max(1, ini || 100)) : 1;
+  return { i, letra, cor, titulo, prox: fim, estrelas: Math.max(0, Math.min(5, Math.floor(f * 5))), f: Math.max(0, Math.min(1, f)) };
+}
 export const OFFLINE_MAX = 4 * 3600; // ganhos offline até 4h

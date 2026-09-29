@@ -36,6 +36,20 @@ export function apagar() { try { localStorage.removeItem(SAVE); } catch (e) {} }
 
 // ---------------- números derivados ----------------
 export const nivel = id => S.ed[id] || 0;
+// ---------------- membros da guilda doam para os prédios ----------------
+// (por enquanto os membros são simulados; depois serão jogadores de verdade)
+let doacaoT = 60;
+export function doacoesMembros(dt, agora = Date.now(), silencioso = false) {
+  const membros = S.herois.filter(h => h.id !== S.lider); if (!membros.length) return;
+  if ((doacaoT -= dt) > 0) return; doacaoT = 600 / Math.sqrt(membros.length) * (0.6 + Math.random() * 0.8);
+  const abertos = Object.keys(EDIFICIOS).filter(id => desbloqueado(id) && nivel(id) > 0).sort((a, b) => custoEd(a, nivel(a)) - custoEd(b, nivel(b))).slice(0, 3);
+  if (!abertos.length) return;
+  const m = membros[Math.floor(Math.random() * membros.length)], ed = abertos[Math.floor(Math.random() * abertos.length)], valor = custoEd(ed, nivel(ed));
+  S.ed[ed] = nivel(ed) + 1; S.doacoes = S.doacoes || {}; S.doacoes[m.id] = (S.doacoes[m.id] || 0) + valor;
+  if (!silencioso) ev('doacao', { nome: m.nome, ed, valor });
+}
+export function doar(id, qtd = 1) { const antes = S.ouro, n = melhorarVarias(id, qtd); if (n) { S.doacoes = S.doacoes || {}; S.doacoes[S.lider] = (S.doacoes[S.lider] || 0) + (antes - S.ouro); } return n; }
+
 // ---------------- equipamento e mochila do líder ----------------
 export const MOCHILA_MAX = 30;
 export function mochila() { if (!S.mochila) S.mochila = []; if (!S.equip) S.equip = {}; return S.mochila; }
@@ -250,7 +264,7 @@ export const objetivosProntos = () => OBJETIVOS.filter(o => objetivoAtual(o)?.fe
 
 // ---------------- tempo ----------------
 export function passo(dt, agora = Date.now()) {
-  atualizarQuadro(agora); regenOrdens(agora); autoMissoes(dt, agora);
+  atualizarQuadro(agora); regenOrdens(agora); autoMissoes(dt, agora); doacoesMembros(dt, agora);
   ganharOuro(renda() * dt);
   const xps = EF.treino(nivel('treino')) * dt; if (xps > 0) { for (const h of S.herois) if (h.estado === 'livre') ganharXP(h, xps); ganharXPSis(xps * 0.15); }
   for (const h of S.herois) if (h.estado === 'ferido' && agora >= h.ate) { h.estado = 'livre'; ev('curado', { id: h.id }); }
@@ -270,7 +284,7 @@ export function offline(agora = Date.now()) {
   for (let tt = ini + passo; tt < agora; tt += passo) {
     for (const h of S.herois) if (h.estado === 'ferido' && tt >= h.ate) h.estado = 'livre';
     for (const ms of [...S.missoes]) if (tt >= ms.fim) concluir(ms, tt, true);
-    atualizarQuadro(tt); regenOrdens(tt); autoMissoes(0, tt, true);
+    atualizarQuadro(tt); regenOrdens(tt); autoMissoes(0, tt, true); doacoesMembros(passo / 1000, tt, true);
   }
   for (const h of S.herois) if (h.estado === 'ferido' && agora >= h.ate) h.estado = 'livre';
   for (const ms of [...S.missoes]) if (agora >= ms.fim) concluir(ms, agora, true);
