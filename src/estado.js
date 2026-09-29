@@ -141,6 +141,22 @@ export function trocarPapeis(agora = Date.now()) {
   S.quadro = S.quadro.filter(q => q.t === 3); for (let i = 0; i < n; i++) S.quadro.push(gerarPapel(agora)); return true;
 }
 export const rankHeroi = h => rankIdx(h.nivel);
+// modo automático: heróis livres pegam sozinhos os papéis com boa chance de sucesso
+let autoT = 0;
+function autoMissoes(dt, agora) {
+  if (!S.auto || (autoT -= dt) > 0) return; autoT = 2;
+  for (let n = 0; n < 3 && S.missoes.length < vagasMissao() && livres().length; n++) {
+    let melhor = null;
+    for (const q of S.quadro) {
+      const m = missao(q.r, q.t); let eq = melhorEquipe(q.r, q.t);
+      if (!eq.some(id => rankHeroi(heroi(id)) >= q.rank)) { const cap = livres().filter(h => rankHeroi(h) >= q.rank).sort((a, b) => poder(b, q.r) - poder(a, q.r))[0]; if (!cap) continue; eq = [cap.id, ...eq.filter(x => x !== cap.id)].slice(0, m.max); }
+      const ch = chanceSucesso(poderEquipe(eq, q.r), m.req); if (ch < 0.8) continue;
+      const valor = m.ouro * q.mult / m.dur * (q.t === 3 ? 3 : 1);
+      if (!melhor || valor > melhor.valor) melhor = { q, eq, valor };
+    }
+    if (!melhor || !pegar(melhor.q.id, melhor.eq, agora)) break;
+  }
+}
 // pega um papel do quadro: precisa de ao menos um herói com o rank exigido
 export function pegar(qid, ids, agora = Date.now()) {
   const q = S.quadro.find(x => x.id === qid); if (!q) return null;
@@ -196,7 +212,7 @@ export const objetivosProntos = () => OBJETIVOS.filter(o => objetivoAtual(o)?.fe
 
 // ---------------- tempo ----------------
 export function passo(dt, agora = Date.now()) {
-  atualizarQuadro(agora);
+  atualizarQuadro(agora); autoMissoes(dt, agora);
   ganharOuro(renda() * dt);
   const xps = EF.treino(nivel('treino')) * dt; if (xps > 0) { for (const h of S.herois) if (h.estado === 'livre') ganharXP(h, xps); ganharXPSis(xps * 0.15); }
   for (const h of S.herois) if (h.estado === 'ferido' && agora >= h.ate) { h.estado = 'livre'; ev('curado', { id: h.id }); }

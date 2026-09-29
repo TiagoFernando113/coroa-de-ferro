@@ -325,7 +325,7 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;paddin
 .vistas{display:flex;gap:6px;margin:10px 0 8px}
 .vistas button{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:9px;border-radius:14px;background:var(--creme2);font-family:var(--fT);color:var(--madeira2);box-shadow:inset 0 -3px 0 rgba(0,0,0,.08)}
 .vistas button.on{background:linear-gradient(#ffe27a,#f0a820);color:#5a3408;box-shadow:0 3px 0 #a86a08}
-.rkSelo{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:50%;font-family:var(--fT);font-size:20px;color:#fff;background:var(--rk);border:3px double rgba(255,255,255,.8);box-shadow:0 2px 4px rgba(0,0,0,.35);text-shadow:0 1px 0 rgba(0,0,0,.4);vertical-align:middle}
+.rkSelo{display:inline-flex;align-items:center;justify-content:center;line-height:1;padding-top:.08em;box-sizing:border-box;width:34px;height:34px;border-radius:50%;font-family:var(--fT);font-size:20px;color:#fff;background:var(--rk);border:3px double rgba(255,255,255,.8);box-shadow:0 2px 4px rgba(0,0,0,.35);text-shadow:0 1px 0 rgba(0,0,0,.4);vertical-align:middle}
 .rkSelo.mini{width:22px;height:22px;font-size:13px;border-width:2px}
 .rkSelo.canto{position:absolute;top:6px;left:6px;z-index:1}
 .mini,.heroi{position:relative}
@@ -362,3 +362,21 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;paddin
 .lugar .procurado{position:absolute;top:24px;right:10px;color:#b8201a;animation:pula2 .8s ease-in-out infinite}
 .lugar.trancado{filter:grayscale(1);opacity:.55}
 .lugar.limpo .circ{box-shadow:0 0 0 3px #5fd84a,0 4px 6px rgba(0,0,0,.35)}
+
+/* heróis andando no mapa */
+.tokens{position:absolute;inset:0;pointer-events:none}
+.tok{position:absolute;left:0;top:0;width:30px;height:30px;margin:-15px 0 0 -15px;border-radius:50%;display:grid;place-items:center;background:var(--c);border:2px solid #fff;box-shadow:0 3px 5px rgba(0,0,0,.4);color:#fff;will-change:transform}
+.tok .ico{width:20px;height:20px}
+.tok.luta{animation:treme .25s infinite}
+.tok.volta{border-color:#ffd23a}
+@keyframes treme{50%{translate:2px -2px}}
+.choque{position:absolute;width:34px;height:34px;margin:-17px 0 0 -17px;color:#fff;filter:drop-shadow(0 0 4px #ff5a2a);animation:pisca .5s infinite}
+.choque .ico{width:34px;height:34px}
+@keyframes pisca{50%{opacity:.4;scale:1.2}}
+.lugar.guildaM .circ{box-shadow:0 0 0 3px #ffd23a,0 4px 6px rgba(0,0,0,.35)}
+.autoM{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:14px;background:var(--creme2);margin-bottom:8px}
+.autoM b{flex:1;font-family:var(--fT);font-weight:400;color:var(--madeira2)}
+.autoM small{display:block;font-size:11px;color:var(--suave);font-family:var(--fX)}
+.chave{width:52px;height:30px;border-radius:15px;background:#c9c3b8;position:relative;transition:.2s}
+.chave::after{content:'';position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 2px 3px rgba(0,0,0,.3);transition:.2s}
+.chave.on{background:#5fd84a}.chave.on::after{left:25px}

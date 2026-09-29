@@ -242,7 +242,38 @@ function htmlHeroi() {
     <button class="btn azul" data-a="visual">${ico('pincel')} Personalizar aparência</button>
     ${h.id === S.lider ? `<p class="suave">${ico('coroa')} Líder da guilda</p>` : `<div class="linha"><button class="btn amarelo peq" data-a="lider">${ico('coroa')} Tornar líder</button><button class="btn cinza peq" data-a="aposentar">Aposentar</button></div>`}`;
 }
-let vistaM = 'quadro', filtroReg = null;
+let vistaM = 'mapa', filtroReg = null;
+const GUILDA_M = { x: 8, y: 94 };
+// posição ao longo da trilha (guilda → região 0 → ... → região r), f de 0 a 1
+function pontoTrilha(r, f) {
+  const pts = [GUILDA_M, ...REGIOES.slice(0, r + 1)], seg = []; let tot = 0;
+  for (let i = 1; i < pts.length; i++) { const d = Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y); seg.push(d); tot += d; }
+  let alvo = f * tot;
+  for (let i = 0; i < seg.length; i++) { if (alvo <= seg[i] || i === seg.length - 1) { const k = seg[i] ? Math.min(1, alvo / seg[i]) : 1; return { x: pts[i].x + (pts[i + 1].x - pts[i].x) * k, y: pts[i].y + (pts[i + 1].y - pts[i].y) * k }; } alvo -= seg[i]; }
+  return pts[pts.length - 1];
+}
+// ida (0–35%), luta na região (35–75%), volta (75–100%)
+function animarMapa() {
+  const cam = document.querySelector('.mapa .tokens'); if (!cam) return;
+  const agora = Date.now(), vivos = new Set();
+  for (const ms of S.missoes) {
+    const k = Math.min(1, (agora - ms.inicio) / (ms.fim - ms.inicio)), fase = k < 0.35 ? 'ida' : k < 0.75 ? 'luta' : 'volta';
+    const f = fase === 'ida' ? k / 0.35 : fase === 'luta' ? 1 : 1 - (k - 0.75) / 0.25;
+    ms.herois.forEach((id, i) => {
+      const h = E.heroi(id); if (!h) return; const chave = ms.uid + id; vivos.add(chave);
+      let el = cam.querySelector(`[data-t="${chave}"]`);
+      if (!el) { el = document.createElement('span'); el.className = 'tok'; el.dataset.t = chave; el.style.setProperty('--c', CLASSES[h.cls].cor); el.innerHTML = ico(CLASSES[h.cls].icone); cam.append(el); }
+      const atraso = fase === 'luta' ? 0 : i * 0.04, p = pontoTrilha(ms.r, Math.max(0, Math.min(1, f - (fase === 'ida' ? atraso : -atraso))));
+      const ox = fase === 'luta' ? Math.cos(i * 1.7 + C.tempo() * 2) * 4 : 0, oy = fase === 'luta' ? Math.sin(i * 1.7 + C.tempo() * 2) * 3 : 0;
+      el.style.transform = `translate(${cam.clientWidth * (p.x + ox) / 100}px,${cam.clientHeight * (p.y + oy) / 100}px)`;
+      el.className = 'tok ' + (fase === 'luta' ? 'luta' : fase === 'volta' ? 'volta' : '');
+    });
+    const ck = 'c' + ms.uid; let ch = cam.querySelector(`[data-t="${ck}"]`);
+    if (fase === 'luta') { vivos.add(ck); if (!ch) { ch = document.createElement('span'); ch.className = 'choque'; ch.dataset.t = ck; ch.innerHTML = ico('poder'); cam.append(ch); }
+      const reg = REGIOES[ms.r]; ch.style.transform = `translate(${cam.clientWidth * reg.x / 100}px,${cam.clientHeight * (reg.y - 7) / 100}px)`; }
+  }
+  for (const el of [...cam.children]) if (!vivos.has(el.dataset.t)) el.remove();
+}
 const corRank = i => RANKS[i][2];
 const selo = (i, cls = '') => `<span class="rkSelo ${cls}" style="--rk:${corRank(i)}">${LETRAS[i]}</span>`;
 function htmlMissoes() {
@@ -251,14 +282,17 @@ function htmlMissoes() {
   if (S.missoes.length) h += '<div class="ativasL">' + S.missoes.map(ms => { const m = missao(ms.r, ms.t), k = Math.min(1, (agora - ms.inicio) / (ms.fim - ms.inicio)), reg = REGIOES[ms.r];
     return `<div class="ativa"><span class="circ peq" style="--c:${reg.cor}">${ico(reg.icone)}</span><div class="cTxt"><b>${esc(ms.nome || m.nome)}</b><div class="barra verde"><i style="width:${k * 100}%"></i><span>${fmtTempo((ms.fim - agora) / 1000)} · ${Math.round(ms.chance * 100)}%</span></div></div>
       <button class="btn roxo peq" data-acel="${ms.uid}">${ico('raio')}${E.custoAcelerar(ms, agora)}${ico('gema', 'mini')}</button></div>`; }).join('') + '</div>';
+  h += `<div class="autoM"><b>Modo automático<small>Heróis livres pegam sozinhos papéis com 80%+ de chance</small></b><button class="chave ${S.auto ? 'on' : ''}" data-a="auto"></button></div>`;
   h += `<div class="vistas"><button class="${vistaM === 'quadro' ? 'on' : ''}" data-vista="quadro">${ico('quadro')} Quadro</button><button class="${vistaM === 'mapa' ? 'on' : ''}" data-vista="mapa">${ico('missoes')} Mapa</button></div>`;
   const papeis = (S.quadro || []).filter(q => filtroReg == null || q.r === filtroReg).sort((a, b) => (b.t === 3) - (a.t === 3) || a.rank - b.rank);
   if (vistaM === 'mapa') {
-    h += `<div class="mapa"><svg class="trilhas" viewBox="0 0 100 100" preserveAspectRatio="none"><polyline points="${REGIOES.map(r => r.x + ',' + r.y).join(' ')}"/></svg>` +
+    h += `<div class="mapa"><svg class="trilhas" viewBox="0 0 100 100" preserveAspectRatio="none"><polyline points="${[GUILDA_M, ...REGIOES].map(r => r.x + ',' + r.y).join(' ')}"/></svg>
+      <button class="lugar guildaM" style="left:${GUILDA_M.x}%;top:${GUILDA_M.y}%"><span class="circ" style="--c:#c98a3a">${ico('guilda')}</span><small>Sua guilda</small></button>` +
       REGIOES.map((r, i) => { const tr = i > S.regiao, qs = (S.quadro || []).filter(q => q.r === i);
         return `<button class="lugar ${tr ? 'trancado' : ''} ${S.chefes[i] ? 'limpo' : ''}" data-lugar="${i}" style="left:${r.x}%;top:${r.y}%;--c:${r.cor}"><span class="circ" style="--c:${r.cor}">${ico(tr ? 'cadeado' : r.icone)}</span>
           <small>${r.nome}</small>${selo(RANK_REGIAO[i], 'mini')}${qs.length && !tr ? `<em class="pinos">${qs.length}</em>` : ''}${qs.some(q => q.t === 3) ? `<b class="procurado">${ico('chefe')}</b>` : ''}</button>`; }).join('') + '</div>';
-    h += `<p class="suave">Toque num lugar para ver os papéis de lá. ${ico('chefe')} = chefe procurado.</p>`;
+    h = h.replace(/<\/div>$/, '') + '<div class="tokens"></div></div>';
+    h += `<p class="suave">Seus heróis viajam, lutam e voltam pelo mapa. Toque num lugar para ver os papéis de lá.</p>`;
   } else {
     if (filtroReg != null) h += `<div class="filtro">${ico(REGIOES[filtroReg].icone)} ${REGIOES[filtroReg].nome} <button data-lugar="-1">${ico('fechar')}</button></div>`;
     h += '<div class="quadroM">' + (papeis.map(q => {
@@ -310,6 +344,7 @@ function cliqueFolha(e) {
   if (b.dataset.a === 'visual') { som('abrir'); const id = heroiAberto; abrirCriador(id, { aoFechar: () => { revestir(id); abrirHeroi(id); } }); return; }
   if (b.dataset.a === 'lider') { S.lider = heroiAberto; som('confirma'); aviso(`${ico('coroa')} ${esc(E.heroi(heroiAberto).nome)} agora é o líder!`, 'ouro'); }
   if (b.dataset.a === 'aposentar') { const h = E.heroi(heroiAberto); if (h && confirm(`Aposentar ${h.nome}? Você recebe um pouco de ouro.`)) { const v = E.aposentar(h.id); if (v) { som('moedas'); aviso(`${esc(h.nome)} se aposentou. +${fmt(v)} ouro`); abrirAba('herois'); } } return; }
+  if (b.dataset.a === 'auto') { S.auto = !S.auto; som('clique'); aviso(S.auto ? `${ico('raio')} Modo automático ligado` : 'Modo automático desligado'); }
   if (b.dataset.vista) { vistaM = b.dataset.vista; som('livro'); desenharFolha(true); return; }
   if (b.dataset.lugar != null) { const r = +b.dataset.lugar; if (r > S.regiao) { som('erro'); aviso(`${ico('cadeado')} Derrote o chefe anterior para liberar`, 'erro'); return; } filtroReg = r < 0 ? null : r; vistaM = 'quadro'; som('livro'); desenharFolha(true); return; }
   if (b.dataset.q) { som('abrir'); escolherEquipe(b.dataset.q); return; }
@@ -438,6 +473,6 @@ export function atualizar(dt) {
     const b = el.querySelector('b'); if (b.textContent !== texto) b.textContent = texto;
     el.classList.toggle('pode', ok && S.ouro >= custoEd(id, n)); el.classList.toggle('trancado', !ok); el.classList.toggle('novo', !!S.novos[id]);
   }
-  desenharFlutuantes(dt);
+  desenharFlutuantes(dt); animarMapa();
   tFolha += dt; if (tFolha > 0.25) { tFolha = 0; desenharFolha(); }
 }
