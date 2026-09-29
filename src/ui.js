@@ -206,7 +206,7 @@ function cartaoSistema() {
 }
 export function janelaSistema() {
   const s = E.sis(), l = E.lider(), r = rankDe(s.nivel), prox = RANKS.find(x => x[0] > s.nivel), b = E.bonus();
-  const c = modal(`<div class="sisJan"><div class="sisTopo">${ico('rank')} SISTEMA</div>
+  const c = modal(`<div class="sisJan"><div class="sisTopo">${ico('rank')} STATUS DO LÍDER</div>
     <div class="sisNome"><span class="rank g" style="--rk:${r[2]}">${r[1]}</span><div><b>${esc(l?.nome || 'Líder')}</b><small>${r[3]}${prox ? ` · Rank ${prox[1]} no nível ${prox[0]}` : ''}</small></div></div>
     <div class="sisLinha"><span>Nível</span><b>${s.nivel}</b></div>
     <div class="barra sis"><i style="width:${s.xp / xpSistema(s.nivel) * 100}%"></i><span>XP ${fmt(s.xp)} / ${fmt(xpSistema(s.nivel))}</span></div>
@@ -337,8 +337,8 @@ function processarEventos() {
     const e = E.fila.shift();
     if (e.tipo === 'aviso') { som('erro'); aviso(e.txt, 'erro'); }
     if (e.tipo === 'sistema') {
-      som('nivel'); aviso(`${ico('rank')} <b>[SISTEMA]</b> Nível ${e.nivel}! +3 pontos de atributo`, 'sis', 3500);
-      if (e.rank) modal(`<div class="sisJan"><div class="sisTopo">${ico('rank')} SISTEMA</div><div class="rankUp" style="--rk:${e.rank[2]}"><span class="rank g">${e.rank[1]}</span></div>
+      som('nivel'); aviso(`${ico('rank')} <b>Líder</b> subiu para o nível ${e.nivel}! +3 pontos de atributo`, 'sis', 3500);
+      if (e.rank) modal(`<div class="sisJan"><div class="sisTopo">${ico('rank')} STATUS DO LÍDER</div><div class="rankUp" style="--rk:${e.rank[2]}"><span class="rank g">${e.rank[1]}</span></div>
         <p><b>Rank ${e.rank[1]} alcançado!</b><br>${e.rank[3]}</p><button class="btn azul grande" data-ok>Continuar</button></div>`, 'semFundo');
     }
     if (e.tipo === 'fama') { som('nivel'); modal(`<div class="faixaTit">Fama nível ${e.nivel}!</div><div class="famaG">${ico('fama')}<b>${e.nivel}</b></div><div class="ganho">${ico('gema')}<b>+${e.gemas}</b><span>gemas</span></div>${e.novos.filter(() => livre()).map(id => `<div class="ganho">${ico(EDIFICIOS[id].icone)}<b>${EDIFICIOS[id].nome}</b><span>liberado!</span></div>`).join('')}<button class="btn verde grande" data-ok>Oba!</button>`); for (const id of e.novos) atualizarPredio(id, true); }

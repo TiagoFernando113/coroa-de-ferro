@@ -305,7 +305,7 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;paddin
 .pts{font-style:normal;font-family:var(--fT);background:#ffd23a;color:#5a3408;padding:4px 10px;border-radius:12px;animation:pula2 .8s ease-in-out infinite}
 .barra.sis i{background:linear-gradient(90deg,#3a8aff,#7ae0ff)}
 .sisCard .barra{margin-top:4px;height:8px}
-.sisJan{width:min(92vw,380px);padding:16px;border-radius:16px;color:#dff4ff;background:linear-gradient(160deg,rgba(10,24,52,.97),rgba(20,44,90,.97));border:2px solid #4ab8ff;box-shadow:0 0 30px rgba(74,184,255,.6),inset 0 0 20px rgba(74,184,255,.2);display:flex;flex-direction:column;gap:10px;text-align:left}
+.sisJan{width:100%;margin:0 auto;padding:16px;border-radius:16px;color:#dff4ff;background:linear-gradient(160deg,rgba(10,24,52,.97),rgba(20,44,90,.97));border:2px solid #4ab8ff;box-shadow:0 0 30px rgba(74,184,255,.6),inset 0 0 20px rgba(74,184,255,.2);display:flex;flex-direction:column;gap:10px;text-align:left}
 .sisTopo{align-self:center;font-family:var(--fT);font-size:20px;letter-spacing:4px;color:#7ae0ff;text-shadow:0 0 10px #4ab8ff;display:flex;gap:8px;align-items:center;padding:2px 16px;border:1px solid #4ab8ff;border-radius:8px}
 .sisNome{display:flex;gap:12px;align-items:center}.sisNome b{font-family:var(--fT);font-weight:400;font-size:22px;display:block}.sisNome small{color:#9fd8ff}
 .sisLinha{display:flex;justify-content:space-between;border-bottom:1px solid rgba(74,184,255,.25);padding-bottom:4px}.sisLinha b{font-family:var(--fT);font-weight:400;font-size:18px}
@@ -319,3 +319,4 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;paddin
 .rankUp{align-self:center;animation:pop .4s}.sisJan>p{text-align:center;margin:0}
 .aviso.sis{background:linear-gradient(90deg,#0d1c3a,#16325e);border-left-color:#4ab8ff;color:#dff4ff}
 .sisJan .barra,.sisCard .barra{background:#0a1428;border-color:#2a5a9a}.sisJan .barra span{color:#dff4ff}
+.caixa.semFundo{padding:0;overflow-x:hidden}.sisTopo{font-size:16px;letter-spacing:2px;text-align:center}
