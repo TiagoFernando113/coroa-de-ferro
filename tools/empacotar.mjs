@@ -49,7 +49,8 @@ const CENARIO = {
     'plant_bush', 'plant_bushLarge', 'mushroom_red', 'mushroom_redGroup', 'stump_round', 'log', 'campfire_stones', 'campfire_logs', 'tent_detailedOpen',
     'statue_column', 'statue_columnDamaged', 'statue_obelisk', 'statue_head', 'sign', 'cliff_block_rock', 'pot_large', 'crop_pumpkin',
     'crops_wheatStageB', 'fence_simple', 'log_stack'],
-  D: ['coin', 'chest', 'potion', 'key', 'barrel', 'banner', 'column', 'weapon-sword', 'shield-round'],
+  D: ['coin', 'chest', 'potion', 'key', 'barrel', 'banner', 'column', 'weapon-sword', 'shield-round', 'wall', 'wall-half', 'wall-opening', 'gate',
+    'rocks', 'stones', 'trap', 'dirt', 'floor', 'floor-detail', 'wood-support', 'table'],
 };
 
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
