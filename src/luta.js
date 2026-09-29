@@ -51,6 +51,50 @@ const ENCONTROS = [
   { txt: 'MONSTRO ÚNICO: Grumak, o Orc Imortal!', grupo: [['orcCaveira', 'Grumak, o Orc Imortal', 1.8, 13, 0x5a2a8a], ['orquinho'], ['orquinho']], peso: 0.4, unico: true },
   { txt: 'MONSTRO ÚNICO: Sr. Fofinho, o Coelho do Apocalipse!', grupo: [['coelho', 'Sr. Fofinho, o Coelho do Apocalipse', 2, 12, 0xff6ab8]], peso: 0.4, unico: true },
 ];
+// habilidades dos monstros (estilo Brawl Stars): aviso no chão, depois o golpe — dá para esquivar
+const HAB = {
+  lobo: 'investida', husky: 'investida', touro: 'investida', cervo: 'investida', raptor: 'investida', alpaca: 'investida', alpacaRei: ['investida', 'salto'],
+  abelha: 'investida', vespa: 'investida', galinha: 'investida', cao: 'investida', gato: 'teleporte', raposa: 'teleporte',
+  gosma: 'salto', gosmaR: 'salto', sapo: 'salto', coelho: 'salto', yeti: ['salto', 'giro'], golem: 'salto', demonio: ['salto', 'anel'], yetinho: 'salto', golenzinho: 'salto',
+  lula: 'leque', bruxo: 'leque', piu: 'leque', passaro: 'leque', draguinho: 'leque', pombo: 'leque', peixe: 'leque', glub: 'leque',
+  alien: 'rajada', alienzinho: 'rajada', mascara: 'rajada', espectro: 'rajada', xama: ['rajada', 'veneno'], batedor: 'rajada',
+  draco: ['anel', 'leque'], demonioA: 'anel', redemoinho: 'anel', cactoro: 'anel', cactinho: 'anel',
+  orc: 'giro', orcCaveira: ['giro', 'invocar'], tritao: 'giro', mangusto: 'giro', guerreiro: 'giro', chefe: ['salto', 'giro'], orquinho: 'giro',
+  espinho: 'veneno', cogu: 'veneno', cogumelao: 'veneno', glubao: 'veneno', reiCogu: ['invocar', 'veneno'],
+  fantasma: 'teleporte', ninja: 'teleporte', ninjinha: 'teleporte',
+};
+const NOME_HAB = { investida: 'Investida!', salto: 'Salto!', leque: 'Leque!', rajada: 'Rajada!', anel: 'Explosão!', giro: 'Giro!', veneno: 'Veneno!', teleporte: 'Sumiu!', invocar: 'Invocação!' };
+const ALC_HAB = { investida: 12, salto: 13, leque: 12, rajada: 15, anel: 8, giro: 4.5, veneno: 13, teleporte: 16, invocar: 14 };
+const INVOCA = { reiCogu: 'cogu', orcCaveira: 'orquinho' };
+function habMonstro(e, hb, a) {
+  const j = L.lider, ang = Math.atan2(a.x - e.x, a.z - e.z), s = Math.max(1, (e.v.raiz.scale.x / ESC_MUNDO) * 0.8);
+  const anim = (...ns) => { const n = ns.find(n => e.v.tem(n)) || (e.bicho ? 'Attack' : '1H_Melee_Attack_Chop'); e.v.tocar(n, { loop: false, reinicia: true }); };
+  const lanc = (t, f) => { e.lanc = { t, f }; };
+  e.ang = ang; numero(e.x, (e.alt || 4) + 1.2, e.z, NOME_HAB[hb], '#ffb02e');
+  if (hb === 'investida') { const c = 13; C.avisoLinha(e.x, e.z, ang, c, 2.2 * s, 0.7); e.v.tocar(e.bicho ? 'Idle' : 'Idle_Combat');
+    lanc(0.7, () => { e.investe = { t: 0.35, vx: Math.sin(ang) * c / 0.35, vz: Math.cos(ang) * c / 0.35, acertou: false, r: 1.6 * s }; e.v.tocar(e.bicho ? 'Gallop' : 'Running_A', { vel: 2 }); }); }
+  if (hb === 'salto') { const r = 3.3 * s; C.aviso(a.x, a.z, r, 0.9); anim('Attack2', 'Jump_Full_Short', '1H_Melee_Attack_Jump_Chop');
+    e.pulo = { t: 0, dur: 0.9, x0: e.x, z0: e.z, x1: a.x, z1: a.z, r, h: 4 + s * 2 }; }
+  if (hb === 'leque') { C.avisoCone(e.x, e.z, ang, 12, 0.5, 0.55);
+    lanc(0.55, () => { anim('Attack'); for (let k = -2; k <= 2; k++) atirar(e, ang + k * 0.2, 'fogo', 13, e.dano * 0.8, false); }); }
+  if (hb === 'rajada') { C.avisoLinha(e.x, e.z, ang, 16, 0.7, 0.4, 0xb84aff);
+    lanc(0.4, () => { for (let i = 0; i < 3; i++) setTimeout(() => { if (!L || e.hp <= 0) return; anim('Attack', '2H_Ranged_Shoot'); atirar(e, Math.atan2(j.x - e.x, j.z - e.z), 'magia', 17, e.dano * 0.7, false); }, i * 230); }); }
+  if (hb === 'anel') { C.aviso(e.x, e.z, 2.5 * s, 0.6, 0xff7a2a);
+    lanc(0.6, () => { anim('Attack2', 'Attack'); C.onda(e.x, e.z, 3 * s, 0xff7a2a, 0.4); for (let i = 0; i < 12; i++) atirar(e, i * Math.PI / 6, 'fogo', 11, e.dano * 0.8, false); }); }
+  if (hb === 'giro') { const r = 4 * s; C.aviso(e.x, e.z, r, 0.7);
+    lanc(0.7, () => { anim('2H_Melee_Attack_Spinning', 'Attack2', 'Attack'); C.onda(e.x, e.z, r, 0xffc07a, 0.4); C.camera.tremor = Math.max(C.camera.tremor, 0.2);
+      for (const h of [j, ...L.aliados]) if (dist(h, e) < r + 0.6) ferirHeroi(h, e.dano * 1.8); }); }
+  if (hb === 'veneno') { const r = 3.2, x = a.x, z = a.z; C.aviso(x, z, r, 0.8, 0x6aff3a);
+    lanc(0.8, () => { anim('Attack'); C.faiscas(x, 1, z, 0x7aff4a, 20, 4); L.zonas.push({ x, z, r, t: 4, tick: 0, dano: e.dano * 0.45, o: C.poca(x, z, r, 4) }); }); }
+  if (hb === 'teleporte') { C.faiscas(e.x, 2, e.z, 0xb84aff, 25, 4); e.v.raiz.visible = false; e.sumido = true;
+    lanc(0.55, () => { const b = j.ang + Math.PI; e.x = j.x + Math.sin(b) * 2.6; e.z = j.z + Math.cos(b) * 2.6; e.v.raiz.visible = true; e.sumido = false; C.faiscas(e.x, 2, e.z, 0xb84aff, 25, 4);
+      C.aviso(e.x, e.z, 2.8, 0.4); e.ang = Math.atan2(j.x - e.x, j.z - e.z);
+      lanc(0.4, () => { anim('Attack', '1H_Melee_Attack_Chop'); if (dist(j, e) < 3.3) ferirHeroi(j, e.dano * 1.6); }); }); }
+  if (hb === 'invocar') { C.aviso(e.x, e.z, 3.5, 0.8, 0xb84aff); anim('Attack2', 'Spellcast_Summon', 'Attack');
+    lanc(0.8, () => { if (L.inimigos.filter(m => m.invocado && m.hp > 0).length >= 4) return;
+      for (let k = 0; k < 2; k++) { const aa = Math.random() * 6.28, m = criarMonstro(INVOCA[e.tp] || 'gosma', e.r ?? L.q.r, e.x + Math.cos(aa) * 3, e.z + Math.sin(aa) * 3);
+        Object.assign(m, { acordado: true, invocado: true, mundo: !!L.explorar, nome: null }); C.faiscas(m.x, 1, m.z, 0xb84aff, 15, 3); L.inimigos.push(m); } }); }
+}
 const GRUPOS = [['lacaio', 'lacaio'], ['lacaio', 'batedor', 'lacaio'], ['guerreiro', 'batedor', 'lacaio', 'lacaio', 'batedor'], ['chefe', 'lacaio', 'lacaio']];
 const alcanceArma = v => ({ arco: 14, besta: 13, magia: 12 }[armaInfo(v.arma).tipo] || 2.8);
 
@@ -187,7 +231,7 @@ function usarHab(i) {
   }
   som('espada');
 }
-function maisPerto(de, raio) { let m = null, d0 = raio; for (const e of L.inimigos) if (e.hp > 0) { const d = dist(de, e); if (d < d0) { d0 = d; m = e; } } return m; }
+function maisPerto(de, raio) { let m = null, d0 = raio; for (const e of L.inimigos) if (e.hp > 0 && !e.sumido) { const d = dist(de, e); if (d < d0) { d0 = d; m = e; } } return m; }
 function atirar(de, ang, tipo, vel, dano, dono, explode = 0) {
   const o = C.projetil(tipo); o.scale.setScalar(1.6); const p = { x: de.x + Math.sin(ang) * 1.5, z: de.z + Math.cos(ang) * 1.5, vx: Math.sin(ang) * vel, vz: Math.cos(ang) * vel, o, dano, dono, explode, andou: 0 };
   o.position.set(p.x, 2, p.z); o.rotation.y = ang; L.proj.push(p);
@@ -196,7 +240,7 @@ function ferir(e, v) {
   if (e.hp <= 0) return; v = Math.round(v * (0.9 + Math.random() * 0.2)); const crit = Math.random() < (L.lider.crit || 0.12); if (crit) v = Math.round(v * 1.8);
   e.hp -= v; e.acordado = true; e.flash = 0.12; numero(e.x, e.chefe ? 7 : 4, e.z, (crit ? '!' : '') + fmt(v), crit ? '#ffd84a' : '#fff', crit);
   C.faiscas(e.x, 1.5, e.z, crit ? 0xffd84a : 0xffffff, crit ? 12 : 6, 3);
-  if (e.hp <= 0) { e.v.tocar(e.bicho ? 'Death' : 'Death_A', { loop: false, reinicia: true }); e.morreu = 0; som('compra'); if (e.mundo) { recompensaMundo(e); if (Math.random() < (e.raro ? 1 : 0.08)) soltarLoot(e); } else soltarLoot(e); }
+  if (e.hp <= 0) { e.lanc = e.pulo = e.investe = null; e.sumido = false; e.v.raiz.visible = true; e.v.raiz.position.y = 0; e.v.tocar(e.bicho ? 'Death' : 'Death_A', { loop: false, reinicia: true }); e.morreu = 0; som('compra'); if (e.mundo) { recompensaMundo(e); if (Math.random() < (e.raro ? 1 : 0.08)) soltarLoot(e); } else soltarLoot(e); }
   else if (!e.chefe && !e.grande && Math.random() < 0.4) e.v.tocar(e.bicho ? 'Idle_HitReact1' : 'Hit_A', { loop: false, reinicia: true });
 }
 function ferirHeroi(a, v) {
@@ -275,6 +319,18 @@ export function passoLuta(dt) {
     const alvos = [j, ...L.aliados].filter(a => a.hp === undefined || a.hp > 0); let alvo = null, d0 = 1e9; for (const a of alvos) { const d = dist(a, e); if (d < d0) { d0 = d; alvo = a; } }
     if (!e.acordado && d0 < 20) { e.acordado = true; if (e.chefe) { e.v.tocar('Taunt', { loop: false, reinicia: true }); e.cd = 1.8; C.camera.tremor = 0.3; } }
     if (!e.acordado || !alvo || e.atordoado > 0) continue;
+    // habilidade em andamento (aviso no chão, investida, salto)
+    if (e.lanc) { e.lanc.t -= dt; if (e.lanc.t <= 0) { const f = e.lanc.f; e.lanc = null; f(); } continue; }
+    if (e.investe) { const iv = e.investe; iv.t -= dt; e.x += iv.vx * dt; e.z += iv.vz * dt;
+      for (const h of [j, ...L.aliados]) if (!iv.acertou && dist(h, e) < iv.r + 0.8) { iv.acertou = true; ferirHeroi(h, e.dano * 1.8); C.camera.tremor = Math.max(C.camera.tremor, 0.2); }
+      if (iv.t <= 0) e.investe = null; continue; }
+    if (e.pulo) { const p = e.pulo; p.t += dt; const k = Math.min(1, p.t / p.dur); e.x = p.x0 + (p.x1 - p.x0) * k; e.z = p.z0 + (p.z1 - p.z0) * k; e.v.raiz.position.y = Math.sin(k * Math.PI) * p.h;
+      if (k >= 1) { e.pulo = null; e.v.raiz.position.y = 0; C.onda(e.x, e.z, p.r, 0xffc07a, 0.45); C.faiscas(e.x, 0.5, e.z, 0xc8a878, 25, 5); C.camera.tremor = Math.max(C.camera.tremor, 0.3);
+        for (const h of [j, ...L.aliados]) if (dist(h, e) < p.r + 0.5) ferirHeroi(h, e.dano * 2); }
+      continue; }
+    const hb0 = HAB[e.tp], hb = Array.isArray(hb0) ? hb0[Math.floor(Math.random() * hb0.length)] : hb0;
+    e.hcd = (e.hcd ?? 1.5 + Math.random() * 3) - dt;
+    if (hb && e.hcd <= 0 && d0 < ALC_HAB[hb]) { e.hcd = (e.unico || e.chefe ? 3.2 : e.raro ? 4.2 : 5.5) + Math.random() * 2.5; habMonstro(e, hb, alvo); continue; }
     e.ang = Math.atan2(alvo.x - e.x, alvo.z - e.z); e.cd -= dt;
     if (d0 > e.alc * 0.9) { const v = e.chefe ? 5 : e.bicho ? 8 : 6.5; e.x += Math.sin(e.ang) * v * dt; e.z += Math.cos(e.ang) * v * dt; e.v.tocar(e.bicho ? 'Gallop' : 'Running_A'); }
     else if (e.cd <= 0) {
@@ -283,11 +339,13 @@ export function passoLuta(dt) {
       else { const a0 = alvo; setTimeout(() => { if (L && e.hp > 0 && dist(e, a0) < e.alc + 1.2) { ferirHeroi(a0, e.dano); if (e.chefe) { C.onda(e.x, e.z, 4, 0xff7a3a, 0.4); } } }, 400); }
     } else e.v.tocar(e.v.tem('Idle_Combat') ? 'Idle_Combat' : 'Idle');
   }
+  // poças de veneno: dano enquanto pisa
+  L.zonas = (L.zonas || []).filter(z => { z.t -= dt; z.tick -= dt; if (z.tick <= 0) { z.tick = 0.5; for (const h of [j, ...L.aliados]) if (Math.hypot(h.x - z.x, h.z - z.z) < z.r) ferirHeroi(h, z.dano); } return z.t > 0; });
   // projéteis
   for (let i = L.proj.length - 1; i >= 0; i--) {
     const p = L.proj[i]; p.x += p.vx * dt; p.z += p.vz * dt; p.andou += Math.hypot(p.vx, p.vz) * dt; p.o.position.set(p.x, 2, p.z);
     let fim = p.andou > 26;
-    if (p.dono) { for (const e of L.inimigos) if (e.hp > 0 && Math.hypot(e.x - p.x, e.z - p.z) < (e.chefe ? 2.5 : 1.4)) { if (p.explode) { C.onda(p.x, p.z, p.explode, 0xff7a2a, 0.4); for (const o of L.inimigos) if (o.hp > 0 && Math.hypot(o.x - p.x, o.z - p.z) < p.explode + 1) ferir(o, p.dano); } else ferir(e, p.dano); fim = true; break; } }
+    if (p.dono) { for (const e of L.inimigos) if (e.hp > 0 && !e.sumido && Math.hypot(e.x - p.x, e.z - p.z) < (e.chefe ? 2.5 : 1.4)) { if (p.explode) { C.onda(p.x, p.z, p.explode, 0xff7a2a, 0.4); for (const o of L.inimigos) if (o.hp > 0 && Math.hypot(o.x - p.x, o.z - p.z) < p.explode + 1) ferir(o, p.dano); } else ferir(e, p.dano); fim = true; break; } }
     else if (Math.hypot(j.x - p.x, j.z - p.z) < 1.3) { ferirHeroi(j, p.dano); fim = true; }
     if (fim) { C.remover(p.o); L.proj.splice(i, 1); }
   }

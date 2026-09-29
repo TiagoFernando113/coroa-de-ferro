@@ -550,6 +550,25 @@ export function aviso(x, z, raio, dur, cor = 0xff3322) {
   cheio.position.y = 0.01; g.position.set(x, 0.08, z); g.scale.setScalar(raio); scene.add(g);
   const e = { o: g, t: 0, dur, tipo: 'aviso', cheio }; efeitos.push(e); return e;
 }
+// avisos no chão em linha (investida) e em cone (leque de tiros): o preenchimento cresce até o golpe sair
+function avisoForma(geo, x, z, ang, dur, cor, eixo) {
+  const g = new THREE.Group(), base = new THREE.MeshBasicMaterial({ color: cor, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide });
+  const fundo = new THREE.Mesh(geo, base), cheio = new THREE.Mesh(geo, base.clone()); cheio.position.y = 0.01;
+  const borda = new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({ color: cor, transparent: true, opacity: 0.9 }));
+  g.add(fundo, cheio, borda); g.position.set(x, 0.08, z); g.rotation.y = ang; scene.add(g);
+  const e = { o: g, t: 0, dur, tipo: 'aviso', cheio, eixo }; efeitos.push(e); return e;
+}
+export function avisoLinha(x, z, ang, comp, larg, dur, cor = 0xff3322) {
+  return avisoForma(new THREE.PlaneGeometry(larg, comp).rotateX(-Math.PI / 2).translate(0, 0, comp / 2), x, z, ang, dur, cor, 'z');
+}
+export function avisoCone(x, z, ang, raio, abertura, dur, cor = 0xff3322) {
+  return avisoForma(new THREE.CircleGeometry(raio, 20, Math.PI / 2 - abertura, abertura * 2).rotateX(-Math.PI / 2).rotateY(Math.PI), x, z, ang, dur, cor);
+}
+// poça (veneno, lava): disco que pulsa e some no fim
+export function poca(x, z, raio, dur, cor = 0x5ad82a) {
+  const m = new THREE.Mesh(new THREE.CircleGeometry(raio, 32).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: cor, transparent: true, opacity: 0.45, depthWrite: false }));
+  m.position.set(x, 0.07, z); scene.add(m); const e = { o: m, t: 0, dur, tipo: 'poca' }; efeitos.push(e); return e;
+}
 const GEO_FLECHA = new THREE.CylinderGeometry(0.03, 0.03, 0.8, 5).rotateX(Math.PI / 2);
 const GEO_BOLA = new THREE.SphereGeometry(1, 12, 10);
 export function projetil(tipo) {
@@ -592,7 +611,8 @@ export function quadro(dt, foco) {
     const e = efeitos[i]; e.t += dt; const k = e.t / e.dur;
     if (e.tipo === 'fade') e.o.material.opacity = Math.max(0, 0.55 * (1 - k));
     if (e.tipo === 'onda') { e.o.scale.setScalar(0.3 + k * e.raio); e.o.material.opacity = Math.max(0, 0.9 * (1 - k)); }
-    if (e.tipo === 'aviso') e.cheio.scale.setScalar(Math.min(1, k));
+    if (e.tipo === 'aviso') { if (e.eixo === 'z') e.cheio.scale.set(1, 1, Math.min(1, k)); else e.cheio.scale.setScalar(Math.min(1, k)); }
+    if (e.tipo === 'poca') e.o.material.opacity = (k > 0.85 ? (1 - k) / 0.15 : 1) * (0.35 + 0.12 * Math.sin(e.t * 6));
     if (k >= 1 || e.morto) { scene.remove(e.o); efeitos.splice(i, 1); }
   }
   // partículas
