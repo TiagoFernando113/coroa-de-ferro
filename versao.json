@@ -1,17 +1,1 @@
-{
-  "versao": 18,
-  "arquivos": [
-    "index.html",
-    "icones.css",
-    "style.css",
-    "game.js",
-    "ui.js",
-    "boss.js",
-    "atlas.png",
-    "atlas.json",
-    "chars.png",
-    "chars.json",
-    "boss3d.js",
-    "modelos3d.bin"
-  ]
-}
+{"versao":19,"arquivos":["index.html","style.css","jogo.js","modelos.bin"]}

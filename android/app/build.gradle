@@ -33,7 +33,7 @@ android {
         }
     }
 
-    // O jogo (index.html, style.css, game.js, versao.json da raiz) vai DENTRO do APK:
+    // O jogo (arquivos listados em versao.json da raiz) vai DENTRO do APK:
     // abre sem internet. Atualizações chegam depois pelo próprio app.
     sourceSets {
         main.assets.srcDir(layout.buildDirectory.dir('jogo-assets'))
@@ -46,8 +46,10 @@ android {
 }
 
 def copiarJogo = tasks.register('copiarJogo', Copy) {
+    // copia exatamente os arquivos listados em versao.json (mesma lista do atualizador)
+    def info = new groovy.json.JsonSlurper().parse(rootProject.file('../versao.json'))
     from(rootProject.file('..')) {
-        include 'index.html', 'icones.css', 'style.css', 'game.js', 'ui.js', 'boss.js', 'atlas.png', 'atlas.json', 'chars.png', 'chars.json', 'boss3d.js', 'modelos3d.bin', 'versao.json'
+        include(info.arquivos + ['versao.json'])
     }
     into(layout.buildDirectory.dir('jogo-assets/jogo'))
 }
