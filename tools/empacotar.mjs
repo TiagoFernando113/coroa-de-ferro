@@ -39,9 +39,11 @@ const AVULSOS = { // armas dos esqueletos e itens do chão
 const CENARIO = {
   T: ['wall', 'wall-door', 'wall-window-shutters', 'wall-wood', 'wall-wood-door', 'wall-wood-window-shutters', 'roof', 'roof-gable', 'roof-gable-end',
     'roof-point', 'roof-corner', 'chimney', 'fountain-round', 'stall-red', 'stall-green', 'stall-bench', 'lantern', 'fence', 'fence-gate', 'hedge',
-    'cart', 'banner-red', 'pillar-wood', 'windmill', 'wheel', 'planks', 'tree', 'tree-high-round'],
+    'cart', 'banner-red', 'pillar-wood', 'windmill', 'wheel', 'planks', 'tree', 'tree-high-round', 'watermill', 'wall-wood-broken'],
   C: ['wall', 'wall-corner', 'tower-square', 'tower-square-roof', 'tower-hexagon-base', 'tower-hexagon-top', 'gate', 'flag', 'stairs-stone',
-    'siege-catapult-demolished', 'wall-half', 'tower-base'],
+    'siege-catapult-demolished', 'wall-half', 'tower-base', 'tower-square-base', 'tower-square-mid', 'tower-square-mid-windows', 'tower-square-top',
+    'tower-square-top-roof-high', 'tower-hexagon-mid', 'tower-hexagon-roof', 'siege-catapult', 'siege-ballista', 'siege-trebuchet', 'metal-gate',
+    'flag-banner-long', 'wall-doorway'],
   N: ['tree_oak', 'tree_oak_dark', 'tree_default', 'tree_pineTallA', 'tree_pineRoundB', 'tree_fat', 'tree_detailed', 'tree_default_dark',
     'rock_largeA', 'rock_largeC', 'rock_tallA', 'stone_tallB', 'stone_largeB', 'grass', 'grass_large', 'flower_redA', 'flower_yellowA', 'flower_purpleA',
     'plant_bush', 'plant_bushLarge', 'mushroom_red', 'mushroom_redGroup', 'stump_round', 'log', 'campfire_stones', 'campfire_logs', 'tent_detailedOpen',

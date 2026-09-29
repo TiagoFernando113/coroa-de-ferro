@@ -1,12 +1,13 @@
 # Coroa de Ferro
 
-RPG de ação 3D para celular (Android, via WebView). Escolha um herói (Cavaleiro, Bárbaro,
-Arqueira ou Maga), explore a vila, a floresta, as ruínas e o castelo, suba de nível, junte
-equipamentos e recupere a Coroa de Ferro do Rei Esqueleto.
+Defesa + tycoon em 3D para celular (Android, via WebView). Ondas de esqueletos atacam a
+muralha; você constrói e melhora torres de arqueiros, catapultas, balistas, torres mágicas e
+quartéis (8 níveis cada), reforça a muralha, junta ouro com a mina e luta junto com um herói
+(Cavaleiro, Bárbaro, Arqueira ou Maga). Estilo tycoon: pise nos botões do chão para comprar.
 
 ## Como é feito
-- `src/` — código do jogo (módulos JS): `dados.js` (classes, habilidades, inimigos, itens,
-  missões), `mundo.js` (mapa e colisões), `jogo.js` (simulação), `cena.js` (three.js),
+- `src/` — código do jogo (módulos JS): `dados.js` (classes, habilidades, inimigos, ondas,
+  defesas), `mundo.js` (mapa e colisões), `jogo.js` (simulação), `cena.js` (three.js),
   `ui.js` (HUD, controles, menus), `main.js` (entrada).
 - `jogo.js` — tudo empacotado com three.js (`node tools/build.mjs`).
 - `modelos.bin` — modelos 3D num arquivo só (`node tools/empacotar.mjs`): personagens
@@ -19,4 +20,6 @@ equipamentos e recupere a Coroa de Ferro do Rei Esqueleto.
 cd tools && npm install && sh baixar-kits.sh && node empacotar.mjs && node build.mjs
 cd .. && node tools/checar.js && python3 -m http.server   # abra http://localhost:8000
 ```
-Controles no PC: WASD anda, J ataca, 1/2/3 habilidades, espaço esquiva, E fala, Q poção.
+Controles no PC: WASD anda, J ataca, 1/2/3 habilidades, espaço esquiva, G começa a onda.
+
+Equilíbrio: `node tools/simular.mjs 25` roda as ondas sem gráficos com um jogador automático.

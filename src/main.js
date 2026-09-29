@@ -39,14 +39,14 @@ function entrar(cls) {
   const laco = agora => {
     const dt = Math.min(0.05, (agora - ultimo) / 1000); ultimo = agora;
     if (!ui.pausado) passo(dt);
-    else if (G.jog) { G.jog.vis.mixer.update(dt); for (const n of G.npcs) n.vis.mixer.update(dt); }
+    else if (G.jog) G.jog.vis.mixer.update(dt);
     atualizar(dt);
     C.quadro(dt, G.jog);
     requestAnimationFrame(laco);
   };
   requestAnimationFrame(laco);
   addEventListener('visibilitychange', () => { if (document.hidden) salvar(); });
-  window.__jogo = G; window.__info = C.info; // para testes
+  window.__jogo = G; window.__info = C.info; window.__cam = C.camera; // para testes
 }
 
 comecar();

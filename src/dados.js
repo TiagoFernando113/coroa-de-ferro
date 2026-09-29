@@ -1,6 +1,6 @@
 // Dados do jogo: classes, habilidades, inimigos, itens e missões.
 
-export const VERSAO = 19;
+export const VERSAO = 20;
 
 // ---------------- classes do herói ----------------
 // basico: ataque normal. Corpo a corpo acerta um cone; à distância solta um projétil.
@@ -67,80 +67,57 @@ export function statsBase(cls, n) {
 export const xpProx = n => Math.round(60 * n ** 1.55);
 
 // ---------------- inimigos ----------------
-// armas: [modelo, osso] — 'r' = mão direita, 'l' = esquerda
+// armas: [modelo, osso] — 'r' = mão direita, 'l' = esquerda. ouro: recompensa base por abate.
 export const INIMIGOS = {
-  lacaio: { nome: 'Esqueleto', modelo: 'lacaio', armas: [['lamina', 'r']], vida: 42, atk: 7, def: 1, vel: 3.4, alcance: 1.9, cd: 1.5, xp: 14, tipo: 'melee', atkAnim: '1H_Melee_Attack_Chop', impacto: 0.45 },
-  batedor: { nome: 'Batedor', modelo: 'batedor', armas: [['besta', 'r']], vida: 34, atk: 7, def: 0, vel: 3.8, alcance: 11, cd: 2.2, xp: 16, tipo: 'ranged', atkAnim: '2H_Ranged_Shoot', impacto: 0.35 },
-  guerreiro: { nome: 'Guerreiro Esqueleto', modelo: 'guerreiro', armas: [['machado', 'r'], ['escudoP', 'l']], vida: 95, atk: 12, def: 5, vel: 3.1, alcance: 2.3, cd: 1.8, xp: 30, tipo: 'melee', atkAnim: '1H_Melee_Attack_Chop', impacto: 0.5, esc: 1.08 },
-  necro: { nome: 'Necromante', modelo: 'necro', armas: [['cajado', 'r']], vida: 55, atk: 10, def: 1, vel: 3.0, alcance: 10, cd: 2.6, xp: 28, tipo: 'caster', atkAnim: 'Spellcast_Shoot', impacto: 0.4, invoca: 12 },
-  capitao: { nome: 'Capitão Batedor', modelo: 'batedor', armas: [['besta', 'r'], ['lamina', 'l']], vida: 260, atk: 12, def: 3, vel: 4.2, alcance: 12, cd: 1.6, xp: 150, tipo: 'ranged', atkAnim: '2H_Ranged_Shoot', impacto: 0.35, esc: 1.4, elite: true, rajada: 3 },
-  rei: { nome: 'Rei Esqueleto', modelo: 'guerreiro', armas: [['machado', 'r'], ['escudoG', 'l']], vida: 1400, atk: 20, def: 8, vel: 3.6, alcance: 3.2, cd: 1.7, xp: 800, tipo: 'melee', atkAnim: '1H_Melee_Attack_Chop', impacto: 0.5, esc: 2.0, chefe: true },
+  lacaio: { nome: 'Esqueleto', modelo: 'lacaio', armas: [['lamina', 'r']], vida: 30, atk: 6, def: 0, vel: 3.2, alcance: 1.9, cd: 1.4, xp: 8, ouro: 5, tipo: 'melee', atkAnim: '1H_Melee_Attack_Chop', impacto: 0.45 },
+  batedor: { nome: 'Batedor', modelo: 'batedor', armas: [['besta', 'r']], vida: 24, atk: 7, def: 0, vel: 3.6, alcance: 13, cd: 2.2, xp: 10, ouro: 6, tipo: 'ranged', atkAnim: '2H_Ranged_Shoot', impacto: 0.35 },
+  guerreiro: { nome: 'Guerreiro', modelo: 'guerreiro', armas: [['machado', 'r'], ['escudoP', 'l']], vida: 90, atk: 12, def: 4, vel: 2.7, alcance: 2.3, cd: 1.8, xp: 20, ouro: 12, tipo: 'melee', atkAnim: '1H_Melee_Attack_Chop', impacto: 0.5, esc: 1.12 },
+  necro: { nome: 'Necromante', modelo: 'necro', armas: [['cajado', 'r']], vida: 45, atk: 9, def: 1, vel: 2.9, alcance: 12, cd: 2.6, xp: 18, ouro: 11, tipo: 'caster', atkAnim: 'Spellcast_Shoot', impacto: 0.4, invoca: 9 },
+  capitao: { nome: 'Capitão Batedor', modelo: 'batedor', armas: [['besta', 'r'], ['lamina', 'l']], vida: 300, atk: 9, def: 2, vel: 3.4, alcance: 14, cd: 1.8, xp: 120, ouro: 90, tipo: 'ranged', atkAnim: '2H_Ranged_Shoot', impacto: 0.35, esc: 1.45, elite: true, rajada: 3 },
+  rei: { nome: 'Rei Esqueleto', modelo: 'guerreiro', armas: [['machado', 'r'], ['escudoG', 'l']], vida: 1600, atk: 30, def: 8, vel: 2.4, alcance: 3.2, cd: 1.7, xp: 500, ouro: 400, tipo: 'melee', atkAnim: '1H_Melee_Attack_Chop', impacto: 0.5, esc: 2.1, chefe: true },
 };
+// o "nível" do inimigo é o número da onda
 export function statsInimigo(tipo, nivel) {
   const d = INIMIGOS[tipo], m = nivel - 1;
-  return { vida: Math.round(d.vida * (1 + 0.38 * m)), atk: d.atk * (1 + 0.24 * m), def: d.def * (1 + 0.15 * m), xp: Math.round(d.xp * (1 + 0.3 * m)) };
+  return { vida: Math.round(d.vida * (1 + 0.27 * m + 0.01 * m * m)), atk: d.atk * (1 + 0.16 * m), def: d.def * (1 + 0.1 * m), xp: Math.round(d.xp * (1 + 0.2 * m)), ouro: Math.round(d.ouro * (1 + 0.12 * m)) };
 }
+// composição da onda n: lista de [tipo, qtd]
+export function onda(n) {
+  const l = [['lacaio', 4 + Math.round(n * 1.6)]];
+  if (n >= 2) l.push(['batedor', Math.floor(n / 2)]);
+  if (n >= 4) l.push(['guerreiro', Math.floor((n - 2) / 2)]);
+  if (n >= 6) l.push(['necro', Math.floor((n - 3) / 3)]);
+  if (n % 5 === 0 && n % 10) l.push(['capitao', 1 + Math.floor(n / 20)]);
+  if (n % 10 === 0) l.push(['rei', 1 + Math.floor(n / 30)]);
+  return l;
+}
+export const bonusOnda = n => 30 + n * 12;
 
-// ---------------- itens ----------------
-export const RARIDADES = [
-  { n: 'Comum', cor: '#d8d8d8', m: 1 },
-  { n: 'Raro', cor: '#4aa3ff', m: 1.35 },
-  { n: 'Épico', cor: '#c07bff', m: 1.8 },
-  { n: 'Lendário', cor: '#ffb02e', m: 2.4 },
-];
-const NOMES_ARMA = { cav: 'Espada', bar: 'Machado', arq: 'Besta', mag: 'Cajado' };
-const ADJ = ['Velha', 'de Ferro', 'de Aço', 'Rúnica', 'do Guardião', 'Sombria', 'Real'];
-const ARMADURAS = ['Gibão', 'Cota de Malha', 'Couraça', 'Armadura de Placas'];
-const AMULETOS = ['Amuleto', 'Talismã', 'Pingente', 'Relíquia'];
-let seqItem = 1;
-export function novoItem(slot, nivel, rar, cls) {
-  const r = RARIDADES[rar], id = Date.now().toString(36) + (seqItem++);
-  const adj = ADJ[Math.min(ADJ.length - 1, Math.floor(nivel / 2) + rar)];
-  if (slot === 'arma') return { id, slot, nivel, rar, nome: `${NOMES_ARMA[cls]} ${adj}`, atk: Math.round((3 + nivel * 2.2) * r.m) };
-  if (slot === 'armadura') return { id, slot, nivel, rar, nome: `${ARMADURAS[Math.min(3, Math.floor(nivel / 3))]} ${rar >= 2 ? adj : ''}`.trim(), def: Math.round((2 + nivel * 1.3) * r.m), vida: Math.round(nivel * 6 * r.m) };
-  return { id, slot, nivel, rar, nome: `${AMULETOS[Math.min(3, rar)]} ${adj}`, vida: Math.round((10 + nivel * 7) * r.m), atk: Math.round(nivel * 0.6 * r.m) };
+// ---------------- defesas (8 estágios cada) ----------------
+export const MAXNV = 8;
+export const estagio = n => Math.min(4, 1 + Math.floor((n - 1) / 2)); // 4 visuais: nv 1-2, 3-4, 5-6, 7-8
+export const DEFESAS = {
+  arqueiros: { nome: 'Torre de Arqueiros', icone: '🏹', cor: '#5fb83a', custo: 50, desc: 'Flechas rápidas. Nos níveis altos atira em vários inimigos.', dano: 6, cad: 1.0, alcance: 23 },
+  catapulta: { nome: 'Catapulta', icone: '🪨', cor: '#c98a3a', custo: 120, desc: 'Pedra pesada com dano em área. Lenta, mas alcança longe.', dano: 20, cad: 3.4, alcance: 36, raio: 3, minimo: 6 },
+  balista: { nome: 'Balista', icone: '🎯', cor: '#8a6a4a', custo: 100, desc: 'Virote gigante que atravessa a fila de inimigos.', dano: 26, cad: 2.6, alcance: 30 },
+  magia: { nome: 'Torre Mágica', icone: '🔮', cor: '#8a5ad8', custo: 110, desc: 'Raio mágico que deixa os inimigos lentos.', dano: 8, cad: 1.3, alcance: 23, lento: 0.45 },
+  quartel: { nome: 'Quartel', icone: '⚔️', cor: '#4a7bd0', custo: 90, desc: 'Treina soldados que saem pelo portão para lutar.', vida: 90, atk: 9 },
+};
+export function statsDefesa(tipo, n) {
+  const d = DEFESAS[tipo], m = n - 1, s = { ...d };
+  s.dano = (d.dano || 0) * 1.38 ** m;
+  s.cad = (d.cad || 1) * 0.94 ** m;
+  s.alcance = (d.alcance || 0) * (1 + 0.04 * m);
+  if (tipo === 'arqueiros') s.alvos = n >= 7 ? 3 : n >= 5 ? 2 : 1;
+  if (tipo === 'catapulta') s.raio = d.raio * (1 + 0.07 * m);
+  if (tipo === 'magia') { s.lento = Math.min(0.7, d.lento + 0.03 * m); s.corrente = n >= 5 ? (n >= 7 ? 3 : 2) : 1; }
+  if (tipo === 'balista') s.perfura = 2 + Math.floor(n / 2);
+  if (tipo === 'quartel') { s.soldados = [1, 1, 2, 2, 3, 3, 4, 5][m]; s.vida = d.vida * 1.3 ** m; s.atk = d.atk * 1.32 ** m; s.renasce = Math.max(5, 14 - m * 1.2); s.arqueiro = n >= 5; }
+  return s;
 }
-export const precoItem = it => Math.round((8 + it.nivel * 6) * RARIDADES[it.rar].m);
-export const POCAO = { preco: 20, cura: 0.45 };
-export const ETER = { preco: 15, mana: 0.5 };
+export const custoDefesa = (tipo, n) => Math.round(DEFESAS[tipo].custo * 1.55 ** (n - 1)); // preço para chegar ao nível n
 
-// ---------------- missões da história ----------------
-// obj: matar (zona/tipos, qtd) | bau (id) — ao completar, volte ao Ancião
-export const MISSOES = [
-  {
-    id: 'm1', nome: 'Ossos na Floresta', dica: 'Floresta Sombria (norte)',
-    falaInicio: ['Herói! Graças aos céus você chegou.', 'O Rei Esqueleto roubou a Coroa de Ferro, e desde então os mortos andam pela floresta.', 'Vá ao norte e derrote 5 esqueletos. Mostre que eles podem cair!'],
-    falaFim: ['Incrível! Os esqueletos caíram mesmo.', 'Pegue esta arma. Você vai precisar dela.'],
-    obj: { tipo: 'matar', zona: 'floresta', qtd: 5, txt: 'Derrote esqueletos na floresta' }, xp: 140, ouro: 60, item: { slot: 'arma', nivel: 3, rar: 1 },
-  },
-  {
-    id: 'm2', nome: 'O Acampamento', dica: 'Acampamento a noroeste da floresta',
-    falaInicio: ['Os batedores têm um acampamento no fundo da floresta, a noroeste.', 'Quem comanda é o Capitão Batedor. Sem ele, a floresta fica em paz.'],
-    falaFim: ['O Capitão caiu? Você é mesmo o herói da profecia!', 'Leve estas poções e esta armadura.'],
-    obj: { tipo: 'matar', tipos: ['capitao'], qtd: 1, txt: 'Derrote o Capitão Batedor' }, xp: 320, ouro: 120, pocoes: 3, item: { slot: 'armadura', nivel: 4, rar: 1 },
-  },
-  {
-    id: 'm3', nome: 'As Ruínas do Leste', dica: 'Ruínas (leste)',
-    falaInicio: ['A chave do castelo foi escondida num baú antigo nas Ruínas do Leste.', 'Guerreiros e necromantes guardam o lugar. Cuidado!'],
-    falaFim: ['A Chave do Castelo! Agora o portão ao sul pode ser aberto.', 'Este amuleto era do meu avô. Que te proteja.'],
-    obj: { tipo: 'bau', id: 'bau_ruinas', txt: 'Abra o baú antigo nas ruínas' }, xp: 500, ouro: 200, item: { slot: 'amuleto', nivel: 6, rar: 2 },
-  },
-  {
-    id: 'm4', nome: 'A Coroa de Ferro', dica: 'Castelo (sul)',
-    falaInicio: ['Chegou a hora. O Rei Esqueleto está no pátio do castelo, ao sul.', 'Traga a Coroa de Ferro de volta para o reino!'],
-    falaFim: ['A COROA DE FERRO! O reino está salvo!', 'Você será lembrado para sempre. Mas ainda há mortos vagando...', 'Se quiser, tenho caçadas para você. Os esqueletos voltam cada vez mais fortes.'],
-    obj: { tipo: 'matar', tipos: ['rei'], qtd: 1, txt: 'Derrote o Rei Esqueleto' }, xp: 1500, ouro: 600, item: { slot: 'amuleto', nivel: 10, rar: 3, nome: 'Coroa de Ferro' },
-  },
-];
-// caçadas repetíveis depois da história
-export function cacada(n, nivelJog) {
-  const zonas = [['floresta', 'Floresta Sombria'], ['ruinas', 'Ruínas do Leste'], ['castelo', 'Castelo']];
-  const [z, nz] = zonas[n % 3], qtd = 8 + (n % 4) * 2;
-  return {
-    id: 'c' + n, nome: `Caçada #${n + 1}`, dica: nz, cacada: true,
-    falaInicio: [`Os mortos voltaram em ${nz}. Derrote ${qtd} deles.`],
-    falaFim: ['Bom trabalho! Aqui está a recompensa.'],
-    obj: { tipo: 'matar', zona: z, qtd, txt: `Derrote inimigos: ${nz}` },
-    xp: Math.round(80 * nivelJog * (1 + qtd / 10)), ouro: 40 * nivelJog, item: { slot: ['arma', 'armadura', 'amuleto'][n % 3], nivel: nivelJog, rar: 1 + (n % 3 === 2 ? 1 : 0) },
-  };
-}
+// muralha, mina (tycoon) e forja do herói
+export const MURALHA = { vida: [800, 1300, 2000, 3000, 4500, 6500, 9500, 14000], custo: [0, 150, 320, 600, 1000, 1700, 2800, 4500], nomes: ['Paliçada', 'Paliçada Reforçada', 'Muro de Pedra', 'Muro de Pedra II', 'Muralha', 'Muralha II', 'Fortaleza', 'Fortaleza Real'] };
+export const MINA = { renda: [1, 1.8, 3, 4.5, 7, 10, 14, 20], custo: [60, 130, 240, 420, 720, 1200, 2000, 3300], cofre: 150 }; // cofre: segundos de renda que cabem
+export const FORJA = { max: 12, custo: n => Math.round(70 * 1.55 ** n) }; // arma: +12% ataque / armadura: +12% defesa e +8% vida

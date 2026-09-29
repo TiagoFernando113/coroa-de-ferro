@@ -142,3 +142,34 @@ button{font:inherit;color:inherit;cursor:pointer}
   #mini{width:90px;height:90px}
   #missao{top:calc(max(8px,env(safe-area-inset-top)) + 76px)}
 }
+
+/* ---------- defesa ---------- */
+#ondaBox{position:absolute;left:50%;transform:translateX(-50%);top:calc(max(8px,env(safe-area-inset-top)) + 64px);width:min(58vw,260px);text-align:center;display:flex;flex-direction:column;align-items:center;gap:3px;pointer-events:none}
+#ondaT{font-family:Cinzel,serif;font-size:18px;color:var(--ouro2);text-shadow:0 2px 4px #000}
+#ondaSub{font-size:12px;font-weight:700;text-shadow:0 1px 3px #000}
+#ondaBox .barra{width:100%}
+#ondaBox #bOnda{pointer-events:auto;margin-top:2px}
+#ondaBox #bOnda[hidden]{display:none}
+.barra.muro i{background:linear-gradient(#e8d6a8,#9a7a4a)}
+.barra.muro.dano i{background:linear-gradient(#ff8a6a,#b8201a)}
+#painel{position:absolute;left:50%;transform:translateX(-50%);top:calc(max(8px,env(safe-area-inset-top)) + 150px);width:min(94vw,440px);max-height:48vh;overflow:auto;padding:10px 12px;border-radius:14px;
+  background:rgba(24,15,8,.94);border:2px solid var(--ouro);box-shadow:0 6px 24px rgba(0,0,0,.6);pointer-events:auto}
+#painel[hidden]{display:none}
+#painel h3{margin:0 0 6px;font-family:Cinzel,serif;color:var(--ouro2);font-size:17px}
+#painel h3 small{font-family:system-ui;font-size:12px;color:#d9c29a;margin-left:6px}
+#painel p{margin:4px 0;font-size:13px}
+#painel .prox{color:#9fe38a}
+#painel .linha{margin-top:8px}
+.btn.caro{filter:saturate(.3) brightness(.8)}
+.btn.sec{background:linear-gradient(#e8d6a8,#b89a6a);color:#3b2206}
+.nivs{display:flex;gap:4px;margin:4px 0}
+.nivs i{flex:1;height:7px;border-radius:4px;background:rgba(255,255,255,.15)}
+.nivs i.on{background:linear-gradient(90deg,#ffd97a,#e0a83a)}
+.opcoes{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.opc{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;padding:8px;border-radius:10px;border:2px solid var(--c);background:rgba(255,255,255,.06)}
+.opc i{font-style:normal;font-size:24px}
+.opc b{font-size:13px;color:#fff}
+.opc span{font-size:11px;color:#cbb;line-height:1.25}
+.opc em{font-style:normal;font-weight:900;color:var(--ouro2);font-size:13px;margin-top:2px}
+.opc.caro{opacity:.55}
+#topoD #bMenu{font-size:22px}

@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { LIM, CASTELO, ZONAS } from './mundo.js';
+import { LIM } from './mundo.js';
 
 export const ESC_PERS = 0.75; // personagens KayKit (~2,5 u) → ~1,85 m
 let renderer, scene, cam, sol, hemi, relogio = 0;
@@ -22,14 +22,14 @@ export function iniciar(canvas, q) {
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   scene = new THREE.Scene();
   const ceu = new THREE.Color(0xa9d4f5);
-  scene.background = ceu; scene.fog = new THREE.Fog(ceu, 38, 92);
-  cam = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
+  scene.background = ceu; scene.fog = new THREE.Fog(ceu, 55, 120);
+  cam = new THREE.PerspectiveCamera(55, 1, 0.1, 140);
   hemi = new THREE.HemisphereLight(0xdff1ff, 0x5a7a3a, 1.35); scene.add(hemi);
   sol = new THREE.DirectionalLight(0xfff1d6, 2.4); sol.position.set(20, 40, 10);
   sol.castShadow = renderer.shadowMap.enabled;
   const tam = qualidade === 'alta' ? 2048 : 1024;
   sol.shadow.mapSize.set(tam, tam);
-  Object.assign(sol.shadow.camera, { left: -26, right: 26, top: 26, bottom: -26, near: 1, far: 90 });
+  Object.assign(sol.shadow.camera, { left: -34, right: 34, top: 34, bottom: -34, near: 1, far: 100 });
   sol.shadow.bias = -0.0008; sol.shadow.normalBias = 0.03;
   scene.add(sol, sol.target);
   medir();
@@ -105,50 +105,56 @@ export function montarMundo(M) {
     const mesh = new THREE.Mesh(g, mat); mesh.castShadow = !pequeno; mesh.receiveShadow = true; mesh.matrixAutoUpdate = false;
     scene.add(mesh); filhos.push(mesh);
   }
-  // portão do castelo (se abre com a chave)
-  portao = clonar(pecas.Cgate); portao.scale.set(6, 5.5, 12.5); portao.rotation.y = Math.PI / 2;
-  portao.position.set(CASTELO.portao.x, 0, CASTELO.portao.z); scene.add(portao);
-  // baús
-  for (const b of M.baus) { const o = clonar(pecas.Dchest); o.scale.setScalar(3); o.position.set(b.x, 0, b.z); o.rotation.y = b.ang; scene.add(o); bausObj[b.id] = o; }
-  // luz fraca de fogueira no acampamento e tochas no castelo: pontos brilhantes (sem luzes reais)
   return filhos.length;
 }
-let portao = null; const bausObj = {};
-export function abrirPortao(aberto) { if (portao) portao.visible = !aberto; }
-export function bauAberto(id, aberto) { const b = bausObj[id]; if (b) b.rotation.x = aberto ? -0.3 : 0; }
 const clonar = o => { const c = o.clone(); c.position.set(0, 0, 0); c.rotation.set(0, 0, 0); c.scale.set(1, 1, 1); return c; };
 
 function texturaChao(M) {
   const N = 2048, cv = document.createElement('canvas'); cv.width = cv.height = N;
   const g = cv.getContext('2d'), k = N / (LIM * 2 + 40), W = (x) => (x + LIM + 20) * k;
   g.fillStyle = '#5c8f3a'; g.fillRect(0, 0, N, N);
-  // manchas por zona
   const r = (() => { let s = 99; return () => ((s = (s * 16807) % 2147483647) / 2147483647); })();
   for (let i = 0; i < 9000; i++) {
-    const x = r() * N, y = r() * N, wx = x / k - LIM - 20, wz = y / k - LIM - 20;
-    const flo = wz < -28 && wx < 45, rui = wx > 40 && Math.abs(wz) < 40, cas = wz > 45 && Math.abs(wx) < 40;
-    const h = flo ? 95 + r() * 20 : rui ? 60 + r() * 20 : 85 + r() * 25, s = flo ? 35 : rui ? 25 : 40 + r() * 15, l = flo ? 20 + r() * 8 : rui ? 32 + r() * 10 : 30 + r() * 12;
-    g.fillStyle = `hsla(${h},${s}%,${l}%,${0.25 + r() * 0.3})`;
+    const x = r() * N, y = r() * N, fora = y / k - LIM - 20 < 0;
+    g.fillStyle = `hsla(${fora ? 75 + r() * 25 : 85 + r() * 25},${fora ? 30 : 40 + r() * 15}%,${fora ? 26 + r() * 10 : 30 + r() * 12}%,${0.25 + r() * 0.3})`;
     g.beginPath(); g.arc(x, y, 3 + r() * 14, 0, 7); g.fill();
   }
-  // caminhos de terra
+  for (const p of M.patios || []) { g.fillStyle = p.cor; g.globalAlpha = 0.45; g.fillRect(W(p.x0), W(p.z0), (p.x1 - p.x0) * k, (p.z1 - p.z0) * k); g.globalAlpha = 1; }
   g.lineCap = 'round'; g.lineJoin = 'round';
   for (const [cor, extra] of [['#7a5f3a', 1.2], ['#a58a5c', 0]]) for (const c of M.caminhos) {
     g.strokeStyle = cor; g.lineWidth = (c.w + extra) * k; g.beginPath();
     c.pts.forEach(([x, z], i) => i ? g.lineTo(W(x), W(z)) : g.moveTo(W(x), W(z))); g.stroke();
   }
-  // praça de pedra
-  g.fillStyle = '#9c9488'; g.beginPath(); g.arc(W(0), W(0), 11 * k, 0, 7); g.fill();
-  g.strokeStyle = 'rgba(60,55,50,.35)'; g.lineWidth = 1.5;
-  for (let rr = 2; rr < 11; rr += 1.6) { g.beginPath(); g.arc(W(0), W(0), rr * k, 0, 7); g.stroke(); }
-  // pátio do castelo e clareira das ruínas
-  g.fillStyle = '#8b857c'; g.fillRect(W(CASTELO.x0), W(CASTELO.z0), (CASTELO.x1 - CASTELO.x0) * k, (CASTELO.z1 - CASTELO.z0) * k);
-  g.strokeStyle = 'rgba(50,45,40,.3)';
-  for (let x = CASTELO.x0; x < CASTELO.x1; x += 3) { g.beginPath(); g.moveTo(W(x), W(CASTELO.z0)); g.lineTo(W(x), W(CASTELO.z1)); g.stroke(); }
-  for (let z = CASTELO.z0; z < CASTELO.z1; z += 3) { g.beginPath(); g.moveTo(W(CASTELO.x0), W(z)); g.lineTo(W(CASTELO.x1), W(z)); g.stroke(); }
-  g.fillStyle = '#a0916c'; g.beginPath(); g.arc(W(78), W(0), 13 * k, 0, 7); g.fill();
-  g.fillStyle = '#6b5a3c'; g.beginPath(); g.arc(W(-31), W(-84), 11 * k, 0, 7); g.fill();
+  g.fillStyle = '#9c9488'; g.beginPath(); g.arc(W(0), W(26), 7 * k, 0, 7); g.fill();
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t;
+}
+
+// grupo de peças do cenário (construções que mudam de nível)
+export function grupo(lista, x = 0, z = 0) {
+  const G = new THREE.Group(); G.position.set(x, 0, z);
+  for (const p of lista) {
+    const src = pecas[p.m.replace(':', '')]; if (!src) { console.warn('peça ausente', p.m); continue; }
+    const o = clonar(src); o.position.set(p.x || 0, p.y || 0, p.z || 0); o.rotation.y = p.ry || 0;
+    if (Array.isArray(p.s)) o.scale.set(...p.s); else o.scale.setScalar(p.s || 1);
+    G.add(o);
+  }
+  scene.add(G); return G;
+}
+// orbe brilhante da torre mágica
+export function orbe(x, y, z, r) {
+  const g = new THREE.Group(); g.position.set(x, y, z);
+  const n = new THREE.Mesh(GEO_BOLA, new THREE.MeshBasicMaterial({ color: 0xd8b0ff })); n.scale.setScalar(r * 0.55);
+  const a = new THREE.Mesh(GEO_BOLA, MAT_ADD(0x7a3aff)); a.material.opacity = 0.45; a.scale.setScalar(r * 1.1);
+  g.add(n, a); scene.add(g); return g;
+}
+// botão no chão (estilo tycoon)
+const GEO_PAD = new THREE.CylinderGeometry(1.25, 1.35, 0.18, 32), GEO_ANEL = new THREE.TorusGeometry(1.3, 0.08, 6, 40).rotateX(Math.PI / 2);
+export function pad(x, z) {
+  const g = new THREE.Group(); g.position.set(x, 0.09, z);
+  const base = new THREE.Mesh(GEO_PAD, new THREE.MeshStandardMaterial({ color: 0x3ad05a, emissive: 0x1a8a2a, emissiveIntensity: 0.6, roughness: 0.5 }));
+  const anel = new THREE.Mesh(GEO_ANEL, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8 })); anel.position.y = 0.12;
+  g.add(base, anel); scene.add(g);
+  return { g, cor(c, e) { base.material.color.set(c); base.material.emissive.set(e); }, pulso(t) { anel.scale.setScalar(1 + 0.08 * Math.sin(t * 4)); anel.material.opacity = 0.5 + 0.4 * Math.sin(t * 4); } };
 }
 
 // ---------------- personagens ----------------
@@ -193,7 +199,7 @@ export function personagem(nome, armas = [], esc = 1) {
   };
   return P;
 }
-export function objeto(nome, esc = 1) { // peça avulsa (drops)
+export function objeto(nome, esc = 1) { // peça avulsa (moedas, efeitos)
   const src = pecas[nome.replace(':', '')] || modelos[nome]?.scene; const o = clonar(src); o.scale.setScalar(esc); scene.add(o); return o;
 }
 export function remover(o) { scene.remove(o); }
@@ -224,6 +230,8 @@ const GEO_BOLA = new THREE.SphereGeometry(1, 12, 10);
 export function projetil(tipo) {
   let o;
   if (tipo === 'flecha' || tipo === 'virote') o = new THREE.Mesh(GEO_FLECHA, new THREE.MeshBasicMaterial({ color: tipo === 'virote' ? 0x9a8a70 : 0xe8d9b0 }));
+  else if (tipo === 'lanca') { o = new THREE.Mesh(GEO_FLECHA, new THREE.MeshLambertMaterial({ color: 0x7a5a3a })); o.scale.set(3, 3, 3.2); }
+  else if (tipo === 'pedra') { o = new THREE.Mesh(GEO_BOLA, new THREE.MeshLambertMaterial({ color: 0x8a8378 })); o.scale.setScalar(0.55); o.castShadow = true; }
   else {
     const cor = { magia: 0xb88bff, fogo: 0xff7a2a, sombra: 0x7dff9a }[tipo] || 0xffffff;
     o = new THREE.Group(); const nucleo = new THREE.Mesh(GEO_BOLA, new THREE.MeshBasicMaterial({ color: 0xffffff })); nucleo.scale.setScalar(tipo === 'fogo' ? 0.28 : 0.16);
@@ -249,7 +257,7 @@ export function faiscas(x, y, z, cor, n = 10, forca = 3) {
 }
 
 // ---------------- câmera e quadro ----------------
-export const camera = { yaw: 0, pitch: 0.62, dist: 9, alvo: new THREE.Vector3(), tremor: 0 };
+export const camera = { yaw: Math.PI, pitch: 0.72, dist: 12, alvo: new THREE.Vector3(), tremor: 0 };
 const olharTmp = new THREE.Vector3();
 export function quadro(dt, foco) {
   relogio += dt;
