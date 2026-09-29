@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { ORIGENS, pecasDo } from './aparencia.js';
 
 export const ESC_PERS = 0.75; // personagens KayKit (~2,5 u) → ~1,85 m
 let renderer, scene, cam, sol, hemi, relogio = 0;
@@ -221,6 +222,169 @@ export function personagem(nome, armas = [], esc = 1) {
   };
   return P;
 }
+// ---------------- heróis modulares (peças misturáveis + cores) ----------------
+// Todos os aventureiros usam o mesmo esqueleto (mesma pose de bind, só a ordem dos ossos muda):
+// cada peça é religada ao esqueleto do Cavaleiro e pintada com uma cópia da textura (grade de 8×4 cores).
+export const ESC_HEROI = 1.55;
+const APELIDOS = { Idle: 'Idle_A', Cheer: 'Cheering', '1H_Melee_Attack_Chop': 'Melee_1H_Attack_Chop', '1H_Melee_Attack_Slice_Diagonal': 'Melee_1H_Attack_Slice_Diagonal',
+  '2H_Melee_Attack_Chop': 'Melee_2H_Attack_Chop', '2H_Ranged_Shoot': 'Ranged_Bow_Release', Spellcast_Shoot: 'Ranged_Magic_Shoot', Block: 'Melee_Block' };
+let H = null;
+const TX = 256, CW = TX / 8, CH = TX / 4; // textura de cor reduzida (cada célula é um degradê vertical)
+const lum = (r, g, b) => 0.3 * r + 0.59 * g + 0.11 * b + 1;
+function prepararHerois() {
+  const grupos = {};
+  for (const g of modelos.herois.scene.children) grupos[g.name.replace(/^h/, '')] = g;
+  const k = grupos.Knight, corpoK = k.getObjectByName('Knight_Body');
+  const nomes = corpoK.skeleton.bones.map(b => b.name), inversos = corpoK.skeleton.boneInverses.map(m => m.clone());
+  const raizOsso = corpoK.skeleton.bones[0];
+  const atlas = {}, partes = {};
+  for (const [o, { pref }] of Object.entries(ORIGENS)) {
+    grupos[o].traverse(m => {
+      if (!m.isSkinnedMesh || !m.name.startsWith(pref + '_')) return;
+      const peca = m.name.slice(pref.length + 1), tex = m.material.map, aid = tex.name || tex.source.uuid;
+      if (!atlas[aid]) {
+        const cv = document.createElement('canvas'); cv.width = cv.height = TX; const g = cv.getContext('2d', { willReadFrequently: true });
+        g.drawImage(tex.image, 0, 0, TX, TX); const dados = g.getImageData(0, 0, TX, TX);
+        const media = []; // cor média de cada célula
+        for (let cy = 0; cy < 4; cy++) for (let cx = 0; cx < 8; cx++) {
+          let r = 0, gg = 0, b = 0, n = 0;
+          for (let y = cy * CH; y < (cy + 1) * CH; y += 4) for (let x = cx * CW; x < (cx + 1) * CW; x += 4) { const i = (y * TX + x) * 4; r += dados.data[i]; gg += dados.data[i + 1]; b += dados.data[i + 2]; n++; }
+          media.push([r / n, gg / n, b / n]);
+        }
+        const pele = media.map(([r, g2, b]) => Math.hypot(r - 243, g2 - 190, b - 155) < 42);
+        atlas[aid] = { id: aid, tex, dados, media, pele };
+      }
+      // religa os ossos na ordem do Cavaleiro
+      const mapa = m.skeleton.bones.map(b => nomes.indexOf(b.name)), si = m.geometry.attributes.skinIndex, novo = new Uint16Array(si.count * 4);
+      for (let i = 0; i < si.count; i++) for (let c = 0; c < 4; c++) novo[i * 4 + c] = Math.max(0, mapa[si.getComponent ? si.getComponent(i, c) : [si.getX, si.getY, si.getZ, si.getW][c].call(si, i)]);
+      const geo = new THREE.BufferGeometry();
+      for (const [n, a] of Object.entries(m.geometry.attributes)) if (n !== 'skinIndex') geo.setAttribute(n, a);
+      geo.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(novo, 4)); geo.setIndex(m.geometry.index);
+      // células da textura usadas pela peça (as zonas que dá para pintar)
+      const uv = m.geometry.attributes.uv, cont = {};
+      for (let i = 0; i < uv.count; i++) { const cx = Math.min(7, Math.max(0, Math.floor(uv.getX(i) * 8))), cy = Math.min(3, Math.max(0, Math.floor(uv.getY(i) * 4))); cont[cx + ',' + cy] = (cont[cx + ',' + cy] || 0) + 1; }
+      const zonas = Object.entries(cont).sort((a, b) => b[1] - a[1]).map(([c]) => c);
+      partes[o + ':' + peca] = { geo, mat: m.material, atlas: atlas[aid], zonas, bind: m.bindMatrix.clone() };
+    });
+  }
+  const clips = {};
+  for (const [n, g] of Object.entries(modelos)) if (n.startsWith('a:')) for (const c of g.animations) clips[c.name] = c;
+  H = { nomes, inversos, raizOsso, atlas, partes, clips };
+}
+const hex = ([r, g, b]) => '#' + [r, g, b].map(v => Math.round(Math.min(255, v)).toString(16).padStart(2, '0')).join('');
+const deHex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+// zonas pintáveis de cada parte do visual: { cab: [{chave, cor}], ... } (a pele é separada)
+export function zonasDe(v) {
+  if (!H) prepararHerois();
+  const out = {};
+  for (const k of ['cab', 'cha', 'mas', 'tro', 'bra', 'per', 'capa', 'cos']) {
+    const vistas = new Set(), l = [];
+    for (const [o, p] of pecasDo({ ...v, cha: k === 'cha' ? v.cha : '', mas: k === 'mas' ? v.mas : '', capa: k === 'capa' ? v.capa : '', cos: k === 'cos' ? v.cos : '' }).filter(([o, p]) => parteDe(p) === k)) {
+      const pt = H.partes[o + ':' + p]; if (!pt) continue;
+      for (const z of pt.zonas) { const [cx, cy] = z.split(',').map(Number), idx = cy * 8 + cx; if (pt.atlas.pele[idx]) continue; const chave = pt.atlas.id + ':' + z; if (vistas.has(chave)) continue; vistas.add(chave); l.push({ chave, cor: v.cores?.[chave] || hex(pt.atlas.media[idx]) }); }
+    }
+    out[k] = l;
+  }
+  return out;
+}
+const parteDe = p => ({ Head: 'cab', Helmet: 'cha', HelmetVisor: 'cha', BearHat: 'cha', Hat: 'cha', Mask: 'mas', Body: 'tro', ArmLeft: 'bra', ArmRight: 'bra', LegLeft: 'per', LegRight: 'per', Cape: 'capa', Quiver: 'cos' }[p]);
+// textura pintada de um atlas para um visual (null = cores originais)
+function texturaPintada(at, v, extra) {
+  const trocas = [];
+  for (let idx = 0; idx < 32; idx++) {
+    const chave = at.id + ':' + (idx % 8) + ',' + Math.floor(idx / 8);
+    const c = v.cores?.[chave] || extra[chave] || (at.pele[idx] && v.pele) || null;
+    if (c) trocas.push([idx, deHex(c)]);
+  }
+  if (!trocas.length) return null;
+  const img = new ImageData(new Uint8ClampedArray(at.dados.data), TX, TX), d = img.data;
+  for (const [idx, [R, G, B]] of trocas) {
+    const cx = idx % 8, cy = Math.floor(idx / 8), m = at.media[idx], lm = lum(...m);
+    for (let y = cy * CH; y < (cy + 1) * CH; y++) for (let x = cx * CW; x < (cx + 1) * CW; x++) {
+      const i = (y * TX + x) * 4, f = Math.min(2.2, lum(d[i], d[i + 1], d[i + 2]) / lm);
+      d[i] = R * f; d[i + 1] = G * f; d[i + 2] = B * f;
+    }
+  }
+  const cv = document.createElement('canvas'); cv.width = cv.height = TX; cv.getContext('2d').putImageData(img, 0, 0);
+  const t = new THREE.CanvasTexture(cv); t.flipY = false; t.colorSpace = THREE.SRGBColorSpace; t.magFilter = THREE.LinearFilter; return t;
+}
+export function heroi(v) {
+  if (!H) prepararHerois();
+  const raiz = new THREE.Group(), corpo = new THREE.Group(), rig = H.raizOsso.clone(true);
+  corpo.add(rig); raiz.add(corpo);
+  const ossos = H.nomes.map(n => rig.name === n ? rig : rig.getObjectByName(n));
+  const esq = new THREE.Skeleton(ossos, H.inversos);
+  const cabeca = ossos[H.nomes.indexOf('head')], bracos = ['upperarml', 'upperarmr'].map(n => ossos[H.nomes.indexOf(n)]).filter(Boolean);
+  let malhas = [], armas = [], mats = [], visual = v;
+  const mixer = new THREE.AnimationMixer(corpo), atualizarMixer = mixer.update.bind(mixer);
+  mixer.update = dt => { // escala da cabeça e dos braços por cima da animação
+    cabeca.scale.set(1, 1, 1); for (const b of bracos) b.scale.set(1, 1, 1);
+    atualizarMixer(dt);
+    if (visual.cabT !== 1) cabeca.scale.multiplyScalar(visual.cabT || 1);
+    const mu = visual.musc || 1; if (mu !== 1) for (const b of bracos) { b.scale.x *= mu; b.scale.z *= mu; }
+    return mixer;
+  };
+  const acoes = {};
+  const acao = n => { n = H.clips[n] ? n : APELIDOS[n]; if (!n || !H.clips[n]) return null; return acoes[n] || (acoes[n] = mixer.clipAction(H.clips[n])); };
+  function vestir(nv) {
+    visual = nv;
+    for (const m of malhas) corpo.remove(m); for (const a of armas) a.parent?.remove(a); malhas = []; armas = []; mats = [];
+    // cor principal sorteada dos heróis da guilda: na zona maior do tronco
+    const extra = {};
+    if (nv.tinta) { const pt = H.partes[nv.tro + ':Body']; const z = pt?.zonas.find(z => { const [cx, cy] = z.split(',').map(Number); return !pt.atlas.pele[cy * 8 + cx]; }); if (z) extra[pt.atlas.id + ':' + z] = nv.tinta; }
+    const matsAtlas = new Map();
+    for (const [o, p] of pecasDo(nv)) {
+      const pt = H.partes[o + ':' + p]; if (!pt) continue;
+      let mat = matsAtlas.get(pt.atlas.id);
+      if (!mat) { mat = pt.mat.clone(); const t = texturaPintada(pt.atlas, nv, extra); if (t) mat.map = t; matsAtlas.set(pt.atlas.id, mat); mats.push(mat); }
+      const sm = new THREE.SkinnedMesh(pt.geo, mat); sm.bind(esq, pt.bind); sm.castShadow = true; sm.frustumCulled = false;
+      corpo.add(sm); malhas.push(sm);
+    }
+    for (const [id, lado] of [[nv.arma, 'r'], [nv.esq, 'l']]) {
+      if (!id) continue; const src = pecas[id.replace(':', '')]; if (!src) continue;
+      const a = clonar(src); a.traverse(o => { if (o.isMesh) { o.castShadow = true; o.material = o.material.clone(); mats.push(o.material); } });
+      const osso = ossos[H.nomes.indexOf('handslot' + lado)]; if (osso) { osso.add(a); armas.push(a); }
+    }
+    corpo.scale.set(ESC_HEROI * (nv.larg || 1), ESC_HEROI * (nv.alt || 1), ESC_HEROI * (nv.larg || 1));
+  }
+  vestir(v);
+  scene.add(raiz);
+  let atual = null, nomeAtual = '';
+  const P = {
+    raiz, corpo, mixer, acoes, vestir,
+    tem: n => !!acao(n),
+    tocar(n, { loop = true, fade = 0.15, vel = 1, reinicia = false } = {}) {
+      const a = acao(n); if (!a) return;
+      if (nomeAtual === n && !reinicia) { a.timeScale = vel; return; }
+      a.reset(); a.setLoop(loop ? THREE.LoopRepeat : THREE.LoopOnce, loop ? Infinity : 1); a.clampWhenFinished = !loop; a.timeScale = vel;
+      a.play(); if (atual && atual !== a) atual.crossFadeTo(a, fade, false); else a.fadeIn(fade);
+      atual = a; nomeAtual = n;
+    },
+    get anim() { return nomeAtual; },
+    remover() { scene.remove(raiz); mixer.stopAllAction(); },
+    brilho(x) { if (x === P._b) return; P._b = x; for (const m of mats) m.emissive?.setScalar(x); },
+  };
+  return P;
+}
+
+// estúdio do criador de heróis: um palco longe da guilda
+export const ESTUDIO = { x: 0, z: -300 };
+let palco = null, ceuNormal = null;
+export function estudio(ligado) {
+  if (!palco) {
+    palco = new THREE.Group();
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.4, 0.3, 48), new THREE.MeshLambertMaterial({ color: 0x6a4a8a }));
+    base.position.y = -0.15; base.receiveShadow = true;
+    const aro = new THREE.Mesh(new THREE.TorusGeometry(2.3, 0.06, 8, 64), new THREE.MeshBasicMaterial({ color: 0xffd86a })); aro.rotation.x = -Math.PI / 2; aro.position.y = 0.01;
+    const fundo = new THREE.Mesh(new THREE.CircleGeometry(40, 48), new THREE.MeshLambertMaterial({ color: 0x3a2a4a })); fundo.rotation.x = -Math.PI / 2; fundo.position.y = -0.02;
+    palco.add(base, aro, fundo); palco.position.set(ESTUDIO.x, 0, ESTUDIO.z); scene.add(palco);
+  }
+  palco.visible = ligado;
+  if (ligado) { ceuNormal = ceuNormal || scene.background.clone(); scene.background = new THREE.Color(0x2a1f38); scene.fog.color.set(0x2a1f38); scene.fog.near = 20; scene.fog.far = 60; }
+  else if (ceuNormal) { scene.background = ceuNormal.clone(); scene.fog.color.copy(ceuNormal); scene.fog.near = 70; scene.fog.far = 150; }
+}
+// desloca a imagem na tela (fração da altura; positivo = conteúdo sobe)
+export function deslocarVista(f) { const w = innerWidth, h = innerHeight; if (f) cam.setViewOffset(w, h, 0, h * f, w, h); else cam.clearViewOffset(); cam.updateProjectionMatrix(); }
 export function objeto(nome, esc = 1) { // peça avulsa (moedas, efeitos)
   const src = pecas[nome.replace(':', '')] || modelos[nome]?.scene; const o = clonar(src); o.scale.setScalar(esc); scene.add(o); return o;
 }
@@ -324,3 +488,5 @@ export const info = () => {
   scene.traverse(o => { if (o.isMesh) { meshes++; for (const m of [].concat(o.material)) { mats.add(m.uuid); if (m.map) { tex.add(m.map.uuid); src.add(m.map.source.uuid); } } } });
   return { ...renderer.info.render, geos: renderer.info.memory.geometries, tex: renderer.info.memory.textures, texCena: tex.size, fontes: src.size, mats: mats.size, meshes };
 };
+export function medida(m) { const p = pecas[m.replace(':', '')]; if (!p) return null; const b = new THREE.Box3().setFromObject(p), s = b.getSize(new THREE.Vector3()); return [+s.x.toFixed(2), +s.y.toFixed(2), +s.z.toFixed(2), +b.min.x.toFixed(2), +b.min.z.toFixed(2)]; }
+export function debugHerois() { const g = modelos.herois.scene.children[0]; const out = []; g.traverse(o => out.push(o.type + ' ' + o.name + ' p' + o.position.toArray().map(v => v.toFixed(2)) + ' r' + o.rotation.toArray().slice(0, 3).map(v => v.toFixed(2)) + ' s' + o.scale.toArray().map(v => v.toFixed(2)))); return out.slice(0, 14).join('\n'); }

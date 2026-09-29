@@ -3,6 +3,7 @@ import * as C from './cena.js';
 import { EDIFICIOS, CLASSES } from './dados.js';
 import { S, nivel, renda } from './estado.js';
 import { visivel, proximoTrancado } from './etapas.js';
+import { visualAleatorio, animAtaque } from './aparencia.js';
 
 const P = Math.PI;
 export const PORTAO = { x: 0, z: 30 };
@@ -135,7 +136,21 @@ export function montarBase() {
 
 // ---------------- heróis passeando ----------------
 const pers = {}; // id do herói → { v, x, z, ang, alvo, espera, fora }
-const ANIM_TREINO = { cav: '1H_Melee_Attack_Chop', bar: '2H_Melee_Attack_Chop', arq: '2H_Ranged_Shoot', mag: 'Spellcast_Shoot', lad: 'Interact' };
+// o que cada herói faz ao chegar num lugar da guilda
+const sorte = l => l[Math.floor(Math.random() * l.length)];
+function animLocal(oq, h) {
+  if (h.estado === 'ferido') return oq === 'enfermaria' ? 'Lie_Idle' : 'Sit_Floor_Idle';
+  switch (oq) {
+    case 'treino': return sorte([animAtaque(h.visual), animAtaque(h.visual), 'Push_Ups', 'Sit_Ups']);
+    case 'taverna': return sorte(['Cheering', 'Sit_Floor_Idle', 'Idle_B', 'Waving']);
+    case 'forja': return sorte(['Hammering', 'Working_A']);
+    case 'quadro': case 'mercado': case 'biblioteca': return 'Interact';
+    case 'portal': return 'Ranged_Magic_Spellcasting';
+  }
+  return sorte(['Idle_A', 'Idle_B']);
+}
+// herói editado no criador: troca as peças do boneco
+export function revestir(id) { const p = pers[id], h = S.herois.find(x => x.id === id); if (p && h) p.v.vestir(h.visual); }
 function destino(h) {
   if (h.estado === 'ferido') { const p = POS.enfermaria; return { x: p.x * 0.7 + (Math.random() - 0.5) * 3, z: p.z * 0.7 + (Math.random() - 0.5) * 3, oq: 'ferido' }; }
   const ops = Object.keys(POS).filter(k => visivel(k) && nivel(k) > 0);
@@ -149,7 +164,7 @@ export function atualizarHerois(dt) {
   for (const h of S.herois) {
     let p = pers[h.id];
     if (!p) {
-      const v = C.personagem(CLASSES[h.cls].modelo, [], h.rar >= 2 ? 1.08 : 1);
+      const v = C.heroi(h.visual || (h.visual = visualAleatorio(h.cls)));
       const vindo = h.estado !== 'missao';
       p = pers[h.id] = { v, x: vindo ? PORTAO.x : 0, z: vindo ? PORTAO.z : 0, ang: P, alvo: null, espera: 0, fora: !vindo };
       if (!vindo) v.raiz.visible = false;
@@ -165,7 +180,7 @@ export function atualizarHerois(dt) {
       const dx = p.alvo.x - p.x, dz = p.alvo.z - p.z, d = Math.hypot(dx, dz), vel = h.estado === 'ferido' ? 0.9 : p.alvo.oq === 'sair' ? 3.2 : 1.6;
       if (d < 0.3) {
         p.chegou = p.alvo.oq; p.alvo = null; p.espera = 3 + Math.random() * 7;
-        const oq = p.chegou; v.tocar(oq === 'treino' && h.estado === 'livre' ? ANIM_TREINO[h.cls] : oq === 'taverna' && Math.random() < 0.4 ? 'Cheer' : oq === 'quadro' || oq === 'mercado' ? 'Interact' : 'Idle', { loop: true });
+        v.tocar(animLocal(p.chegou, h), { loop: true });
       } else {
         // contorna a fonte da praça
         let tx = dx / d, tz = dz / d; const cd = Math.hypot(p.x, p.z); if (cd < 4.5) { tx += p.x / cd * 0.8; tz += p.z / cd * 0.8; }

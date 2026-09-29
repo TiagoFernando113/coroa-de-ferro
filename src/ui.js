@@ -5,7 +5,8 @@ import { S } from './estado.js';
 import { ICONES } from './icones.js';
 import { EDIFICIOS, EF, custoEd, descEfeito, proxMarco, marcosAte, CLASSES, RARIDADES, chancesRecrutar, xpHeroi, custoTreinar, custoRecrutar, GEMAS_RECRUTAR,
   REGIOES, missao, reqRegiao, chanceSucesso, xpFama, OBJETIVOS, fmt, fmtTempo } from './dados.js';
-import { POS, atualizarPredio } from './base.js';
+import { POS, atualizarPredio, revestir } from './base.js';
+import { abrirCriador } from './criador.js';
 import { ETAPAS, avancar, etapaAtual, revelado, visivel, livre, proximoTrancado } from './etapas.js';
 
 const $ = s => document.querySelector(s);
@@ -111,6 +112,12 @@ function modal(html, classe = '') {
   m.onclick = e => { if (e.target === m || e.target.closest('[data-ok]')) { som('fechar'); m.hidden = true; } };
   return m.firstElementChild;
 }
+export function novidadeCriador() {
+  const forte = [...S.herois].sort((a, b) => E.poder(b) - E.poder(a))[0]; S.lider = forte.id;
+  const c = modal(`<div class="faixaTit">Novidade!</div><div class="famaG">${ico('pincel')}</div><p>Agora você pode <b>personalizar seus heróis</b>: rosto, pele, corpo, roupas, armas e a cor de cada detalhe.</p>
+    <button class="btn verde grande" data-cria>Criar meu herói</button><button class="btn cinza peq" data-ok>Depois</button>`);
+  c.querySelector('[data-cria]').onclick = () => { $('#modal').hidden = true; abrirCriador(forte.id, { aoFechar: () => revestir(forte.id) }); };
+}
 export function boasVindas(off) {
   const partes = [];
   if (off.ouro > 0) partes.push(`<div class="ganho">${ico('ouro')}<b>+${fmt(off.ouro)}</b><span>ouro da taverna</span></div>`);
@@ -200,7 +207,7 @@ function htmlHerois() {
   const hs = [...S.herois].sort((a, b) => E.poder(b) - E.poder(a));
   return `<div class="resumo"><span>${ico('herois')}${S.herois.length}/${E.capacidade()} heróis</span><span>${ico('treino')}Treino: +${fmt(EF.treino(E.nivel('treino')))} XP/s</span></div><div class="grade">` +
     hs.map(h => { const c = CLASSES[h.cls], r = RARIDADES[h.rar];
-      return `<button class="heroi" data-heroi="${h.id}" style="--r:${r.cor};--c:${c.cor}"><span class="retrato">${ico(c.icone)}</span>${estrelas(h.rar)}<b>${esc(h.nome)}</b><small>${c.nome} · Nv ${h.nivel}</small>
+      return `<button class="heroi ${h.id === S.lider ? 'lider' : ''}" data-heroi="${h.id}" style="--r:${r.cor};--c:${c.cor}">${h.id === S.lider ? `<i class="coroaL">${ico('coroa')}</i>` : ''}<span class="retrato">${ico(c.icone)}</span>${estrelas(h.rar)}<b>${esc(h.nome)}</b><small>${c.nome} · Nv ${h.nivel}</small>
         <div class="poder">${ico('poder')}${fmt(E.poder(h))}</div>${chipEstado(h)}</button>`; }).join('') + '</div>';
 }
 function htmlHeroi() {
@@ -211,7 +218,8 @@ function htmlHeroi() {
     <div class="barra xp"><i style="width:${h.xp / xpHeroi(h.nivel) * 100}%"></i><span>XP ${fmt(h.xp)} / ${fmt(xpHeroi(h.nivel))}</span></div>
     <p class="suave">${chipEstado(h)} ${afins ? `Bônus de +25% em: ${afins}.` : ''}</p>
     ${botaoCompra('Treinar (+1 nível)', custoTreinar(h), 'treinar', 'verde grande')}
-    <button class="btn cinza peq" data-a="aposentar">Aposentar herói</button>`;
+    <button class="btn azul" data-a="visual">${ico('pincel')} Personalizar aparência</button>
+    ${h.id === S.lider ? `<p class="suave">${ico('coroa')} Líder da guilda</p>` : `<div class="linha"><button class="btn amarelo peq" data-a="lider">${ico('coroa')} Tornar líder</button><button class="btn cinza peq" data-a="aposentar">Aposentar</button></div>`}`;
 }
 function htmlMissoes() {
   const agora = Date.now();
@@ -264,6 +272,8 @@ function cliqueFolha(e) {
   if (b.dataset.predio) { som('abrir'); abrirPredio(b.dataset.predio); return; }
   if (b.dataset.heroi) { som('abrir'); abrirHeroi(b.dataset.heroi); return; }
   if (b.dataset.a === 'treinar') { if (E.treinar(heroiAberto)) som('espada'); else { som('erro'); aviso(`${ico('ouro')} Ouro insuficiente`, 'erro'); } }
+  if (b.dataset.a === 'visual') { som('abrir'); const id = heroiAberto; abrirCriador(id, { aoFechar: () => { revestir(id); abrirHeroi(id); } }); return; }
+  if (b.dataset.a === 'lider') { S.lider = heroiAberto; som('confirma'); aviso(`${ico('coroa')} ${esc(E.heroi(heroiAberto).nome)} agora é o líder!`, 'ouro'); }
   if (b.dataset.a === 'aposentar') { const h = E.heroi(heroiAberto); if (h && confirm(`Aposentar ${h.nome}? Você recebe um pouco de ouro.`)) { const v = E.aposentar(h.id); if (v) { som('moedas'); aviso(`${esc(h.nome)} se aposentou. +${fmt(v)} ouro`); abrirAba('herois'); } } return; }
   if (b.dataset.reg != null) { const r = +b.dataset.reg; regiaoAberta = r; som('livro'); desenharFolha(true); return; }
   if (b.dataset.enviar != null) { escolherEquipe(regiaoAberta, +b.dataset.enviar); return; }

@@ -1,8 +1,9 @@
 // Ponto de entrada: carrega modelos e recursos, abre o save (com ganhos offline) e roda o laço.
 import * as C from './cena.js';
 import * as E from './estado.js';
-import { montarBase, atualizarHerois, efeitosBase, posHeroi } from './base.js';
-import { montar, atualizar, ui, carregarRecursos, boasVindas, flutuar3d, som } from './ui.js';
+import { montarBase, atualizarHerois, efeitosBase, posHeroi, revestir } from './base.js';
+import { abrirCriador, passoCriador, criadorAberto } from './criador.js';
+import { montar, atualizar, ui, carregarRecursos, boasVindas, flutuar3d, som, novidadeCriador } from './ui.js';
 import { VERSAO } from './dados.js';
 import { iniciarEtapas } from './etapas.js';
 
@@ -39,14 +40,17 @@ function entrar(novo) {
   $('#titulo').classList.add('sai'); setTimeout(() => $('#titulo').remove(), 600);
   const off = novo ? null : E.offline();
   iniciarEtapas(); montarBase(); montar();
-  if (off) boasVindas(off);
   C.camera.yaw = Math.PI - 0.45; C.camera.pitch = 0.95; C.camera.dist = 74;
+  if (novo) abrirCriador(E.S.lider, { primeiro: true, aoFechar: () => revestir(E.S.lider) });
+  else if (!E.S.lider) novidadeCriador();
+  else if (off) boasVindas(off);
   let ultimo = performance.now(), salvarT = 0;
   const laco = agora => {
     const dt = Math.min(0.1, (agora - ultimo) / 1000); ultimo = agora;
     E.passo(dt);
+    passoCriador(dt);
     atualizarHerois(dt); efeitosBase(dt, (x, y, z, v) => flutuar3d(x, y, z, v));
-    atualizar(dt);
+    if (!criadorAberto()) atualizar(dt);
     C.quadro(dt, ui.foco);
     salvarT += dt; if (salvarT > 5) { salvarT = 0; E.salvar(); }
     requestAnimationFrame(laco);

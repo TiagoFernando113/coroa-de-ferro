@@ -1,5 +1,6 @@
 // Lógica da Guilda (sem gráficos): economia, heróis, missões, fama, objetivos e save.
 // O tempo das missões e o ganho offline usam o relógio real (Date.now).
+import { visualAleatorio } from './aparencia.js';
 import { EDIFICIOS, EF, custoEd, CLASSES, RARIDADES, chancesRecrutar, xpHeroi, custoTreinar, custoRecrutar, GEMAS_RECRUTAR, nomeAleatorio,
   REGIOES, missao, chanceSucesso, xpFama, OBJETIVOS, gemasObjetivo, OFFLINE_MAX } from './dados.js';
 
@@ -11,7 +12,7 @@ let seq = 1;
 const uid = () => Date.now().toString(36) + (seq++).toString(36);
 
 function novoHeroi(cls, rar, usados = S ? S.herois.map(h => h.nome) : []) {
-  return { id: uid(), nome: nomeAleatorio(usados), cls, rar, nivel: 1, xp: 0, estado: 'livre', ate: 0 };
+  return { id: uid(), nome: nomeAleatorio(usados), cls, rar, nivel: 1, xp: 0, estado: 'livre', ate: 0, visual: visualAleatorio(cls) };
 }
 export function novo(agora = Date.now()) {
   S = {
@@ -20,10 +21,10 @@ export function novo(agora = Date.now()) {
     herois: [], missoes: [], regiao: 0, chefes: {},
     st: { missoes: 0, recrutados: 2, ouroTotal: 0, lendarios: 0, falhas: 0 }, obj: {}, ultimo: agora, gratisEm: agora, etapa: 0, revelado: [], novos: {},
   };
-  S.herois.push(novoHeroi('cav', 0, [])); S.herois.push(novoHeroi('arq', 0, [S.herois[0].nome]));
+  S.herois.push(novoHeroi('cav', 0, [])); S.herois.push(novoHeroi('arq', 0, [S.herois[0].nome])); S.lider = S.herois[0].id;
   return S;
 }
-export function carregar() { try { const s = JSON.parse(localStorage.getItem(SAVE)); if (s && s.v === 1) { S = s; return true; } } catch (e) {} return false; }
+export function carregar() { try { const s = JSON.parse(localStorage.getItem(SAVE)); if (s && s.v === 1) { S = s; for (const h of S.herois) if (!h.visual) h.visual = visualAleatorio(h.cls); return true; } } catch (e) {} return false; }
 export function salvar(agora = Date.now()) { if (!S) return; S.ultimo = agora; try { localStorage.setItem(SAVE, JSON.stringify(S)); } catch (e) {} }
 export function apagar() { try { localStorage.removeItem(SAVE); } catch (e) {} }
 
@@ -88,7 +89,7 @@ export function treinar(id) {
   S.ouro -= c; h.nivel++; h.xp = 0; S.st.treinos = (S.st.treinos || 0) + 1; ev('heroiNivel', { id }); return true;
 }
 export function aposentar(id) {
-  const h = heroi(id); if (!h || h.estado === 'missao' || S.herois.length <= 1) return 0;
+  const h = heroi(id); if (!h || h.estado === 'missao' || S.herois.length <= 1 || h.id === S.lider) return 0;
   const v = Math.ceil(custoRecrutar(Math.max(0, S.st.recrutados - 3)) * 0.3 * (1 + h.rar));
   S.herois = S.herois.filter(x => x !== h); ganharOuro(v); return v;
 }
