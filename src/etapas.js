@@ -19,7 +19,7 @@ export const ETAPAS = [
   { txt: 'Construa o <b>Alojamento</b>: mais camas, mais heróis.', revela: ['ed:alojamento'], alvo: ['melhorar:alojamento', 'ed:alojamento'], feito: () => nivel('alojamento') >= 1, foco: 'alojamento' },
   { txt: 'Ganhe <b>Fama</b> melhorando prédios e completando missões até o nível 2.', revela: ['fama'], alvo: ['.rotulo.pode', 'nav:missoes'], feito: () => S.fama.nivel >= 2 },
   { txt: 'A Fama liberou o <b>Portal de Recrutamento</b>. Construa!', revela: ['ed:portal'], alvo: ['melhorar:portal', 'ed:portal'], feito: () => nivel('portal') >= 1, foco: 'portal' },
-  { txt: 'Abra <b>Recrutar</b> e chame um novo herói para a guilda.', revela: ['nav:recrutar'], alvo: ['[data-a="gratis"]', '[data-a="recrutar"]', 'nav:recrutar'], feito: () => S.st.recrutados >= 3 },
+  { txt: 'Abra <b>Baús</b> e pegue seu baú grátis: um item para o seu herói!', revela: ['nav:recrutar'], alvo: ['[data-a="gratis"]', 'nav:recrutar'], feito: () => (S.st.baus || 0) >= 1 },
   { txt: 'Fique forte e derrote o <b>chefe da Floresta Sombria</b>!', revela: ['nav:guilda'], alvo: ['nav:missoes'], feito: () => S.regiao >= 1 },
 ];
 export const TUDO = ['ed:taverna', 'ed:quadro', 'ed:alojamento', 'ed:portal', 'nav:missoes', 'nav:herois', 'nav:objetivos', 'nav:recrutar', 'nav:guilda', 'gemas', 'fama'];

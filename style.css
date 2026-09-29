@@ -474,3 +474,4 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;paddin
 .doacoes div{display:flex;align-items:center;gap:8px;padding:5px 10px;border-radius:10px;background:#fff}
 .doacoes div.eu{background:#fff3c4;box-shadow:inset 0 0 0 2px #ffd23a}
 .doacoes em{font-style:normal;font-family:var(--fT);width:20px;color:var(--madeira2)}.doacoes b{flex:1;font-weight:600}.doacoes span{display:flex;align-items:center;gap:3px;font-size:13px}
+.bauG{color:#c98a3a}.link{color:var(--azul2);text-decoration:underline;font-size:inherit}

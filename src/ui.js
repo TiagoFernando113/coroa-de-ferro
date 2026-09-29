@@ -9,7 +9,7 @@ import { POS, atualizarPredio, revestir } from './base.js';
 import { abrirCriador } from './criador.js';
 import { MUNDO, GUILDA_W, mostrarMundo, mundoVisivel, camposVisiveis } from './mundo.js';
 import { iniciarLuta, iniciarExploracao } from './luta.js';
-import { RARIDADE_ITEM, ESPACOS, ATR_ITEM, textoAtr, precoItem, atributosEquip } from './itens.js';
+import { RARIDADE_ITEM, ESPACOS, ATR_ITEM, textoAtr, precoItem, atributosEquip, chancesItem, BAUS, GEMAS_BAU } from './itens.js';
 import { ETAPAS, avancar, etapaAtual, revelado, visivel, livre, proximoTrancado } from './etapas.js';
 
 const $ = s => document.querySelector(s);
@@ -52,7 +52,7 @@ export function montar() {
     <button id="bMundo" class="bMundo">${ico('missoes')}<span>Mundo</span></button>
     <button id="bExplorar" class="bMundo bExplorar" hidden>${ico('c_armas')}<span>Explorar</span></button>
     <nav id="nav">
-      ${[['guilda', 'Guilda'], ['herois', 'Herói'], ['missoes', 'Missões'], ['recrutar', 'Convidar'], ['objetivos', 'Objetivos']].map(([k, t]) => `<button data-aba="${k}">${ico(k)}<span>${t}</span><em class="selo" hidden></em></button>`).join('')}
+      ${[['guilda', 'Guilda'], ['herois', 'Herói'], ['missoes', 'Missões'], ['recrutar', 'Baús'], ['objetivos', 'Objetivos']].map(([k, t]) => `<button data-aba="${k}">${ico(k)}<span>${t}</span><em class="selo" hidden></em></button>`).join('')}
     </nav>
     <section id="folha" hidden><header><div id="fIco"></div><h2 id="fTit"></h2><button class="xis" data-fechar>${ico('fechar')}</button></header><div id="fCorpo"></div></section>
     <div id="modal" hidden></div>
@@ -242,7 +242,7 @@ function folha(tipo, titulo, icone, cor) {
 export function abrirAba(aba) {
   ui.aba = aba; document.querySelectorAll('#nav [data-aba]').forEach(b => { b.classList.toggle('on', b.dataset.aba === aba); if (b.dataset.aba === aba) b.classList.remove('novo'); });
   if (!aba) { $('#folha').hidden = true; folhaAtual = null; return; }
-  const T = { guilda: ['Guilda', 'guilda', '#c98a3a'], herois: ['Seu herói e companheiros', 'herois', '#4a7bd0'], missoes: ['Missões', 'missoes', '#3f8f4a'], recrutar: ['Convidar membros', 'recrutar', '#8a5ad8'], objetivos: ['Objetivos', 'objetivos', '#e0a83a'] }[aba];
+  const T = { guilda: ['Guilda', 'guilda', '#c98a3a'], herois: ['Seu herói e companheiros', 'herois', '#4a7bd0'], missoes: ['Missões', 'missoes', '#3f8f4a'], recrutar: ['Baús de itens', 'bau', '#c98a3a'], objetivos: ['Objetivos', 'objetivos', '#e0a83a'] }[aba];
   folha(aba, ...T);
 }
 let predioAberto = null, heroiAberto = null, regiaoAberta = 0;
@@ -278,6 +278,8 @@ function htmlGuilda() {
   return `<div class="gCard"><span class="circ" style="--c:#c98a3a">${ico('guilda')}</span><div class="cTxt"><b>${esc(S.nomeGuilda || 'Guilda dos Heróis')}</b><small>Nível (Fama) ${S.fama.nivel} · ${S.herois.length}/12 membros</small></div></div>
     <p class="suave">Os prédios são da guilda: todos os membros doam ouro para melhorar e todos ganham os bônus.</p>
     ${doa.length ? `<h3 class="secT">${ico('objetivos')} Maiores doadores</h3><div class="doacoes">${doa.map((x, i) => `<div class="${x.h.id === S.lider ? 'eu' : ''}"><em>${i + 1}</em><b>${esc(x.h.nome)}${x.h.id === S.lider ? ' (você)' : ''}</b><span>${ico('ouro')}${fmt(x.v)}</span></div>`).join('')}</div>` : ''}
+    <h3 class="secT">${ico('herois')} Membros ${S.herois.length}/${E.capacidade()}</h3>
+    ${S.herois.length < E.capacidade() ? botaoCompra('Convidar aventureiro', custoRecrutar(S.st.recrutados), 'convidar', 'azul') : `<p class="suave">Guilda cheia: melhore o Alojamento (até 12).</p>`}
     <h3 class="secT">${ico('guilda')} Prédios da guilda</h3><div class="lista">` +
     Object.entries(EDIFICIOS).filter(([id]) => visivel(id) || id === proximoTrancado()).map(([id, e]) => {
       const n = E.nivel(id), ok = E.desbloqueado(id), c = custoEd(id, n);
@@ -414,14 +416,12 @@ function htmlMissoes() {
   return h;
 }
 function htmlRecrutar() {
-  const ch = chancesRecrutar(E.nivel('portal')), chP = chancesRecrutar(E.nivel('portal'), true), c = custoRecrutar(S.st.recrutados), agora = Date.now(), cheio = S.herois.length >= E.capacidade();
-  const barras = (l) => `<div class="chances">${l.map((x, i) => `<span style="--r:${RARIDADES[i].cor}"><i style="width:${Math.max(2, x * 100)}%"></i>${RARIDADES[i].nome} ${(x * 100).toFixed(1)}%</span>`).join('')}</div>`;
-  return `<div class="portalG">${ico('portal')}</div>${cheio ? `<div class="alerta">${ico('alojamento')} Guilda cheia (${S.herois.length}/${E.capacidade()}). Melhore o Alojamento (até 12 membros).</div>` : ''}
-    <p class="suave">Convide aventureiros para a guilda. Eles doam para os prédios e o herói deles luta ao seu lado.</p>
-    <div class="recrut"><h3>Convite comum</h3>${barras(ch)}${botaoCompra('Convidar', c, 'recrutar', 'verde')}
-      ${agora >= S.gratisEm ? `<button class="btn amarelo" data-a="gratis"><span>${ico('presente')} Convite grátis!</span></button>` : `<p class="suave">${ico('relogio')} Grátis de novo em ${fmtTempo((S.gratisEm - agora) / 1000)}</p>`}</div>
-    <div class="recrut premium"><h3>Convite de elite</h3>${barras(chP)}<button class="btn roxo ${S.gemas >= GEMAS_RECRUTAR ? '' : 'sem'}" data-a="premium"><span>Invocar</span><em>${ico('gema')}${GEMAS_RECRUTAR}</em></button></div>
-    <p class="suave">O Portal de Recrutamento aumenta a chance de heróis raros.</p>`;
+  const agora = Date.now(), barras = l => `<div class="chances">${l.map((x, i) => `<span style="--r:${RARIDADE_ITEM[i].cor}"><i style="width:${Math.max(2, x * 100)}%"></i>${RARIDADE_ITEM[i].nome} ${(x * 100).toFixed(1)}%</span>`).join('')}</div>`;
+  return `<div class="portalG bauG">${ico('bau')}</div><p class="suave">Abra baús para ganhar armas, elmos, armaduras, amuletos e anéis para o seu herói. O nível do item acompanha o seu nível.</p>
+    <div class="recrut"><h3>${BAUS.comum.nome}</h3>${barras(chancesItem(0))}${botaoCompra('Abrir baú', E.precoBau(), 'bau', 'verde')}
+      ${agora >= S.gratisEm ? `<button class="btn amarelo" data-a="gratis"><span>${ico('presente')} Baú grátis!</span></button>` : `<p class="suave">${ico('relogio')} Baú grátis de novo em ${fmtTempo((S.gratisEm - agora) / 1000)}</p>`}</div>
+    <div class="recrut premium"><h3>${BAUS.gemas.nome}</h3>${barras(chancesItem(0.6, 1))}<button class="btn roxo ${S.gemas >= GEMAS_BAU ? '' : 'sem'}" data-a="bauGemas"><span>Abrir</span><em>${ico('gema')}${GEMAS_BAU}</em></button></div>
+    <p class="suave">Mochila: ${(S.mochila || []).length}/${E.MOCHILA_MAX} · <button class="link" data-a="equip">ver equipamento</button></p>`;
 }
 function htmlObjetivos() {
   return '<div class="lista">' + OBJETIVOS.map(o => {
@@ -457,12 +457,24 @@ function cliqueFolha(e) {
   if (b.dataset.q) { som('abrir'); escolherEquipe(b.dataset.q); return; }
   if (b.dataset.a === 'trocar') { if (E.trocarPapeis()) { som('livro'); aviso(`${ico('quadro')} Papéis novos no quadro!`); } else { som('erro'); aviso(`${ico('gema')} Gemas insuficientes`, 'erro'); } }
   if (b.dataset.acel) { if (E.acelerar(b.dataset.acel)) som('confirma'); else { som('erro'); aviso(`${ico('gema')} Gemas insuficientes`, 'erro'); } }
-  if (b.dataset.a === 'recrutar' || b.dataset.a === 'premium' || b.dataset.a === 'gratis') {
-    const h = E.recrutar(b.dataset.a === 'premium', b.dataset.a === 'gratis');
-    if (h) revelar(h); else { som('erro'); if (S.herois.length < E.capacidade()) aviso(b.dataset.a === 'premium' ? `${ico('gema')} Gemas insuficientes` : `${ico('ouro')} Ouro insuficiente`, 'erro'); }
+  if (b.dataset.a === 'bau' || b.dataset.a === 'bauGemas' || b.dataset.a === 'gratis') {
+    const tp = b.dataset.a === 'bauGemas' ? 'gemas' : b.dataset.a === 'gratis' ? 'gratis' : 'comum', it = E.abrirBau(tp);
+    if (it) revelarItem(it); else { som('erro'); if ((S.mochila || []).length < E.MOCHILA_MAX) aviso(tp === 'gemas' ? `${ico('gema')} Gemas insuficientes` : `${ico('ouro')} Ouro insuficiente`, 'erro'); }
+  }
+  if (b.dataset.a === 'convidar') {
+    const h = E.recrutar(false, false);
+    if (h) revelar(h); else { som('erro'); if (S.herois.length < E.capacidade()) aviso(`${ico('ouro')} Ouro insuficiente`, 'erro'); }
   }
   if (b.dataset.obj) { const g = E.coletarObjetivo(b.dataset.obj); if (g) { som('confirma'); aviso(`${ico('gema')} +${g} gemas`, 'gema'); } }
   desenharFolha(true);
+}
+function revelarItem(it) {
+  const R = RARIDADE_ITEM[it.rar];
+  const c = modal(`<div class="revela r${Math.min(3, it.rar)}" style="--r:${R.cor};--c:${R.cor}"><div class="raios"></div><span class="retrato g">${ico(ESPACOS[it.slot].icone)}</span><b>${esc(it.nome)}</b>
+    <small style="color:${R.cor}">${R.nome} · ${ESPACOS[it.slot].nome} · Nv ${it.nivel}</small><small>${Object.entries(it.st).map(([k, v]) => textoAtr(k, v)).join(' · ')}</small></div>
+    <div class="linha"><button class="btn verde" data-eqb="${it.id}">Equipar</button><button class="btn azul" data-ok>Guardar</button></div>`, 'semFundo');
+  som(it.rar >= 3 ? 'lendario' : it.rar >= 2 ? 'marco' : 'moedas');
+  c.onclick = e => { if (e.target.closest('[data-eqb]')) { e.stopPropagation(); if (E.equipar(it.id)) { revestir(S.lider); som('espada'); aviso(`${ico('c_armas')} Equipado: ${esc(it.nome)}`, 'ok'); } $('#modal').hidden = true; } };
 }
 function revelar(h) {
   const c = CLASSES[h.cls], r = RARIDADES[h.rar];

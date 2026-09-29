@@ -35,6 +35,20 @@ export function gerarItem(nivel, rar = sortearRaridade(), slot = sorte(Object.ke
   it.poder = poderItem(it);
   return it;
 }
+// chance de cada raridade para um bônus de sorte (mesma conta do sortearRaridade)
+export function chancesItem(bonus = 0, minimo = 0) {
+  const k = 1 - bonus * 0.6, lim = [0.012, 0.06, 0.2, 0.48, 1].map(v => Math.min(1, v / k));
+  const p = [lim[4] - lim[3], lim[3] - lim[2], lim[2] - lim[1], lim[1] - lim[0], lim[0]].map(v => Math.max(0, v)); // comum..lendário
+  for (let i = 0; i < minimo; i++) { p[minimo] += p[i]; p[i] = 0; }
+  return p;
+}
+export const BAUS = {
+  comum: { nome: 'Baú do aventureiro', bonus: 0, min: 0 },
+  gratis: { nome: 'Baú grátis', bonus: 0.2, min: 0 },
+  gemas: { nome: 'Baú de cristal', bonus: 0.6, min: 1 },
+};
+export const custoBau = n => Math.round(120 * 1.13 ** n);
+export const GEMAS_BAU = 40;
 export const poderItem = it => Math.round((it.st.atk || 0) * 3 + (it.st.vida || 0) * 0.25 + (it.st.crit || 0) * 3 + (it.st.def || 0) * 3 + (it.st.vel || 0) * 2.5);
 export const precoItem = it => Math.round((20 + it.nivel * 12) * RARIDADE_ITEM[it.rar].mult ** 2);
 // soma dos atributos do que está equipado

@@ -1,7 +1,7 @@
 // Lógica da Guilda (sem gráficos): economia, heróis, missões, fama, objetivos e save.
 // O tempo das missões e o ganho offline usam o relógio real (Date.now).
 import { visualAleatorio } from './aparencia.js';
-import { gerarItem, precoItem, atributosEquip } from './itens.js';
+import { gerarItem, precoItem, atributosEquip, BAUS, custoBau, GEMAS_BAU, sortearRaridade } from './itens.js';
 import { EDIFICIOS, EF, custoEd, CLASSES, RARIDADES, chancesRecrutar, xpHeroi, custoTreinar, custoRecrutar, GEMAS_RECRUTAR, nomeAleatorio,
   REGIOES, missao, chanceSucesso, xpFama, OBJETIVOS, gemasObjetivo, OFFLINE_MAX, xpSistema, PONTOS_NIVEL, rankDe,
   RANK_REGIAO, rankIdx, TITULOS, MAX_QUADRO, GEMAS_TROCAR, MAX_ORDENS, ORDEM_SEG, GEMAS_ORDENS, AUTO_MULT } from './dados.js';
@@ -65,6 +65,16 @@ export function venderItem(id) { mochila(); const i = S.mochila.findIndex(x => x
 // a arma e o elmo equipados aparecem no boneco do líder
 export function aplicarVisualEquip() { const l = heroi(S.lider); if (!l) return; if (S.equip.arma?.visual) l.visual.arma = S.equip.arma.visual; if (S.equip.elmo?.visual) l.visual.cha = S.equip.elmo.visual; }
 export const novoItem = gerarItem;
+export const precoBau = () => custoBau(S.st.baus || 0);
+// baús de itens (como o recrutamento, mas para o seu herói)
+export function abrirBau(tipo, agora = Date.now()) {
+  mochila(); if (S.mochila.length >= MOCHILA_MAX) { ev('aviso', { txt: 'Mochila cheia! Venda alguns itens.' }); return null; }
+  if (tipo === 'gratis') { if (agora < S.gratisEm) return null; S.gratisEm = agora + 4 * 3600e3; }
+  else if (tipo === 'gemas') { if (S.gemas < GEMAS_BAU) return null; S.gemas -= GEMAS_BAU; }
+  else { const c = precoBau(); if (S.ouro < c) return null; S.ouro -= c; }
+  const b = BAUS[tipo]; let rar = sortearRaridade(b.bonus); if (rar < b.min) rar = b.min;
+  const it = gerarItem(Math.max(1, sis().nivel), rar); S.mochila.push(it); S.st.baus = (S.st.baus || 0) + 1; return it;
+}
 
 // ---------------- Sistema do líder ----------------
 export function sis() { if (!S.sis) S.sis = { nivel: 1, xp: 0, pontos: 0, a: { for: 0, agi: 0, vit: 0, int: 0 } }; return S.sis; }
