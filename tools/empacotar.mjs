@@ -17,7 +17,8 @@ const N = path.join(KITS, 'nature-kit/Models/GLTF format');
 const D = path.join(KITS, 'mini-dungeon/Models/GLB format');
 const AV = path.join(KITS, 'aventureiros2'), ANI = path.join(KITS, 'animacoes/Animations/gltf/Rig_Medium');
 const A = path.join(AV, 'Assets/gltf'), W = path.join(KITS, 'armas-bits/Assets/gltf');
-const QN = path.join(KITS, 'natureza2/leve'); // Quaternius Stylized Nature MegaKit (CC0), texturas reduzidas
+const QN = path.join(KITS, 'natureza2/leve');
+const ANIMAIS = ['Wolf', 'Fox', 'Stag', 'Bull', 'Husky']; // Quaternius Ultimate Animated Animals (CC0) // Quaternius Stylized Nature MegaKit (CC0), texturas reduzidas
 
 const COMUM = ['Idle', 'Running_A', 'Walking_A', 'Death_A', 'Hit_A', 'Dodge_Forward', 'Cheer', 'Interact'];
 const ESQ = ['Spawn_Ground_Skeletons', 'Death_C_Skeletons', 'Idle_Combat'];
@@ -89,6 +90,11 @@ for (const [k, [arq, extras, tirar]] of Object.entries(PERSONAGENS)) {
   for (const nd of doc.getRoot().listNodes()) if (tirar.includes(nd.getName())) nd.dispose();
   await doc.transform(resample({ tolerance: 1e-3 }), prune(), dedup(), Q);
   out[k] = Buffer.from(await io.writeBinary(doc));
+}
+for (const n of ANIMAIS) {
+  const doc = await io.read(path.join(KITS, 'animais', n + '.gltf'));
+  await doc.transform(resample({ tolerance: 1e-3 }), prune(), dedup());
+  out['bicho:' + n] = Buffer.from(await io.writeBinary(doc));
 }
 for (const [k, [dir, arq]] of Object.entries(AVULSOS)) {
   const doc = await io.read(path.join(dir, arq));

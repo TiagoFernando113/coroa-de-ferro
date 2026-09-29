@@ -570,3 +570,4 @@ export function medida(m) { const p = pecas[m.replace(':', '')]; if (!p) return 
 export function debugHerois() { const g = modelos.herois.scene.children[0]; const out = []; g.traverse(o => out.push(o.type + ' ' + o.name + ' p' + o.position.toArray().map(v => v.toFixed(2)) + ' r' + o.rotation.toArray().slice(0, 3).map(v => v.toFixed(2)) + ' s' + o.scale.toArray().map(v => v.toFixed(2)))); return out.slice(0, 14).join('\n'); }
 export function debugCena(f) { scene.traverse(f); }
 export function neblina(perto, longe) { scene.fog.near = perto; scene.fog.far = longe; cam.far = longe + 80; cam.updateProjectionMatrix(); }
+export const Cor = THREE.Color;

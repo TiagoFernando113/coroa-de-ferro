@@ -9,6 +9,7 @@ import { POS, atualizarPredio, revestir } from './base.js';
 import { abrirCriador } from './criador.js';
 import { MUNDO, GUILDA_W, mostrarMundo, mundoVisivel, camposVisiveis } from './mundo.js';
 import { iniciarLuta } from './luta.js';
+import { RARIDADE_ITEM, ESPACOS, ATR_ITEM, textoAtr, precoItem, atributosEquip } from './itens.js';
 import { ETAPAS, avancar, etapaAtual, revelado, visivel, livre, proximoTrancado } from './etapas.js';
 
 const $ = s => document.querySelector(s);
@@ -123,6 +124,44 @@ function rotulosMundo() {
     else { const ms = S.missoes.find(m => 'm' + m.uid === k); if (ms) por(k, c.x, 5, c.z, `${ico('poder')}<b>${fmtTempo((ms.fim - Date.now()) / 1000)}</b>`, 'campoM lutaM'); }
   }
   for (const el of [...box.children]) if (!vivos.has(el.dataset.k)) el.remove();
+}
+
+// ---------------- loot e equipamento ----------------
+const cartaoItem = (it, extra = '') => { const R = RARIDADE_ITEM[it.rar]; return `<div class="item" style="--ri:${R.cor}"><span class="iIco">${ico(ESPACOS[it.slot].icone)}</span>
+  <div class="cTxt"><b>${esc(it.nome)}</b><small style="color:${R.cor}">${R.nome} · ${ESPACOS[it.slot].nome} · Nv ${it.nivel}</small>
+  <small>${Object.entries(it.st).map(([k, v]) => textoAtr(k, v)).join(' · ')}</small></div>${extra}</div>`; };
+export function janelaLoot(itens) {
+  const guardados = itens.filter(it => E.guardarItem(it));
+  som(itens.some(it => it.rar >= 3) ? 'lendario' : 'moedas');
+  const c = modal(`<div class="faixaTit">Loot!</div><div class="bauAberto">${ico('bau')}</div>
+    <div class="lista">${guardados.map(it => cartaoItem(it, `<button class="btn verde peq" data-eq="${it.id}">Equipar</button>`)).join('')}</div>
+    ${guardados.length < itens.length ? '<p class="alerta">Mochila cheia: alguns itens ficaram para trás.</p>' : ''}
+    <button class="btn azul" data-ok>Guardar na mochila</button>`);
+  c.onclick = e => { const b = e.target.closest('[data-eq]'); if (!b) return; e.stopPropagation(); if (E.equipar(b.dataset.eq)) { revestir(S.lider); som('espada'); b.outerHTML = `<em class="chip verde">Equipado</em>`; } };
+}
+let itemAberto = null;
+export function janelaEquip() {
+  E.mochila(); const q = atributosEquip(S.equip), l = E.lider();
+  const sel = itemAberto && (S.mochila.find(x => x.id === itemAberto) || Object.values(S.equip).find(x => x?.id === itemAberto));
+  const equipado = sel && S.equip[sel.slot]?.id === sel.id, atual = sel && S.equip[sel.slot];
+  const cmp = sel && !equipado ? Object.keys(ATR_ITEM).map(k => { const d = (sel.st[k] || 0) - (atual?.st[k] || 0); return d ? `<span class="${d > 0 ? 'mais' : 'menos'}">${d > 0 ? '+' : ''}${d}${ATR_ITEM[k][1]} ${ATR_ITEM[k][0]}</span>` : ''; }).join('') : '';
+  const c = modal(`<div class="faixaTit">Equipamento</div><p class="suave">${ico('coroa')} ${esc(l?.nome || '')} · vale nas lutas do modo manual</p>
+    <div class="espacos">${Object.entries(ESPACOS).map(([k, e]) => { const it = S.equip[k], R = it && RARIDADE_ITEM[it.rar];
+      return `<button class="espaco ${it ? 'cheio' : ''}" data-it="${it?.id || ''}" style="--ri:${R?.cor || '#c9c3b8'}">${ico(e.icone)}<small>${it ? esc(it.nome) : e.nome}</small></button>`; }).join('')}</div>
+    <div class="totais">${Object.keys(ATR_ITEM).map(k => `<span>${ATR_ITEM[k][0]} <b>+${q[k]}${ATR_ITEM[k][1]}</b></span>`).join('')}</div>
+    ${sel ? `<div class="detalhe">${cartaoItem(sel)}${cmp ? `<div class="cmp">${cmp}</div>` : ''}<div class="linha">
+      ${equipado ? '<button class="btn cinza peq" data-acao="tirar">Tirar</button>' : `<button class="btn verde peq" data-acao="eq">Equipar</button><button class="btn amarelo peq" data-acao="vender">Vender ${fmt(precoItem(sel))}${ico('ouro', 'mini')}</button>`}</div></div>` : ''}
+    <h4 class="mochT">Mochila ${S.mochila.length}/${E.MOCHILA_MAX}</h4>
+    <div class="mochila">${S.mochila.map(it => `<button class="slotM ${it.id === itemAberto ? 'on' : ''}" data-it="${it.id}" style="--ri:${RARIDADE_ITEM[it.rar].cor}">${ico(ESPACOS[it.slot].icone)}<i>${it.nivel}</i></button>`).join('') || '<p class="suave">Vazia. Lute no modo manual para achar itens!</p>'}</div>
+    <button class="btn azul" data-ok>Fechar</button>`);
+  c.onclick = e => {
+    const b = e.target.closest('button'); if (!b || b.dataset.ok != null) return; e.stopPropagation();
+    if (b.dataset.it != null) { itemAberto = b.dataset.it || null; som('clique'); return janelaEquip(); }
+    if (b.dataset.acao === 'eq' && E.equipar(sel.id)) { revestir(S.lider); som('espada'); }
+    if (b.dataset.acao === 'tirar' && E.desequipar(sel.slot)) { som('clique'); }
+    if (b.dataset.acao === 'vender') { const v = E.venderItem(sel.id); if (v) { som('moedas'); aviso(`${ico('ouro')} +${fmt(v)} ouro`); itemAberto = null; } }
+    janelaEquip();
+  };
 }
 
 // ---------------- avisos e números flutuantes ----------------
@@ -250,9 +289,10 @@ export function janelaSistema() {
     <div class="sisLinha"><span>Pontos livres</span><b class="${s.pontos ? 'brilha' : ''}">${s.pontos}</b></div>
     ${Object.entries(ATRIBUTOS).map(([k, a]) => `<div class="sisAt" style="--ac:${a.cor}"><span class="ai">${ico(a.icone)}</span><div><b>${a.nome} <i>${s.a[k]}</i></b><small>${a.txt(s.a[k])}</small></div>
       <button class="sisMais" data-at="${k}" ${s.pontos ? '' : 'disabled'}>+</button></div>`).join('')}
+    <button class="btn roxo" data-eqp>${ico('c_armas')} Equipamento e mochila</button>
     <p class="sisDica">O líder ganha XP com missões (mais se ele for junto), melhorias de prédios, objetivos e o Campo de Treino.</p>
     <button class="btn azul" data-ok>Fechar</button></div>`, 'semFundo');
-  c.onclick = e => { const bt = e.target.closest('[data-at]'); if (!bt) return; e.stopPropagation(); if (E.distribuir(bt.dataset.at)) { som('marco'); janelaSistema(); } };
+  c.onclick = e => { if (e.target.closest('[data-eqp]')) { itemAberto = null; return janelaEquip(); } const bt = e.target.closest('[data-at]'); if (!bt) return; e.stopPropagation(); if (E.distribuir(bt.dataset.at)) { som('marco'); janelaSistema(); } };
 }
 function estrelas(rar) { return `<span class="estrelas">${Array.from({ length: rar + 1 }, () => ico('estrela')).join('')}</span>`; }
 function chipEstado(h) {
@@ -275,7 +315,7 @@ function htmlHeroi() {
     <div class="barra xp"><i style="width:${h.xp / xpHeroi(h.nivel) * 100}%"></i><span>XP ${fmt(h.xp)} / ${fmt(xpHeroi(h.nivel))}</span></div>
     <p class="suave">${chipEstado(h)} ${afins ? `Bônus de +25% em: ${afins}.` : ''}</p>
     ${botaoCompra('Treinar (+1 nível)', custoTreinar(h), 'treinar', 'verde grande')}
-    <button class="btn azul" data-a="visual">${ico('pincel')} Personalizar aparência</button>
+    <div class="linha"><button class="btn azul" data-a="visual">${ico('pincel')} Aparência</button>${h.id === S.lider ? `<button class="btn roxo" data-a="equip">${ico('c_armas')} Equipamento</button>` : ''}</div>
     ${h.id === S.lider ? `<p class="suave">${ico('coroa')} Líder da guilda</p>` : `<div class="linha"><button class="btn amarelo peq" data-a="lider">${ico('coroa')} Tornar líder</button><button class="btn cinza peq" data-a="aposentar">Aposentar</button></div>`}`;
 }
 let vistaM = 'quadro', filtroReg = null;
@@ -380,6 +420,7 @@ function cliqueFolha(e) {
   if (b.dataset.heroi) { som('abrir'); abrirHeroi(b.dataset.heroi); return; }
   if (b.dataset.a === 'treinar') { if (E.treinar(heroiAberto)) som('espada'); else { som('erro'); aviso(`${ico('ouro')} Ouro insuficiente`, 'erro'); } }
   if (b.dataset.a === 'sistema') { som('abrir'); janelaSistema(); return; }
+  if (b.dataset.a === 'equip') { som('abrir'); itemAberto = null; janelaEquip(); return; }
   if (b.dataset.a === 'visual') { som('abrir'); const id = heroiAberto; abrirCriador(id, { aoFechar: () => { revestir(id); abrirHeroi(id); } }); return; }
   if (b.dataset.a === 'lider') { S.lider = heroiAberto; som('confirma'); aviso(`${ico('coroa')} ${esc(E.heroi(heroiAberto).nome)} agora é o líder!`, 'ouro'); }
   if (b.dataset.a === 'aposentar') { const h = E.heroi(heroiAberto); if (h && confirm(`Aposentar ${h.nome}? Você recebe um pouco de ouro.`)) { const v = E.aposentar(h.id); if (v) { som('moedas'); aviso(`${esc(h.nome)} se aposentou. +${fmt(v)} ouro`); abrirAba('herois'); } } return; }
@@ -427,7 +468,7 @@ function escolherEquipe(qid) {
       if (b.dataset.auto != null) { sel = auto(); som('clique'); desenhar(); }
       if (b.dataset.manual != null) { $('#modal').hidden = true; abrirAba(null); irMundo(true); const eq = sel.slice(0, m.max);
         aviso(`${ico('coroa')} ${esc(E.heroi(eq[0]).nome)} assumiu a liderança!`, 'ouro', 3000);
-        iniciarLuta(q.id, eq, (venceu, desistiu) => { if (!desistiu) aviso(venceu ? `${ico('check')} Missão cumprida no modo manual!` : `${ico('ferido')} Seu líder caiu... tente de novo`, venceu ? 'ok' : 'erro', 3500); }); }
+        iniciarLuta(q.id, eq, (venceu, desistiu, loot) => { if (!desistiu) aviso(venceu ? `${ico('check')} Missão cumprida no modo manual!` : `${ico('ferido')} Seu líder caiu... tente de novo`, venceu ? 'ok' : 'erro', 3500); if (loot && loot.length) setTimeout(() => janelaLoot(loot), 400); }); }
       if (b.dataset.ir != null) { if (E.pegar(q.id, sel)) { som('enviar'); $('#modal').hidden = true; aviso(`${ico('missoes')} Missão aceita: ${esc(q.nome)}`); desenharFolha(true); } else som('erro'); }
     };
   };

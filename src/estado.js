@@ -1,6 +1,7 @@
 // Lógica da Guilda (sem gráficos): economia, heróis, missões, fama, objetivos e save.
 // O tempo das missões e o ganho offline usam o relógio real (Date.now).
 import { visualAleatorio } from './aparencia.js';
+import { gerarItem, precoItem, atributosEquip } from './itens.js';
 import { EDIFICIOS, EF, custoEd, CLASSES, RARIDADES, chancesRecrutar, xpHeroi, custoTreinar, custoRecrutar, GEMAS_RECRUTAR, nomeAleatorio,
   REGIOES, missao, chanceSucesso, xpFama, OBJETIVOS, gemasObjetivo, OFFLINE_MAX, xpSistema, PONTOS_NIVEL, rankDe,
   RANK_REGIAO, rankIdx, TITULOS, MAX_QUADRO, GEMAS_TROCAR, MAX_ORDENS, ORDEM_SEG, GEMAS_ORDENS, AUTO_MULT } from './dados.js';
@@ -35,6 +36,22 @@ export function apagar() { try { localStorage.removeItem(SAVE); } catch (e) {} }
 
 // ---------------- números derivados ----------------
 export const nivel = id => S.ed[id] || 0;
+// ---------------- equipamento e mochila do líder ----------------
+export const MOCHILA_MAX = 30;
+export function mochila() { if (!S.mochila) S.mochila = []; if (!S.equip) S.equip = {}; return S.mochila; }
+export const atrEquip = () => atributosEquip(S.equip);
+export function guardarItem(it) { mochila(); if (S.mochila.length >= MOCHILA_MAX) { ev('aviso', { txt: 'Mochila cheia! Venda alguns itens.' }); return false; } S.mochila.push(it); return true; }
+export function equipar(id) {
+  mochila(); const i = S.mochila.findIndex(x => x.id === id); if (i < 0) return false;
+  const it = S.mochila[i], velho = S.equip[it.slot]; S.mochila.splice(i, 1); if (velho) S.mochila.push(velho); S.equip[it.slot] = it;
+  aplicarVisualEquip(); return true;
+}
+export function desequipar(slot) { mochila(); const it = S.equip[slot]; if (!it || S.mochila.length >= MOCHILA_MAX) return false; delete S.equip[slot]; S.mochila.push(it); aplicarVisualEquip(); return true; }
+export function venderItem(id) { mochila(); const i = S.mochila.findIndex(x => x.id === id); if (i < 0) return 0; const v = precoItem(S.mochila[i]); S.mochila.splice(i, 1); ganharOuro(v); return v; }
+// a arma e o elmo equipados aparecem no boneco do líder
+export function aplicarVisualEquip() { const l = heroi(S.lider); if (!l) return; if (S.equip.arma?.visual) l.visual.arma = S.equip.arma.visual; if (S.equip.elmo?.visual) l.visual.cha = S.equip.elmo.visual; }
+export const novoItem = gerarItem;
+
 // ---------------- Sistema do líder ----------------
 export function sis() { if (!S.sis) S.sis = { nivel: 1, xp: 0, pontos: 0, a: { for: 0, agi: 0, vit: 0, int: 0 } }; return S.sis; }
 export const bonus = () => { const a = sis().a; return { poder: 1 + 0.02 * a.for, tempo: Math.max(0.5, 1 - 0.01 * a.agi), ferir: Math.max(0.3, 1 - 0.02 * a.vit), ouro: 1 + 0.02 * a.int }; };
@@ -54,7 +71,7 @@ export const vagasMissao = () => EF.quadro(nivel('quadro')).vagas;
 export function poder(h, r = null) {
   const c = CLASSES[h.cls];
   let p = c.poder * RARIDADES[h.rar].mult * 1.1 ** (h.nivel - 1) * EF.forja(nivel('forja')) * bonus().poder;
-  if (h.id === S.lider) p *= 1.06 ** (sis().nivel - 1); // o líder cresce com o Sistema
+  if (h.id === S.lider) { p *= 1.06 ** (sis().nivel - 1); const q = atributosEquip(S.equip); p *= 1 + (q.atk + q.crit + q.def) / 100 + q.vida / 2000; } // o líder cresce com o Sistema e o equipamento
   if (r != null && REGIOES[r].afin === h.cls) p *= 1.25;
   return p;
 }
