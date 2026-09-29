@@ -1,11 +1,10 @@
 // Renderização 3D (three.js): carrega modelos.bin, monta o mundo com a geometria
 // estática fundida (poucas chamadas de desenho — importante no celular),
-// personagens animados, efeitos e a câmera em 3ª pessoa.
+// personagens animados, efeitos e a câmera (orbitando um ponto que pode ser arrastado).
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { LIM } from './mundo.js';
 
 export const ESC_PERS = 0.75; // personagens KayKit (~2,5 u) → ~1,85 m
 let renderer, scene, cam, sol, hemi, relogio = 0;
@@ -22,8 +21,8 @@ export function iniciar(canvas, q) {
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   scene = new THREE.Scene();
   const ceu = new THREE.Color(0xa9d4f5);
-  scene.background = ceu; scene.fog = new THREE.Fog(ceu, 55, 120);
-  cam = new THREE.PerspectiveCamera(55, 1, 0.1, 140);
+  scene.background = ceu; scene.fog = new THREE.Fog(ceu, 70, 150);
+  cam = new THREE.PerspectiveCamera(45, 1, 0.5, 220);
   hemi = new THREE.HemisphereLight(0xdff1ff, 0x5a7a3a, 1.35); scene.add(hemi);
   sol = new THREE.DirectionalLight(0xfff1d6, 2.4); sol.position.set(20, 40, 10);
   sol.castShadow = renderer.shadowMap.enabled;
@@ -37,7 +36,7 @@ export function iniciar(canvas, q) {
 }
 function medir() {
   const w = innerWidth, h = innerHeight;
-  renderer.setSize(w, h, false); cam.aspect = w / h; cam.fov = w < h ? 62 : 52; cam.updateProjectionMatrix();
+  renderer.setSize(w, h, false); cam.aspect = w / h; cam.fov = w < h ? 50 : 40; cam.updateProjectionMatrix();
 }
 
 export async function carregar(url, progresso) {
@@ -70,8 +69,9 @@ const toF32 = a => {
   for (let i = 0; i < n; i++) for (let k = 0; k < s; k++) arr[i * s + k] = f[k].call(a, i);
   return new THREE.BufferAttribute(arr, s);
 };
+// M = { tam, pecas:[{m,x,y,z,ry,s}], caminhos:[{w,pts}], patios:[{x0,z0,x1,z1,cor}], pracas:[{x,z,r,cor}] }
 export function montarMundo(M) {
-  // chão
+  const LIM = M.tam / 2;
   const chao = new THREE.Mesh(new THREE.PlaneGeometry(LIM * 2 + 40, LIM * 2 + 40), new THREE.MeshLambertMaterial({ map: texturaChao(M) }));
   chao.rotation.x = -Math.PI / 2; chao.receiveShadow = true; scene.add(chao);
   const longe = new THREE.Mesh(new THREE.PlaneGeometry(800, 800), new THREE.MeshLambertMaterial({ color: 0x4f7a34 }));
@@ -111,12 +111,12 @@ const clonar = o => { const c = o.clone(); c.position.set(0, 0, 0); c.rotation.s
 
 function texturaChao(M) {
   const N = 2048, cv = document.createElement('canvas'); cv.width = cv.height = N;
-  const g = cv.getContext('2d'), k = N / (LIM * 2 + 40), W = (x) => (x + LIM + 20) * k;
+  const LIM = M.tam / 2, g = cv.getContext('2d'), k = N / (LIM * 2 + 40), W = (x) => (x + LIM + 20) * k;
   g.fillStyle = '#5c8f3a'; g.fillRect(0, 0, N, N);
   const r = (() => { let s = 99; return () => ((s = (s * 16807) % 2147483647) / 2147483647); })();
   for (let i = 0; i < 9000; i++) {
-    const x = r() * N, y = r() * N, fora = y / k - LIM - 20 < 0;
-    g.fillStyle = `hsla(${fora ? 75 + r() * 25 : 85 + r() * 25},${fora ? 30 : 40 + r() * 15}%,${fora ? 26 + r() * 10 : 30 + r() * 12}%,${0.25 + r() * 0.3})`;
+    const x = r() * N, y = r() * N;
+    g.fillStyle = `hsla(${85 + r() * 25},${40 + r() * 15}%,${30 + r() * 12}%,${0.25 + r() * 0.3})`;
     g.beginPath(); g.arc(x, y, 3 + r() * 14, 0, 7); g.fill();
   }
   for (const p of M.patios || []) { g.fillStyle = p.cor; g.globalAlpha = 0.45; g.fillRect(W(p.x0), W(p.z0), (p.x1 - p.x0) * k, (p.z1 - p.z0) * k); g.globalAlpha = 1; }
@@ -125,13 +125,16 @@ function texturaChao(M) {
     g.strokeStyle = cor; g.lineWidth = (c.w + extra) * k; g.beginPath();
     c.pts.forEach(([x, z], i) => i ? g.lineTo(W(x), W(z)) : g.moveTo(W(x), W(z))); g.stroke();
   }
-  g.fillStyle = '#9c9488'; g.beginPath(); g.arc(W(0), W(26), 7 * k, 0, 7); g.fill();
+  for (const p of M.pracas || []) {
+    g.fillStyle = p.cor || '#a39a8c'; g.beginPath(); g.arc(W(p.x), W(p.z), p.r * k, 0, 7); g.fill();
+    g.strokeStyle = 'rgba(60,55,50,.3)'; g.lineWidth = 1.5; for (let rr = 1.6; rr < p.r; rr += 1.6) { g.beginPath(); g.arc(W(p.x), W(p.z), rr * k, 0, 7); g.stroke(); }
+  }
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t;
 }
 
-// grupo de peças do cenário (construções que mudam de nível)
-export function grupo(lista, x = 0, z = 0) {
-  const G = new THREE.Group(); G.position.set(x, 0, z);
+// grupo de peças do cenário (construções que mudam de nível); id: pode ser tocado (pick)
+export function grupo(lista, x = 0, z = 0, id = null) {
+  const G = new THREE.Group(); G.position.set(x, 0, z); if (id) G.userData.ed = id;
   for (const p of lista) {
     const src = pecas[p.m.replace(':', '')]; if (!src) { console.warn('peça ausente', p.m); continue; }
     const o = clonar(src); o.position.set(p.x || 0, p.y || 0, p.z || 0); o.rotation.y = p.ry || 0;
@@ -147,6 +150,23 @@ export function orbe(x, y, z, r) {
   const a = new THREE.Mesh(GEO_BOLA, MAT_ADD(0x7a3aff)); a.material.opacity = 0.45; a.scale.setScalar(r * 1.1);
   g.add(n, a); scene.add(g); return g;
 }
+// anel mágico girando (portal)
+export function anel(x, y, z, r, cor = 0x9a5aff) {
+  const g = new THREE.Group(); g.position.set(x, y, z);
+  const t = new THREE.Mesh(new THREE.TorusGeometry(r, r * 0.08, 8, 40), MAT_ADD(cor)); const d = new THREE.Mesh(new THREE.CircleGeometry(r * 0.95, 32), MAT_ADD(cor)); d.material.opacity = 0.35;
+  g.add(t, d); scene.add(g); return g;
+}
+// toque na tela → id do prédio (grupo com userData.ed) sob o dedo
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+export function tocado(sx, sy) {
+  ndc.set(sx / innerWidth * 2 - 1, -(sy / innerHeight) * 2 + 1); ray.setFromCamera(ndc, cam);
+  const alvos = scene.children.filter(o => o.userData.ed);
+  const hit = ray.intersectObjects(alvos, true)[0]; if (!hit) return null;
+  let o = hit.object; while (o && !o.userData.ed) o = o.parent; return o ? o.userData.ed : null;
+}
+// ponto do chão sob um ponto da tela (para arrastar a câmera)
+const plano = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), pTmp = new THREE.Vector3();
+export function chaoEm(sx, sy) { ndc.set(sx / innerWidth * 2 - 1, -(sy / innerHeight) * 2 + 1); ray.setFromCamera(ndc, cam); return ray.ray.intersectPlane(plano, pTmp) ? { x: pTmp.x, z: pTmp.z } : null; }
 // botão no chão (estilo tycoon)
 const GEO_PAD = new THREE.CylinderGeometry(1.25, 1.35, 0.18, 32), GEO_ANEL = new THREE.TorusGeometry(1.3, 0.08, 6, 40).rotateX(Math.PI / 2);
 export function pad(x, z) {
@@ -257,7 +277,7 @@ export function faiscas(x, y, z, cor, n = 10, forca = 3) {
 }
 
 // ---------------- câmera e quadro ----------------
-export const camera = { yaw: Math.PI, pitch: 0.72, dist: 12, alvo: new THREE.Vector3(), tremor: 0 };
+export const camera = { yaw: Math.PI, pitch: 0.72, dist: 12, alvo: new THREE.Vector3(), tremor: 0, suave: 10 };
 const olharTmp = new THREE.Vector3();
 export function quadro(dt, foco) {
   relogio += dt;
@@ -281,7 +301,7 @@ export function quadro(dt, foco) {
 
   // câmera atrás do herói
   const c = camera, sy = Math.sin(c.yaw), cy = Math.cos(c.yaw), cp = Math.cos(c.pitch), sp = Math.sin(c.pitch);
-  c.alvo.lerp(olharTmp.set(foco.x, 1.3, foco.z), Math.min(1, dt * 10));
+  c.alvo.lerp(olharTmp.set(foco.x, 1.3, foco.z), Math.min(1, dt * c.suave));
   cam.position.set(c.alvo.x - sy * cp * c.dist, c.alvo.y + sp * c.dist, c.alvo.z - cy * cp * c.dist);
   if (c.tremor > 0) { cam.position.x += (Math.random() - 0.5) * c.tremor; cam.position.y += (Math.random() - 0.5) * c.tremor; c.tremor = Math.max(0, c.tremor - dt * 2); }
   cam.lookAt(c.alvo);

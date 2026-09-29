@@ -5,7 +5,7 @@
 set -e
 cd "$(dirname "$0")"
 mkdir -p kits/kaykit/armas
-for p in castle-kit fantasy-town-kit nature-kit mini-dungeon; do
+for p in castle-kit fantasy-town-kit nature-kit mini-dungeon interface-sounds rpg-audio music-jingles; do
   [ -d "kits/$p" ] && continue
   url=$(curl -s "https://kenney.nl/assets/$p" | grep -oE 'https://kenney.nl/media/pages/assets/[^"]+\.zip' | head -1)
   curl -sL -o "kits/$p.zip" "$url" && unzip -qo "kits/$p.zip" -d "kits/$p" && rm "kits/$p.zip"
@@ -22,3 +22,6 @@ for n in Skeleton_Axe Skeleton_Blade Skeleton_Staff Skeleton_Crossbow Skeleton_S
   for e in gltf bin; do [ -f "kits/kaykit/armas/$n.$e" ] || curl -sfL -o "kits/kaykit/armas/$n.$e" "$S/Assets/gltf/$n.$e"; done
 done
 [ -f kits/kaykit/armas/skeleton_texture.png ] || curl -sfL -o kits/kaykit/armas/skeleton_texture.png "$S/Assets/gltf/skeleton_texture.png"
+mkdir -p kits/fontes
+[ -f kits/fontes/LilitaOne.ttf ] || curl -sfL -o kits/fontes/LilitaOne.ttf https://raw.githubusercontent.com/google/fonts/main/ofl/lilitaone/LilitaOne-Regular.ttf
+[ -f kits/fontes/Fredoka.ttf ] || curl -sfL -o kits/fontes/Fredoka.ttf "https://raw.githubusercontent.com/google/fonts/main/ofl/fredoka/Fredoka%5Bwdth,wght%5D.ttf"

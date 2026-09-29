@@ -1,52 +1,58 @@
-// Ponto de entrada: carrega os modelos, tela inicial, escolha de classe e laço do jogo.
+// Ponto de entrada: carrega modelos e recursos, abre o save (com ganhos offline) e roda o laço.
 import * as C from './cena.js';
-import { G, iniciar, passo, temSave, salvar } from './jogo.js';
-import { montarHUD, atualizar, ui } from './ui.js';
-import { CLASSES, VERSAO } from './dados.js';
+import * as E from './estado.js';
+import { montarBase, atualizarHerois, efeitosBase } from './base.js';
+import { montar, atualizar, ui, carregarRecursos, boasVindas, flutuar3d, som } from './ui.js';
+import { VERSAO } from './dados.js';
 
 const $ = s => document.querySelector(s);
 window.VERSAO = VERSAO;
-try { ui.qualidade = localStorage.getItem('coroa_rpg_q') || (Math.min(screen.width, screen.height) < 500 && devicePixelRatio > 2.5 ? 'media' : 'media'); } catch (e) {}
+try { ui.qualidade = localStorage.getItem('guilda_q') || 'media'; } catch (e) {}
+
+async function baixar(url, prog) {
+  const resp = await fetch(url), total = +resp.headers.get('content-length') || 0;
+  if (!resp.body || !total) return resp.arrayBuffer();
+  const leitor = resp.body.getReader(), partes = []; let lido = 0;
+  for (;;) { const { done, value } = await leitor.read(); if (done) break; partes.push(value); lido += value.length; prog(lido / total); }
+  const u8 = new Uint8Array(lido); let o = 0; for (const p of partes) { u8.set(p, o); o += p.length; } return u8.buffer;
+}
 
 async function comecar() {
   C.iniciar($('#cena'), ui.qualidade);
-  const t = $('#titulo');
+  const barra = $('#carga i'); let pm = 0, pr = 0; const prog = () => { barra.style.width = Math.round((pm * 0.9 + pr * 0.1) * 100) + '%'; };
   try {
-    await C.carregar('modelos.bin', p => { $('#carga i').style.width = Math.round(p * 100) + '%'; });
-  } catch (e) { t.querySelector('.tMenu').innerHTML = `<p>Não foi possível carregar o jogo 😢<br><small>${e.message}</small></p>`; return; }
+    const [, rec] = await Promise.all([
+      C.carregar('modelos.bin', p => { pm = p; prog(); }),
+      baixar('recursos.bin', p => { pr = p; prog(); }),
+    ]);
+    await carregarRecursos(rec);
+  } catch (e) { $('.tMenu').innerHTML = `<p>Não foi possível carregar 😢<br><small>${e.message}</small></p>`; return; }
   $('#carga').hidden = true;
-  const m = t.querySelector('.tMenu');
-  m.innerHTML = '';
-  if (temSave()) m.append(btn('▶️ Continuar', () => entrar()));
-  m.append(btn(temSave() ? '✨ Novo jogo' : '▶️ Jogar', () => escolherClasse()));
-}
-const btn = (txt, fn, cls = 'btn grande') => { const b = document.createElement('button'); b.className = cls; b.textContent = txt; b.onclick = fn; return b; };
-
-function escolherClasse() {
-  const t = $('#titulo');
-  t.innerHTML = `<h2>Escolha seu herói</h2><div class="classes">${Object.entries(CLASSES).map(([k, c]) => `
-    <button class="classe" data-c="${k}" style="--c:${c.cor}"><i>${c.icone}</i><b>${c.nome}</b><span>${c.desc}</span>
-      <div class="cStats"><em>❤️ ${c.vida}</em><em>⚔️ ${c.atk}</em><em>🛡️ ${c.def}</em><em>💧 ${c.mana}</em></div></button>`).join('')}</div>`;
-  t.onclick = e => { const b = e.target.closest('.classe'); if (b) entrar(b.dataset.c); };
+  const novo = !E.carregar(); if (novo) E.novo();
+  const b = document.createElement('button'); b.className = 'btn verde grande'; b.textContent = novo ? 'Fundar minha guilda' : 'Entrar na guilda';
+  b.onclick = () => { som('confirma'); entrar(novo); };
+  $('.tMenu').innerHTML = ''; $('.tMenu').append(b);
 }
 
-function entrar(cls) {
-  if (cls && temSave() && !confirm('Começar um novo jogo apaga o progresso salvo. Continuar?')) return;
-  $('#titulo').hidden = true;
-  iniciar(cls);
-  montarHUD();
-  let ultimo = performance.now();
+function entrar(novo) {
+  $('#titulo').classList.add('sai'); setTimeout(() => $('#titulo').remove(), 600);
+  const off = novo ? null : E.offline();
+  montarBase(); montar();
+  if (off) boasVindas(off);
+  C.camera.yaw = Math.PI - 0.45; C.camera.pitch = 0.95; C.camera.dist = 74;
+  let ultimo = performance.now(), salvarT = 0;
   const laco = agora => {
-    const dt = Math.min(0.05, (agora - ultimo) / 1000); ultimo = agora;
-    if (!ui.pausado) passo(dt);
-    else if (G.jog) G.jog.vis.mixer.update(dt);
+    const dt = Math.min(0.1, (agora - ultimo) / 1000); ultimo = agora;
+    E.passo(dt);
+    atualizarHerois(dt); efeitosBase(dt, (x, y, z, v) => flutuar3d(x, y, z, v));
     atualizar(dt);
-    C.quadro(dt, G.jog);
+    C.quadro(dt, ui.foco);
+    salvarT += dt; if (salvarT > 5) { salvarT = 0; E.salvar(); }
     requestAnimationFrame(laco);
   };
   requestAnimationFrame(laco);
-  addEventListener('visibilitychange', () => { if (document.hidden) salvar(); });
-  window.__jogo = G; window.__info = C.info; window.__cam = C.camera; // para testes
+  addEventListener('visibilitychange', () => { if (document.hidden) E.salvar(); else { const o = E.offline(); if (o.seg > 60) boasVindas(o); } });
+  window.__E = E; window.__info = C.info; window.__cam = C.camera; window.__ui = ui; // para testes
 }
 
 comecar();

@@ -1,53 +1,43 @@
-// Simula o jogo sem gráficos (cena.js trocado por um stub) com um jogador automático
-// que gasta o ouro em melhorias. Serve para equilibrar as ondas: node tools/simular.mjs [ondas] [estrategia]
-import { build } from 'esbuild';
-import path from 'path'; import { fileURLToPath } from 'url'; import fs from 'fs';
-const AQUI = path.dirname(fileURLToPath(import.meta.url));
-const stub = `
-const noop = () => {}; const obj = () => ({ position: { set: noop, x: 0, y: 0, z: 0 }, rotation: { x: 0, y: 0, z: 0 }, scale: { setScalar: noop, set: noop } });
-export const camera = { yaw: 0, pitch: 0.7, dist: 12, tremor: 0 };
-export const iniciar = noop, montarMundo = () => 0, quadro = noop, tela = () => null, info = () => ({});
-export function personagem() { const raiz = obj(); return { raiz, mixer: { update: noop }, tem: () => true, tocar: noop, remover: noop, brilho: noop }; }
-export const grupo = () => obj(), orbe = () => obj(), objeto = () => obj(), projetil = () => obj(), remover = noop;
-export const pad = () => ({ cor: noop, pulso: noop }), arco = noop, onda = noop, aviso = () => ({}), faiscas = noop;
-`;
-const r = await build({
-  entryPoints: [path.join(AQUI, '..', 'src', 'jogo.js')], bundle: true, write: false, format: 'esm', platform: 'node',
-  plugins: [{ name: 'stub', setup(b) { b.onResolve({ filter: /cena\.js$/ }, () => ({ path: 'stub', namespace: 'stub' })); b.onLoad({ filter: /.*/, namespace: 'stub' }, () => ({ contents: stub, loader: 'js' })); } }],
-});
-const arq = path.join(AQUI, '.sim.mjs'); fs.writeFileSync(arq, r.outputFiles[0].text);
+// Simula horas de jogo da Guilda (sem gráficos) com um jogador automático razoável.
+// Uso: node tools/simular.mjs [horas]  — mostra o progresso a cada 30 min de jogo.
 globalThis.localStorage = { d: {}, getItem(k) { return this.d[k] ?? null; }, setItem(k, v) { this.d[k] = v; }, removeItem(k) { delete this.d[k]; } };
-const J = await import(arq + '?' + Date.now()); fs.unlinkSync(arq);
-const D = await import(path.join(AQUI, '..', 'src', 'dados.js'));
-const M = await import(path.join(AQUI, '..', 'src', 'mundo.js'));
-const MAXONDAS = +(process.argv[2] || 20), EST = process.argv[3] || 'misto', DEBUG = process.env.DEBUG;
-J.iniciar('cav'); const G = J.G;
-G.fila.length = 0;
-const ordem = EST === 'arq' ? ['arqueiros'] : EST === 'cat' ? ['catapulta', 'arqueiros'] : ['arqueiros', 'catapulta', 'magia', 'balista', 'quartel', 'arqueiros', 'catapulta', 'balista'];
-function gastar() {
-  for (let guarda = 0; guarda < 50; guarda++) {
+const E = await import('../src/estado.js');
+const D = await import('../src/dados.js');
+const HORAS = +(process.argv[2] || 6);
+let agora = 0; E.novo(agora); const S = E.S;
+const eds = Object.keys(D.EDIFICIOS);
+function jogar() {
+  // missões: melhor ouro/segundo com boa chance; chefe quando der
+  while (S.missoes.length < E.vagasMissao() && E.livres().length) {
+    let melhor = null;
+    for (const m of E.disponiveis()) {
+      const eq = E.melhorEquipe(m.r, m.t); if (!eq.length) continue;
+      const ch = D.chanceSucesso(E.poderEquipe(eq, m.r), m.req);
+      const valor = m.chefe ? (ch >= 0.8 ? 1e99 : -1) : ch >= 0.85 ? m.ouro * ch / m.dur : -1;
+      if (valor > 0 && (!melhor || valor > melhor.v)) melhor = { m, eq, v: valor };
+    }
+    if (!melhor) break; E.enviar(melhor.m.r, melhor.m.t, melhor.eq, agora);
+  }
+  for (const o of D.OBJETIVOS) E.coletarObjetivo(o.id);
+  if (S.gemas >= D.GEMAS_RECRUTAR + 20) E.recrutar(true, false, agora);
+  E.recrutar(false, true, agora);
+  // gasta ouro: o mais barato entre prédios, recrutar e treinar o melhor herói
+  for (let k = 0; k < 200; k++) {
     const ops = [];
-    D.MURALHA.custo[G.muro.nivel] && G.muro.nivel < 8 && ops.push([D.MURALHA.custo[G.muro.nivel] * 1.6, () => J.melhorarMuro()]);
-    G.mina.nivel < 8 && ops.push([D.MINA.custo[G.mina.nivel] * 0.8, () => J.melhorarMina()]);
-    ['s3', 's4', 's7', 's8', 's2', 's5', 's1', 's6'].map(id => M.SLOTS.find(x => x.id === id)).forEach((s, i) => { const d = G.def[s.id]; if (!d) ops.push([D.custoDefesa(ordem[i % ordem.length], 1) * 0.6, () => J.construir(s.id, ordem[i % ordem.length])]); else if (d.nivel < 8) ops.push([D.custoDefesa(d.tipo, d.nivel + 1), () => J.melhorarDefesa(s.id)]); });
-    ops.sort((a, b) => a[0] - b[0]); const [, f] = ops[0] || []; const antes = G.ouro;
-    if (!f) return; f(); if (G.ouro === antes) return;
+    for (const id of eds) if (E.desbloqueado(id)) ops.push([D.custoEd(id, E.nivel(id)) * (id === 'taverna' ? 0.7 : 1), () => E.melhorar(id)]);
+    if (S.herois.length < E.capacidade()) ops.push([D.custoRecrutar(S.st.recrutados) * 0.8, () => E.recrutar(false, false, agora)]);
+    const top = [...S.herois].sort((a, b) => E.poder(b) - E.poder(a)).slice(0, 4);
+    for (const h of top) ops.push([D.custoTreinar(h) * 1.2, () => E.treinar(h.id)]);
+    ops.sort((a, b) => a[0] - b[0]); if (!ops.length || ops[0][0] > S.ouro) break; if (!ops[0][1]()) break;
   }
 }
-let t = 0, derrotas = 0, ultima = 0; const dt = 0.05, log = [];
-G.onda.contagem = 5;
-while (G.onda.n <= MAXONDAS && t < 3600 * 3) {
-  // herói fica no portão atacando
-  const j = G.jog; if (j.estado !== 'morto') { const alvo = G.inim.find(e => e.estado !== 'morto' && Math.hypot(e.x - j.x, e.z - j.z) < 10); J.entrada.atacar = !!alvo; if (Math.hypot(j.x - 0, j.z + 3) > 1) { const dx = -j.x, dz = -3 - j.z, m = Math.hypot(dx, dz); J.entrada.mx = dx / m; J.entrada.mz = dz / m; } else J.entrada.mx = J.entrada.mz = 0; }
-  // coleta o cofre de vez em quando
-  if (G.mina.nivel && G.mina.cofre > 50) { G.ouro += Math.floor(G.mina.cofre); G.mina.cofre = 0; }
-  J.passo(dt); t += dt;
-  if (DEBUG && Math.round(t * 20) % 40 === 0) console.log(t.toFixed(0), G.onda.estado, 'inim', G.inim.map(e => `${e.tipo[0]}${e.estado[0]}${Math.round(e.hp)}@${e.x.toFixed(0)},${e.z.toFixed(0)}`).join(' '), 'heroi', G.jog.x.toFixed(1), G.jog.z.toFixed(1), G.jog.estado, Math.round(G.jog.hp), 'slots', Object.keys(G.def).join(','), 'proj', G.proj.length, 'muro', Math.round(G.muro.hp), 'def', Object.values(G.def).map(d => d.cd.toFixed(1)).join(','));
-  if (DEBUG && t > +DEBUG) break;
-  for (const e of G.fila.splice(0)) {
-    if (e.tipo === 'vitoria') { log.push(`onda ${String(e.n).padStart(2)} ✅ ${Math.round(t)}s  muro ${Math.round(G.muro.hp)}/${G.muro.max} nv${G.muro.nivel}  defesas ${Object.values(G.def).map(d => d.tipo[0] + d.nivel).join(' ')}  mina ${G.mina.nivel}  ouro ${Math.round(G.ouro)} heroi nv${G.jog.nivel}`); gastar(); G.onda.contagem = 3; }
-    if (e.tipo === 'derrota') { derrotas++; log.push(`onda ${String(e.n).padStart(2)} ❌ muralha caiu (${derrotas})`); gastar(); J.tentarDeNovo(); G.onda.contagem = 20; if (derrotas > 12) { t = 1e9; } }
+const log = [];
+for (let t = 0; t <= HORAS * 3600; t++) {
+  agora = t * 1000; E.passo(1, agora); E.fila.length = 0;
+  if (t % 5 === 0) jogar();
+  if (t % 1800 === 0) {
+    const best = Math.max(...S.herois.map(h => E.poder(h)));
+    log.push(`${String((t / 3600).toFixed(1)).padStart(4)}h  fama ${String(S.fama.nivel).padStart(2)}  região ${S.regiao + 1}/8  ouro/s ${D.fmt(E.renda()).padStart(6)}  ouro ${D.fmt(S.ouro).padStart(6)}  gemas ${String(S.gemas).padStart(4)}  heróis ${S.herois.length} (melhor ${D.fmt(best)})  missões ${S.st.missoes} falhas ${S.st.falhas}  prédios ${eds.map(id => E.nivel(id)).join('/')}`);
   }
-  if (G.onda.estado === 'preparo' && G.onda.contagem > 3) gastar();
 }
-console.log(log.join('\n')); console.log(`fim: onda ${G.onda.n}, ${Math.round(Math.min(t, 1e5) / 60)} min de jogo, ${derrotas} derrotas`);
+console.log(log.join('\n'));
