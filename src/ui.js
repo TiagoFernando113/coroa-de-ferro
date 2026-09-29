@@ -6,6 +6,7 @@ import { ICONES } from './icones.js';
 import { EDIFICIOS, EF, custoEd, descEfeito, proxMarco, marcosAte, CLASSES, RARIDADES, chancesRecrutar, xpHeroi, custoTreinar, custoRecrutar, GEMAS_RECRUTAR,
   REGIOES, missao, reqRegiao, chanceSucesso, xpFama, OBJETIVOS, fmt, fmtTempo } from './dados.js';
 import { POS, atualizarPredio } from './base.js';
+import { ETAPAS, avancar, etapaAtual, revelado, visivel, livre, proximoTrancado } from './etapas.js';
 
 const $ = s => document.querySelector(s);
 export const ico = (n, cls = '') => `<svg class="ico ${cls}" viewBox="0 0 512 512" aria-hidden="true">${ICONES[n] || ''}</svg>`;
@@ -37,7 +38,7 @@ export function montar() {
   $('#hud').innerHTML = `
     <div id="topo">
       <div class="pilula ouro">${ico('ouro')}<b id="vOuro"></b><small id="vRenda"></small></div>
-      <div class="pilula gema">${ico('gema')}<b id="vGema"></b></div>
+      <div class="pilula gema" id="pGema">${ico('gema')}<b id="vGema"></b></div>
       <button id="bFama" class="fama"><i id="anelFama"></i>${ico('fama')}<b id="vFama"></b></button>
       <button id="bConfig" class="redondo">${ico('config')}</button>
     </div>
@@ -50,7 +51,8 @@ export function montar() {
     <section id="folha" hidden><header><div id="fIco"></div><h2 id="fTit"></h2><button class="xis" data-fechar>${ico('fechar')}</button></header><div id="fCorpo"></div></section>
     <div id="modal" hidden></div>
     <div id="avisos"></div>
-    <div id="flutua"></div>`;
+    <div id="flutua"></div>
+    <div id="guia" hidden>${ico('mao')}</div>`;
   $('#nav').onclick = e => { const b = e.target.closest('[data-aba]'); if (b) { som('clique'); abrirAba(b.dataset.aba === ui.aba ? null : b.dataset.aba); } };
   $('#folha').addEventListener('click', e => { if (e.target.closest('[data-fechar]')) { som('fechar'); abrirAba(null); } });
   $('#bConfig').onclick = () => { som('clique'); configuracoes(); };
@@ -146,14 +148,14 @@ function folha(tipo, titulo, icone, cor) {
   desenharFolha(true);
 }
 export function abrirAba(aba) {
-  ui.aba = aba; document.querySelectorAll('#nav [data-aba]').forEach(b => b.classList.toggle('on', b.dataset.aba === aba));
+  ui.aba = aba; document.querySelectorAll('#nav [data-aba]').forEach(b => { b.classList.toggle('on', b.dataset.aba === aba); if (b.dataset.aba === aba) b.classList.remove('novo'); });
   if (!aba) { $('#folha').hidden = true; folhaAtual = null; return; }
   const T = { guilda: ['Prédios da Guilda', 'guilda', '#c98a3a'], herois: ['Heróis', 'herois', '#4a7bd0'], missoes: ['Missões', 'missoes', '#3f8f4a'], recrutar: ['Portal de Recrutamento', 'recrutar', '#8a5ad8'], objetivos: ['Objetivos', 'objetivos', '#e0a83a'] }[aba];
   folha(aba, ...T);
 }
 let predioAberto = null, heroiAberto = null, regiaoAberta = 0;
 function abrirPredio(id) {
-  predioAberto = id; ui.aba = null; document.querySelectorAll('#nav [data-aba]').forEach(b => b.classList.remove('on'));
+  predioAberto = id; delete S.novos[id]; ui.aba = null; document.querySelectorAll('#nav [data-aba]').forEach(b => b.classList.remove('on'));
   const p = POS[id]; ui.foco.x = p.x * 0.8; ui.foco.z = p.z * 0.8 + 6;
   folha('predio', EDIFICIOS[id].nome, EDIFICIOS[id].icone, EDIFICIOS[id].cor);
 }
@@ -181,7 +183,7 @@ function htmlPredio() {
 }
 function htmlGuilda() {
   return `<p class="suave">Toque nos prédios (aqui ou no mapa) para melhorar. Cada marco de nível dobra o efeito!</p><div class="lista">` +
-    Object.entries(EDIFICIOS).map(([id, e]) => {
+    Object.entries(EDIFICIOS).filter(([id]) => visivel(id) || id === proximoTrancado()).map(([id, e]) => {
       const n = E.nivel(id), ok = E.desbloqueado(id), c = custoEd(id, n);
       return `<button class="card ${ok ? '' : 'trancado'}" data-predio="${id}"><span class="circ" style="--c:${e.cor}">${ico(ok ? e.icone : 'cadeado')}</span>
         <div class="cTxt"><b>${e.nome}</b><small>${ok ? (n ? `Nível ${n} · ${descEfeito(id, n)}` : 'Toque para construir') : `Fama ${e.fama}`}</small></div>
@@ -302,7 +304,7 @@ function processarEventos() {
   while (E.fila.length) {
     const e = E.fila.shift();
     if (e.tipo === 'aviso') { som('erro'); aviso(e.txt, 'erro'); }
-    if (e.tipo === 'fama') { som('nivel'); modal(`<div class="faixaTit">Fama nível ${e.nivel}!</div><div class="famaG">${ico('fama')}<b>${e.nivel}</b></div><div class="ganho">${ico('gema')}<b>+${e.gemas}</b><span>gemas</span></div>${e.novos.map(id => `<div class="ganho">${ico(EDIFICIOS[id].icone)}<b>${EDIFICIOS[id].nome}</b><span>liberado!</span></div>`).join('')}<button class="btn verde grande" data-ok>Oba!</button>`); for (const id of e.novos) atualizarPredio(id, true); }
+    if (e.tipo === 'fama') { som('nivel'); modal(`<div class="faixaTit">Fama nível ${e.nivel}!</div><div class="famaG">${ico('fama')}<b>${e.nivel}</b></div><div class="ganho">${ico('gema')}<b>+${e.gemas}</b><span>gemas</span></div>${e.novos.filter(() => livre()).map(id => `<div class="ganho">${ico(EDIFICIOS[id].icone)}<b>${EDIFICIOS[id].nome}</b><span>liberado!</span></div>`).join('')}<button class="btn verde grande" data-ok>Oba!</button>`); for (const id of e.novos) atualizarPredio(id, true); }
     if (e.tipo === 'resultado' && !e.silencioso) {
       const r = e.res, reg = REGIOES[r.m.r];
       if (r.ok) { som(r.bau ? 'moedas' : 'compra'); aviso(`${ico(r.m.chefe ? 'chefe' : reg.icone)} <b>${r.m.nome}</b> concluída! +${fmt(r.ouro)} ${ico('ouro')}${r.gemas ? ` +${r.gemas} ${ico('gema')}` : ''}`, 'ok', 3500); }
@@ -312,14 +314,50 @@ function processarEventos() {
   }
 }
 
-// ---------------- dicas de começo ----------------
-const DICAS = [
-  { txt: 'Toque na <b>Taverna</b> e melhore até o nível 5 para ganhar mais ouro.', feito: () => E.nivel('taverna') >= 5 },
-  { txt: 'Abra <b>Missões</b> e envie seus heróis para uma Patrulha.', feito: () => S.st.missoes >= 1 || S.missoes.length > 0 },
-  { txt: 'Construa o <b>Portal de Recrutamento</b> e recrute um novo herói.', feito: () => S.st.recrutados >= 3 },
-  { txt: 'Em <b>Objetivos</b>, colete suas primeiras gemas.', feito: () => Object.keys(S.obj).length > 0 },
-  { txt: 'Derrote o chefe da <b>Floresta Sombria</b> para liberar a próxima região!', feito: () => S.regiao >= 1 },
-];
+// ---------------- etapas guiadas ----------------
+// a mãozinha aponta para o alvo da etapa atual (o primeiro que estiver visível e tocável)
+function alvoEl(a) {
+  const m = $('#modal'), aberto = !m.hidden;
+  let el = null;
+  if (a.startsWith('ed:')) el = aberto || folhaAtual ? null : document.querySelector(`.rotulo[data-ed="${a.slice(3)}"]`);
+  else if (a.startsWith('nav:')) el = document.querySelector(`#nav [data-aba="${a.slice(4)}"]`);
+  else if (a.startsWith('melhorar:')) el = folhaAtual === 'predio' && predioAberto === a.slice(9) ? document.querySelector('#fCorpo [data-a="melhorar"]') : null;
+  else el = document.querySelector(a);
+  if (!el || el.hidden || el.style.display === 'none') return null;
+  if (aberto && !m.contains(el)) return null;
+  const r = el.getBoundingClientRect(); if (r.width < 4 || r.bottom < 0 || r.top > innerHeight) return null;
+  const topo = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+  return topo && (el === topo || el.contains(topo)) ? el : null;
+}
+function revelarNovos(novas) {
+  for (const id of Object.keys(EDIFICIOS)) atualizarPredio(id);
+  for (const k of novas) {
+    if (k.startsWith('ed:')) {
+      const id = k.slice(3), p = POS[id]; atualizarPredio(id, true);
+      ui.foco.x = p.x * 0.8; ui.foco.z = p.z * 0.8 + 6; C.faiscas(p.x, 4, p.z, 0xffe27a, 50, 6); C.onda(p.x, p.z, 9, 0xffe27a, 0.8);
+      aviso(`${ico('novo')} Novo prédio: <b>${EDIFICIOS[id].nome}</b>`, 'ouro', 3500); som('marco');
+    } else if (k.startsWith('nav:')) document.querySelector(`#nav [data-aba="${k.slice(4)}"]`)?.classList.add('novo');
+  }
+}
+let etapaVista = -1;
+function guiar() {
+  const antes = S.etapa, novas = avancar({ folha: folhaAtual === 'predio' ? 'predio:' + predioAberto : folhaAtual });
+  if (novas.length) revelarNovos(novas);
+  if (S.etapa > antes && etapaVista >= 0) { som('confirma'); aviso(`${ico('check')} Tarefa concluída!`, 'ok', 2200); }
+  etapaVista = S.etapa;
+  // o que já foi revelado aparece
+  for (const b of document.querySelectorAll('#nav [data-aba]')) b.hidden = !revelado('nav:' + b.dataset.aba);
+  $('#pGema').hidden = !revelado('gemas'); $('#bFama').hidden = !revelado('fama');
+  const e = etapaAtual(), dica = $('#dica'), guia = $('#guia');
+  if (e && folhaAtual == null && $('#modal').hidden) {
+    dica.hidden = false; const k = S.etapa + '|' + e.txt;
+    if (dica.dataset.t !== k) { dica.dataset.t = k; dica.innerHTML = `${ico('pergaminho')}<div><small>Tarefa ${S.etapa + 1}/${ETAPAS.length}</small><span>${e.txt}</span></div>`; dica.classList.remove('entra'); void dica.offsetWidth; dica.classList.add('entra'); }
+  } else dica.hidden = true;
+  // nada para tocar com o painel aberto? aponta o botão de fechar
+  const el = e && (e.alvo.map(alvoEl).find(Boolean) || (folhaAtual && $('#modal').hidden ? alvoEl('[data-fechar]') : null));
+  guia.hidden = !el;
+  if (el) { const r = el.getBoundingClientRect(); guia.style.transform = `translate(${r.left + r.width / 2}px,${r.top + r.height * 0.6}px)`; }
+}
 
 // ---------------- atualização por quadro ----------------
 let tFolha = 0;
@@ -334,17 +372,15 @@ export function atualizar(dt) {
   // missões em andamento (topo)
   const agora = Date.now(), at = S.missoes.map(ms => { const reg = REGIOES[ms.r], k = Math.min(1, (agora - ms.inicio) / (ms.fim - ms.inicio)); return `<div class="miniM" style="--c:${reg.cor}">${ico(reg.icone)}<i style="--k:${k}"></i><small>${fmtTempo((ms.fim - agora) / 1000)}</small></div>`; }).join('');
   if ($('#ativas').innerHTML !== at) $('#ativas').innerHTML = at;
-  // dica
-  const d = DICAS.find(x => !x.feito()), dica = $('#dica');
-  if (d && folhaAtual == null) { dica.hidden = false; if (dica.dataset.t !== d.txt) { dica.dataset.t = d.txt; dica.innerHTML = `${ico('pergaminho')}<span>${d.txt}</span>`; } } else dica.hidden = true;
+  guiar();
   // rótulos 3D dos prédios
   for (const el of document.querySelectorAll('.rotulo')) {
     const id = el.dataset.ed, p = POS[id], t = C.tela(p.x, id === 'quadro' ? 5.5 : id === 'biblioteca' || id === 'portal' ? 10 : 8, p.z);
-    if (!t || t[1] < 60 || t[1] > innerHeight - 70) { el.style.display = 'none'; continue; }
+    if (!visivel(id) && id !== proximoTrancado() || !t || t[1] < 60 || t[1] > innerHeight - 70) { el.style.display = 'none'; continue; }
     el.style.display = ''; el.style.transform = `translate(${t[0]}px,${t[1]}px) translate(-50%,-50%)`;
     const ok = E.desbloqueado(id), n = E.nivel(id), texto = ok ? (n ? `${n}` : 'Construir') : `Fama ${EDIFICIOS[id].fama}`;
     const b = el.querySelector('b'); if (b.textContent !== texto) b.textContent = texto;
-    el.classList.toggle('pode', ok && S.ouro >= custoEd(id, n)); el.classList.toggle('trancado', !ok);
+    el.classList.toggle('pode', ok && S.ouro >= custoEd(id, n)); el.classList.toggle('trancado', !ok); el.classList.toggle('novo', !!S.novos[id]);
   }
   desenharFlutuantes(dt);
   tFolha += dt; if (tFolha > 0.25) { tFolha = 0; desenharFolha(); }

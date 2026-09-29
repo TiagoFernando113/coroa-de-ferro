@@ -16,9 +16,9 @@ function novoHeroi(cls, rar, usados = S ? S.herois.map(h => h.nome) : []) {
 export function novo(agora = Date.now()) {
   S = {
     v: 1, ouro: 30, gemas: 30, fama: { nivel: 1, xp: 0 },
-    ed: Object.fromEntries(Object.keys(EDIFICIOS).map(k => [k, ['taverna', 'quadro', 'alojamento'].includes(k) ? 1 : 0])),
+    ed: Object.fromEntries(Object.keys(EDIFICIOS).map(k => [k, k === 'taverna' ? 1 : 0])),
     herois: [], missoes: [], regiao: 0, chefes: {},
-    st: { missoes: 0, recrutados: 2, ouroTotal: 0, lendarios: 0, falhas: 0 }, obj: {}, ultimo: agora, gratisEm: agora, tutorial: 0,
+    st: { missoes: 0, recrutados: 2, ouroTotal: 0, lendarios: 0, falhas: 0 }, obj: {}, ultimo: agora, gratisEm: agora, etapa: 0, revelado: [], novos: {},
   };
   S.herois.push(novoHeroi('cav', 0, [])); S.herois.push(novoHeroi('arq', 0, [S.herois[0].nome]));
   return S;
@@ -85,7 +85,7 @@ export function recrutar(premium = false, gratis = false, agora = Date.now()) {
 }
 export function treinar(id) {
   const h = heroi(id); if (!h) return false; const c = custoTreinar(h); if (S.ouro < c) return false;
-  S.ouro -= c; h.nivel++; h.xp = 0; ev('heroiNivel', { id }); return true;
+  S.ouro -= c; h.nivel++; h.xp = 0; S.st.treinos = (S.st.treinos || 0) + 1; ev('heroiNivel', { id }); return true;
 }
 export function aposentar(id) {
   const h = heroi(id); if (!h || h.estado === 'missao' || S.herois.length <= 1) return 0;

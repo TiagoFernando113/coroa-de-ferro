@@ -1,7 +1,8 @@
 // A sede da guilda em 3D: prédios (visual muda com o nível), decoração e heróis passeando.
 import * as C from './cena.js';
 import { EDIFICIOS, CLASSES } from './dados.js';
-import { S, nivel, desbloqueado, renda } from './estado.js';
+import { S, nivel, renda } from './estado.js';
+import { visivel, proximoTrancado } from './etapas.js';
 
 const P = Math.PI;
 export const PORTAO = { x: 0, z: 30 };
@@ -89,10 +90,12 @@ function pecasEd(id, t) {
 
 const vis = {}; // id → { grupo, estagio, anel }
 export function atualizarPredio(id, forcar = false) {
-  const n = nivel(id), t = desbloqueado(id) ? estagioEd(n) : 0, v = vis[id];
+  const n = nivel(id), t = visivel(id) ? estagioEd(n) : id === proximoTrancado() ? 0 : -1, v = vis[id]; // -1: ainda escondido
   if (v && v.estagio === t && !forcar) return;
-  if (v) { C.remover(v.grupo); if (v.anel) C.remover(v.anel); }
-  const p = POS[id], L = pecasEd(id, t);
+  if (v) { if (v.grupo) C.remover(v.grupo); if (v.anel) C.remover(v.anel); }
+  const p = POS[id];
+  if (t < 0) { vis[id] = { grupo: null, estagio: t, anel: null }; return; }
+  const L = pecasEd(id, t);
   const g = C.grupo(L, p.x, p.z, id); g.rotation.y = p.ry;
   let anel = null; if (L.anel) anel = C.anel(p.x, L.anel.y, p.z, L.anel.r); if (anel) anel.rotation.y = p.ry;
   vis[id] = { grupo: g, estagio: t, anel };
@@ -135,7 +138,7 @@ const pers = {}; // id do herói → { v, x, z, ang, alvo, espera, fora }
 const ANIM_TREINO = { cav: '1H_Melee_Attack_Chop', bar: '2H_Melee_Attack_Chop', arq: '2H_Ranged_Shoot', mag: 'Spellcast_Shoot', lad: 'Interact' };
 function destino(h) {
   if (h.estado === 'ferido') { const p = POS.enfermaria; return { x: p.x * 0.7 + (Math.random() - 0.5) * 3, z: p.z * 0.7 + (Math.random() - 0.5) * 3, oq: 'ferido' }; }
-  const ops = Object.keys(POS).filter(k => desbloqueado(k) && nivel(k) > 0);
+  const ops = Object.keys(POS).filter(k => visivel(k) && nivel(k) > 0);
   const k = ops[Math.floor(Math.random() * ops.length)] || 'taverna', p = POS[k];
   const f = k === 'quadro' ? 0.5 : 0.62;
   return { x: p.x * f + (Math.random() - 0.5) * 4, z: p.z * f + (Math.random() - 0.5) * 4, oq: k };

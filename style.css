@@ -74,7 +74,20 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;paddin
 #dica{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(max(8px,env(safe-area-inset-bottom)) + 92px);width:min(92vw,420px);display:flex;gap:10px;align-items:center;
   padding:10px 14px;border-radius:16px;background:var(--creme);border:3px solid var(--madeira2);box-shadow:0 5px 0 var(--madeira),0 10px 20px rgba(0,0,0,.3);font-size:15px;animation:pula 1.6s ease-in-out infinite}
 #dica[hidden]{display:none}
-#dica .ico{width:30px;height:30px;color:var(--madeira2)}
+#dica .ico{width:30px;height:30px;flex:none;color:var(--madeira2)}
+#dica small{display:block;font-family:var(--fT);font-size:12px;color:var(--madeira2);letter-spacing:.5px}
+#dica.entra{animation:pula 1.6s ease-in-out infinite,surge .35s ease-out}
+@keyframes surge{from{opacity:0;scale:.85}}
+#hud [hidden]{display:none!important}
+/* mãozinha das etapas */
+#guia{position:absolute;left:0;top:0;z-index:45;pointer-events:none;width:0;height:0}
+#guia .ico{position:absolute;left:-6px;top:0;width:52px;height:52px;color:#fff;filter:drop-shadow(0 0 2px #000) drop-shadow(0 3px 3px rgba(0,0,0,.6));transform:rotate(-20deg);transform-origin:10% 5%;animation:toca .9s ease-in-out infinite}
+@keyframes toca{50%{translate:6px 10px;scale:.9}}
+/* novidades */
+.rotulo.novo{border-color:#ffe27a;box-shadow:0 0 0 3px rgba(255,226,122,.5),0 0 18px #ffd23a;animation:pula2 .8s ease-in-out infinite}
+.rotulo.novo::after,#nav button.novo::after{content:'NOVO!';position:absolute;top:-12px;right:-10px;padding:1px 6px;border-radius:8px;background:#e8452a;color:#fff;font-family:var(--fT);font-size:10px;border:2px solid #fff;animation:pula2 .8s ease-in-out infinite}
+#nav button.novo{animation:sobe .4s ease-out}
+#nav button.novo .ico{background:linear-gradient(#ffe27a,#f0a820);color:#6b3f1d}
 @keyframes pula{50%{transform:translateX(-50%) translateY(-4px)}}
 
 /* rótulos dos prédios no mapa */

@@ -1,9 +1,10 @@
 // Ponto de entrada: carrega modelos e recursos, abre o save (com ganhos offline) e roda o laço.
 import * as C from './cena.js';
 import * as E from './estado.js';
-import { montarBase, atualizarHerois, efeitosBase } from './base.js';
+import { montarBase, atualizarHerois, efeitosBase, posHeroi } from './base.js';
 import { montar, atualizar, ui, carregarRecursos, boasVindas, flutuar3d, som } from './ui.js';
 import { VERSAO } from './dados.js';
+import { iniciarEtapas } from './etapas.js';
 
 const $ = s => document.querySelector(s);
 window.VERSAO = VERSAO;
@@ -37,7 +38,7 @@ async function comecar() {
 function entrar(novo) {
   $('#titulo').classList.add('sai'); setTimeout(() => $('#titulo').remove(), 600);
   const off = novo ? null : E.offline();
-  montarBase(); montar();
+  iniciarEtapas(); montarBase(); montar();
   if (off) boasVindas(off);
   C.camera.yaw = Math.PI - 0.45; C.camera.pitch = 0.95; C.camera.dist = 74;
   let ultimo = performance.now(), salvarT = 0;
@@ -52,7 +53,7 @@ function entrar(novo) {
   };
   requestAnimationFrame(laco);
   addEventListener('visibilitychange', () => { if (document.hidden) E.salvar(); else { const o = E.offline(); if (o.seg > 60) boasVindas(o); } });
-  window.__E = E; window.__info = C.info; window.__cam = C.camera; window.__ui = ui; // para testes
+  window.__E = E; window.__info = C.info; window.__cam = C.camera; window.__ui = ui; window.__pos = posHeroi; window.__C = C; // para testes
 }
 
 comecar();

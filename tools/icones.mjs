@@ -11,7 +11,7 @@ const USADOS = {
   floresta: 'pine-tree', pantano: 'swamp', montanha: 'mountains', deserto: 'desert', ruinas: 'castle-ruins', vulcao: 'volcano', cemiterio: 'tombstone', trono: 'crowned-skull',
   bau: 'open-treasure-chest', chefe: 'skull-crossed-bones', estrela: 'round-star', check: 'check-mark', fechar: 'cross-mark', seta: 'fast-forward-button',
   ferido: 'bandage-roll', coracao: 'heart-plus', raio: 'lightning-arc', som: 'speaker', mudo: 'speaker-off', presente: 'present', relogio: 'hourglass',
-  coroa: 'crown', pergaminho: 'quill-ink', escudo: 'checked-shield', treinar: 'muscle-up',
+  coroa: 'crown', pergaminho: 'quill-ink', mao: 'pointing', novo: 'sparkles', escudo: 'checked-shield', treinar: 'muscle-up',
 };
 const out = {}, faltam = [];
 for (const [k, n] of Object.entries(USADOS)) { const i = set.icons[n] || set.icons[set.aliases?.[n]?.parent]; if (!i) { faltam.push(n); continue; } out[k] = i.body; }

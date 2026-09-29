@@ -190,7 +190,9 @@ export function personagem(nome, armas = [], esc = 1) {
   corpo.traverse(o => {
     if (!o.isSkinnedMesh) return;
     if (!esq) esq = o.skeleton;
-    else if (o.skeleton.bones.length === esq.bones.length && o.skeleton.bones.every((b, i) => b.name === esq.bones[i].name)) o.bind(esq, o.bindMatrix);
+    // só compartilha se as matrizes de bind forem iguais (senão a parte do corpo deforma: herói "deitado")
+    else if (o.skeleton.bones.length === esq.bones.length && o.skeleton.bones.every((b, i) => b.name === esq.bones[i].name
+      && o.skeleton.boneInverses[i].elements.every((v, j) => Math.abs(v - esq.boneInverses[i].elements[j]) < 1e-4))) o.bind(esq, o.bindMatrix);
   });
   const mats = []; // materiais próprios (para piscar ao levar dano)
   corpo.traverse(o => {

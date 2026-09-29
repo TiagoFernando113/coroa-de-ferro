@@ -1,7 +1,7 @@
 // Dados da Guilda de Heróis: prédios, heróis, raridades, regiões/missões e objetivos.
 // Os números crescem de forma exponencial (estilo idle): cada melhoria custa mais e rende mais.
 
-export const VERSAO = 21;
+export const VERSAO = 22;
 
 // ---------------- números grandes ----------------
 const SUF = ['', 'K', 'M', 'B', 'T', 'aa', 'ab', 'ac', 'ad', 'ae', 'af', 'ag', 'ah'];
@@ -120,7 +120,7 @@ export const xpFama = n => Math.round(12 * 1.55 ** (n - 1));
 
 // ---------------- objetivos (dão gemas) ----------------
 export const OBJETIVOS = [
-  { id: 'missoes', nome: 'Missões concluídas', icone: 'missoes', metas: [3, 15, 50, 150, 500, 2000, 8000] },
+  { id: 'missoes', nome: 'Missões concluídas', icone: 'missoes', metas: [1, 5, 15, 50, 150, 500, 2000, 8000] },
   { id: 'recrutados', nome: 'Heróis recrutados', icone: 'recrutar', metas: [3, 6, 10, 15, 22, 30] },
   { id: 'taverna', nome: 'Nível da Taverna', icone: 'taverna', metas: [10, 25, 50, 100, 150, 200, 300] },
   { id: 'ouroTotal', nome: 'Ouro ganho no total', icone: 'ouro', metas: [1e3, 1e5, 1e7, 1e9, 1e11, 1e13, 1e15] },
