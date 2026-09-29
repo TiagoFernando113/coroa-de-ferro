@@ -1,7 +1,7 @@
 // Dados da Guilda de Heróis: prédios, heróis, raridades, regiões/missões e objetivos.
 // Os números crescem de forma exponencial (estilo idle): cada melhoria custa mais e rende mais.
 
-export const VERSAO = 26;
+export const VERSAO = 27;
 
 // ---------------- números grandes ----------------
 const SUF = ['', 'K', 'M', 'B', 'T', 'aa', 'ab', 'ac', 'ad', 'ae', 'af', 'ag', 'ah'];
@@ -92,14 +92,14 @@ export const nomeAleatorio = (usados = []) => { const l = NOMES.filter(n => !usa
 // ---------------- regiões e missões ----------------
 // requisito de poder cresce ×12 por região; cada região tem 3 missões repetíveis e 1 chefe
 export const REGIOES = [
-  { id: 'floresta', nome: 'Floresta Sombria', icone: 'floresta', cor: '#3f8f4a', afin: 'arq', chefe: 'Lobo Gigante' },
-  { id: 'pantano', nome: 'Pântano Venenoso', icone: 'pantano', cor: '#6a8a3a', afin: 'mag', chefe: 'Bruxa do Pântano' },
-  { id: 'montanha', nome: 'Montanhas Gélidas', icone: 'montanha', cor: '#7aa0c8', afin: 'bar', chefe: 'Gigante de Gelo' },
-  { id: 'deserto', nome: 'Deserto Escaldante', icone: 'deserto', cor: '#d8a84a', afin: 'lad', chefe: 'Escorpião Rei' },
-  { id: 'ruinas', nome: 'Ruínas Élficas', icone: 'ruinas', cor: '#8aa08a', afin: 'mag', chefe: 'Golem Antigo' },
-  { id: 'vulcao', nome: 'Vulcão Rugidor', icone: 'vulcao', cor: '#d8543a', afin: 'cav', chefe: 'Dragão de Fogo' },
-  { id: 'cemiterio', nome: 'Cemitério Maldito', icone: 'cemiterio', cor: '#6a6a8a', afin: 'cav', chefe: 'Necromante' },
-  { id: 'trono', nome: 'Trono do Rei Esqueleto', icone: 'trono', cor: '#8a3a5a', afin: 'bar', chefe: 'Rei Esqueleto' },
+  { id: 'floresta', nome: 'Floresta Sombria', icone: 'floresta', cor: '#3f8f4a', afin: 'arq', chefe: 'Lobo Gigante', ini: ['lobos', 'goblins', 'aranhas'], x: 22, y: 78 },
+  { id: 'pantano', nome: 'Pântano Venenoso', icone: 'pantano', cor: '#6a8a3a', afin: 'mag', chefe: 'Bruxa do Pântano', ini: ['sapos gigantes', 'lodosos', 'bruxas'], x: 58, y: 84 },
+  { id: 'montanha', nome: 'Montanhas Gélidas', icone: 'montanha', cor: '#7aa0c8', afin: 'bar', chefe: 'Gigante de Gelo', ini: ['yetis', 'lobos de gelo', 'trolls'], x: 80, y: 62 },
+  { id: 'deserto', nome: 'Deserto Escaldante', icone: 'deserto', cor: '#d8a84a', afin: 'lad', chefe: 'Escorpião Rei', ini: ['escorpiões', 'bandidos', 'múmias'], x: 42, y: 56 },
+  { id: 'ruinas', nome: 'Ruínas Élficas', icone: 'ruinas', cor: '#8aa08a', afin: 'mag', chefe: 'Golem Antigo', ini: ['golens', 'espíritos', 'guardiões'], x: 16, y: 44 },
+  { id: 'vulcao', nome: 'Vulcão Rugidor', icone: 'vulcao', cor: '#d8543a', afin: 'cav', chefe: 'Dragão de Fogo', ini: ['salamandras', 'demônios', 'dracos'], x: 70, y: 32 },
+  { id: 'cemiterio', nome: 'Cemitério Maldito', icone: 'cemiterio', cor: '#6a6a8a', afin: 'cav', chefe: 'Necromante', ini: ['zumbis', 'fantasmas', 'carniçais'], x: 34, y: 22 },
+  { id: 'trono', nome: 'Trono do Rei Esqueleto', icone: 'trono', cor: '#8a3a5a', afin: 'bar', chefe: 'Rei Esqueleto', ini: ['cavaleiros esqueleto', 'liches', 'gárgulas'], x: 62, y: 9 },
 ];
 export const TIPOS_MISSAO = [
   { id: 'patrulha', nome: 'Patrulha', dur: 30, req: 1, ouro: 8, xp: 1, fama: 1, bau: 0, max: 1 },
@@ -112,6 +112,18 @@ export function missao(r, t) {
   const T = TIPOS_MISSAO[t], base = reqRegiao(r);
   return { r, t, req: Math.round(base * T.req), dur: T.dur, ouro: Math.round(base * T.ouro), xp: Math.round(6 * 3.2 ** r * T.xp), fama: T.fama * (r + 1), bau: T.bau, max: T.max, chefe: !!T.chefe, nome: T.chefe ? REGIOES[r].chefe : T.nome };
 }
+// quadro de missões (estilo guilda de anime): papéis com rank exigido
+export const RANK_REGIAO = [0, 0, 1, 2, 3, 3, 4, 5];
+export const rankIdx = n => { let i = 0; for (let k = 0; k < 6; k++) if (n >= [1, 10, 20, 35, 50, 75][k]) i = k; return i; };
+export const LETRAS = ['E', 'D', 'C', 'B', 'A', 'S'];
+export const TITULOS = [
+  ['Vigiar a estrada da {reg}', 'Afastar {ini} da trilha', 'Escoltar um mercador', 'Achar a ovelha perdida', 'Ronda noturna'],
+  ['Caçar {ini}', 'Recompensa por {ini}', 'Limpar o ninho de {ini}', 'Proteger a vila de {ini}'],
+  ['Explorar {reg}', 'Recuperar a relíquia perdida', 'Mapear as cavernas', 'Resgatar o aventureiro sumido'],
+  ['PROCURADO: {chefe}'],
+];
+export const MAX_QUADRO = nq => Math.min(9, 4 + Math.floor(nq / 5));
+export const GEMAS_TROCAR = 5;
 // chance de sucesso: poder igual ao requisito = 100%
 export const chanceSucesso = (poder, req) => Math.max(0.05, Math.min(1, (poder / req) ** 2));
 

@@ -2,7 +2,8 @@
 // O tempo das missões e o ganho offline usam o relógio real (Date.now).
 import { visualAleatorio } from './aparencia.js';
 import { EDIFICIOS, EF, custoEd, CLASSES, RARIDADES, chancesRecrutar, xpHeroi, custoTreinar, custoRecrutar, GEMAS_RECRUTAR, nomeAleatorio,
-  REGIOES, missao, chanceSucesso, xpFama, OBJETIVOS, gemasObjetivo, OFFLINE_MAX, xpSistema, PONTOS_NIVEL, rankDe } from './dados.js';
+  REGIOES, missao, chanceSucesso, xpFama, OBJETIVOS, gemasObjetivo, OFFLINE_MAX, xpSistema, PONTOS_NIVEL, rankDe,
+  RANK_REGIAO, rankIdx, TITULOS, MAX_QUADRO, GEMAS_TROCAR } from './dados.js';
 
 const SAVE = 'coroa_guilda_v1';
 export let S = null;
@@ -115,12 +116,43 @@ export function melhorEquipe(r, t) {
   for (const h of l) { if (eq.length >= m.max) break; eq.push(h.id); if (poderEquipe(eq, r) >= m.req) break; }
   return eq;
 }
-export function enviar(r, t, ids, agora = Date.now()) {
+// ---------------- quadro de missões ----------------
+const sorteio = l => l[Math.floor(Math.random() * l.length)];
+function gerarPapel(agora, rFixo = null, tFixo = null) {
+  const top = Math.min(S.regiao, REGIOES.length - 1);
+  const r = rFixo ?? (Math.random() < 0.6 ? top : Math.floor(Math.random() * (top + 1)));
+  const x = Math.random(), t = tFixo ?? (x < 0.45 ? 0 : x < 0.8 ? 1 : 2), reg = REGIOES[r];
+  const nome = sorteio(TITULOS[t]).replace('{reg}', reg.nome).replace('{ini}', sorteio(reg.ini)).replace('{chefe}', reg.chefe);
+  return { id: uid(), r, t, rank: RANK_REGIAO[r], nome, mult: t === 3 ? 1 : +(0.8 + Math.random() * 0.8).toFixed(2), ate: t === 3 ? 0 : agora + (25 + Math.random() * 50) * 60e3,
+    dx: Math.random() * 10 - 5, dy: Math.random() * 8 - 4, gira: +(Math.random() * 5 - 2.5).toFixed(1) };
+}
+export function atualizarQuadro(agora = Date.now()) {
+  if (!S.quadro) { S.quadro = [gerarPapel(agora, 0, 0), gerarPapel(agora, 0, 0), gerarPapel(agora, 0, 1)]; S.quadroT = agora + 90e3; }
+  S.quadro = S.quadro.filter(q => (!q.ate || q.ate > agora) && !(q.t === 3 && S.chefes[q.r]));
+  // cartaz de PROCURADO para cada chefe ainda vivo (se ninguém foi atrás dele)
+  for (let r = 0; r <= Math.min(S.regiao, REGIOES.length - 1); r++)
+    if (!S.chefes[r] && !S.quadro.some(q => q.t === 3 && q.r === r) && !S.missoes.some(m => m.t === 3 && m.r === r)) S.quadro.push(gerarPapel(agora, r, 3));
+  const normais = () => S.quadro.filter(q => q.t !== 3).length;
+  while (agora >= S.quadroT) { if (normais() < MAX_QUADRO(nivel('quadro'))) S.quadro.push(gerarPapel(agora)); S.quadroT += 90e3; if (agora - S.quadroT > 3600e3) S.quadroT = agora; }
+}
+export function trocarPapeis(agora = Date.now()) {
+  if (S.gemas < GEMAS_TROCAR) return false; S.gemas -= GEMAS_TROCAR;
+  const n = Math.max(3, S.quadro.filter(q => q.t !== 3).length);
+  S.quadro = S.quadro.filter(q => q.t === 3); for (let i = 0; i < n; i++) S.quadro.push(gerarPapel(agora)); return true;
+}
+export const rankHeroi = h => rankIdx(h.nivel);
+// pega um papel do quadro: precisa de ao menos um herói com o rank exigido
+export function pegar(qid, ids, agora = Date.now()) {
+  const q = S.quadro.find(x => x.id === qid); if (!q) return null;
+  if (!ids.some(id => heroi(id) && rankHeroi(heroi(id)) >= q.rank)) { ev('aviso', { txt: 'A equipe precisa de um herói com o rank exigido.' }); return null; }
+  const ms = enviar(q.r, q.t, ids, agora, q); if (ms) S.quadro = S.quadro.filter(x => x !== q); return ms;
+}
+export function enviar(r, t, ids, agora = Date.now(), q = null) {
   if (S.missoes.length >= vagasMissao()) { ev('aviso', { txt: 'Sem vagas no Quadro de Missões.' }); return null; }
   if (r > S.regiao || (t === 3 && S.chefes[r])) return null;
   const m = missao(r, t); ids = ids.filter(id => heroi(id)?.estado === 'livre').slice(0, m.max); if (!ids.length) return null;
   const dur = m.dur * EF.biblioteca(nivel('biblioteca')) * bonus().tempo;
-  const ms = { uid: uid(), r, t, herois: ids, inicio: agora, fim: agora + dur * 1000, chance: chanceSucesso(poderEquipe(ids, r), m.req) };
+  const ms = { uid: uid(), r, t, herois: ids, inicio: agora, fim: agora + dur * 1000, chance: chanceSucesso(poderEquipe(ids, r), m.req), nome: q?.nome, mult: q?.mult || 1 };
   for (const id of ids) heroi(id).estado = 'missao';
   S.missoes.push(ms); ev('enviou', { m: ms }); return ms;
 }
@@ -130,12 +162,12 @@ export function acelerar(uidM, agora = Date.now()) {
   if (S.gemas < c) return false; S.gemas -= c; ms.fim = agora; return true;
 }
 function concluir(ms, agora, silencioso) {
-  const m = missao(ms.r, ms.t), ok = Math.random() < ms.chance, res = { m, ok, ouro: 0, gemas: 0, xp: 0, herois: ms.herois, feridos: [], desbloqueou: null };
+  const m = { ...missao(ms.r, ms.t), nome: ms.nome || missao(ms.r, ms.t).nome }, ok = Math.random() < ms.chance, res = { m, ok, ouro: 0, gemas: 0, xp: 0, herois: ms.herois, feridos: [], desbloqueou: null };
   const hs = ms.herois.map(heroi).filter(Boolean);
   if (ok) {
-    res.ouro = Math.round(m.ouro * EF.quadro(nivel('quadro')).bonus * EF.mercado(nivel('mercado')) * bonus().ouro); ganharOuro(res.ouro);
+    res.ouro = Math.round(m.ouro * EF.quadro(nivel('quadro')).bonus * EF.mercado(nivel('mercado')) * bonus().ouro * (ms.mult || 1)); ganharOuro(res.ouro);
     ganharXPSis(m.xp * (ms.herois.includes(S.lider) ? 1.2 : 0.5));
-    res.xp = m.xp; for (const h of hs) ganharXP(h, m.xp);
+    res.xp = Math.round(m.xp * (ms.mult || 1)); for (const h of hs) ganharXP(h, res.xp);
     ganharFama(m.fama); S.st.missoes++;
     if (Math.random() < m.bau) { res.gemas = 1 + Math.floor(Math.random() * (2 + ms.r)); S.gemas += res.gemas; const extra = Math.round(renda() * 60); res.ouro += extra; ganharOuro(extra); res.bau = true; }
     if (m.chefe) { S.chefes[ms.r] = true; if (S.regiao < REGIOES.length - 1 && S.regiao === ms.r) { S.regiao++; res.desbloqueou = S.regiao; } }
@@ -164,6 +196,7 @@ export const objetivosProntos = () => OBJETIVOS.filter(o => objetivoAtual(o)?.fe
 
 // ---------------- tempo ----------------
 export function passo(dt, agora = Date.now()) {
+  atualizarQuadro(agora);
   ganharOuro(renda() * dt);
   const xps = EF.treino(nivel('treino')) * dt; if (xps > 0) { for (const h of S.herois) if (h.estado === 'livre') ganharXP(h, xps); ganharXPSis(xps * 0.15); }
   for (const h of S.herois) if (h.estado === 'ferido' && agora >= h.ate) { h.estado = 'livre'; ev('curado', { id: h.id }); }

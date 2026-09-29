@@ -320,3 +320,45 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;paddin
 .aviso.sis{background:linear-gradient(90deg,#0d1c3a,#16325e);border-left-color:#4ab8ff;color:#dff4ff}
 .sisJan .barra,.sisCard .barra{background:#0a1428;border-color:#2a5a9a}.sisJan .barra span{color:#dff4ff}
 .caixa.semFundo{padding:0;overflow-x:hidden}.sisTopo{font-size:16px;letter-spacing:2px;text-align:center}
+
+/* ---------- quadro de missões e mapa ---------- */
+.vistas{display:flex;gap:6px;margin:10px 0 8px}
+.vistas button{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:9px;border-radius:14px;background:var(--creme2);font-family:var(--fT);color:var(--madeira2);box-shadow:inset 0 -3px 0 rgba(0,0,0,.08)}
+.vistas button.on{background:linear-gradient(#ffe27a,#f0a820);color:#5a3408;box-shadow:0 3px 0 #a86a08}
+.rkSelo{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:50%;font-family:var(--fT);font-size:20px;color:#fff;background:var(--rk);border:3px double rgba(255,255,255,.8);box-shadow:0 2px 4px rgba(0,0,0,.35);text-shadow:0 1px 0 rgba(0,0,0,.4);vertical-align:middle}
+.rkSelo.mini{width:22px;height:22px;font-size:13px;border-width:2px}
+.rkSelo.canto{position:absolute;top:6px;left:6px;z-index:1}
+.mini,.heroi{position:relative}
+.quadroM{display:grid;grid-template-columns:1fr 1fr;gap:12px 10px;padding:14px 10px;border-radius:16px;
+  background:radial-gradient(circle at 20% 30%,rgba(0,0,0,.08) 2px,transparent 3px) 0 0/18px 18px,radial-gradient(circle at 70% 60%,rgba(255,255,255,.07) 2px,transparent 3px) 0 0/22px 22px,linear-gradient(#b0824e,#8f6538);
+  border:6px solid #6b3f1d;box-shadow:inset 0 0 16px rgba(0,0,0,.4)}
+.papel{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:18px 9px 9px;text-align:left;border-radius:3px;min-height:150px;
+  background:linear-gradient(#fdf6e0,#f1e2bc);color:var(--tinta);box-shadow:2px 4px 6px rgba(0,0,0,.35);transform:rotate(var(--g));transition:transform .15s}
+.papel:active{transform:rotate(0) scale(.97)}
+.papel .prego{position:absolute;top:4px;left:50%;width:12px;height:12px;margin-left:-6px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#ff9a8a,#c0201a);box-shadow:0 2px 2px rgba(0,0,0,.4)}
+.papel .rkSelo{position:absolute;top:-8px;right:-6px;transform:rotate(12deg)}
+.papel b{font-family:var(--fT);font-weight:400;font-size:15px;line-height:1.15;padding-right:14px}
+.papel small{font-size:11px;color:var(--suave);display:flex;align-items:center;gap:3px}
+.papel .onde{color:var(--c);font-weight:600}
+.papel .recomp2{display:flex;align-items:center;gap:4px;font-weight:700;font-size:14px;margin-top:auto}
+.papel .recomp2 em{font-style:normal;font-size:10px;background:#5fb83a;color:#fff;padding:1px 5px;border-radius:6px}
+.papel .some{color:#b8603a}
+.papel.alto{filter:grayscale(.5) brightness(.9)}
+.papel.procurado{background:linear-gradient(#f6e2b8,#e2c48a);align-items:center;text-align:center;border:2px solid #8a3a1a}
+.papel.procurado b{padding:0;font-size:16px;color:#8a1a10}
+.cartaz{font-family:var(--fT);font-size:18px;letter-spacing:2px;color:#fff;background:#b8201a;padding:1px 8px;border-radius:4px}
+.papel .rosto{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:#3a2410;color:#ffd8a0}.papel .rosto .ico{width:32px;height:32px}
+.vazio{grid-column:1/-1;text-align:center;color:#fff3d8}
+.rodape{align-items:center;justify-content:space-between;margin-top:10px}.rodape small{display:flex;align-items:center;gap:4px;color:var(--suave)}
+.filtro{display:flex;align-items:center;gap:6px;margin-bottom:8px;font-family:var(--fT);color:var(--madeira2)}.filtro button{margin-left:auto;width:28px;height:28px;border-radius:50%;background:var(--creme2);display:grid;place-items:center}
+.mapa{position:relative;aspect-ratio:1/1.05;border-radius:16px;overflow:hidden;border:6px solid #6b3f1d;
+  background:radial-gradient(ellipse at 30% 70%,#9cc86a 0 18%,transparent 30%),radial-gradient(ellipse at 75% 30%,#c8a070 0 16%,transparent 30%),radial-gradient(ellipse at 50% 55%,#e8d49a 0 20%,transparent 35%),linear-gradient(160deg,#e9d9ae,#d6bd84);box-shadow:inset 0 0 30px rgba(90,50,10,.45)}
+.trilhas{position:absolute;inset:0;width:100%;height:100%}.trilhas polyline{fill:none;stroke:rgba(107,63,29,.6);stroke-width:.8;stroke-dasharray:2 1.5;vector-effect:non-scaling-stroke;stroke-width:3}
+.lugar{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:1px;width:84px}
+.lugar .circ{width:44px;height:44px;box-shadow:0 0 0 3px #fff,0 4px 6px rgba(0,0,0,.35)}
+.lugar small{font-family:var(--fT);font-size:10px;line-height:1.1;text-align:center;color:#4a2c12;text-shadow:0 0 3px #fff,0 0 3px #fff}
+.lugar .rkSelo{position:absolute;top:-4px;left:14px}
+.lugar .pinos{position:absolute;top:-6px;right:12px;font-style:normal;min-width:20px;height:20px;border-radius:10px;background:#e8452a;color:#fff;font-family:var(--fT);font-size:12px;display:grid;place-items:center;border:2px solid #fff}
+.lugar .procurado{position:absolute;top:24px;right:10px;color:#b8201a;animation:pula2 .8s ease-in-out infinite}
+.lugar.trancado{filter:grayscale(1);opacity:.55}
+.lugar.limpo .circ{box-shadow:0 0 0 3px #5fd84a,0 4px 6px rgba(0,0,0,.35)}

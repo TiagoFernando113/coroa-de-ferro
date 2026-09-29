@@ -4,7 +4,7 @@ import * as E from './estado.js';
 import { S } from './estado.js';
 import { ICONES } from './icones.js';
 import { EDIFICIOS, EF, custoEd, descEfeito, proxMarco, marcosAte, CLASSES, RARIDADES, chancesRecrutar, xpHeroi, custoTreinar, custoRecrutar, GEMAS_RECRUTAR,
-  REGIOES, missao, reqRegiao, chanceSucesso, xpFama, OBJETIVOS, fmt, fmtTempo, ATRIBUTOS, xpSistema, rankDe, RANKS } from './dados.js';
+  REGIOES, missao, reqRegiao, chanceSucesso, xpFama, OBJETIVOS, fmt, fmtTempo, ATRIBUTOS, xpSistema, rankDe, RANKS, RANK_REGIAO, LETRAS, GEMAS_TROCAR } from './dados.js';
 import { POS, atualizarPredio, revestir } from './base.js';
 import { abrirCriador } from './criador.js';
 import { ETAPAS, avancar, etapaAtual, revelado, visivel, livre, proximoTrancado } from './etapas.js';
@@ -228,7 +228,7 @@ function htmlHerois() {
   const hs = [...S.herois].sort((a, b) => E.poder(b) - E.poder(a));
   return cartaoSistema() + `<div class="resumo"><span>${ico('herois')}${S.herois.length}/${E.capacidade()} heróis</span><span>${ico('treino')}Treino: +${fmt(EF.treino(E.nivel('treino')))} XP/s</span></div><div class="grade">` +
     hs.map(h => { const c = CLASSES[h.cls], r = RARIDADES[h.rar];
-      return `<button class="heroi ${h.id === S.lider ? 'lider' : ''}" data-heroi="${h.id}" style="--r:${r.cor};--c:${c.cor}">${h.id === S.lider ? `<i class="coroaL">${ico('coroa')}</i>` : ''}<span class="retrato">${ico(c.icone)}</span>${estrelas(h.rar)}<b>${esc(h.nome)}</b><small>${c.nome} · Nv ${h.nivel}</small>
+      return `<button class="heroi ${h.id === S.lider ? 'lider' : ''}" data-heroi="${h.id}" style="--r:${r.cor};--c:${c.cor}">${h.id === S.lider ? `<i class="coroaL">${ico('coroa')}</i>` : ''}${selo(E.rankHeroi(h), 'mini canto')}<span class="retrato">${ico(c.icone)}</span>${estrelas(h.rar)}<b>${esc(h.nome)}</b><small>${c.nome} · Nv ${h.nivel}</small>
         <div class="poder">${ico('poder')}${fmt(E.poder(h))}</div>${chipEstado(h)}</button>`; }).join('') + '</div>';
 }
 function htmlHeroi() {
@@ -242,25 +242,38 @@ function htmlHeroi() {
     <button class="btn azul" data-a="visual">${ico('pincel')} Personalizar aparência</button>
     ${h.id === S.lider ? `<p class="suave">${ico('coroa')} Líder da guilda</p>` : `<div class="linha"><button class="btn amarelo peq" data-a="lider">${ico('coroa')} Tornar líder</button><button class="btn cinza peq" data-a="aposentar">Aposentar</button></div>`}`;
 }
+let vistaM = 'quadro', filtroReg = null;
+const corRank = i => RANKS[i][2];
+const selo = (i, cls = '') => `<span class="rkSelo ${cls}" style="--rk:${corRank(i)}">${LETRAS[i]}</span>`;
 function htmlMissoes() {
   const agora = Date.now();
-  let h = `<div class="resumo"><span>${ico('quadro')}${S.missoes.length}/${E.vagasMissao()} missões em andamento</span><span>${ico('herois')}${E.livres().length} livres</span></div>`;
+  let h = `<div class="resumo"><span>${ico('quadro')}${S.missoes.length}/${E.vagasMissao()} em andamento</span><span>${ico('herois')}${E.livres().length} livres</span></div>`;
   if (S.missoes.length) h += '<div class="ativasL">' + S.missoes.map(ms => { const m = missao(ms.r, ms.t), k = Math.min(1, (agora - ms.inicio) / (ms.fim - ms.inicio)), reg = REGIOES[ms.r];
-    return `<div class="ativa"><span class="circ peq" style="--c:${reg.cor}">${ico(reg.icone)}</span><div class="cTxt"><b>${m.nome} · ${reg.nome}</b><div class="barra verde"><i style="width:${k * 100}%"></i><span>${fmtTempo((ms.fim - agora) / 1000)} · ${Math.round(ms.chance * 100)}%</span></div></div>
+    return `<div class="ativa"><span class="circ peq" style="--c:${reg.cor}">${ico(reg.icone)}</span><div class="cTxt"><b>${esc(ms.nome || m.nome)}</b><div class="barra verde"><i style="width:${k * 100}%"></i><span>${fmtTempo((ms.fim - agora) / 1000)} · ${Math.round(ms.chance * 100)}%</span></div></div>
       <button class="btn roxo peq" data-acel="${ms.uid}">${ico('raio')}${E.custoAcelerar(ms, agora)}${ico('gema', 'mini')}</button></div>`; }).join('') + '</div>';
-  h += '<div class="regioes">' + REGIOES.map((r, i) => `<button class="reg ${i === regiaoAberta ? 'on' : ''} ${i > S.regiao ? 'trancado' : ''}" data-reg="${i}" style="--c:${r.cor}">${ico(i > S.regiao ? 'cadeado' : r.icone)}<small>${i + 1}</small>${S.chefes[i] ? `<i class="ok">${ico('check')}</i>` : ''}</button>`).join('') + '</div>';
-  const r = REGIOES[regiaoAberta];
-  if (regiaoAberta > S.regiao) return h + `<div class="bloqueado">${ico('cadeado')}<p>Derrote o chefe da região anterior para liberar <b>${r.nome}</b>.</p></div>`;
-  h += `<h3 class="regTit" style="--c:${r.cor}">${r.nome}<small>Poder recomendado: ${fmt(reqRegiao(regiaoAberta))}+ · bônus para ${CLASSES[r.afin].nome}</small></h3><div class="lista">`;
-  for (let t = 0; t < 4; t++) {
-    if (t === 3 && S.chefes[regiaoAberta]) continue;
-    const m = missao(regiaoAberta, t), eq = E.melhorEquipe(regiaoAberta, t), ch = eq.length ? chanceSucesso(E.poderEquipe(eq, regiaoAberta), m.req) : 0;
-    const b = E.bonus(), dur = m.dur * EF.biblioteca(E.nivel('biblioteca')) * b.tempo, ouro = m.ouro * EF.quadro(E.nivel('quadro')).bonus * EF.mercado(E.nivel('mercado')) * b.ouro;
-    h += `<div class="missao ${m.chefe ? 'chefe' : ''}"><div class="mTopo"><span class="circ peq" style="--c:${m.chefe ? '#b8203a' : r.cor}">${ico(m.chefe ? 'chefe' : r.icone)}</span><div class="cTxt"><b>${m.nome}</b><small>${ico('tempo')}${fmtTempo(dur)} · ${ico('herois')}até ${m.max} · ${ico('poder')}${fmt(m.req)}</small></div></div>
-      <div class="recomp"><span>${ico('ouro')}${fmt(ouro)}</span><span>${ico('xp')}${fmt(m.xp)} XP</span>${m.bau ? `<span>${ico('bau')}${Math.round(m.bau * 100)}%</span>` : ''}${m.chefe ? `<span>${ico('cadeado')}libera próxima região</span>` : ''}</div>
-      <button class="btn ${ch >= 0.8 ? 'verde' : ch >= 0.4 ? 'amarelo' : 'vermelho'}" data-enviar="${t}" ${eq.length ? '' : 'disabled'}><span>${eq.length ? 'Enviar equipe' : 'Sem heróis livres'}</span><em>${Math.round(ch * 100)}%</em></button></div>`;
+  h += `<div class="vistas"><button class="${vistaM === 'quadro' ? 'on' : ''}" data-vista="quadro">${ico('quadro')} Quadro</button><button class="${vistaM === 'mapa' ? 'on' : ''}" data-vista="mapa">${ico('missoes')} Mapa</button></div>`;
+  const papeis = (S.quadro || []).filter(q => filtroReg == null || q.r === filtroReg).sort((a, b) => (b.t === 3) - (a.t === 3) || a.rank - b.rank);
+  if (vistaM === 'mapa') {
+    h += `<div class="mapa"><svg class="trilhas" viewBox="0 0 100 100" preserveAspectRatio="none"><polyline points="${REGIOES.map(r => r.x + ',' + r.y).join(' ')}"/></svg>` +
+      REGIOES.map((r, i) => { const tr = i > S.regiao, qs = (S.quadro || []).filter(q => q.r === i);
+        return `<button class="lugar ${tr ? 'trancado' : ''} ${S.chefes[i] ? 'limpo' : ''}" data-lugar="${i}" style="left:${r.x}%;top:${r.y}%;--c:${r.cor}"><span class="circ" style="--c:${r.cor}">${ico(tr ? 'cadeado' : r.icone)}</span>
+          <small>${r.nome}</small>${selo(RANK_REGIAO[i], 'mini')}${qs.length && !tr ? `<em class="pinos">${qs.length}</em>` : ''}${qs.some(q => q.t === 3) ? `<b class="procurado">${ico('chefe')}</b>` : ''}</button>`; }).join('') + '</div>';
+    h += `<p class="suave">Toque num lugar para ver os papéis de lá. ${ico('chefe')} = chefe procurado.</p>`;
+  } else {
+    if (filtroReg != null) h += `<div class="filtro">${ico(REGIOES[filtroReg].icone)} ${REGIOES[filtroReg].nome} <button data-lugar="-1">${ico('fechar')}</button></div>`;
+    h += '<div class="quadroM">' + (papeis.map(q => {
+      const m = missao(q.r, q.t), reg = REGIOES[q.r], dur = m.dur * EF.biblioteca(E.nivel('biblioteca')) * E.bonus().tempo, ouro = m.ouro * q.mult * EF.quadro(E.nivel('quadro')).bonus * EF.mercado(E.nivel('mercado')) * E.bonus().ouro;
+      const pode = S.herois.some(x => E.rankHeroi(x) >= q.rank);
+      return `<button class="papel ${q.t === 3 ? 'procurado' : ''} ${pode ? '' : 'alto'}" data-q="${q.id}" style="--g:${q.gira}deg"><i class="prego"></i>${selo(q.rank)}
+        ${q.t === 3 ? `<span class="cartaz">PROCURADO</span><span class="rosto">${ico('chefe')}</span><b>${reg.chefe}</b>` : `<b>${esc(q.nome)}</b>`}
+        <small class="onde" style="--c:${reg.cor}">${ico(reg.icone)}${reg.nome}</small>
+        <span class="recomp2">${ico('ouro')}${fmt(ouro)}${m.bau ? ` ${ico('bau')}` : ''}${q.mult >= 1.3 ? '<em>bônus!</em>' : ''}</span>
+        <small>${ico('tempo')}${fmtTempo(dur)} · ${ico('herois')}${m.max} · ${ico('poder')}${fmt(m.req)}</small>
+        ${q.ate ? `<small class="some">some em ${fmtTempo((q.ate - agora) / 1000)}</small>` : ''}</button>`;
+    }).join('') || `<p class="suave vazio">Nenhum papel aqui agora.</p>`) + '</div>';
+    h += `<div class="linha rodape"><small>${ico('relogio')} Novo papel em ${fmtTempo(Math.max(0, (S.quadroT - agora) / 1000))}</small><button class="btn roxo peq" data-a="trocar">${ico('dado')} Trocar papéis ${GEMAS_TROCAR}${ico('gema', 'mini')}</button></div>`;
   }
-  return h + '</div>';
+  return h;
 }
 function htmlRecrutar() {
   const ch = chancesRecrutar(E.nivel('portal')), chP = chancesRecrutar(E.nivel('portal'), true), c = custoRecrutar(S.st.recrutados), agora = Date.now(), cheio = S.herois.length >= E.capacidade();
@@ -297,8 +310,10 @@ function cliqueFolha(e) {
   if (b.dataset.a === 'visual') { som('abrir'); const id = heroiAberto; abrirCriador(id, { aoFechar: () => { revestir(id); abrirHeroi(id); } }); return; }
   if (b.dataset.a === 'lider') { S.lider = heroiAberto; som('confirma'); aviso(`${ico('coroa')} ${esc(E.heroi(heroiAberto).nome)} agora é o líder!`, 'ouro'); }
   if (b.dataset.a === 'aposentar') { const h = E.heroi(heroiAberto); if (h && confirm(`Aposentar ${h.nome}? Você recebe um pouco de ouro.`)) { const v = E.aposentar(h.id); if (v) { som('moedas'); aviso(`${esc(h.nome)} se aposentou. +${fmt(v)} ouro`); abrirAba('herois'); } } return; }
-  if (b.dataset.reg != null) { const r = +b.dataset.reg; regiaoAberta = r; som('livro'); desenharFolha(true); return; }
-  if (b.dataset.enviar != null) { escolherEquipe(regiaoAberta, +b.dataset.enviar); return; }
+  if (b.dataset.vista) { vistaM = b.dataset.vista; som('livro'); desenharFolha(true); return; }
+  if (b.dataset.lugar != null) { const r = +b.dataset.lugar; if (r > S.regiao) { som('erro'); aviso(`${ico('cadeado')} Derrote o chefe anterior para liberar`, 'erro'); return; } filtroReg = r < 0 ? null : r; vistaM = 'quadro'; som('livro'); desenharFolha(true); return; }
+  if (b.dataset.q) { som('abrir'); escolherEquipe(b.dataset.q); return; }
+  if (b.dataset.a === 'trocar') { if (E.trocarPapeis()) { som('livro'); aviso(`${ico('quadro')} Papéis novos no quadro!`); } else { som('erro'); aviso(`${ico('gema')} Gemas insuficientes`, 'erro'); } }
   if (b.dataset.acel) { if (E.acelerar(b.dataset.acel)) som('confirma'); else { som('erro'); aviso(`${ico('gema')} Gemas insuficientes`, 'erro'); } }
   if (b.dataset.a === 'recrutar' || b.dataset.a === 'premium' || b.dataset.a === 'gratis') {
     const h = E.recrutar(b.dataset.a === 'premium', b.dataset.a === 'gratis');
@@ -312,20 +327,24 @@ function revelar(h) {
   const cx = modal(`<div class="revela r${h.rar}" style="--r:${r.cor};--c:${c.cor}"><div class="raios"></div><span class="retrato g">${ico(c.icone)}</span>${estrelas(h.rar)}<b>${esc(h.nome)}</b><small style="color:${r.cor}">${r.nome} · ${c.nome}</small><div class="poder">${ico('poder')}${fmt(E.poder(h))}</div></div><button class="btn verde grande" data-ok>Bem-vindo à guilda!</button>`, 'semFundo');
   som(h.rar >= 2 ? 'lendario' : 'recrutar');
 }
-function escolherEquipe(r, t) {
-  const m = missao(r, t); let sel = E.melhorEquipe(r, t);
+function escolherEquipe(qid) {
+  const q = S.quadro.find(x => x.id === qid); if (!q) return;
+  const r = q.r, t = q.t, m = missao(r, t), ok = id => E.rankHeroi(E.heroi(id)) >= q.rank;
+  const auto = () => { const l = E.melhorEquipe(r, t); if (l.some(ok)) return l; const cap = E.livres().filter(h => ok(h.id)).sort((a, b) => E.poder(b, r) - E.poder(a, r))[0]; return cap ? [cap.id, ...l.filter(x => x !== cap.id)].slice(0, m.max) : l; };
+  let sel = auto();
   const desenhar = () => {
-    const pw = E.poderEquipe(sel, r), ch = chanceSucesso(pw, m.req), hs = E.livres().sort((a, b) => E.poder(b, r) - E.poder(a, r));
-    const cx = modal(`<div class="faixaTit">${m.nome} · ${REGIOES[r].nome}</div>
+    const pw = E.poderEquipe(sel, r), ch = chanceSucesso(pw, m.req), hs = E.livres().sort((a, b) => E.poder(b, r) - E.poder(a, r)), temRank = sel.some(ok);
+    const cx = modal(`<div class="faixaTit">${esc(q.nome)}</div><p class="suave">${ico(REGIOES[r].icone)} ${REGIOES[r].nome} · exige herói ${selo(q.rank, 'mini')} ou maior</p>
       <div class="chance"><div class="medidor" style="--p:${ch * 360}deg;--cor:${ch >= 0.8 ? '#5fd84a' : ch >= 0.4 ? '#ffcf3a' : '#ff5a4a'}"><b>${Math.round(ch * 100)}%</b><small>sucesso</small></div>
         <div><small>Poder da equipe</small><b>${fmt(pw)} / ${fmt(m.req)}</b><small>${sel.length}/${m.max} heróis</small></div></div>
-      <div class="escolha">${hs.map(h => { const c = CLASSES[h.cls]; return `<button class="mini ${sel.includes(h.id) ? 'on' : ''}" data-h="${h.id}" style="--r:${RARIDADES[h.rar].cor};--c:${c.cor}"><span class="retrato">${ico(c.icone)}</span><b>${esc(h.nome)}</b><small>${ico('poder')}${fmt(E.poder(h, r))}${REGIOES[r].afin === h.cls ? ' ★' : ''}</small></button>`; }).join('') || '<p class="suave">Nenhum herói livre.</p>'}</div>
-      <div class="linha"><button class="btn cinza" data-auto>Automático</button><button class="btn verde" data-ir ${sel.length ? '' : 'disabled'}>${ico('missoes')} Enviar</button></div>`);
+      ${temRank ? '' : `<div class="alerta">${ico('cadeado')} Coloque um herói rank ${LETRAS[q.rank]} ou maior na equipe.</div>`}
+      <div class="escolha">${hs.map(h => { const c = CLASSES[h.cls], rk = E.rankHeroi(h); return `<button class="mini ${sel.includes(h.id) ? 'on' : ''}" data-h="${h.id}" style="--r:${RARIDADES[h.rar].cor};--c:${c.cor}">${selo(rk, 'mini canto')}<span class="retrato">${ico(c.icone)}</span><b>${esc(h.nome)}</b><small>${ico('poder')}${fmt(E.poder(h, r))}${REGIOES[r].afin === h.cls ? ' ★' : ''}</small></button>`; }).join('') || '<p class="suave">Nenhum herói livre.</p>'}</div>
+      <div class="linha"><button class="btn cinza" data-auto>Automático</button><button class="btn verde" data-ir ${sel.length && temRank ? '' : 'disabled'}>${ico('missoes')} Pegar missão</button></div>`);
     cx.onclick = e => {
       e.stopPropagation(); const b = e.target.closest('button'); if (!b) return;
       if (b.dataset.h) { const id = b.dataset.h; sel = sel.includes(id) ? sel.filter(x => x !== id) : sel.length < m.max ? [...sel, id] : sel; som('clique'); desenhar(); }
-      if (b.dataset.auto != null) { sel = E.melhorEquipe(r, t); som('clique'); desenhar(); }
-      if (b.dataset.ir != null) { if (E.enviar(r, t, sel)) { som('enviar'); $('#modal').hidden = true; aviso(`${ico('missoes')} Equipe enviada: ${m.nome}`); desenharFolha(true); } else som('erro'); }
+      if (b.dataset.auto != null) { sel = auto(); som('clique'); desenhar(); }
+      if (b.dataset.ir != null) { if (E.pegar(q.id, sel)) { som('enviar'); $('#modal').hidden = true; aviso(`${ico('missoes')} Missão aceita: ${esc(q.nome)}`); desenharFolha(true); } else som('erro'); }
     };
   };
   desenhar();
@@ -346,7 +365,7 @@ function processarEventos() {
       const r = e.res, reg = REGIOES[r.m.r];
       if (r.ok) { som(r.bau ? 'moedas' : 'compra'); aviso(`${ico(r.m.chefe ? 'chefe' : reg.icone)} <b>${r.m.nome}</b> concluída! +${fmt(r.ouro)} ${ico('ouro')}${r.gemas ? ` +${r.gemas} ${ico('gema')}` : ''}`, 'ok', 3500); }
       else { som('falha'); aviso(`${ico('ferido')} <b>${r.m.nome}</b> falhou${r.feridos.length ? ` · ${r.feridos.length} ferido(s)` : ''}`, 'erro', 3500); }
-      if (r.desbloqueou != null) { som('marco'); modal(`<div class="faixaTit">Nova região!</div><div class="famaG" style="--c:${REGIOES[r.desbloqueou].cor}">${ico(REGIOES[r.desbloqueou].icone)}</div><p><b>${REGIOES[r.desbloqueou].nome}</b> foi liberada. Missões mais difíceis e recompensas maiores!</p><button class="btn verde grande" data-ok>Explorar</button>`); regiaoAberta = r.desbloqueou; }
+      if (r.desbloqueou != null) { som('marco'); modal(`<div class="faixaTit">Nova região!</div><div class="famaG" style="--c:${REGIOES[r.desbloqueou].cor}">${ico(REGIOES[r.desbloqueou].icone)}</div><p><b>${REGIOES[r.desbloqueou].nome}</b> foi liberada. Missões mais difíceis e recompensas maiores!</p><button class="btn verde grande" data-ok>Explorar</button>`); }
     }
   }
 }
