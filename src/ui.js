@@ -399,27 +399,30 @@ function revelar(h) {
   const cx = modal(`<div class="revela r${h.rar}" style="--r:${r.cor};--c:${c.cor}"><div class="raios"></div><span class="retrato g">${ico(c.icone)}</span>${estrelas(h.rar)}<b>${esc(h.nome)}</b><small style="color:${r.cor}">${r.nome} · ${c.nome}</small><div class="poder">${ico('poder')}${fmt(E.poder(h))}</div></div><button class="btn verde grande" data-ok>Bem-vindo à guilda!</button>`, 'semFundo');
   som(h.rar >= 2 ? 'lendario' : 'recrutar');
 }
+const lideraPrimeiro = l => l.includes(S.lider) ? [S.lider, ...l.filter(x => x !== S.lider)] : l;
 function escolherEquipe(qid) {
   const q = S.quadro.find(x => x.id === qid); if (!q) return;
   const r = q.r, t = q.t, m = missao(r, t), ok = id => E.rankHeroi(E.heroi(id)) >= q.rank;
-  const auto = () => { const l = E.melhorEquipe(r, t); if (l.some(ok)) return l; const cap = E.livres().filter(h => ok(h.id)).sort((a, b) => E.poder(b, r) - E.poder(a, r))[0]; return cap ? [cap.id, ...l.filter(x => x !== cap.id)].slice(0, m.max) : l; };
+  const auto = () => { const l = lideraPrimeiro(E.melhorEquipe(r, t)); if (l.some(ok)) return l; const cap = E.livres().filter(h => ok(h.id)).sort((a, b) => E.poder(b, r) - E.poder(a, r))[0]; return cap ? [cap.id, ...l.filter(x => x !== cap.id)].slice(0, m.max) : l; };
   let sel = auto();
   const desenhar = () => {
-    const pw = E.poderEquipe(sel, r), ch = chanceSucesso(pw, m.req), hs = E.livres().sort((a, b) => E.poder(b, r) - E.poder(a, r)), temRank = sel.some(ok), liderLivre = E.lider()?.estado === 'livre', guia = sel.includes(S.lider) ? E.lider() : sel.map(E.heroi).sort((a, b) => E.poder(b, r) - E.poder(a, r))[0];
+    const pw = E.poderEquipe(sel, r), ch = chanceSucesso(pw, m.req), hs = E.livres().sort((a, b) => E.poder(b, r) - E.poder(a, r)), temRank = sel.some(ok), liderLivre = E.lider()?.estado === 'livre', guia = E.heroi(sel[0]);
     const cx = modal(`<div class="faixaTit">${esc(q.nome)}</div><p class="suave">${ico(REGIOES[r].icone)} ${REGIOES[r].nome} · exige herói ${selo(q.rank, 'mini')} ou maior</p>
       <div class="chance"><div class="medidor" style="--p:${ch * 360}deg;--cor:${ch >= 0.8 ? '#5fd84a' : ch >= 0.4 ? '#ffcf3a' : '#ff5a4a'}"><b>${Math.round(ch * 100)}%</b><small>sucesso</small></div>
         <div><small>Poder da equipe</small><b>${fmt(pw)} / ${fmt(m.req)}</b><small>${sel.length}/${m.max} heróis</small></div></div>
+      ${guia ? `<p class="suave">${ico('coroa')} <b>${esc(guia.nome)}</b> assumirá a liderança no modo manual (o primeiro escolhido lidera).</p>` : ''}
       ${temRank ? '' : `<div class="alerta">${ico('cadeado')} Coloque um herói rank ${LETRAS[q.rank]} ou maior na equipe.</div>`}
-      <div class="escolha">${hs.map(h => { const c = CLASSES[h.cls], rk = E.rankHeroi(h); return `<button class="mini ${sel.includes(h.id) ? 'on' : ''}" data-h="${h.id}" style="--r:${RARIDADES[h.rar].cor};--c:${c.cor}">${selo(rk, 'mini canto')}<span class="retrato">${ico(c.icone)}</span><b>${esc(h.nome)}</b><small>${ico('poder')}${fmt(E.poder(h, r))}${REGIOES[r].afin === h.cls ? ' ★' : ''}</small></button>`; }).join('') || '<p class="suave">Nenhum herói livre.</p>'}</div>
+      <div class="escolha">${hs.map(h => { const c = CLASSES[h.cls], rk = E.rankHeroi(h); return `<button class="mini ${sel.includes(h.id) ? 'on' : ''}" data-h="${h.id}" style="--r:${RARIDADES[h.rar].cor};--c:${c.cor}">${sel[0] === h.id ? `<i class="coroaL">${ico('coroa')}</i>` : ''}${selo(rk, 'mini canto')}<span class="retrato">${ico(c.icone)}</span><b>${esc(h.nome)}</b><small>${ico('poder')}${fmt(E.poder(h, r))}${REGIOES[r].afin === h.cls ? ' ★' : ''}</small></button>`; }).join('') || '<p class="suave">Nenhum herói livre.</p>'}</div>
       <div class="linha"><button class="btn cinza peq" data-auto>Escolher melhores</button></div>
       <div class="modoM">
         <button class="btn verde" data-ir ${sel.length && temRank ? '' : 'disabled'}><span>${ico('missoes')} Automático</span><small>Os heróis vão sozinhos</small></button>
-        <button class="btn roxo" data-manual ${guia && temRank ? '' : 'disabled'}><span>${ico('c_armas')} Manual</span><small>${guia ? `Você guia ${esc(guia.nome)} (+25%)` : 'Escolha a equipe'}</small></button></div>`);
+        <button class="btn roxo" data-manual ${guia && temRank ? '' : 'disabled'}><span>${ico('c_armas')} Manual</span><small>${guia ? `${esc(guia.nome)} lidera (+25%)` : 'Escolha a equipe'}</small></button></div>`);
     cx.onclick = e => {
       e.stopPropagation(); const b = e.target.closest('button'); if (!b) return;
       if (b.dataset.h) { const id = b.dataset.h; sel = sel.includes(id) ? sel.filter(x => x !== id) : sel.length < m.max ? [...sel, id] : sel; som('clique'); desenhar(); }
       if (b.dataset.auto != null) { sel = auto(); som('clique'); desenhar(); }
       if (b.dataset.manual != null) { $('#modal').hidden = true; abrirAba(null); irMundo(true); const eq = sel.slice(0, m.max);
+        aviso(`${ico('coroa')} ${esc(E.heroi(eq[0]).nome)} assumiu a liderança!`, 'ouro', 3000);
         iniciarLuta(q.id, eq, (venceu, desistiu) => { if (!desistiu) aviso(venceu ? `${ico('check')} Missão cumprida no modo manual!` : `${ico('ferido')} Seu líder caiu... tente de novo`, venceu ? 'ok' : 'erro', 3500); }); }
       if (b.dataset.ir != null) { if (E.pegar(q.id, sel)) { som('enviar'); $('#modal').hidden = true; aviso(`${ico('missoes')} Missão aceita: ${esc(q.nome)}`); desenharFolha(true); } else som('erro'); }
     };

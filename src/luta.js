@@ -27,9 +27,8 @@ const alcanceArma = v => ({ arco: 14, besta: 13, magia: 12 }[armaInfo(v.arma).ti
 
 export function iniciarLuta(qid, ids, aoFim) {
   const q = S.quadro.find(x => x.id === qid); if (!q || L) return false;
-  // você guia o líder se ele estiver na equipe; senão, o herói mais forte dela
   ids = ids.filter(id => E.heroi(id)?.estado === 'livre'); if (!ids.length) return false;
-  const guiaId = ids.includes(S.lider) ? S.lider : [...ids].sort((a, b) => E.poder(E.heroi(b), q.r) - E.poder(E.heroi(a), q.r))[0];
+  const guiaId = ids[0]; // o primeiro escolhido comanda a equipe
   const m = missao(q.r, q.t), razao = Math.max(0.2, E.poderEquipe(ids, q.r) / m.req), forca = Math.sqrt(razao);
   q.emLuta = true; for (const id of ids) E.heroi(id).estado = 'missao';
   const campo = posCampo(q.r, q.dx, q.dy), s = E.sis();
