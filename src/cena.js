@@ -89,7 +89,7 @@ export function montarMundo(M) {
       if (!o.isMesh) return;
       const mat = new THREE.Matrix4().multiplyMatrices(tmp.matrixWorld, new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld));
       const g = new THREE.BufferGeometry();
-      for (const nome of ['position', 'normal', 'uv']) if (o.geometry.attributes[nome]) g.setAttribute(nome, toF32(o.geometry.attributes[nome]));
+      for (const nome of ['position', 'normal', 'uv', 'color']) if (o.geometry.attributes[nome]) g.setAttribute(nome, toF32(o.geometry.attributes[nome]));
       g.setIndex(o.geometry.index ? Array.from(o.geometry.index.array) : [...Array(o.geometry.attributes.position.count).keys()]);
       g.applyMatrix4(mat);
       const pequeno = /grass|flower|mushroom_red$|plant_bush$/.test(p.m);
@@ -118,7 +118,7 @@ export function montarEstatico(lista) {
     modelo.traverse(o => {
       if (!o.isMesh) return;
       const g = new THREE.BufferGeometry();
-      for (const nome of ['position', 'normal', 'uv']) if (o.geometry.attributes[nome]) g.setAttribute(nome, toF32(o.geometry.attributes[nome]));
+      for (const nome of ['position', 'normal', 'uv', 'color']) if (o.geometry.attributes[nome]) g.setAttribute(nome, toF32(o.geometry.attributes[nome]));
       g.setIndex(o.geometry.index ? Array.from(o.geometry.index.array) : [...Array(o.geometry.attributes.position.count).keys()]);
       g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(tmp.matrixWorld, new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld)));
       const chave = o.material.uuid + '|' + Object.keys(g.attributes).join(',') + '|' + Math.floor(p.x / 40) + ',' + Math.floor(p.z / 40);

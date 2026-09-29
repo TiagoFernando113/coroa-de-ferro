@@ -116,19 +116,30 @@ export function montarBase() {
   }
   L.push({ m: 'C:tower-square-base', x: -4.5, z: 29, s: 2.4 }, { m: 'C:tower-square-top', x: -4.5, y: 2.42, z: 29, s: 2.4 }, { m: 'C:flag', x: -4.5, y: 3.1, z: 29, s: 3 });
   L.push({ m: 'C:tower-square-base', x: 4.5, z: 29, s: 2.4 }, { m: 'C:tower-square-top', x: 4.5, y: 2.42, z: 29, s: 2.4 }, { m: 'C:flag', x: 4.5, y: 3.1, z: 29, s: 3 });
-  // floresta em volta
+  // floresta em volta: árvores detalhadas (Quaternius) perto, simples (Kenney) no fundo
+  const ARVQ = ['Q:CommonTree_1', 'Q:CommonTree_2', 'Q:CommonTree_3', 'Q:CommonTree_4', 'Q:CommonTree_5', 'Q:Pine_1', 'Q:Pine_2', 'Q:Pine_3', 'Q:Pine_5'];
   const ARV = ['N:tree_oak', 'N:tree_default', 'N:tree_fat', 'N:tree_pineTallA', 'N:tree_pineRoundB', 'N:tree_detailed', 'N:tree_oak_dark'];
-  for (let i = 0; i < 260; i++) {
-    const a = r() * P * 2, d = 33 + r() * 30, x = Math.cos(a) * d, z = Math.sin(a) * d;
+  for (let i = 0; i < 230; i++) {
+    const a = r() * P * 2, d = 33 + r() * 32, x = Math.cos(a) * d, z = Math.sin(a) * d;
     if (Math.abs(x) < 6 && z > 28) continue;
-    L.push({ m: ARV[Math.floor(r() * ARV.length)], x, z, ry: r() * 6, s: 4.5 + r() * 2 });
+    if (d < 46) L.push({ m: ARVQ[Math.floor(r() * ARVQ.length)], x, z, ry: r() * 6, s: 1.1 + r() * 0.4 });
+    else L.push({ m: ARV[Math.floor(r() * ARV.length)], x, z, ry: r() * 6, s: 4.5 + r() * 2 });
   }
-  for (let i = 0; i < 26; i++) { const a = r() * P * 2, d = 20 + r() * 8; L.push({ m: r() < 0.5 ? 'N:plant_bushLarge' : 'N:rock_largeA', x: Math.cos(a) * d, z: Math.sin(a) * d, ry: r() * 6, s: 3 + r() * 1.5 }); }
-  const ENF = ['N:grass', 'N:grass_large', 'N:flower_redA', 'N:flower_yellowA', 'N:flower_purpleA'];
-  for (let i = 0; i < 500; i++) {
+  const ARB = ['Q:Plant_7_Big', 'Q:Fern_1', 'Q:Rock_Medium_1', 'Q:Rock_Medium_2', 'Q:Plant_1_Big', 'Q:Rock_Medium_3', 'Q:Fern_1'];
+  for (let i = 0; i < 40; i++) { const a = r() * P * 2, d = 20 + r() * 12; if (Math.abs(Math.cos(a) * d) < 5 && Math.sin(a) * d > 20) continue; L.push({ m: ARB[Math.floor(r() * ARB.length)], x: Math.cos(a) * d, z: Math.sin(a) * d, ry: r() * 6, s: 1 + r() * 0.5 }); }
+  const ENF = ['Q:Grass_Common_Short', 'Q:Grass_Wispy_Tall', 'Q:Grass_Common_Short', 'Q:Flower_3_Group', 'Q:Flower_4_Group', 'Q:Clover_1', 'Q:Mushroom_Common', 'Q:Grass_Common_Tall'];
+  for (let i = 0; i < 420; i++) {
     const a = r() * P * 2, d = 9 + r() * 50, x = Math.cos(a) * d, z = Math.sin(a) * d;
     let ok = true; for (const p of Object.values(POS)) if (Math.hypot(x - p.x, z - p.z) < 7) ok = false; if (Math.abs(x) < 3 && z > 6) ok = false; if (!ok) continue;
-    L.push({ m: ENF[Math.floor(r() * ENF.length)], x, z, ry: r() * 6, s: 3 + r() * 1.2 });
+    L.push({ m: ENF[Math.floor(r() * ENF.length)], x, z, ry: r() * 6, s: 0.8 + r() * 0.5 });
+  }
+  // pedrinhas nas beiradas dos caminhos
+  for (const c of caminhos) {
+    const [[x0, z0], [x1, z1]] = [c.pts[0], c.pts[c.pts.length - 1]], len = Math.hypot(x1 - x0, z1 - z0), nx = -(z1 - z0) / len, nz = (x1 - x0) / len;
+    for (let t = 0; t < len; t += 1.6) for (const lado of [-1, 1]) {
+      const k = t / len, off = (c.w / 2 + 0.3 + r() * 0.3) * lado;
+      L.push({ m: 'Q:Pebble_Round_' + (1 + Math.floor(r() * 3)), x: x0 + (x1 - x0) * k + nx * off, z: z0 + (z1 - z0) * k + nz * off, ry: r() * 6, s: 1.2 + r() * 0.8 });
+    }
   }
   C.montarMundo({ tam: 130, pecas: L, caminhos, pracas: [{ x: 0, z: 0, r: 10 }] });
   for (const id of Object.keys(EDIFICIOS)) atualizarPredio(id, true);

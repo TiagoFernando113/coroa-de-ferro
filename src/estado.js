@@ -3,7 +3,7 @@
 import { visualAleatorio } from './aparencia.js';
 import { EDIFICIOS, EF, custoEd, CLASSES, RARIDADES, chancesRecrutar, xpHeroi, custoTreinar, custoRecrutar, GEMAS_RECRUTAR, nomeAleatorio,
   REGIOES, missao, chanceSucesso, xpFama, OBJETIVOS, gemasObjetivo, OFFLINE_MAX, xpSistema, PONTOS_NIVEL, rankDe,
-  RANK_REGIAO, rankIdx, TITULOS, MAX_QUADRO, GEMAS_TROCAR } from './dados.js';
+  RANK_REGIAO, rankIdx, TITULOS, MAX_QUADRO, GEMAS_TROCAR, MAX_ORDENS, ORDEM_SEG, GEMAS_ORDENS, AUTO_MULT } from './dados.js';
 
 const SAVE = 'coroa_guilda_v1';
 export let S = null;
@@ -147,9 +147,16 @@ export function trocarPapeis(agora = Date.now()) {
 export const rankHeroi = h => rankIdx(h.nivel);
 // modo automático: heróis livres pegam sozinhos os papéis com boa chance de sucesso
 let autoT = 0;
-function autoMissoes(dt, agora) {
-  if (!S.auto || (autoT -= dt) > 0) return; autoT = 2;
-  for (let n = 0; n < 3 && S.missoes.length < vagasMissao() && livres().length; n++) {
+export const maxOrdens = () => MAX_ORDENS(nivel('quadro'));
+export function regenOrdens(agora = Date.now()) {
+  if (S.ordens == null) { S.ordens = maxOrdens(); S.ordensT = agora; }
+  if (S.ordens >= maxOrdens()) { S.ordensT = agora; return; }
+  while (agora - S.ordensT >= ORDEM_SEG * 1000 && S.ordens < maxOrdens()) { S.ordens++; S.ordensT += ORDEM_SEG * 1000; }
+}
+export function recarregarOrdens() { if (S.gemas < GEMAS_ORDENS) return false; S.gemas -= GEMAS_ORDENS; S.ordens = maxOrdens(); S.ordensT = Date.now(); return true; }
+function autoMissoes(dt, agora, forcar = false) {
+  if (!S.auto || (!forcar && (autoT -= dt) > 0)) return; autoT = 2;
+  for (let n = 0; n < 3 && S.ordens >= 1 && S.missoes.length < vagasMissao() && livres().length; n++) {
     let melhor = null;
     for (const q of S.quadro) {
       const m = missao(q.r, q.t); let eq = melhorEquipe(q.r, q.t);
@@ -158,7 +165,8 @@ function autoMissoes(dt, agora) {
       const valor = m.ouro * q.mult / m.dur * (q.t === 3 ? 3 : 1);
       if (!melhor || valor > melhor.valor) melhor = { q, eq, valor };
     }
-    if (!melhor || !pegar(melhor.q.id, melhor.eq, agora)) break;
+    const ms = melhor && pegar(melhor.q.id, melhor.eq, agora); if (!ms) break;
+    ms.mult *= AUTO_MULT; ms.auto = true; S.ordens--;
   }
 }
 // pega um papel do quadro: precisa de ao menos um herói com o rank exigido
@@ -225,7 +233,7 @@ export const objetivosProntos = () => OBJETIVOS.filter(o => objetivoAtual(o)?.fe
 
 // ---------------- tempo ----------------
 export function passo(dt, agora = Date.now()) {
-  atualizarQuadro(agora); autoMissoes(dt, agora);
+  atualizarQuadro(agora); regenOrdens(agora); autoMissoes(dt, agora);
   ganharOuro(renda() * dt);
   const xps = EF.treino(nivel('treino')) * dt; if (xps > 0) { for (const h of S.herois) if (h.estado === 'livre') ganharXP(h, xps); ganharXPSis(xps * 0.15); }
   for (const h of S.herois) if (h.estado === 'ferido' && agora >= h.ate) { h.estado = 'livre'; ev('curado', { id: h.id }); }
@@ -238,6 +246,14 @@ export function offline(agora = Date.now()) {
   if (seg > 5) {
     ganharOuro(renda() * seg);
     const xps = EF.treino(nivel('treino')) * seg; if (xps > 0) { for (const h of S.herois) if (h.estado === 'livre') ganharXP(h, xps); ganharXPSis(xps * 0.15); }
+  }
+  // o tempo passa em passos: missões terminam, ordens voltam e o modo automático continua enviando
+  const ini = agora - seg * 1000, passo = Math.max(30e3, seg * 1000 / 400);
+  if (S.quadroT > ini) S.quadroT = ini + 90e3; // papéis novos continuam chegando no quadro
+  for (let tt = ini + passo; tt < agora; tt += passo) {
+    for (const h of S.herois) if (h.estado === 'ferido' && tt >= h.ate) h.estado = 'livre';
+    for (const ms of [...S.missoes]) if (tt >= ms.fim) concluir(ms, tt, true);
+    atualizarQuadro(tt); regenOrdens(tt); autoMissoes(0, tt, true);
   }
   for (const h of S.herois) if (h.estado === 'ferido' && agora >= h.ate) h.estado = 'livre';
   for (const ms of [...S.missoes]) if (agora >= ms.fim) concluir(ms, agora, true);

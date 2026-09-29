@@ -30,8 +30,7 @@ export function abrirCriador(id, { primeiro = false, aoFechar = null } = {}) {
       <div id="crCorpo"></div>
       <footer>${primeiro ? '' : '<button class="btn cinza" data-cr="cancelar">Cancelar</button>'}<button class="btn verde" data-cr="pronto">${ico('check')} Pronto!</button></footer></section>`;
   document.body.append(el); $('#hud').style.visibility = 'hidden';
-  el.addEventListener('click', clique); el.addEventListener('input', entrada);
-  el.addEventListener('change', e => { if (E && (e.target.dataset.pelelivre != null || e.target.dataset.pintarlivre != null)) setTimeout(desenhar, 80); });
+  el.addEventListener('click', clique); el.addEventListener('input', entrada); el.addEventListener('pointerdown', arrastarSeletor);
   // arrastar a prévia gira o herói
   const g = $('#crGiro'); let x0 = null;
   g.addEventListener('pointerdown', e => { x0 = e.clientX; g.setPointerCapture(e.pointerId); });
@@ -75,7 +74,7 @@ function desenhar() {
     h += `<h4>Visual pronto</h4><div class="crOps">${ESTILOS.map(e => `<button class="crOp" data-estilo="${e.id}">${e.nome}</button>`).join('')}<button class="crOp dado" data-estilo="?">${ico('dado')} Aleatório</button></div>
       <p class="suave">Depois ajuste cada detalhe nas outras abas: rosto, corpo, roupa, armas e a cor de cada pedacinho.</p>`;
   }
-  if (E.aba === 'rosto') h += grupo('Rosto e cabelo', 'cab') + `<h4>Pele</h4><div class="crCores">${['', ...PELES].map(c => `<button class="crCor ${v.pele === c ? 'on' : ''}" data-pele="${c}" style="--cor:${c || '#f3bd98'}">${c ? '' : ico('check')}</button>`).join('')}<label class="crCor livre" style="--cor:${v.pele || '#f3bd98'}">${ico('pincel')}<input type="color" data-pelelivre value="${v.pele || '#f3bd98'}"></label></div>`
+  if (E.aba === 'rosto') h += grupo('Rosto e cabelo', 'cab') + `<h4>Pele</h4><div class="crCores">${['', ...PELES].map(c => `<button class="crCor ${v.pele === c ? 'on' : ''}" data-pele="${c}" style="--cor:${c || '#f3bd98'}">${c ? '' : ico('check')}</button>`).join('')}<button class="crCor livre" data-livre="pele">${ico('pincel')}</button></div>${E.livre?.alvo === 'pele' ? seletorHtml() : ''}`
     + barra('cabT') + grupo('Chapéu e elmo', 'cha') + grupo('Máscara', 'mas');
   if (E.aba === 'corpo') h += barra('alt') + barra('larg') + barra('musc') + grupo('Tronco', 'tro') + grupo('Braços', 'bra') + grupo('Pernas', 'per');
   if (E.aba === 'roupa') h += grupo('Capa', 'capa') + grupo('Costas', 'cos');
@@ -88,14 +87,14 @@ function desenhar() {
     if (E.zona) {
       const atual = v.cores[E.zona];
       h += `<div class="crPaleta"><div class="crCores">${PALETA.map(c => `<button class="crCor ${atual === c ? 'on' : ''}" data-pintar="${c}" style="--cor:${c}"></button>`).join('')}
-        <label class="crCor livre" style="--cor:${atual || '#888888'}">${ico('pincel')}<input type="color" data-pintarlivre value="${atual || '#888888'}"></label></div>
+        <button class="crCor livre" data-livre="zona">${ico('pincel')}</button></div>${E.livre?.alvo === 'zona' ? seletorHtml() : ''}
         <button class="btn cinza peq" data-cr="original">Cor original</button></div>`;
     }
     h += `<button class="btn cinza peq" data-cr="limpar">Restaurar todas as cores</button>`;
   }
   if (E.aba === 'nome') h += `<h4>Nome do herói</h4><div class="crNome"><input maxlength="16" data-nome value="${esc(E.nome)}"><button class="btn azul peq" data-cr="sortear">${ico('dado')}</button></div>
     <p class="suave">${E.primeiro ? 'Este é o líder da sua guilda. Você pode mudar a aparência depois, em Heróis.' : 'Mude quando quiser.'}</p>`;
-  $('#crCorpo').innerHTML = h;
+  $('#crCorpo').innerHTML = h; desenharSeletor();
 }
 function clique(e) {
   const b = e.target.closest('button'); if (!b || !E) return;
@@ -108,11 +107,41 @@ function clique(e) {
   if (d.estilo) { E.v = d.estilo === '?' ? visualAleatorio(E.cls) : visualPadrao(d.estilo); if (d.estilo === '?') { E.v.cores = {}; } som('clique'); mudou(); tocar('Cheering'); return; }
   if (d.k) { E.v[d.k] = d.v; som('clique'); mudou(); if (d.k === 'arma' || d.k === 'esq') tocar('ataque'); return; }
   if (d.pele != null) { E.v.pele = d.pele; som('clique'); mudou(); return; }
-  if (d.zona) { E.zona = E.zona === d.zona ? null : d.zona; som('clique'); desenhar(); return; }
+  if (d.livre) { if (d.livre === 'ok') { E.livre = null; som('confirma'); desenhar(); return; } E.livre = { alvo: d.livre, ...(E.livre = { alvo: d.livre }, hex2hsv(corAtual())) }; som('clique'); desenhar(); return; }
+  if (d.zona) { E.livre = null; E.zona = E.zona === d.zona ? null : d.zona; som('clique'); desenhar(); return; }
   if (d.pintar) { E.v.cores[E.zona] = d.pintar; delete E.v.tinta; som('clique'); mudou(); return; }
   if (d.cr === 'original') { delete E.v.cores[E.zona]; som('clique'); mudou(); return; }
   if (d.cr === 'limpar') { E.v.cores = {}; delete E.v.tinta; E.v.pele = ''; E.zona = null; som('clique'); mudou(); return; }
   if (d.cr === 'sortear') { E.nome = nomeAleatorio(S.herois.map(x => x.nome)); som('clique'); desenhar(); }
+}
+// ---------------- seletor de cor próprio (matiz + quadro de tom) ----------------
+const hsv2hex = (h, s, v) => { const f = n => { const k = (n + h / 60) % 6; return v - v * s * Math.max(0, Math.min(k, 4 - k, 1)); }; return '#' + [f(5), f(3), f(1)].map(x => Math.round(x * 255).toString(16).padStart(2, '0')).join(''); };
+function hex2hsv(hx) { const [r, g, b] = [1, 3, 5].map(i => parseInt(hx.slice(i, i + 2), 16) / 255), mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+  let h = 0; if (d) h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; return { h: (h * 60 + 360) % 360, s: mx ? d / mx : 0, v: mx }; }
+const corAtual = () => E.livre.alvo === 'pele' ? E.v.pele || '#f3bd98' : E.v.cores[E.zona] || '#888888';
+function seletorHtml() { return `<div class="seletor"><canvas class="selSV" width="240" height="150"></canvas><canvas class="selH" width="240" height="22"></canvas>
+  <div class="linha"><span class="selPrev"></span><button class="btn verde peq" data-livre="ok">${ico('check')} Pronto</button></div></div>`; }
+function desenharSeletor() {
+  const box = document.querySelector('#crCorpo .seletor'); if (!box || !E.livre) return;
+  const { h, s, v } = E.livre, sv = box.querySelector('.selSV'), hb = box.querySelector('.selH'), g = sv.getContext('2d'), gh = hb.getContext('2d');
+  g.fillStyle = hsv2hex(h, 1, 1); g.fillRect(0, 0, 240, 150);
+  let gr = g.createLinearGradient(0, 0, 240, 0); gr.addColorStop(0, '#fff'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 240, 150);
+  gr = g.createLinearGradient(0, 0, 0, 150); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, '#000'); g.fillStyle = gr; g.fillRect(0, 0, 240, 150);
+  g.strokeStyle = '#fff'; g.lineWidth = 3; g.beginPath(); g.arc(s * 240, (1 - v) * 150, 8, 0, 7); g.stroke();
+  gr = gh.createLinearGradient(0, 0, 240, 0); for (let i = 0; i <= 6; i++) gr.addColorStop(i / 6, hsv2hex(i * 60, 1, 1)); gh.fillStyle = gr; gh.fillRect(0, 0, 240, 22);
+  gh.strokeStyle = '#fff'; gh.lineWidth = 3; gh.strokeRect(h / 360 * 240 - 3, 1, 6, 20);
+  box.querySelector('.selPrev').style.background = hsv2hex(h, s, v);
+}
+let tCor = 0;
+function arrastarSeletor(e) {
+  const c = e.target; if (!E?.livre || !c.classList || !(c.classList.contains('selSV') || c.classList.contains('selH'))) return;
+  e.preventDefault(); c.setPointerCapture(e.pointerId);
+  const mover = ev => { const r = c.getBoundingClientRect(), x = Math.max(0, Math.min(1, (ev.clientX - r.left) / r.width)), y = Math.max(0, Math.min(1, (ev.clientY - r.top) / r.height));
+    if (c.classList.contains('selH')) E.livre.h = x * 359.9; else { E.livre.s = x; E.livre.v = 1 - y; }
+    desenharSeletor(); const cor = hsv2hex(E.livre.h, E.livre.s, E.livre.v);
+    if (E.livre.alvo === 'pele') E.v.pele = cor; else E.v.cores[E.zona] = cor;
+    clearTimeout(tCor); tCor = setTimeout(refazer, 90); };
+  mover(e); c.onpointermove = mover; c.onpointerup = () => { c.onpointermove = null; };
 }
 let tEntrada = 0;
 function entrada(e) {

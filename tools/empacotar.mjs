@@ -17,6 +17,7 @@ const N = path.join(KITS, 'nature-kit/Models/GLTF format');
 const D = path.join(KITS, 'mini-dungeon/Models/GLB format');
 const AV = path.join(KITS, 'aventureiros2'), ANI = path.join(KITS, 'animacoes/Animations/gltf/Rig_Medium');
 const A = path.join(AV, 'Assets/gltf'), W = path.join(KITS, 'armas-bits/Assets/gltf');
+const QN = path.join(KITS, 'natureza2/leve'); // Quaternius Stylized Nature MegaKit (CC0), texturas reduzidas
 
 const COMUM = ['Idle', 'Running_A', 'Walking_A', 'Death_A', 'Hit_A', 'Dodge_Forward', 'Cheer', 'Interact'];
 const ESQ = ['Spawn_Ground_Skeletons', 'Death_C_Skeletons', 'Idle_Combat'];
@@ -65,6 +66,10 @@ const CENARIO = {
     'shield_spikes_color', 'shield_square', 'shield_square_color', 'spellbook_closed', 'spellbook_open', 'mug_full', 'quiver', 'smokebomb'],
   W: ['axe_A', 'axe_B', 'axe_C', 'bow_A_withString', 'bow_B_withString', 'dagger_A', 'dagger_B', 'fistweapon_A', 'fistweapon_B', 'halberd', 'hammer_A',
     'hammer_B', 'hammer_C', 'shield_A', 'shield_B', 'shield_C', 'spear_A', 'staff_A', 'staff_B', 'sword_A', 'sword_B', 'sword_C', 'sword_D', 'sword_E', 'wand_A'],
+  Q: ['CommonTree_1', 'CommonTree_2', 'CommonTree_3', 'CommonTree_4', 'CommonTree_5', 'Pine_1', 'Pine_2', 'Pine_3', 'Pine_4', 'Pine_5', 'TwistedTree_1', 'TwistedTree_3',
+    'DeadTree_1', 'DeadTree_3', 'Bush_Common', 'Bush_Common_Flowers', 'Fern_1', 'Grass_Common_Short', 'Grass_Common_Tall', 'Grass_Wispy_Tall', 'Flower_3_Group', 'Flower_4_Group',
+    'Mushroom_Common', 'Plant_1_Big', 'Plant_7_Big', 'Clover_1', 'Rock_Medium_1', 'Rock_Medium_2', 'Rock_Medium_3', 'RockPath_Round_Small_1', 'RockPath_Round_Small_2',
+    'RockPath_Round_Small_3', 'RockPath_Round_Wide', 'Pebble_Round_1', 'Pebble_Round_2', 'Pebble_Round_3'],
   D: ['coin', 'chest', 'potion', 'key', 'barrel', 'banner', 'column', 'weapon-sword', 'shield-round', 'wall', 'wall-half', 'wall-opening', 'gate',
     'rocks', 'stones', 'trap', 'dirt', 'floor', 'floor-detail', 'wood-support', 'table'],
 };
@@ -121,7 +126,7 @@ for (const [k, [arq, usadas]] of Object.entries(ANIMS)) {
 // cenário: um documento só, cada peça vira um nó "kit:nome" na cena principal
 const cen = new Document(); const cena = cen.createScene('cenario'); cen.createBuffer();
 for (const [kit, nomes] of Object.entries(CENARIO)) {
-  const dir = { T, C, N, D, A, W }[kit], ext = kit === 'A' || kit === 'W' || kit === 'N' && false ? '.gltf' : '.glb';
+  const dir = { T, C, N, D, A, W, Q: QN }[kit], ext = kit === 'A' || kit === 'W' || kit === 'Q' ? '.gltf' : '.glb';
   for (const n of nomes) {
     const src = await io.read(path.join(dir, n + (kit === 'N' ? '.glb' : ext)));
     for (const b of src.getRoot().listBuffers()) b.dispose(); // um buffer só no destino
@@ -132,6 +137,7 @@ for (const [kit, nomes] of Object.entries(CENARIO)) {
     cena.addChild(no); nova.dispose();
   }
 }
+for (const m of cen.getRoot().listMaterials()) m.setNormalTexture(null); // sem normal maps (celular)
 const buf = cen.getRoot().listBuffers()[0];
 for (const a of cen.getRoot().listAccessors()) a.setBuffer(buf);
 for (const b of cen.getRoot().listBuffers()) if (b !== buf) b.dispose();

@@ -4,7 +4,7 @@ import * as E from './estado.js';
 import { S } from './estado.js';
 import { ICONES } from './icones.js';
 import { EDIFICIOS, EF, custoEd, descEfeito, proxMarco, marcosAte, CLASSES, RARIDADES, chancesRecrutar, xpHeroi, custoTreinar, custoRecrutar, GEMAS_RECRUTAR,
-  REGIOES, missao, reqRegiao, chanceSucesso, xpFama, OBJETIVOS, fmt, fmtTempo, ATRIBUTOS, xpSistema, rankDe, RANKS, RANK_REGIAO, LETRAS, GEMAS_TROCAR } from './dados.js';
+  REGIOES, missao, reqRegiao, chanceSucesso, xpFama, OBJETIVOS, fmt, fmtTempo, ATRIBUTOS, xpSistema, rankDe, RANKS, RANK_REGIAO, LETRAS, GEMAS_TROCAR, ORDEM_SEG, GEMAS_ORDENS } from './dados.js';
 import { POS, atualizarPredio, revestir } from './base.js';
 import { abrirCriador } from './criador.js';
 import { MUNDO, GUILDA_W, mostrarMundo, mundoVisivel, camposVisiveis } from './mundo.js';
@@ -318,7 +318,10 @@ function htmlMissoes() {
   if (S.missoes.length) h += '<div class="ativasL">' + S.missoes.map(ms => { const m = missao(ms.r, ms.t), k = Math.min(1, (agora - ms.inicio) / (ms.fim - ms.inicio)), reg = REGIOES[ms.r];
     return `<div class="ativa"><span class="circ peq" style="--c:${reg.cor}">${ico(reg.icone)}</span><div class="cTxt"><b>${esc(ms.nome || m.nome)}</b><div class="barra verde"><i style="width:${k * 100}%"></i><span>${fmtTempo((ms.fim - agora) / 1000)} · ${Math.round(ms.chance * 100)}%</span></div></div>
       <button class="btn roxo peq" data-acel="${ms.uid}">${ico('raio')}${E.custoAcelerar(ms, agora)}${ico('gema', 'mini')}</button></div>`; }).join('') + '</div>';
-  h += `<div class="autoM"><b>Modo automático<small>Heróis livres pegam sozinhos papéis com 80%+ de chance</small></b><button class="chave ${S.auto ? 'on' : ''}" data-a="auto"></button></div>`;
+  E.regenOrdens(agora); const mo = E.maxOrdens(), prox = S.ordens < mo ? fmtTempo((S.ordensT + ORDEM_SEG * 1000 - agora) / 1000) : '';
+  h += `<div class="autoM"><b>Modo automático<small>Heróis livres pegam sozinhos papéis com 80%+ de chance (recompensa 90%). Funciona até com o jogo fechado.</small></b><button class="chave ${S.auto ? 'on' : ''}" data-a="auto"></button></div>
+    <div class="ordens"><span>${ico('pergaminho')} Ordens <b>${S.ordens}/${mo}</b></span><small>${prox ? `+1 em ${prox}` : 'cheias'}</small>
+      ${S.ordens < mo ? `<button class="btn roxo peq" data-a="ordens">Encher ${GEMAS_ORDENS}${ico('gema', 'mini')}</button>` : ''}</div>`;
   h += `<div class="vistas"><button class="${vistaM === 'quadro' ? 'on' : ''}" data-vista="quadro">${ico('quadro')} Quadro</button><button data-a="irmundo">${ico('missoes')} Ver no mapa</button></div>`;
   const papeis = (S.quadro || []).filter(q => filtroReg == null || q.r === filtroReg).sort((a, b) => (b.t === 3) - (a.t === 3) || a.rank - b.rank);
   if (vistaM === 'mapa') {
@@ -381,6 +384,7 @@ function cliqueFolha(e) {
   if (b.dataset.a === 'lider') { S.lider = heroiAberto; som('confirma'); aviso(`${ico('coroa')} ${esc(E.heroi(heroiAberto).nome)} agora é o líder!`, 'ouro'); }
   if (b.dataset.a === 'aposentar') { const h = E.heroi(heroiAberto); if (h && confirm(`Aposentar ${h.nome}? Você recebe um pouco de ouro.`)) { const v = E.aposentar(h.id); if (v) { som('moedas'); aviso(`${esc(h.nome)} se aposentou. +${fmt(v)} ouro`); abrirAba('herois'); } } return; }
   if (b.dataset.a === 'auto') { S.auto = !S.auto; som('clique'); aviso(S.auto ? `${ico('raio')} Modo automático ligado` : 'Modo automático desligado'); }
+  if (b.dataset.a === 'ordens') { if (E.recarregarOrdens()) { som('confirma'); aviso(`${ico('pergaminho')} Ordens recarregadas!`); } else { som('erro'); aviso(`${ico('gema')} Gemas insuficientes`, 'erro'); } }
   if (b.dataset.a === 'irmundo') { som('abrir'); irMundo(true); return; }
   if (b.dataset.vista) { vistaM = b.dataset.vista; som('livro'); desenharFolha(true); return; }
   if (b.dataset.lugar != null) { const r = +b.dataset.lugar; if (r > S.regiao) { som('erro'); aviso(`${ico('cadeado')} Derrote o chefe anterior para liberar`, 'erro'); return; } filtroReg = r < 0 ? null : r; vistaM = 'quadro'; som('livro'); desenharFolha(true); return; }

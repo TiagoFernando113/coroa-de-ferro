@@ -12,8 +12,8 @@ const W = (px, py) => ({ x: MUNDO.x + (px - 50) * ESC, z: MUNDO.z + (py - 50) * 
 export const GUILDA_W = W(8, 94);
 const CENTROS = REGIOES.map(r => W(r.x, r.y));
 const ESTILO = [
-  { chao: '#2f6a2a', pecas: ['N:tree_pineTallA', 'N:tree_pineRoundB', 'N:tree_oak_dark', 'N:tree_pineRoundD', 'N:tree_pineSmallA'], s: 5 },
-  { chao: '#4a5a2a', pecas: ['N:tree_default_dark', 'N:tree_blocks_dark', 'N:lily_large', 'N:rock_largeA', 'N:mushroom_redGroup'], s: 5 },
+  { chao: '#2f6a2a', pecas: ['Q:Pine_1', 'Q:Pine_3', 'Q:CommonTree_2', 'Q:Pine_5', 'Q:CommonTree_4', 'Q:Fern_1'], s: 5 },
+  { chao: '#4a5a2a', pecas: ['Q:DeadTree_1', 'Q:DeadTree_3', 'N:tree_blocks_dark', 'Q:Fern_1', 'N:lily_large', 'Q:Rock_Medium_2'], s: 5 },
   { chao: '#c9d2da', pecas: ['N:rock_tallA', 'N:rock_largeC', 'N:cliff_block_rock', 'N:rock_tallE', 'N:tree_pineSmallA'], s: 6 },
   { chao: '#e2c27e', pecas: ['N:cactus_tall', 'N:cactus_short', 'N:tree_palmTall', 'N:rock_largeD', 'N:tree_palmShort'], s: 5 },
   { chao: '#8a9a7a', pecas: ['N:statue_column', 'N:statue_columnDamaged', 'N:statue_head', 'N:statue_obelisk', 'N:tree_blocks_fall'], s: 5 },
@@ -51,7 +51,8 @@ export function montarMundoMapa() {
     for (let k = 0; k < 34; k++) {
       const a = rnd() * 6.28, d = 14 + rnd() * 18, p = { x: c.x + Math.cos(a) * d, z: c.z + Math.sin(a) * d };
       if (pertoTrilha(p)) continue;
-      L.push({ m: e.pecas[Math.floor(rnd() * e.pecas.length)], x: p.x, z: p.z, ry: rnd() * 6.28, s: e.s * (0.8 + rnd() * 0.5) });
+      const m = e.pecas[Math.floor(rnd() * e.pecas.length)]; // peças da Quaternius já estão em metros
+      L.push({ m, x: p.x, z: p.z, ry: rnd() * 6.28, s: (m.startsWith('Q:') ? 1.4 : e.s) * (0.8 + rnd() * 0.5) });
     }
   });
   // árvores e pedras no resto do mapa

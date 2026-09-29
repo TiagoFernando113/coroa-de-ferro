@@ -1,7 +1,7 @@
 // Dados da Guilda de Heróis: prédios, heróis, raridades, regiões/missões e objetivos.
 // Os números crescem de forma exponencial (estilo idle): cada melhoria custa mais e rende mais.
 
-export const VERSAO = 32;
+export const VERSAO = 33;
 
 // ---------------- números grandes ----------------
 const SUF = ['', 'K', 'M', 'B', 'T', 'aa', 'ab', 'ac', 'ad', 'ae', 'af', 'ag', 'ah'];
@@ -124,6 +124,9 @@ export const TITULOS = [
 ];
 export const MAX_QUADRO = nq => Math.min(9, 4 + Math.floor(nq / 5));
 export const GEMAS_TROCAR = 5;
+// Ordens da Guilda: cada envio do modo automático gasta 1 (voltam com o tempo)
+export const MAX_ORDENS = nq => 12 + 2 * Math.floor(nq / 5);
+export const ORDEM_SEG = 900, GEMAS_ORDENS = 10, AUTO_MULT = 0.9;
 // chance de sucesso: poder igual ao requisito = 100%
 export const chanceSucesso = (poder, req) => Math.max(0.05, Math.min(1, (poder / req) ** 2));
 

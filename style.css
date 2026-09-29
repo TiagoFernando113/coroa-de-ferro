@@ -101,7 +101,7 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;paddin
 .rotulo.pode .seta{display:grid}
 .rotulo .seta .ico{width:15px;height:15px}
 .rotulo.trancado{opacity:.75}.rotulo.trancado .rIco{filter:grayscale(1)}
-@keyframes pula2{50%{transform:translateY(-3px)}}
+@keyframes pula2{50%{translate:0 -3px}}
 
 /* números flutuantes */
 #flutua{position:absolute;inset:0;pointer-events:none}
@@ -425,3 +425,11 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;paddin
 .lb.h1{right:0;bottom:84px}.lb.h2{right:84px;bottom:0}
 .lb.esq{right:0;bottom:0;width:66px;height:66px;background:radial-gradient(circle at 35% 30%,#9fe3ff,#2a8ad8);box-shadow:0 4px 0 #0a4a8a,0 6px 12px rgba(0,0,0,.4)}
 .lb:active{transform:scale(.92)}
+
+.ordens{display:flex;align-items:center;gap:8px;margin:-2px 0 8px;padding:6px 12px;border-radius:12px;background:#efe0c0}
+.ordens span{display:flex;align-items:center;gap:5px;font-family:var(--fT);color:var(--madeira2)}.ordens small{flex:1;color:var(--suave);font-size:12px}
+.seletor{margin:8px 0;padding:10px;border-radius:14px;background:#fff;box-shadow:inset 0 0 0 2px var(--creme2);display:flex;flex-direction:column;gap:8px}
+.seletor canvas{width:100%;border-radius:10px;touch-action:none;display:block}
+.seletor .selSV{height:150px}.seletor .selH{height:26px}
+.selPrev{width:44px;height:36px;border-radius:10px;border:3px solid #fff;box-shadow:0 0 0 2px rgba(0,0,0,.2)}
+.seletor .linha{align-items:center;justify-content:space-between}
