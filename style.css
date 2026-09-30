@@ -490,3 +490,15 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;paddin
 .mapaCaixa h3{margin:0;display:flex;gap:6px;align-items:center;justify-content:center}.mapaCaixa h3 svg{width:22px;height:22px;fill:#ffd86a}
 .mapaCaixa canvas{width:100%;aspect-ratio:1;border-radius:12px}
 .mapaCaixa p{margin:0;font-size:12px;opacity:.9}
+/* poção, conversa com NPC, tarefa de caça */
+.lb.poc{right:100px;bottom:100px;width:58px;height:58px;background:radial-gradient(circle at 35% 30%,#b8ffb0,#2aa84a);box-shadow:0 4px 0 #0a6a2a,0 6px 12px rgba(0,0,0,.4)}
+.lb.poc b{position:absolute;right:-4px;bottom:-4px;background:#1a1420;color:#fff;border:2px solid #b8ffb0;border-radius:10px;font-size:12px;padding:0 5px;min-width:18px;text-align:center}
+#lFalar{position:absolute;left:50%;width:auto;min-width:0;padding:10px 18px;bottom:calc(max(14px,env(safe-area-inset-bottom)) + 200px);transform:translateX(-50%);z-index:4;pointer-events:auto;white-space:nowrap}
+#lFalar svg{width:20px;height:20px;vertical-align:-4px}
+#lTarefa{position:absolute;right:10px;top:calc(max(10px,env(safe-area-inset-top)) + 196px);width:130px;background:rgba(20,16,28,.8);color:#fff;border:2px solid #ffd86a;border-radius:10px;padding:4px 6px;font-size:11px;z-index:3;pointer-events:none}
+#lTarefa svg{width:13px;height:13px;fill:#ffd86a;vertical-align:-2px}
+.lPainel{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(88vw,340px);background:#fff6e0;border:3px solid #c98a3a;border-radius:18px;padding:12px;z-index:6;pointer-events:auto;display:flex;flex-direction:column;gap:8px;color:#4a2e14;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+.lPainel h3{margin:0;font-size:15px;display:flex;gap:6px;align-items:center}.lPainel h3 svg{width:22px;height:22px}
+.lPainel p{margin:0;font-size:13px}.lPainel .linha{display:flex;gap:6px;flex-wrap:wrap}
+.lPainel svg{width:16px;height:16px;vertical-align:-3px}.lPainel h3 svg{width:22px;height:22px}.lPainel .btn{width:auto}
+.lPainel .ico{fill:#c98a1a}

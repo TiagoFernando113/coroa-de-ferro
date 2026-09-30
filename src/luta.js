@@ -9,7 +9,7 @@ import { GUILDA_W, posCampo, ESC_MUNDO, CENTROS } from './mundo.js';
 import { ico, som, ui } from './ui.js';
 import { gerarItem, sortearRaridade, atributosEquip, RARIDADE_ITEM } from './itens.js';
 import { MONSTROS } from './bestiario.js';
-import { iniciarExpl, passoExpl, covilDerrotado, mapaGrande } from './explorar.js';
+import { iniciarExpl, passoExpl, covilDerrotado, mapaGrande, abateTarefa, usarPocao, pocoes } from './explorar.js';
 
 const $ = s => document.querySelector(s);
 const difAng = (a, b) => Math.atan2(Math.sin(b - a), Math.cos(b - a));
@@ -110,7 +110,7 @@ export function iniciarLuta(qid, ids, aoFim) {
   const lider = mk(E.heroi(guiaId), GUILDA_W.x + 6, GUILDA_W.z - 6);
   // o nível já entra no poder da equipe (forca); aqui entram os atributos e o equipamento do seu herói
   const st = E.statsHeroi(), eq = atributosEquip(S.equip), meu = guiaId === S.lider;
-  lider.max = lider.hp = 120 + (meu ? s.a.vit * 12 + eq.vida : 0); lider.dano = 26 * forca * (meu ? (1 + s.a.for * 0.03) * (1 + eq.atk / 100) : 1); lider.cds = [0, 0, 0];
+  lider.max = lider.hp = 120 + (meu ? s.a.vit * 12 + eq.vida : 0); lider.dano = 26 * forca * (meu ? (1 + s.a.for * 0.03) * (1 + eq.atk / 100) : 1); lider.cds = [0, 0, 0, 0];
   Object.assign(lider, meu ? { crit: st.crit, def: st.def, vel: st.vel, hab: st.hab, recarga: st.recarga } : { crit: 0.1, def: 0, vel: 0, hab: 1, recarga: 1 });
   const aliados = ids.filter(id => id !== guiaId).map((id, i) => { const a = mk(E.heroi(id), lider.x - 3 - i * 2, lider.z + 3); a.dano = 12 * forca; return a; });
   const inimigos = GRUPOS[q.t].map((tp, i) => {
@@ -141,13 +141,13 @@ export function iniciarExploracao(aoFim) {
   if (L) return false; const h = E.lider(); if (!h || h.estado !== 'livre') return false;
   h.estado = 'missao'; const st = E.statsHeroi();
   const v = C.heroi(h.visual); v.raiz.scale.setScalar(ESC_MUNDO);
-  const lider = { h, v, x: GUILDA_W.x + 6, z: GUILDA_W.z - 6, ang: 0, cd: 0, alc: alcanceArma(h.visual), cds: [0, 0, 0], max: st.vida, hp: st.vida, dano: st.dano, crit: st.crit, def: st.def, vel: st.vel, hab: st.hab, recarga: st.recarga };
+  const lider = { h, v, x: GUILDA_W.x + 6, z: GUILDA_W.z - 6, ang: 0, cd: 0, alc: alcanceArma(h.visual), cds: [0, 0, 0, 0], max: st.vida, hp: st.vida, dano: st.dano, crit: st.crit, def: st.def, vel: st.vel, hab: st.hab, recarga: st.recarga };
   v.raiz.position.set(lider.x, 0, lider.z); v.tocar('Idle_A');
   L = { explorar: true, q: { nome: 'Explorando o mundo', r: 0, rank: 0, mult: 1 }, ids: [h.id], lider, aliados: [], inimigos: [], proj: [], txt: [], joy: null, mx: 0, mz: 0, t: 0,
     campo: null, aoFim, fim: false, reg: REGIOES[0], forca: 1, loot: [], emboscada: null, spawnT: 0, ganhos: { xp: 0, ouro: 0, mortes: 0 } };
   ui.foco = { x: lider.x, z: lider.z }; C.camera.dist = 27; C.camera.pitch = 0.78; C.camera.yaw = Math.PI - 0.3; C.camera.suave = 8; L.neblina = C.neblinaAtual(); C.neblina(55, 135); C.recorte(true);
   montarHud(); som('enviar');
-  iniciarExpl({ L: () => L, criarMonstro, numero, faixa });
+  iniciarExpl({ L: () => L, criarMonstro, numero, faixa, fauna: r => FAUNA[r].filter(t => BICHOS[t]), nomeMonstro: tp => BICHOS[tp]?.[5] || tp });
   return true;
 }
 function criarMonstro(tp, r, x, z, elite = false) {
@@ -197,6 +197,7 @@ function montarHud() {
       <button class="lb h1" data-hab="0">${ico(L.lider.alc > 5 ? 'h_chuva' : 'h_giro')}<i></i></button>
       <button class="lb h2" data-hab="1">${ico(L.lider.alc > 5 ? 'h_fogo' : 'h_investida')}<i></i></button>
       <button class="lb esq" data-hab="2">${ico('esquiva')}<i></i></button>
+      ${L.explorar ? `<button class="lb poc" data-hab="3">${ico('coracao')}<i></i><b id="lPoc">${pocoes()}</b></button>` : ''}
     </div>`;
   document.body.append(el);
   const cv = $('#lJoy'), g = cv.getContext('2d'); L.g = g;
@@ -226,6 +227,7 @@ function numero(x, y, z, txt, cor, grande = false) { L.txt.push({ x, y, z, txt, 
 function usarHab(i) {
   const j = L.lider; if (L.fim || j.cds[i] > 0 || j.hp <= 0) return;
   const longe = j.alc > 5;
+  if (i === 3) { if (usarPocao(j)) j.cds[3] = 4; else som('erro'); return; }
   if (i === 2) { // esquiva: impulso na direção do joystick
     j.cds[2] = 1.2 * j.recarga; j.iframes = 0.45; j.dash = { t: 0.35, ax: L.mx || Math.sin(j.ang), az: L.mz || Math.cos(j.ang) };
     j.v.tocar('Dodge_Forward', { loop: false, reinicia: true, vel: 1.3 }); som('clique'); return;
@@ -254,7 +256,7 @@ function ferir(e, v) {
   if (e.hp <= 0) return; v = Math.round(v * (0.9 + Math.random() * 0.2)); const crit = Math.random() < (L.lider.crit || 0.12); if (crit) v = Math.round(v * 1.8);
   e.hp -= v; e.acordado = true; e.flash = 0.12; numero(e.x, e.chefe ? 7 : 4, e.z, (crit ? '!' : '') + fmt(v), crit ? '#ffd84a' : '#fff', crit);
   C.faiscas(e.x, 1.5, e.z, crit ? 0xffd84a : 0xffffff, crit ? 12 : 6, 3);
-  if (e.hp <= 0) { e.lanc = e.pulo = e.investe = null; e.sumido = false; e.v.raiz.visible = true; e.v.raiz.position.y = 0; e.v.tocar(e.bicho ? 'Death' : 'Death_A', { loop: false, reinicia: true }); e.morreu = 0; som('compra'); if (e.covil) covilDerrotado(e); if (e.mundo) { recompensaMundo(e); if (Math.random() < (e.raro ? 1 : 0.08)) soltarLoot(e); } else soltarLoot(e); }
+  if (e.hp <= 0) { e.lanc = e.pulo = e.investe = null; e.sumido = false; e.v.raiz.visible = true; e.v.raiz.position.y = 0; e.v.tocar(e.bicho ? 'Death' : 'Death_A', { loop: false, reinicia: true }); e.morreu = 0; som('compra'); if (e.covil) covilDerrotado(e); if (e.mundo) abateTarefa(e); if (e.mundo) { recompensaMundo(e); if (Math.random() < (e.raro ? 1 : 0.08)) soltarLoot(e); } else soltarLoot(e); }
   else if (!e.chefe && !e.grande && Math.random() < 0.4) e.v.tocar(e.bicho ? 'Idle_HitReact1' : 'Hit_A', { loop: false, reinicia: true });
 }
 function ferirHeroi(a, v) {
@@ -304,7 +306,7 @@ export function passoLuta(dt) {
   // joystick → direção no mundo (relativa à câmera)
   let jx = 0, jy = 0; if (L.joy) { const dx = L.joy.x - L.joy.sx, dy = L.joy.y - L.joy.sy, m = Math.hypot(dx, dy); if (m > 6) { const f = Math.min(1, m / 55); jx = dx / m * f; jy = dy / m * f; } }
   const y = C.camera.yaw, sy = Math.sin(y), cy = Math.cos(y); L.mx = -jy * sy - jx * cy; L.mz = -jy * cy + jx * sy;
-  for (let i = 0; i < 3; i++) j.cds[i] = Math.max(0, j.cds[i] - dt);
+  for (let i = 0; i < 4; i++) j.cds[i] = Math.max(0, (j.cds[i] || 0) - dt);
   j.iframes = Math.max(0, (j.iframes || 0) - dt);
   if (j.hp > 0 && !L.fim) {
     const mv = Math.hypot(L.mx, L.mz);
@@ -377,7 +379,8 @@ function desenharHud(dt) {
   const j = L.lider, b = $('#luta .lVida .barra');
   b.querySelector('i').style.width = Math.max(0, j.hp / j.max * 100) + '%'; b.querySelector('span').textContent = `${Math.ceil(j.hp)} / ${j.max}`;
   const rest = $('#lRest'); if (rest) rest.textContent = L.explorar ? `Nv ${E.sis().nivel} · ${L.ganhos.mortes} abates` : `${L.inimigos.filter(e => e.hp > 0).length} monstros`;
-  document.querySelectorAll('#luta [data-hab]').forEach(bt => { const i = +bt.dataset.hab, cd = j.cds[i], tot = [6, 8, 1.2][i]; bt.style.setProperty('--p', cd > 0 ? (cd / tot * 360) + 'deg' : '0deg'); bt.querySelector('i').textContent = cd > 0 ? Math.ceil(cd) : ''; });
+  const pc = $('#lPoc'); if (pc && pc.textContent != pocoes()) pc.textContent = pocoes();
+  document.querySelectorAll('#luta [data-hab]').forEach(bt => { const i = +bt.dataset.hab, cd = j.cds[i], tot = [6, 8, 1.2, 4][i]; bt.style.setProperty('--p', cd > 0 ? (cd / tot * 360) + 'deg' : '0deg'); bt.querySelector('i').textContent = cd > 0 ? Math.ceil(cd) : ''; });
   // seta até o acampamento quando ele está fora da tela
   const s = $('#lSeta'), c = L.campo || j, t = C.tela(c.x, 2, c.z), dCampo = Math.hypot(c.x - j.x, c.z - j.z);
   if (dCampo > 22 && L.inimigos.some(e => e.hp > 0) && !L.inimigos.some(e => e.acordado)) { const cx = innerWidth / 2, cy = innerHeight / 2; let ax = (t ? t[0] : cx) - cx, ay = (t ? t[1] : cy) - cy; const m = Math.hypot(ax, ay) || 1; ax /= m; ay /= m;

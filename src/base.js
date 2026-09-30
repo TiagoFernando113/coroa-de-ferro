@@ -18,7 +18,7 @@ for (const k of Object.keys(POS)) POS[k].ry = Math.atan2(-POS[k].x, -POS[k].z); 
 function rng(seed) { let s = seed >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
 
 // casa modular (kit da vila): frente em +z local
-function casa(L, { prof = 2, madeira = false, S = 3, x = 0, z = 0, chamine = true }) {
+export function casa(L, { prof = 2, madeira = false, S = 3, x = 0, z = 0, chamine = true }) {
   const W = madeira ? 'T:wall-wood' : 'T:wall', PORTA = W + '-door', JAN = W + '-window-shutters';
   const put = (m, lx, ly, lz, ry) => L.push({ m, x: x + lx * S, y: ly * S, z: z + lz * S, ry, s: S });
   const zs = []; for (let i = 0; i < prof; i++) zs.push(i - (prof - 1) / 2);

@@ -5,6 +5,7 @@ import * as E from './estado.js';
 import { S } from './estado.js';
 import { REGIOES, missao } from './dados.js';
 import { animAtaque } from './aparencia.js';
+import { casa } from './base.js';
 
 export const MUNDO = { x: 1100, z: 0 };
 const ESC = 10; // 1 unidade do mapa (0–100) = 10 m: um mundo de 1 km para explorar
@@ -39,10 +40,13 @@ const LOCAIS = [
   [['Mausoléu Esquecido', 'C:tower-square', 4], ['Obelisco dos Mortos', 'N:statue_obelisk', 8], ['Árvore Chorona', 'Q:DeadTree_3', 2.6]],
   [['Portão do Rei', 'C:gate', 5], ['Balista Esquecida', 'C:siege-ballista', 5], ['Estandarte Negro', 'C:flag-banner-long', 5]],
 ];
+// vilas: [nome, ponto da estrada (0–1), lado]
+const VILAS = [['Vila do Carvalho', 0.1, 1], ['Aldeia do Brejo', 0.3, -1], ['Posto da Montanha', 0.5, 1], ['Oásis de Areia Dourada', 0.66, -1], ['Última Fogueira', 0.86, 1]];
 const COVIS = [['Toca do Coelho Maldito', 'coelho', 'Sr. Fofinho, o Coelho do Apocalipse'], ['Trono dos Esporos', 'reiCogu', 'Rei Cogumelo, Senhor dos Esporos'],
   ['Caverna do Yeti', 'yeti', 'Yeti Ancestral'], ['Ninho do Raptor Rei', 'raptor', 'Raptor Rei'], ['Salão do Golem', 'golem', 'Golem Primordial'],
   ['Ninho de Tiamat', 'draco', 'Tiamat, a Dragoa Escarlate'], ['Cripta de Grumak', 'orcCaveira', 'Grumak, o Orc Imortal'], ['Fortaleza do Orc Rei', 'orc', 'Orc Rei']];
 export const POIS = [];
+const RAIO_POI = { bau: 4, vila: 34, portal: 8 }, raioPoi = o => RAIO_POI[o.tipo] ?? 12;
 function gerarPOIs(rnd) {
   const livre = (p, m, estrada = 10) => !pertoTrilha(p, estrada) && Math.hypot(GUILDA_W.x - p.x, GUILDA_W.z - p.z) > 40 && !POIS.some(o => Math.hypot(o.x - p.x, o.z - p.z) < m)
     && Math.abs(p.x - MUNDO.x) < MEIO_MUNDO - 20 && Math.abs(p.z - MUNDO.z) < MEIO_MUNDO - 20;
@@ -74,7 +78,22 @@ export function montarMundoMapa() {
   const L = [];
   gerarPOIs(rnd);
   // estrada de pedras com as beiradas bem enfeitadas (é por onde o jogador mais passa), com o tema de cada região
-  const est = C.estrada(TRILHA, 5); window.__estrada = est.pontos(300); // para testes
+  const est = C.estrada(TRILHA, 5); const EP = est.pontos(300); window.__estrada = EP; // para testes
+  // portais de teletransporte (um em cada região, na beira da estrada) e vilas com NPCs
+  CENTROS.forEach((c, r) => { let m = EP[0], d0 = 1e9; for (const p of EP) { const d = Math.hypot(p.x - c.x, p.z - c.z); if (d < d0) { d0 = d; m = p; } }
+    POIS.push({ id: 'p' + r, tipo: 'portal', r, x: m.x + m.nx * 8, z: m.z + m.nz * 8, nome: 'Portal: ' + REGIOES[r].nome }); });
+  POIS.push({ id: 'pg', tipo: 'portal', r: 0, x: GUILDA_W.x + 12, z: GUILDA_W.z - 10, nome: 'Portal da Guilda' });
+  VILAS.forEach(([nome, f, lado], i) => { const p = EP[Math.floor(f * (EP.length - 1))], x = p.x + p.nx * 24 * lado, z = p.z + p.nz * 24 * lado;
+    POIS.push({ id: 'v' + i, tipo: 'vila', r: regiaoDe(p), x, z, nome, px: p.x + p.nx * 9 * lado, pz: p.z + p.nz * 9 * lado }); });
+  for (const o of POIS) {
+    if (o.tipo === 'portal') L.push({ m: 'N:statue_obelisk', x: o.x, z: o.z, s: 6 }, { m: 'C:stairs-stone', x: o.x, z: o.z + 2.5, s: 2.5 });
+    if (o.tipo === 'vila') { // casas em volta de uma praça com poço, barracas e lampiões
+      for (let k = 0; k < 5; k++) { const a = Math.PI * (0.25 + k * 0.38) + Math.atan2(o.px - o.x, o.pz - o.z) + Math.PI, hx = o.x + Math.sin(a) * 19, hz = o.z + Math.cos(a) * 19;
+        casa(L, { prof: 2, madeira: k % 2 === 1, S: 5.2, x: hx, z: hz, chamine: k !== 2 }); }
+      L.push({ m: 'T:fountain-round', x: o.x, z: o.z, s: 5 }, { m: 'T:stall-red', x: o.x - 8, z: o.z + 6, s: 4.5, ry: 0.4 }, { m: 'T:stall-green', x: o.x + 8, z: o.z + 6, s: 4.5, ry: -0.4 },
+        { m: 'T:lantern', x: o.x - 6, z: o.z - 7, s: 4 }, { m: 'T:lantern', x: o.x + 6, z: o.z - 7, s: 4 }, { m: 'T:banner-red', x: o.px, z: o.pz, s: 4 }, { m: 'N:sign', x: o.px + 2, z: o.pz, s: 6 },
+        { m: 'D:barrel', x: o.x - 10, z: o.z + 2, s: 3.5 }, { m: 'T:cart', x: o.x + 11, z: o.z - 2, s: 4.2, ry: 1 }); }
+  }
   const F = n => 'F:' + n + '_Color1', um = l => l[Math.floor(rnd() * l.length)];
   const ARV_F = ['Tree_1_A', 'Tree_1_B', 'Tree_1_C', 'Tree_2_A', 'Tree_2_B', 'Tree_2_C', 'Tree_2_D', 'Tree_2_E'].map(F), PIN_F = ['Tree_4_A', 'Tree_4_B', 'Tree_4_C'].map(F);
   const SECA = ['Tree_Bare_1_A', 'Tree_Bare_1_B', 'Tree_Bare_1_C', 'Tree_Bare_2_A', 'Tree_Bare_2_B', 'Tree_Bare_2_C'].map(F), ACACIA = ['Tree_3_A', 'Tree_3_B', 'Tree_3_C'].map(F);
@@ -95,7 +114,7 @@ export function montarMundoMapa() {
   const escala = m => m.startsWith('F:Tree') ? 1.9 + rnd() * 0.7 : m.startsWith('F:Bush') ? 4 + rnd() * 2.5 : m.startsWith('F:Grass') ? 2.4 + rnd() * 1.4
     : m.startsWith('F:Rock_1_K') || m.startsWith('F:Rock_1_O') || m.startsWith('F:Rock_3') ? 2.5 + rnd() * 2 : m.startsWith('F:Rock') ? 2.5 + rnd() * 2
     : m.startsWith('Q:') ? 1.3 + rnd() * 0.5 : m.startsWith('N:statue') ? 4 : m.startsWith('N:tree') || m.startsWith('N:cactus') ? 5 + rnd() * 2 : 4 + rnd() * 2;
-  const perto = (x, z) => POIS.some(o => o.tipo !== 'bau' && Math.hypot(o.x - x, o.z - z) < 12) || Math.hypot(GUILDA_W.x - x, GUILDA_W.z - z) < 14;
+  const perto = (x, z) => POIS.some(o => o.tipo !== 'bau' && Math.hypot(o.x - x, o.z - z) < raioPoi(o)) || Math.hypot(GUILDA_W.x - x, GUILDA_W.z - z) < 14;
   let cerca = 0;
   for (const p of est.pontos(1400)) {
     const t = TEMA[regiaoDe(p)], [arv, arb, chao, grd, dens] = t;
@@ -124,14 +143,14 @@ export function montarMundoMapa() {
     const e = ESTILO[i];
     for (let k = 0; k < 190; k++) {
       const a = rnd() * 6.28, d = 16 + Math.sqrt(rnd()) * (RAIO_REG - 10), p = { x: c.x + Math.cos(a) * d, z: c.z + Math.sin(a) * d };
-      if (pertoTrilha(p) || POIS.some(o => Math.hypot(o.x - p.x, o.z - p.z) < (o.tipo === 'bau' ? 4 : 12))) continue;
+      if (pertoTrilha(p) || POIS.some(o => Math.hypot(o.x - p.x, o.z - p.z) < raioPoi(o))) continue;
       const m = e.pecas[Math.floor(rnd() * e.pecas.length)]; // peças da Quaternius já estão em metros
       L.push({ m, x: p.x, z: p.z, ry: rnd() * 6.28, s: (m.startsWith('Q:') ? 1.4 : e.s) * (0.8 + rnd() * 0.5) });
     }
   });
   // bosques (grupos de árvores), pedras e arbustos no resto do mapa
   const ocupado = p => pertoTrilha(p) || CENTROS.some(c => Math.hypot(c.x - p.x, c.z - p.z) < RAIO_REG * 0.8) || Math.hypot(GUILDA_W.x - p.x, GUILDA_W.z - p.z) < 25
-    || POIS.some(o => Math.hypot(o.x - p.x, o.z - p.z) < (o.tipo === 'bau' ? 4 : 12));
+    || POIS.some(o => Math.hypot(o.x - p.x, o.z - p.z) < raioPoi(o));
   const ARV = ['N:tree_oak', 'N:tree_default', 'N:tree_pineRoundB', 'N:tree_fat', 'N:tree_detailed', 'N:tree_pineTallA'];
   for (let b = 0; b < 110; b++) {
     const c = { x: MUNDO.x + (rnd() - 0.5) * TAM * 0.95, z: MUNDO.z + (rnd() - 0.5) * TAM * 0.95 }, tipo = ARV[Math.floor(rnd() * ARV.length)], raio = 12 + rnd() * 22;
