@@ -111,7 +111,11 @@ function clique(e) {
   if (d.cr === 'cancelar') { som('fechar'); fechar(false); return; }
   if (d.cls) { E.cls = d.cls; E.v = { ...visualPadrao(d.cls), cores: {} }; som('clique'); mudou(); tocar('ataque'); return; }
   if (d.estilo) { E.v = d.estilo === '?' ? visualAleatorio(E.cls) : visualPadrao(d.estilo); if (d.estilo === '?') { E.v.cores = {}; } som('clique'); mudou(); tocar('Cheering'); return; }
-  if (d.k) { E.v[d.k] = d.v; som('clique'); mudou(); if (d.k === 'arma' || d.k === 'esq') tocar('ataque'); return; }
+  if (d.k) { E.v[d.k] = d.v;
+    // máscara e barba/presas: um ou outro
+    if (d.k === 'mas' && d.v) { E.v.barba = ''; E.v.presas = ''; }
+    if ((d.k === 'barba' || d.k === 'presas') && d.v) E.v.mas = '';
+    som('clique'); mudou(); if (d.k === 'arma' || d.k === 'esq') tocar('ataque'); return; }
   if (d.raca) { aplicarRaca(E.v, d.raca); som('clique'); mudou(); tocar('Cheering'); return; }
   if (d.pelo) { E.v.corPelo = d.pelo; som('clique'); mudou(); return; }
   if (d.chifre) { E.v.corChifre = d.chifre; som('clique'); mudou(); return; }

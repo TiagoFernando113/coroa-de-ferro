@@ -411,6 +411,7 @@ const cone = (r, h, seg, mat) => new THREE.Mesh(new THREE.ConeGeometry(r, h, seg
 function pos(o, x, y, z, rx = 0, ry = 0, rz = 0, sx = 1, sy = 1, sz = 1) { o.position.set(x, y, z); o.rotation.set(rx, ry, rz); o.scale.set(sx, sy, sz); o.castShadow = true; return o; }
 function tubo(pts, r, mat, seg = 16) { return new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(...p))), seg, r, 6, false), mat); }
 export function acessorios(v) {
+  if (v.mas) v = { ...v, barba: '', presas: '' }; // máscara cobre a boca
   const pele = matAc(v.pele || '#f3bd98'), pelo = matAc(v.corPelo || '#4a2e1c'), chifre = matAc(v.corChifre || '#2a2226'), rosa = matAc('#f0a0a8');
   const cab = [], quadril = [], peito = [];
   for (const s of [-1, 1]) {
@@ -457,11 +458,13 @@ export function acessorios(v) {
         else { f.moveTo(0, 0); f.bezierCurveTo(0.3, 0.9, 1.1, 0.9, 0.9, 0.3); f.bezierCurveTo(0.8, 0, 0.3, 0, 0, 0); f.bezierCurveTo(0.4, -0.2, 0.7, -0.6, 0.35, -0.6); f.bezierCurveTo(0.1, -0.6, 0.05, -0.3, 0, 0); }
         const me = new THREE.Mesh(new THREE.ShapeGeometry(f, 6), m); me.scale.set(s, 1, 1); g.add(me);
       }
-      peito.push(pos(g, s * 0.1, 0.1, -0.42, 0, -s * 0.5, 0));
+      peito.push(pos(g, s * 0.15, 0.45, -0.75, 0.2, -s * 0.35, s * 0.3, 1.45, 1.45, 1.45));
     }
   }
   return { head: cab, hips: quadril, chest: peito };
 }
+// armas modeladas em outro eixo (arcos e bestas): giro para ficarem certas na mão
+const ROT_ARMA = { 'A:crossbow_1handed': [-Math.PI / 2, 0, 0], 'A:crossbow_2handed': [-Math.PI / 2, 0, 0] };
 export function heroi(v) {
   if (!H) prepararHerois();
   const raiz = new THREE.Group(), corpo = new THREE.Group(), rig = H.raizOsso.clone(true);
@@ -494,9 +497,11 @@ export function heroi(v) {
       const sm = new THREE.SkinnedMesh(pt.geo, mat); sm.bind(esq, pt.bind); sm.castShadow = true; sm.frustumCulled = false;
       corpo.add(sm); malhas.push(sm);
     }
-    for (const [id, lado] of [[nv.arma, 'r'], [nv.esq, 'l']]) {
+    const arco = /bow/.test(nv.arma || ''); // o arco vai na mão esquerda (as animações de arco puxam a corda com a direita)
+    for (const [id, lado] of arco ? [[nv.arma, 'l']] : [[nv.arma, 'r'], [nv.esq, 'l']]) {
       if (!id) continue; const src = pecas[id.replace(':', '')]; if (!src) continue;
       const a = clonar(src); a.traverse(o => { if (o.isMesh) { o.castShadow = true; o.material = o.material.clone(); mats.push(o.material); } });
+      const r = ROT_ARMA[id]; if (r) a.rotation.set(r[0], r[1], r[2]);
       const osso = ossos[H.nomes.indexOf('handslot' + lado)]; if (osso) { osso.add(a); armas.push(a); }
     }
     for (const [osso, l] of Object.entries(acessorios(nv))) { const o = ossos[H.nomes.indexOf(osso)]; if (!o) continue; for (const m of l) { o.add(m); armas.push(m); m.traverse(x => { if (x.isMesh) mats.push(x.material); }); } }

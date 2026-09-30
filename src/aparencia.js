@@ -73,7 +73,7 @@ export const ACESSORIOS = {
 export const PELOS = ['#1e1a18', '#4a2e1c', '#7a4a26', '#b0703a', '#d8a860', '#f0e0b0', '#e8e8e8', '#8a8a8a', '#c8402a', '#ff8ac0', '#6a4ab0', '#3a8ad8', '#2a8a5a', '#ffd84a'];
 export function aplicarRaca(v, id) {
   const r = RACAS.find(x => x.id === id) || RACAS[0];
-  Object.assign(v, r.c); for (const k of Object.keys(ACESSORIOS)) v[k] = r.a[k] || ''; v.raca = r.id;
+  Object.assign(v, r.c); for (const k of Object.keys(ACESSORIOS)) v[k] = r.a[k] || ''; v.raca = r.id; if (v.barba || v.presas) v.mas = '';
   if (r.pele) v.pele = r.pele; else if (RACAS.some(x => x.pele && x.pele === v.pele)) v.pele = ''; // tira a pele verde/vermelha ao voltar
   return v;
 }
