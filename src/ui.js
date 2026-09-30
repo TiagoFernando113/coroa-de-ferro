@@ -3,9 +3,9 @@ import * as C from './cena.js';
 import * as E from './estado.js';
 import { S } from './estado.js';
 import { ICONES } from './icones.js';
-import { EDIFICIOS, EF, custoEd, descEfeito, proxMarco, marcosAte, CLASSES, RARIDADES, chancesRecrutar, xpHeroi, custoTreinar, custoRecrutar, GEMAS_RECRUTAR,
+import { GUILDAS, EDIFICIOS, EF, custoEd, descEfeito, proxMarco, marcosAte, CLASSES, RARIDADES, chancesRecrutar, xpHeroi, custoTreinar, custoRecrutar, GEMAS_RECRUTAR,
   REGIOES, missao, reqRegiao, chanceSucesso, xpFama, OBJETIVOS, fmt, fmtTempo, ATRIBUTOS, xpSistema, rankDe, RANKS, RANKING, rankPoder, RANK_REGIAO, LETRAS, GEMAS_TROCAR, ORDEM_SEG, GEMAS_ORDENS } from './dados.js';
-import { POS, atualizarPredio, revestir } from './base.js';
+import { POS, atualizarPredio, atualizarPredios, revestir } from './base.js';
 import { abrirCriador } from './criador.js';
 import { MUNDO, GUILDA_W, CENTROS, MEIO_MUNDO, mostrarMundo, mundoVisivel, camposVisiveis } from './mundo.js';
 import { iniciarLuta, iniciarExploracao } from './luta.js';
@@ -69,7 +69,7 @@ export function montar() {
   $('#rotulosMundo').onclick = e => { const b = e.target.closest('[data-q]'); if (b) { som('abrir'); escolherEquipe(b.dataset.q); } };
   // rótulos dos prédios
   $('#rotulos').innerHTML = Object.keys(EDIFICIOS).map(id => `<button class="rotulo" data-ed="${id}"><span class="rIco" style="--c:${EDIFICIOS[id].cor}">${ico(EDIFICIOS[id].icone)}</span><b></b><i class="seta">${ico('xp')}</i></button>`).join('');
-  $('#rotulos').onclick = e => { const b = e.target.closest('[data-ed]'); if (b) { som('abrir'); abrirPredio(b.dataset.ed); } };
+  $('#rotulos').onclick = e => { const b = e.target.closest('[data-ed]'); if (b) { som('abrir'); if (b.dataset.ed === 'quadro') abrirAba('missoes'); else abrirPredio(b.dataset.ed); } };
   controles();
 }
 
@@ -219,10 +219,10 @@ export function boasVindas(off) {
   som('moedas');
 }
 function janelaFama() {
-  const f = S.fama, prox = Object.entries(EDIFICIOS).filter(([, e]) => e.fama > f.nivel).sort((a, b) => a[1].fama - b[1].fama)[0];
-  modal(`<div class="faixaTit">Fama da Guilda</div><div class="famaG">${ico('fama')}<b>${f.nivel}</b></div>
+  const f = S.fama;
+  modal(`<div class="faixaTit">Sua Fama</div><div class="famaG">${ico('fama')}<b>${f.nivel}</b></div>
     <div class="barra xp"><i style="width:${f.xp / xpFama(f.nivel) * 100}%"></i><span>${fmt(f.xp)} / ${fmt(xpFama(f.nivel))}</span></div>
-    <p class="suave">Ganhe fama melhorando prédios e completando missões. Cada nível dá gemas${prox ? ` e o nível ${prox[1].fama} libera <b>${prox[1].nome}</b>` : ''}.</p><button class="btn azul" data-ok>Fechar</button>`);
+    <p class="suave">Sua fama de aventureiro: sobe completando missões e doando para a guilda. Cada nível dá gemas.</p><button class="btn azul" data-ok>Fechar</button>`);
 }
 function configuracoes() {
   const c = modal(`<div class="faixaTit">Ajustes</div>
@@ -281,19 +281,25 @@ function htmlPredio() {
     ${botaoCompra(n ? `Doar e melhorar ${qtd > 1 ? `×${qtd}` : ''}` : 'Doar para construir', custo, 'melhorar', 'verde grande')}`;
 }
 function htmlGuilda() {
-  const doa = Object.entries(S.doacoes || {}).map(([id, v]) => ({ h: E.heroi(id), v })).filter(x => x.h).sort((a, b) => b.v - a.v).slice(0, 12);
-  return `<div class="gCard"><span class="circ" style="--c:#c98a3a">${ico('guilda')}</span><div class="cTxt"><b>${esc(S.nomeGuilda || 'Guilda dos Heróis')}</b><small>Nível (Fama) ${S.fama.nivel} · ${S.herois.length}/12 membros</small></div></div>
-    <p class="suave">Os prédios são da guilda: todos os membros doam ouro para melhorar e todos ganham os bônus.</p>
+  if (!S.guilda) return `<p class="suave">A <b>Associação dos Aventureiros</b> é de todos. Uma <b>guilda</b> é a sua aliança: até 12 jogadores que doam juntos para os prédios e ganham bônus, e a <b>Força da guilda</b> dá XP extra conforme os membros jogam.</p>
+    <h3 class="secT">${ico('guilda')} Guildas abertas</h3><div class="lista">` + GUILDAS.map(g => {
+      const cheia = g.membros >= 12, fraco = E.poderCombate() < g.req, ok = !cheia && !fraco;
+      return `<div class="card gLista" style="--c:${g.cor}"><span class="circ" style="--c:${g.cor}">${ico(g.icone)}</span>
+        <div class="cTxt"><b>${esc(g.nome)} <small>Nv ${g.nv}</small></b><small>“${esc(g.lema)}”</small><small>${ico('herois')} ${g.membros}/12 · ${ico('poder')} mín. ${fmt(g.req)}</small></div>
+        <button class="btn ${ok ? 'verde' : 'cinza'} peq ${ok ? '' : 'sem'}" data-entrar="${g.id}">${cheia ? 'Cheia' : fraco ? 'Fraco' : 'Entrar'}</button></div>`; }).join('') +
+    `</div><p class="suave">Seu poder de combate: <b>${fmt(E.poderCombate())}</b>. Fique mais forte para entrar nas guildas maiores.</p>`;
+  const g = S.guilda, doa = Object.entries(S.doacoes || {}).map(([id, v]) => ({ h: E.heroi(id), v })).filter(x => x.h).sort((a, b) => b.v - a.v).slice(0, 12);
+  return `<div class="gCard"><span class="circ" style="--c:${g.cor || '#c98a3a'}">${ico(g.icone || 'guilda')}</span><div class="cTxt"><b>${esc(g.nome)}</b><small>Guilda nível ${E.nivelGuilda()} · ${S.herois.length}/12 membros</small></div></div>
+    <div class="forcaG">${ico('raio')}<div><b>Força da guilda: +${E.forcaGuilda()}% XP</b><small>Cresce com os membros ativos e o nível da guilda.</small></div></div>
+    <p class="suave">Os prédios são da guilda: todos doam ouro para melhorar e todos ganham os bônus.</p>
     ${doa.length ? `<h3 class="secT">${ico('objetivos')} Maiores doadores</h3><div class="doacoes">${doa.map((x, i) => `<div class="${x.h.id === S.lider ? 'eu' : ''}"><em>${i + 1}</em><b>${esc(x.h.nome)}${x.h.id === S.lider ? ' (você)' : ''}</b><span>${ico('ouro')}${fmt(x.v)}</span></div>`).join('')}</div>` : ''}
-    <h3 class="secT">${ico('herois')} Membros ${S.herois.length}/${E.capacidade()}</h3>
-    ${S.herois.length < E.capacidade() ? botaoCompra('Convidar aventureiro', custoRecrutar(S.st.recrutados), 'convidar', 'azul') : `<p class="suave">Guilda cheia: melhore o Alojamento (até 12).</p>`}
     <h3 class="secT">${ico('guilda')} Prédios da guilda</h3><div class="lista">` +
-    Object.entries(EDIFICIOS).filter(([id]) => visivel(id) || id === proximoTrancado()).map(([id, e]) => {
+    Object.entries(EDIFICIOS).filter(([id]) => id !== 'quadro' && (visivel(id) || id === proximoTrancado())).map(([id, e]) => {
       const n = E.nivel(id), ok = E.desbloqueado(id), c = custoEd(id, n);
       return `<button class="card ${ok ? '' : 'trancado'}" data-predio="${id}"><span class="circ" style="--c:${e.cor}">${ico(ok ? e.icone : 'cadeado')}</span>
-        <div class="cTxt"><b>${e.nome}</b><small>${ok ? (n ? `Nível ${n} · ${descEfeito(id, n)}` : 'Toque para construir') : `Fama ${e.fama}`}</small></div>
+        <div class="cTxt"><b>${e.nome}</b><small>${ok ? (n ? `Nível ${n} · ${descEfeito(id, n)}` : 'Toque para construir') : `Guilda nível ${e.fama}`}</small></div>
         ${ok ? `<em class="preco ${pode(c) ? 'ok' : ''}">${ico('ouro')}${fmt(c)}</em>` : ''}</button>`;
-    }).join('') + '</div>';
+    }).join('') + `</div><button class="btn cinza peq" data-a="sairGuilda">Sair da guilda</button>`;
 }
 // ---------------- Sistema do líder ----------------
 function medidorRanking(p) {
@@ -336,7 +342,7 @@ function chipEstado(h) {
 }
 function htmlHerois() {
   const hs = [...S.herois].sort((a, b) => E.poder(b) - E.poder(a));
-  return cartaoSistema() + `<h3 class="secT">Companheiros da guilda</h3><div class="resumo"><span>${ico('herois')}${S.herois.length}/${E.capacidade()} membros</span><span>${ico('treino')}Treino: +${fmt(EF.treino(E.nivel('treino')))} XP/s</span></div><div class="grade">` +
+  return cartaoSistema() + (S.guilda ? `<div class="forcaG">${ico('raio')}<div><b>Força da guilda: +${E.forcaGuilda()}% XP</b><small>${esc(S.guilda.nome)} · ${S.herois.length}/12 membros</small></div></div>` : `<p class="suave">Sozinho por enquanto. Entre numa <b>guilda</b> para ter companheiros nas missões e a Força da guilda (+XP).</p>`) + `<h3 class="secT">${S.guilda ? 'Companheiros da guilda' : 'Seu herói'}</h3><div class="grade">` +
     hs.map(h => { const c = CLASSES[h.cls], r = RARIDADES[h.rar];
       return `<button class="heroi ${h.id === S.lider ? 'lider' : ''}" data-heroi="${h.id}" style="--r:${r.cor};--c:${c.cor}">${h.id === S.lider ? `<i class="coroaL">${ico('coroa')}</i>` : ''}${selo(E.rankHeroi(h), 'mini canto')}<span class="retrato">${ico(c.icone)}</span>${estrelas(h.rar)}<b>${esc(h.nome)}${h.id === S.lider ? ' (você)' : ''}</b><small>${c.nome} · Nv ${h.nivel}</small>
         <div class="poder">${ico('poder')}${fmt(E.poder(h))}</div>${chipEstado(h)}</button>`; }).join('') + '</div>';
@@ -348,9 +354,9 @@ function htmlHeroi() {
     <div class="stats"><div>${ico('xp')}<small>Nível</small><b>${h.nivel}</b></div><div>${ico('poder')}<small>Poder</small><b>${fmt(E.poder(h))}</b></div><div>${ico('estrela')}<small>Raridade</small><b>×${r.mult}</b></div></div>
     <div class="barra xp"><i style="width:${h.xp / xpHeroi(h.nivel) * 100}%"></i><span>XP ${fmt(h.xp)} / ${fmt(xpHeroi(h.nivel))}</span></div>
     <p class="suave">${chipEstado(h)} ${afins ? `Bônus de +25% em: ${afins}.` : ''}</p>
-    ${botaoCompra('Treinar (+1 nível)', custoTreinar(h), 'treinar', 'verde grande')}
-    <div class="linha"><button class="btn azul" data-a="visual">${ico('pincel')} Aparência</button>${h.id === S.lider ? `<button class="btn roxo" data-a="equip">${ico('c_armas')} Equipamento</button>` : ''}</div>
-    ${h.id === S.lider ? `<p class="suave">${ico('coroa')} Seu herói principal</p>` : `<p class="suave">Membro da guilda: ajuda nas missões e doa para os prédios.</p><button class="btn cinza peq" data-a="aposentar">Expulsar da guilda</button>`}`;
+    ${h.id === S.lider ? `${botaoCompra('Treinar (+1 nível)', custoTreinar(h), 'treinar', 'verde grande')}
+    <div class="linha"><button class="btn azul" data-a="visual">${ico('pincel')} Aparência</button><button class="btn roxo" data-a="equip">${ico('c_armas')} Equipamento</button></div>
+    <p class="suave">${ico('coroa')} Seu herói principal</p>` : `<p class="suave">${ico('herois')} Jogador da guilda <b>${esc(S.guilda?.nome || '')}</b>: ele evolui jogando, você não controla o herói dele. Ajuda nas missões, doa para os prédios e aumenta a Força da guilda.</p>`}`;
 }
 let vistaM = 'quadro', filtroReg = null;
 const GUILDA_M = { x: 8, y: 94 };
@@ -468,6 +474,8 @@ function cliqueFolha(e) {
     const tp = b.dataset.a === 'bauGemas' ? 'gemas' : b.dataset.a === 'gratis' ? 'gratis' : 'comum', it = E.abrirBau(tp);
     if (it) revelarItem(it); else { som('erro'); if ((S.mochila || []).length < E.MOCHILA_MAX) aviso(tp === 'gemas' ? `${ico('gema')} Gemas insuficientes` : `${ico('ouro')} Ouro insuficiente`, 'erro'); }
   }
+  if (b.dataset.entrar) { if (E.entrarGuilda(b.dataset.entrar)) { abrirAba('guilda'); return; } som('erro'); aviso('Não dá para entrar: guilda cheia ou poder baixo', 'erro'); }
+  if (b.dataset.a === 'sairGuilda') { if (confirm(`Sair de ${S.guilda.nome}? Você perde os prédios e os bônus da guilda.`)) { E.sairGuilda(); atualizarPredios(); som('fechar'); aviso('Você saiu da guilda'); } }
   if (b.dataset.a === 'convidar') {
     const h = E.recrutar(false, false);
     if (h) revelar(h); else { som('erro'); if (S.herois.length < E.capacidade()) aviso(`${ico('ouro')} Ouro insuficiente`, 'erro'); }
@@ -523,6 +531,7 @@ function processarEventos() {
   while (E.fila.length) {
     const e = E.fila.shift();
     if (e.tipo === 'aviso') { som('erro'); aviso(e.txt, 'erro'); }
+    if (e.tipo === 'guilda') { atualizarPredios(); som('lendario'); aviso(`${ico('guilda')} Você entrou na guilda <b>${esc(e.nome)}</b>!`, 'ouro', 3500); }
     if (e.tipo === 'doacao') { aviso(`${ico('ouro')} <b>${esc(e.nome)}</b> doou ${fmt(e.valor)} para ${EDIFICIOS[e.ed].nome}!`, 'ouro', 3000); atualizarPredio(e.ed); }
     if (e.tipo === 'sistema') {
       som('nivel'); aviso(`${ico('rank')} <b>Líder</b> subiu para o nível ${e.nivel}! +3 pontos de atributo`, 'sis', 3500);
@@ -601,12 +610,12 @@ export function atualizar(dt) {
   { const rk = rankPoder(E.poderCombate()); if (S.rankMax == null) S.rankMax = rk.i; else if (rk.i > S.rankMax && $('#modal').hidden) { S.rankMax = rk.i; despertar(rk); } }
   // rótulos 3D dos prédios
   for (const el of document.querySelectorAll('.rotulo')) {
-    const id = el.dataset.ed, p = POS[id], t = C.tela(p.x, id === 'quadro' ? 5.5 : id === 'biblioteca' || id === 'portal' ? 10 : 8, p.z);
+    const id = el.dataset.ed, p = POS[id], t = C.tela(p.x, id === 'quadro' ? 11 : id === 'biblioteca' || id === 'portal' ? 10 : 8, p.z);
     if (!visivel(id) && id !== proximoTrancado() || !t || t[1] < 60 || t[1] > innerHeight - 70) { el.style.display = 'none'; continue; }
     el.style.display = ''; el.style.transform = `translate(${t[0]}px,${t[1]}px) translate(-50%,-50%)`;
-    const ok = E.desbloqueado(id), n = E.nivel(id), texto = ok ? (n ? `${n}` : 'Construir') : `Fama ${EDIFICIOS[id].fama}`;
+    const ok = E.desbloqueado(id), n = E.nivel(id), texto = id === 'quadro' ? 'Associação' : ok ? (n ? `${n}` : 'Construir') : `Guilda nv ${EDIFICIOS[id].fama}`;
     const b = el.querySelector('b'); if (b.textContent !== texto) b.textContent = texto;
-    el.classList.toggle('pode', ok && S.ouro >= custoEd(id, n)); el.classList.toggle('trancado', !ok); el.classList.toggle('novo', !!S.novos[id]);
+    el.classList.toggle('pode', id !== 'quadro' && ok && S.ouro >= custoEd(id, n)); el.classList.toggle('trancado', !ok); el.classList.toggle('novo', !!S.novos[id]);
   }
   desenharFlutuantes(dt); rotulosMundo();
   tFolha += dt; if (tFolha > 0.25) { tFolha = 0; desenharFolha(); }

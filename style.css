@@ -502,3 +502,8 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;paddin
 .lPainel p{margin:0;font-size:13px}.lPainel .linha{display:flex;gap:6px;flex-wrap:wrap}
 .lPainel svg{width:16px;height:16px;vertical-align:-3px}.lPainel h3 svg{width:22px;height:22px}.lPainel .btn{width:auto}
 .lPainel .ico{fill:#c98a1a}
+/* guildas */
+.gLista{display:flex;align-items:center;gap:8px;cursor:default}.gLista .cTxt{flex:1;min-width:0}.gLista .cTxt small{display:block}
+.gLista .cTxt small .ico{width:12px;height:12px;vertical-align:-2px}.gLista .btn{width:auto;flex:none}
+.forcaG{display:flex;gap:10px;align-items:center;background:linear-gradient(90deg,#3a2a6a,#5a3aa8);color:#fff;border-radius:14px;padding:10px 12px;margin:8px 0}
+.forcaG>.ico{width:30px;height:30px;fill:#ffd84a;flex:none}.forcaG b{display:block}.forcaG small{opacity:.85;font-size:12px}

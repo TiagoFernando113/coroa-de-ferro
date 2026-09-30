@@ -7,12 +7,12 @@ import { visualAleatorio, animAtaque } from './aparencia.js';
 
 const P = Math.PI;
 export const PORTAO = { x: 0, z: 30 };
-const R_ANEL = 16;
+const R_ANEL = 18;
 // prédios num anel ao redor da praça (ângulo 90° = sul, onde fica o portão)
-const ANG = { treino: 170, taverna: -145, alojamento: -108, portal: -72, biblioteca: -36, forja: 0, enfermaria: 40, mercado: 135 };
+const ANG = { treino: 165, taverna: -150, alojamento: -122, portal: -58, biblioteca: -28, forja: 5, enfermaria: 40, mercado: 135 };
 export const POS = {};
 for (const [k, a] of Object.entries(ANG)) { const t = a * P / 180; POS[k] = { x: Math.cos(t) * R_ANEL, z: Math.sin(t) * R_ANEL }; }
-POS.quadro = { x: 6.5, z: 6.5 };
+POS.quadro = { x: 0, z: -11 }; // Associação dos Aventureiros (sempre lá)
 for (const k of Object.keys(POS)) POS[k].ry = Math.atan2(-POS[k].x, -POS[k].z); // frente para a praça
 
 function rng(seed) { let s = seed >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
@@ -50,10 +50,10 @@ function pecasEd(id, t) {
       L.anel = { y: 2.6 + t * 0.3, r: 1.8 + t * 0.2 };
       break;
     }
-    case 'quadro':
-      L.push({ m: 'T:pillar-wood', x: -1.4, s: [2.2, 2.4, 2.2] }, { m: 'T:pillar-wood', x: 1.4, s: [2.2, 2.4, 2.2] }, { m: 'N:sign', y: 0.2, s: 5 });
-      if (t >= 2) L.push({ m: 'D:table', x: 0, z: 2.2, s: 3 }, { m: 'D:banner', x: -2.4, z: 0, s: 2.6 });
-      if (t >= 3) L.push({ m: 'C:flag-banner-long', x: 2.6, z: -0.5, s: 2 });
+    case 'quadro': // Associação dos Aventureiros: salão com o quadro de missões na frente
+      casa(L, { prof: 2, madeira: false, S: 3.6, z: -1.8 });
+      L.push({ m: 'T:pillar-wood', x: -1.6, z: 3.4, s: [2.2, 2.4, 2.2] }, { m: 'T:pillar-wood', x: 1.6, z: 3.4, s: [2.2, 2.4, 2.2] }, { m: 'N:sign', z: 3.4, y: 0.2, s: 5 },
+        { m: 'D:banner', x: -3.9, z: 2.2, s: 3 }, { m: 'D:banner', x: 3.9, z: 2.2, s: 3 }, { m: 'C:flag-banner-long', x: 0, y: 7.4, z: -1.8, s: 2.6 }, { m: 'D:table', x: 2.6, z: 4.2, s: 2.4 });
       break;
     case 'treino':
       for (let i = -1; i <= 1; i++) { L.push({ m: 'T:fence', x: i * 3, z: -4.5, ry: P / 2, s: 3 }); L.push({ m: 'T:fence', x: -4.5, z: i * 3, ry: 0, s: 3 }); }
@@ -102,6 +102,7 @@ export function atualizarPredio(id, forcar = false) {
   vis[id] = { grupo: g, estagio: t, anel };
   if (v) { C.faiscas(p.x, 3, p.z, 0xffd84a, 40, 5); C.onda(p.x, p.z, 7, 0xffd84a, 0.6); }
 }
+export function atualizarPredios() { for (const id of Object.keys(EDIFICIOS)) atualizarPredio(id); }
 export function montarBase() {
   const L = [], caminhos = [], r = rng(5);
   // caminhos da praça até cada prédio e até o portão

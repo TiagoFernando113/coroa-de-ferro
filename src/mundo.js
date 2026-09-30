@@ -26,7 +26,15 @@ export const ESTILO = [
 // trilha: guilda → região 0 → 1 → ...
 export const TRILHA = [GUILDA_W, ...CENTROS];
 function distSeg(p, a, b) { const dx = b.x - a.x, dz = b.z - a.z, t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.z - a.z) * dz) / (dx * dx + dz * dz))); return Math.hypot(p.x - a.x - dx * t, p.z - a.z - dz * t); }
-const pertoTrilha = (p, m = 7) => { for (let i = 1; i < TRILHA.length; i++) if (distSeg(p, TRILHA[i - 1], TRILHA[i]) < m) return true; return false; };
+// a estrada é uma curva suave: a distância é medida nos pontos da curva (numa grade de 20 m para ser rápido)
+let GRADE = null;
+function guardarEstrada(pts) { GRADE = new Map(); for (const q of pts) { const k = Math.floor(q.x / 20) + ',' + Math.floor(q.z / 20); if (!GRADE.has(k)) GRADE.set(k, []); GRADE.get(k).push(q); } }
+const pertoTrilha = (p, m = 7) => {
+  if (!GRADE) { for (let i = 1; i < TRILHA.length; i++) if (distSeg(p, TRILHA[i - 1], TRILHA[i]) < m) return true; return false; }
+  const cx = Math.floor(p.x / 20), cz = Math.floor(p.z / 20), r = Math.ceil(m / 20);
+  for (let i = -r; i <= r; i++) for (let k = -r; k <= r; k++) for (const q of GRADE.get((cx + i) + ',' + (cz + k)) || []) if (Math.hypot(q.x - p.x, q.z - p.z) < m) return true;
+  return false;
+};
 export const regiaoDe = p => { let r = 0, d0 = 1e9; CENTROS.forEach((c, i) => { const d = Math.hypot(c.x - p.x, c.z - p.z); if (d < d0) { d0 = d; r = i; } }); return r; };
 const RAIO_REG = 110;
 // ---------------- pontos de interesse: locais para descobrir, baús escondidos e covis de chefes ----------------
@@ -76,19 +84,19 @@ export function montarMundoMapa() {
   }, 7);
   let sd = 11; const rnd = () => ((sd = (sd * 16807) % 2147483647) / 2147483647);
   const L = [];
+  const est = C.estrada(TRILHA, 5); guardarEstrada(est.pontos(2500)); const EP = est.pontos(300); window.__estrada = EP; // para testes
   gerarPOIs(rnd);
   // estrada de pedras com as beiradas bem enfeitadas (é por onde o jogador mais passa), com o tema de cada região
-  const est = C.estrada(TRILHA, 5); const EP = est.pontos(300); window.__estrada = EP; // para testes
   // portais de teletransporte (um em cada região, na beira da estrada) e vilas com NPCs
   CENTROS.forEach((c, r) => { let m = EP[0], d0 = 1e9; for (const p of EP) { const d = Math.hypot(p.x - c.x, p.z - c.z); if (d < d0) { d0 = d; m = p; } }
     POIS.push({ id: 'p' + r, tipo: 'portal', r, x: m.x + m.nx * 8, z: m.z + m.nz * 8, nome: 'Portal: ' + REGIOES[r].nome }); });
   POIS.push({ id: 'pg', tipo: 'portal', r: 0, x: GUILDA_W.x + 12, z: GUILDA_W.z - 10, nome: 'Portal da Guilda' });
-  VILAS.forEach(([nome, f, lado], i) => { const p = EP[Math.floor(f * (EP.length - 1))], x = p.x + p.nx * 24 * lado, z = p.z + p.nz * 24 * lado;
+  VILAS.forEach(([nome, f, lado], i) => { const p = EP[Math.floor(f * (EP.length - 1))], x = p.x + p.nx * 28 * lado, z = p.z + p.nz * 28 * lado;
     POIS.push({ id: 'v' + i, tipo: 'vila', r: regiaoDe(p), x, z, nome, px: p.x + p.nx * 9 * lado, pz: p.z + p.nz * 9 * lado }); });
   for (const o of POIS) {
     if (o.tipo === 'portal') L.push({ m: 'N:statue_obelisk', x: o.x, z: o.z, s: 6 }, { m: 'C:stairs-stone', x: o.x, z: o.z + 2.5, s: 2.5 });
     if (o.tipo === 'vila') { // casas em volta de uma praça com poço, barracas e lampiões
-      for (let k = 0; k < 5; k++) { const a = Math.PI * (0.25 + k * 0.38) + Math.atan2(o.px - o.x, o.pz - o.z) + Math.PI, hx = o.x + Math.sin(a) * 19, hz = o.z + Math.cos(a) * 19;
+      for (let k = 0; k < 5; k++) { const a = Math.atan2(o.x - o.px, o.z - o.pz) + (k - 2) * 0.62, hx = o.x + Math.sin(a) * 17, hz = o.z + Math.cos(a) * 17;
         casa(L, { prof: 2, madeira: k % 2 === 1, S: 5.2, x: hx, z: hz, chamine: k !== 2 }); }
       L.push({ m: 'T:fountain-round', x: o.x, z: o.z, s: 5 }, { m: 'T:stall-red', x: o.x - 8, z: o.z + 6, s: 4.5, ry: 0.4 }, { m: 'T:stall-green', x: o.x + 8, z: o.z + 6, s: 4.5, ry: -0.4 },
         { m: 'T:lantern', x: o.x - 6, z: o.z - 7, s: 4 }, { m: 'T:lantern', x: o.x + 6, z: o.z - 7, s: 4 }, { m: 'T:banner-red', x: o.px, z: o.pz, s: 4 }, { m: 'N:sign', x: o.px + 2, z: o.pz, s: 6 },
@@ -111,6 +119,7 @@ export function montarMundoMapa() {
     [[...SECA, 'N:tree_blocks_dark'], ['F:Bush_4_C_Color1', 'F:Bush_4_E_Color1'], [...GRAMA, 'N:mushroom_red', 'N:mushroom_redGroup'], GRD, 0.8],
     [[...SECA, ...PIN_F], ['F:Bush_3_A_Color1'], PEQ, [...GRD, 'N:rock_tallJ'], 0.6],
   ];
+  const BEIRA = ['Q:Pebble_Round_1', 'Q:Pebble_Round_2', 'Q:Pebble_Round_3', 'F:Grass_1_A_Color1', 'F:Grass_2_A_Color1', 'Q:Grass_Common_Short', 'Q:Grass_Wispy_Tall', 'Q:Flower_3_Group', 'Q:Clover_1'];
   const escala = m => m.startsWith('F:Tree') ? 1.9 + rnd() * 0.7 : m.startsWith('F:Bush') ? 4 + rnd() * 2.5 : m.startsWith('F:Grass') ? 2.4 + rnd() * 1.4
     : m.startsWith('F:Rock_1_K') || m.startsWith('F:Rock_1_O') || m.startsWith('F:Rock_3') ? 2.5 + rnd() * 2 : m.startsWith('F:Rock') ? 2.5 + rnd() * 2
     : m.startsWith('Q:') ? 1.3 + rnd() * 0.5 : m.startsWith('N:statue') ? 4 : m.startsWith('N:tree') || m.startsWith('N:cactus') ? 5 + rnd() * 2 : 4 + rnd() * 2;
@@ -121,13 +130,13 @@ export function montarMundoMapa() {
     for (const lado of [-1, 1]) {
       const em = d => ({ x: p.x + p.nx * d * lado, z: p.z + p.nz * d * lado });
       // beirada: pedrinhas e grama coladas no calçamento
-      if (rnd() < 0.55) { const q = em(3.2 + rnd() * 1.3), m = rnd() < 0.4 ? 'Q:Pebble_Round_' + (1 + Math.floor(rnd() * 3)) : um(chao); L.push({ m, ...q, ry: rnd() * 6.28, s: m.startsWith('Q:Pebble') ? 1.5 + rnd() : escala(m) }); }
+      if (rnd() < 0.55) { const q = em(3.3 + rnd() * 1.2), m = um(BEIRA); L.push({ m, ...q, ry: rnd() * 6.28, s: m.startsWith('F:') ? 1.6 + rnd() * 0.8 : m.startsWith('Q:Pebble') ? 1.4 + rnd() * 0.8 : 1 + rnd() * 0.4 }); }
       // faixa de arbustos e flores
-      if (rnd() < 0.35) { const q = em(5 + rnd() * 3), m = um(rnd() < 0.5 ? arb : chao); if (!perto(q.x, q.z)) L.push({ m, ...q, ry: rnd() * 6.28, s: escala(m) }); }
+      if (rnd() < 0.35) { const q = em(7.5 + rnd() * 3), m = um(rnd() < 0.5 ? arb : chao); if (!perto(q.x, q.z)) L.push({ m, ...q, ry: rnd() * 6.28, s: Math.min(escala(m), m.startsWith('F:Bush') ? 3.4 : 3) }); }
       // árvores fazendo corredor ao longo da estrada
-      if (rnd() < 0.2 * dens) { const q = em(11 + rnd() * 9), m = um(arv); if (!perto(q.x, q.z)) L.push({ m, ...q, ry: rnd() * 6.28, s: escala(m) }); }
+      if (rnd() < 0.2 * dens) { const q = em(12 + rnd() * 9), m = um(arv); if (!perto(q.x, q.z)) L.push({ m, ...q, ry: rnd() * 6.28, s: escala(m) }); }
       // pedras grandes de vez em quando
-      if (rnd() < 0.04) { const q = em(7 + rnd() * 8), m = um(grd); if (!perto(q.x, q.z)) L.push({ m, ...q, ry: rnd() * 6.28, s: escala(m) }); }
+      if (rnd() < 0.04) { const q = em(11 + rnd() * 7), m = um(grd); if (!perto(q.x, q.z)) L.push({ m, ...q, ry: rnd() * 6.28, s: escala(m) }); }
     }
     // trechos de cerca nas regiões verdes
     if (cerca > 0) { cerca--; const lado = cerca % 2 ? 1 : -1; L.push({ m: 'T:fence', x: p.x + p.nx * 4.6 * lado, z: p.z + p.nz * 4.6 * lado, ry: Math.atan2(p.nz, -p.nx), s: 5 }); }
@@ -143,13 +152,13 @@ export function montarMundoMapa() {
     const e = ESTILO[i];
     for (let k = 0; k < 190; k++) {
       const a = rnd() * 6.28, d = 16 + Math.sqrt(rnd()) * (RAIO_REG - 10), p = { x: c.x + Math.cos(a) * d, z: c.z + Math.sin(a) * d };
-      if (pertoTrilha(p) || POIS.some(o => Math.hypot(o.x - p.x, o.z - p.z) < raioPoi(o))) continue;
+      if (pertoTrilha(p, 10) || POIS.some(o => Math.hypot(o.x - p.x, o.z - p.z) < raioPoi(o))) continue;
       const m = e.pecas[Math.floor(rnd() * e.pecas.length)]; // peças da Quaternius já estão em metros
       L.push({ m, x: p.x, z: p.z, ry: rnd() * 6.28, s: (m.startsWith('Q:') ? 1.4 : e.s) * (0.8 + rnd() * 0.5) });
     }
   });
   // bosques (grupos de árvores), pedras e arbustos no resto do mapa
-  const ocupado = p => pertoTrilha(p) || CENTROS.some(c => Math.hypot(c.x - p.x, c.z - p.z) < RAIO_REG * 0.8) || Math.hypot(GUILDA_W.x - p.x, GUILDA_W.z - p.z) < 25
+  const ocupado = p => pertoTrilha(p, 10) || CENTROS.some(c => Math.hypot(c.x - p.x, c.z - p.z) < RAIO_REG * 0.8) || Math.hypot(GUILDA_W.x - p.x, GUILDA_W.z - p.z) < 25
     || POIS.some(o => Math.hypot(o.x - p.x, o.z - p.z) < raioPoi(o));
   const ARV = ['N:tree_oak', 'N:tree_default', 'N:tree_pineRoundB', 'N:tree_fat', 'N:tree_detailed', 'N:tree_pineTallA'];
   for (let b = 0; b < 110; b++) {
@@ -173,6 +182,7 @@ export function montarMundoMapa() {
   const g = GUILDA_W;
   L.push({ m: 'C:tower-square', x: g.x, z: g.z, s: 5 }, { m: 'C:flag', x: g.x, y: 10, z: g.z, s: 4 }, { m: 'C:wall', x: g.x - 5, z: g.z, s: 5, ry: Math.PI / 2 }, { m: 'C:wall', x: g.x + 5, z: g.z, s: 5, ry: Math.PI / 2 },
     { m: 'T:banner-red', x: g.x + 3, z: g.z - 4, s: 3 }, { m: 'N:tent_detailedOpen', x: g.x - 8, z: g.z - 8, s: 4 });
+  window.__pecas = L; // para testes
   C.montarEstatico(L);
 }
 

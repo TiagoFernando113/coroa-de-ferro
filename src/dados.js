@@ -1,7 +1,7 @@
 // Dados da Guilda de Heróis: prédios, heróis, raridades, regiões/missões e objetivos.
 // Os números crescem de forma exponencial (estilo idle): cada melhoria custa mais e rende mais.
 
-export const VERSAO = 46;
+export const VERSAO = 47;
 
 // ---------------- números grandes ----------------
 const SUF = ['', 'K', 'M', 'B', 'T', 'aa', 'ab', 'ac', 'ad', 'ae', 'af', 'ag', 'ah'];
@@ -26,7 +26,7 @@ export const marcosAte = n => MARCOS.filter(m => n >= m).length;
 export const proxMarco = n => MARCOS.find(m => m > n) || null;
 export const EDIFICIOS = {
   taverna: { nome: 'Taverna', icone: 'taverna', fama: 1, base: 10, cresc: 1.12, cor: '#e0923a', desc: 'Aventureiros comem, bebem e pagam. Sua renda principal de ouro.' },
-  quadro: { nome: 'Quadro de Missões', icone: 'quadro', fama: 1, base: 60, cresc: 1.42, cor: '#c9a46a', desc: 'Mais missões ao mesmo tempo e recompensas maiores.' },
+  quadro: { nome: 'Associação dos Aventureiros', icone: 'quadro', fama: 0, base: 60, cresc: 1.42, cor: '#c9a46a', desc: 'O QG de todos os aventureiros: pegue missões no quadro. Mais vagas conforme o seu nível.' },
   alojamento: { nome: 'Alojamento', icone: 'alojamento', fama: 1, base: 80, cresc: 1.5, cor: '#8a6a4a', desc: 'Camas para mais heróis na guilda.' },
   portal: { nome: 'Portal de Recrutamento', icone: 'portal', fama: 2, base: 250, cresc: 1.55, cor: '#8a5ad8', desc: 'Heróis mais raros aparecem no recrutamento.' },
   treino: { nome: 'Campo de Treino', icone: 'treino', fama: 3, base: 400, cresc: 1.3, cor: '#5fb83a', desc: 'Heróis descansando na guilda ganham experiência.' },
@@ -53,7 +53,7 @@ export function descEfeito(id, n) {
   switch (id) {
     case 'taverna': return `${fmt(e)} de ouro/s`;
     case 'quadro': return `${e.vagas} missões ao mesmo tempo · recompensas +${Math.round((e.bonus - 1) * 100)}%`;
-    case 'alojamento': return `${e} vagas na guilda (máx. 12)`;
+    case 'alojamento': return `Até ${e} membros na guilda (máx. 12)`;
     case 'portal': return `Chance de raros: ${chancesRecrutar(n).slice(1).map((c, i) => `${RARIDADES[i + 1].nome} ${(c * 100).toFixed(1)}%`).join(' · ')}`;
     case 'treino': return `+${fmt(e)} XP/s por herói descansando`;
     case 'forja': return `Poder dos heróis ×${e.toFixed(2)}`;
@@ -167,3 +167,22 @@ export function rankPoder(p) {
   return { i, letra, cor, titulo, prox: fim, estrelas: Math.max(0, Math.min(5, Math.floor(f * 5))), f: Math.max(0, Math.min(1, f)) };
 }
 export const OFFLINE_MAX = 4 * 3600; // ganhos offline até 4h
+
+// ---------------- guildas (alianças) ----------------
+// por enquanto simuladas; depois serão guildas de jogadores de verdade (online).
+// nv: nível da guilda (libera prédios como a Fama fazia), membros: vagas ocupadas de 12, req: poder de combate mínimo
+export const GUILDAS = [
+  { id: 'lobos', nome: 'Lobos de Prata', lema: 'Caçamos juntos, dividimos tudo.', cor: '#7a9ab8', icone: 'floresta', nv: 2, membros: 4, req: 0 },
+  { id: 'grifo', nome: 'Ordem do Grifo', lema: 'Honra acima de tudo.', cor: '#d8a84a', icone: 'escudo', nv: 3, membros: 7, req: 150 },
+  { id: 'taverneiros', nome: 'Os Taverneiros', lema: 'Primeiro a cerveja, depois o dragão.', cor: '#c98a3a', icone: 'taverna', nv: 4, membros: 9, req: 300 },
+  { id: 'aurora', nome: 'Aurora Carmesim', lema: 'A luz vem depois da batalha.', cor: '#d8543a', icone: 'raio', nv: 5, membros: 11, req: 600 },
+  { id: 'corvos', nome: 'Corvos da Noite', lema: 'Ninguém nos vê chegar.', cor: '#5a4a7a', icone: 'lad', nv: 6, membros: 12, req: 1200 },
+  { id: 'coroa', nome: 'Coroa de Ferro', lema: 'Os mais fortes do servidor.', cor: '#8a3a5a', icone: 'coroa', nv: 8, membros: 10, req: 3000 },
+  { id: 'dragoes', nome: 'Presas do Dragão', lema: 'Só entram lendas.', cor: '#b83a2a', icone: 'vulcao', nv: 8, membros: 12, req: 9000 },
+];
+// nível de cada prédio de uma guilda (fixo por guilda, para a lista mostrar sempre o mesmo)
+export function predioGuilda(g, id) {
+  const e = EDIFICIOS[id]; if (id === 'quadro' || e.fama > g.nv) return 0;
+  let h = 0; for (const c of g.id + id) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return Math.max(1, Math.round((g.nv - e.fama + 1) * (2 + (h % 3))));
+}

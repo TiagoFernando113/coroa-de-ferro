@@ -4,7 +4,7 @@ import { visualAleatorio } from './aparencia.js';
 import { gerarItem, precoItem, atributosEquip, BAUS, custoBau, GEMAS_BAU, sortearRaridade } from './itens.js';
 import { EDIFICIOS, EF, custoEd, CLASSES, RARIDADES, chancesRecrutar, xpHeroi, custoTreinar, custoRecrutar, GEMAS_RECRUTAR, nomeAleatorio,
   REGIOES, missao, chanceSucesso, xpFama, OBJETIVOS, gemasObjetivo, OFFLINE_MAX, xpSistema, PONTOS_NIVEL, rankDe,
-  RANK_REGIAO, rankIdx, TITULOS, MAX_QUADRO, GEMAS_TROCAR, MAX_ORDENS, ORDEM_SEG, GEMAS_ORDENS, AUTO_MULT } from './dados.js';
+  RANK_REGIAO, rankIdx, TITULOS, MAX_QUADRO, GEMAS_TROCAR, MAX_ORDENS, ORDEM_SEG, GEMAS_ORDENS, AUTO_MULT, GUILDAS, predioGuilda } from './dados.js';
 
 const SAVE = 'coroa_guilda_v1';
 export let S = null;
@@ -19,33 +19,74 @@ function novoHeroi(cls, rar, usados = S ? S.herois.map(h => h.nome) : []) {
 export function novo(agora = Date.now()) {
   S = {
     v: 1, ouro: 30, gemas: 30, fama: { nivel: 1, xp: 0 },
-    ed: Object.fromEntries(Object.keys(EDIFICIOS).map(k => [k, k === 'taverna' ? 1 : 0])),
+    ed: Object.fromEntries(Object.keys(EDIFICIOS).map(k => [k, k === 'quadro' ? 1 : 0])), guilda: null, g2: true,
     herois: [], missoes: [], regiao: 0, chefes: {},
     st: { missoes: 0, recrutados: 2, ouroTotal: 0, lendarios: 0, falhas: 0 }, obj: {}, ultimo: agora, gratisEm: agora, etapa: 0, revelado: [], novos: {},
   };
-  S.herois.push(novoHeroi('cav', 0, [])); S.herois.push(novoHeroi('arq', 0, [S.herois[0].nome])); S.lider = S.herois[0].id;
+  S.herois.push(novoHeroi('cav', 0, [])); S.lider = S.herois[0].id;
   return S;
 }
 export function carregar() { try { const s = JSON.parse(localStorage.getItem(SAVE)); if (s && s.v === 1) { S = s; for (const h of S.herois) if (!h.visual) h.visual = visualAleatorio(h.cls);
     // luta manual interrompida (jogo fechado no meio): libera tudo
     for (const q of S.quadro || []) delete q.emLuta;
     for (const h of S.herois) if (h.estado === 'missao' && !S.missoes.some(m => m.herois.includes(h.id))) h.estado = 'livre';
+    migrarGuilda();
     return true; } } catch (e) {} return false; }
+// saves de antes da Associação/guilda: os prédios e os heróis recrutados viram a sua guilda antiga
+function migrarGuilda() {
+  if (S.g2) return; S.g2 = true;
+  const temAlgo = S.herois.length > 1 || Object.entries(S.ed).some(([k, n]) => k !== 'quadro' && n > 0);
+  S.guilda = temAlgo ? { id: 'antiga', nome: S.nomeGuilda || 'Guilda dos Heróis', cor: '#c98a3a', icone: 'guilda', lema: 'A guilda onde tudo começou.', nv0: S.fama.nivel, base: somaPredios() } : null;
+  for (const h of S.herois) if (h.id !== S.lider) h.membro = true;
+  S.ed.quadro = Math.max(1, S.ed.quadro || 0);
+  S.etapa = (S.etapa || 0) >= 14 ? 10 : S.st.missoes > 0 ? 3 : 0; // tutorial novo
+  if (S.revelado) for (const k of Object.keys(EDIFICIOS)) if (!S.revelado.includes('ed:' + k)) S.revelado.push('ed:' + k);
+}
 export function salvar(agora = Date.now()) { if (!S) return; S.ultimo = agora; try { localStorage.setItem(SAVE, JSON.stringify(S)); } catch (e) {} }
 export function apagar() { try { localStorage.removeItem(SAVE); } catch (e) {} }
 
 // ---------------- números derivados ----------------
 export const nivel = id => S.ed[id] || 0;
+// ---------------- guilda (aliança) ----------------
+export const naGuilda = () => !!S.guilda;
+// nível da guilda: cresce com os prédios (libera prédios novos, como a Fama fazia)
+const somaPredios = () => Object.entries(S.ed).reduce((t, [k, n]) => t + (k === 'quadro' ? 0 : n), 0);
+export const nivelGuilda = () => !S.guilda ? 0 : (S.guilda.nv0 || 1) + Math.floor(Math.max(0, somaPredios() - (S.guilda.base || 0)) / 15);
+export const membros = () => S.herois.filter(h => h.id !== S.lider);
+// Força da guilda: bônus de XP que cresce com os membros ativos e o nível da guilda
+export const forcaGuilda = () => !S.guilda ? 0 : Math.min(60, membros().length * 2 + nivelGuilda() * 2);
+export function podeEntrar(g) { return !S.guilda && g.membros < 12 && poderCombate() >= g.req; }
+export function entrarGuilda(id) {
+  const g = GUILDAS.find(x => x.id === id); if (!g || !podeEntrar(g)) return false;
+  S.guilda = { id: g.id, nome: g.nome, cor: g.cor, icone: g.icone, lema: g.lema };
+  for (const k of Object.keys(EDIFICIOS)) if (k !== 'quadro') S.ed[k] = predioGuilda(g, k);
+  S.guilda.nv0 = g.nv; S.guilda.base = somaPredios();
+  // os outros membros (jogadores da guilda) e os heróis deles
+  const usados = S.herois.map(h => h.nome); S.herois = [lider()]; S.doacoes = {};
+  for (let i = 0; i < g.membros; i++) {
+    const cls = Object.keys(CLASSES)[Math.floor(Math.random() * 5)], h = novoHeroi(cls, Math.random() < 0.15 ? 2 : Math.random() < 0.4 ? 1 : 0, usados);
+    h.nivel = Math.max(1, Math.round(g.nv * (3 + Math.random() * 5))); h.membro = true; usados.push(h.nome);
+    S.herois.push(h); S.doacoes[h.id] = Math.round(custoEd('taverna', g.nv * 3) * (1 + Math.random() * 6));
+  }
+  S.st.guildas = (S.st.guildas || 0) + 1; ev('guilda', { nome: g.nome }); return true;
+}
+export function sairGuilda() {
+  if (!S.guilda) return false; S.guilda = null;
+  for (const k of Object.keys(EDIFICIOS)) if (k !== 'quadro') S.ed[k] = 0;
+  S.herois = [lider()]; S.doacoes = {}; S.missoes = S.missoes.filter(m => m.herois.every(id => heroi(id)));
+  return true;
+}
 // ---------------- membros da guilda doam para os prédios ----------------
 // (por enquanto os membros são simulados; depois serão jogadores de verdade)
 let doacaoT = 60;
 export function doacoesMembros(dt, agora = Date.now(), silencioso = false) {
-  const membros = S.herois.filter(h => h.id !== S.lider); if (!membros.length) return;
+  if (!S.guilda) return; const membros = S.herois.filter(h => h.id !== S.lider); if (!membros.length) return;
   if ((doacaoT -= dt) > 0) return; doacaoT = 600 / Math.sqrt(membros.length) * (0.6 + Math.random() * 0.8);
   const abertos = Object.keys(EDIFICIOS).filter(id => desbloqueado(id) && nivel(id) > 0).sort((a, b) => custoEd(a, nivel(a)) - custoEd(b, nivel(b))).slice(0, 3);
   if (!abertos.length) return;
   const m = membros[Math.floor(Math.random() * membros.length)], ed = abertos[Math.floor(Math.random() * abertos.length)], valor = custoEd(ed, nivel(ed));
   S.ed[ed] = nivel(ed) + 1; S.doacoes = S.doacoes || {}; S.doacoes[m.id] = (S.doacoes[m.id] || 0) + valor;
+  if (Math.random() < 0.5) m.nivel++; // os outros jogadores também evoluem
   if (!silencioso) ev('doacao', { nome: m.nome, ed, valor });
 }
 export function doar(id, qtd = 1) { const antes = S.ouro, n = melhorarVarias(id, qtd); if (n) { S.doacoes = S.doacoes || {}; S.doacoes[S.lider] = (S.doacoes[S.lider] || 0) + (antes - S.ouro); } return n; }
@@ -89,7 +130,7 @@ export function statsHeroi() {
     hab: 1 + a.int * 0.04, recarga: 1 - Math.min(0.4, a.int * 0.01) };
 }
 export function ganharXPSis(v) {
-  const s = sis(); s.xp += v;
+  const s = sis(); s.xp += v * (1 + forcaGuilda() / 100);
   while (s.xp >= xpSistema(s.nivel)) {
     s.xp -= xpSistema(s.nivel); const rAntes = rankDe(s.nivel)[1]; s.nivel++; s.pontos += PONTOS_NIVEL;
     const r = rankDe(s.nivel); ev('sistema', { nivel: s.nivel, rank: r[1] !== rAntes ? r : null });
@@ -111,7 +152,7 @@ export function poder(h, r = null) {
 export const poderEquipe = (ids, r) => ids.reduce((s, id) => { const h = heroi(id); return s + (h ? poder(h, r) : 0); }, 0);
 export const heroi = id => S.herois.find(h => h.id === id);
 export const livres = () => S.herois.filter(h => h.estado === 'livre');
-export const desbloqueado = id => S.fama.nivel >= EDIFICIOS[id].fama;
+export const desbloqueado = id => id === 'quadro' || (!!S.guilda && nivelGuilda() >= EDIFICIOS[id].fama);
 
 // ---------------- ganhos ----------------
 function ganharOuro(v) { S.ouro += v; S.st.ouroTotal += v; }
@@ -119,7 +160,7 @@ function ganharFama(v) {
   S.fama.xp += v;
   while (S.fama.xp >= xpFama(S.fama.nivel)) {
     S.fama.xp -= xpFama(S.fama.nivel); S.fama.nivel++; const g = 2 + S.fama.nivel; S.gemas += g;
-    const novos = Object.entries(EDIFICIOS).filter(([, e]) => e.fama === S.fama.nivel).map(([k]) => k);
+    const novos = [];
     ev('fama', { nivel: S.fama.nivel, gemas: g, novos });
   }
 }
@@ -131,7 +172,7 @@ function ganharXP(h, v) {
 
 // ---------------- ações ----------------
 export function melhorar(id) {
-  if (!desbloqueado(id)) return false;
+  if (id === 'quadro' || !desbloqueado(id)) return false;
   const c = custoEd(id, nivel(id)); if (S.ouro < c) return false;
   S.ouro -= c; S.ed[id] = nivel(id) + 1; ganharFama(1 + Math.floor(S.ed[id] / 10));
   ganharXPSis(2 + Math.floor(S.ed[id] / 5)); ev('melhorou', { id, nivel: S.ed[id] }); return true;
@@ -154,7 +195,7 @@ export function recrutar(premium = false, gratis = false, agora = Date.now()) {
   ev('recrutou', { id: h.id }); return h;
 }
 export function treinar(id) {
-  const h = heroi(id); if (!h) return false; const c = custoTreinar(h); if (S.ouro < c) return false;
+  const h = heroi(id); if (!h || h.id !== S.lider) return false; const c = custoTreinar(h); if (S.ouro < c) return false;
   S.ouro -= c; h.nivel++; h.xp = 0; S.st.treinos = (S.st.treinos || 0) + 1; ev('heroiNivel', { id }); return true;
 }
 export function aposentar(id) {
@@ -283,6 +324,7 @@ export const objetivosProntos = () => OBJETIVOS.filter(o => objetivoAtual(o)?.fe
 
 // ---------------- tempo ----------------
 export function passo(dt, agora = Date.now()) {
+  S.ed.quadro = Math.min(40, 1 + Math.floor(sis().nivel / 2)); // licença na Associação acompanha o seu nível
   atualizarQuadro(agora); regenOrdens(agora); autoMissoes(dt, agora); doacoesMembros(dt, agora);
   ganharOuro(renda() * dt);
   const xps = EF.treino(nivel('treino')) * dt; if (xps > 0) { for (const h of S.herois) if (h.estado === 'livre') ganharXP(h, xps); ganharXPSis(xps * 0.15); }
