@@ -201,11 +201,23 @@ function montarHud() {
   document.body.append(el);
   const cv = $('#lJoy'), g = cv.getContext('2d'); L.g = g;
   const medir = () => { cv.width = innerWidth; cv.height = innerHeight; }; medir(); L.medir = medir; addEventListener('resize', medir);
-  cv.addEventListener('pointerdown', e => { if (L.joy) return; L.joy = { id: e.pointerId, sx: e.clientX, sy: e.clientY, x: e.clientX, y: e.clientY }; cv.setPointerCapture(e.pointerId); });
+  // toque: eventos de toque nativos (multitoque confiável no WebView do Android): um dedo no joystick e outro nas habilidades
+  const hab = alvo => alvo?.closest?.('[data-hab]');
+  el.addEventListener('touchstart', e => {
+    for (const t of e.changedTouches) {
+      const b = hab(t.target); if (b) { e.preventDefault(); usarHab(+b.dataset.hab); continue; }
+      if (t.target === cv && !L.joy) { e.preventDefault(); L.joy = { id: 't' + t.identifier, sx: t.clientX, sy: t.clientY, x: t.clientX, y: t.clientY }; }
+    }
+  }, { passive: false });
+  el.addEventListener('touchmove', e => { for (const t of e.changedTouches) if (L?.joy?.id === 't' + t.identifier) { e.preventDefault(); L.joy.x = t.clientX; L.joy.y = t.clientY; } }, { passive: false });
+  const soltaT = e => { for (const t of e.changedTouches) if (L?.joy?.id === 't' + t.identifier) L.joy = null; };
+  el.addEventListener('touchend', soltaT); el.addEventListener('touchcancel', soltaT);
+  // mouse (computador)
+  cv.addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse' || L.joy) return; L.joy = { id: e.pointerId, sx: e.clientX, sy: e.clientY, x: e.clientX, y: e.clientY }; cv.setPointerCapture(e.pointerId); });
   cv.addEventListener('pointermove', e => { if (L.joy && e.pointerId === L.joy.id) { L.joy.x = e.clientX; L.joy.y = e.clientY; } });
   const solta = e => { if (L?.joy && e.pointerId === L.joy.id) L.joy = null; };
   cv.addEventListener('pointerup', solta); cv.addEventListener('pointercancel', solta);
-  el.addEventListener('pointerdown', e => { const b = e.target.closest('[data-hab]'); if (b) { e.preventDefault(); usarHab(+b.dataset.hab); } });
+  el.addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse') return; const b = hab(e.target); if (b) { e.preventDefault(); usarHab(+b.dataset.hab); } });
   el.addEventListener('click', e => { if (e.target.closest('[data-l="sair"]')) terminar(false, true); if (e.target.id === 'lMapa') { som('abrir'); mapaGrande(L.lider); } });
 }
 function numero(x, y, z, txt, cor, grande = false) { L.txt.push({ x, y, z, txt, cor, grande, t: 0 }); }
@@ -221,14 +233,14 @@ function usarHab(i) {
   const alvo = maisPerto(j, 20);
   if (i === 0) { // área: giro (perto) ou chuva de flechas/magia (longe) no alvo
     j.cds[0] = 6 * j.recarga; const c = longe && alvo ? alvo : j, r = longe ? 6 : 5.5;
-    j.v.tocar(longe ? 'Ranged_Magic_Raise' : 'Melee_2H_Attack_Spin', { loop: false, reinicia: true });
+    j.v.tocar(longe ? 'Ranged_Magic_Raise' : 'Melee_2H_Attack_Spin', { loop: false, reinicia: true }); j.trava = L.t + 0.7;
     if (longe) C.aviso(c.x, c.z, r, 0.7, 0x3aaaff);
     setTimeout(() => { if (!L) return; C.onda(c.x, c.z, r, longe ? 0x7ad0ff : 0xffe0a0, 0.5); C.faiscas(c.x, 1, c.z, longe ? 0x7ad0ff : 0xffd84a, 30, 5); C.camera.tremor = 0.25;
       for (const e of L.inimigos) if (e.hp > 0 && dist(e, c) < r + 1) ferir(e, j.dano * 2.4 * j.hab); }, longe ? 700 : 300);
   } else { // investida (perto) ou bola de fogo (longe)
     j.cds[1] = 8 * j.recarga;
     if (alvo) j.ang = Math.atan2(alvo.x - j.x, alvo.z - j.z);
-    if (longe) { j.v.tocar('Ranged_Magic_Shoot', { loop: false, reinicia: true }); atirar(j, j.ang, 'fogo', 22, j.dano * 3 * j.hab, true, 4); }
+    if (longe) { j.v.tocar('Ranged_Magic_Shoot', { loop: false, reinicia: true }); j.trava = L.t + 0.5; atirar(j, j.ang, 'fogo', 22, j.dano * 3 * j.hab, true, 4); }
     else { j.dash = { t: 0.35, ax: Math.sin(j.ang), az: Math.cos(j.ang), bate: new Set() }; j.iframes = 0.4; j.v.tocar('Melee_1H_Attack_Stab', { loop: false, reinicia: true }); }
   }
   som('espada');
@@ -297,15 +309,15 @@ export function passoLuta(dt) {
   if (j.hp > 0 && !L.fim) {
     const mv = Math.hypot(L.mx, L.mz);
     if (j.dash) { j.dash.t -= dt; j.x += j.dash.ax * 22 * dt; j.z += j.dash.az * 22 * dt; if (j.dash.bate) for (const e of L.inimigos) if (e.hp > 0 && !j.dash.bate.has(e) && dist(e, j) < 2.5) { j.dash.bate.add(e); ferir(e, j.dano * 2 * j.hab); e.atordoado = 1.5; } if (j.dash.t <= 0) j.dash = null; }
-    else if (mv > 0.05) { const v = 11 * (1 + (j.vel || 0)) * Math.min(1, mv); j.x += L.mx / mv * v * dt; j.z += L.mz / mv * v * dt; j.ang += difAng(j.ang, Math.atan2(L.mx, L.mz)) * Math.min(1, dt * 12); j.v.tocar('Running_A'); }
+    else if (mv > 0.05) { const v = 11 * (1 + (j.vel || 0)) * Math.min(1, mv); j.x += L.mx / mv * v * dt; j.z += L.mz / mv * v * dt; j.ang += difAng(j.ang, Math.atan2(L.mx, L.mz)) * Math.min(1, dt * 12); if (L.t > (j.trava || 0)) j.v.tocar('Running_A'); }
     // ataque automático no monstro mais perto
     j.cd -= dt; const alvo = maisPerto(j, j.alc + 1);
     if (alvo && !j.dash) { if (mv < 0.05) j.ang += difAng(j.ang, Math.atan2(alvo.x - j.x, alvo.z - j.z)) * Math.min(1, dt * 12);
-      if (j.cd <= 0) { j.cd = (j.alc > 5 ? 0.8 : 0.65) * (1 - (j.vel || 0)); j.v.tocar(animAtaque(j.h.visual), { loop: false, reinicia: true, vel: 1.3 });
+      if (j.cd <= 0) { j.cd = (j.alc > 5 ? 0.8 : 0.65) * (1 - (j.vel || 0)); j.v.tocar(animAtaque(j.h.visual), { loop: false, reinicia: true, vel: 1.3 }); j.trava = L.t + 0.4;
         if (j.alc > 5 && dist(alvo, j) > 3) atirar(j, Math.atan2(alvo.x - j.x, alvo.z - j.z), armaInfo(j.h.visual.arma).tipo === 'magia' ? 'magia' : 'flecha', 30, j.dano, true);
         else if (j.alc > 5) ferir(alvo, j.dano); // colado no monstro: acerta direto
         else setTimeout(() => { if (L && alvo.hp > 0 && dist(alvo, j) < j.alc + 1.5) { ferir(alvo, j.dano); C.arco(j.x, j.z, j.ang, 3, 120, 0xfff2c0); } }, 180); } }
-    else if (mv <= 0.05 && !j.dash && j.cd < 0.2) j.v.tocar('Idle_A');
+    else if (mv <= 0.05 && !j.dash && j.cd < 0.2 && L.t > (j.trava || 0)) j.v.tocar('Idle_A');
   }
   // aliados seguem e lutam
   L.aliados.forEach((a, i) => {
