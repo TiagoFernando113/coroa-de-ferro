@@ -44,12 +44,12 @@ const COVIS = [['Toca do Coelho Maldito', 'coelho', 'Sr. Fofinho, o Coelho do Ap
   ['Ninho de Tiamat', 'draco', 'Tiamat, a Dragoa Escarlate'], ['Cripta de Grumak', 'orcCaveira', 'Grumak, o Orc Imortal'], ['Fortaleza do Orc Rei', 'orc', 'Orc Rei']];
 export const POIS = [];
 function gerarPOIs(rnd) {
-  const livre = (p, m) => !pertoTrilha(p, 10) && Math.hypot(GUILDA_W.x - p.x, GUILDA_W.z - p.z) > 40 && !POIS.some(o => Math.hypot(o.x - p.x, o.z - p.z) < m)
+  const livre = (p, m, estrada = 10) => !pertoTrilha(p, estrada) && Math.hypot(GUILDA_W.x - p.x, GUILDA_W.z - p.z) > 40 && !POIS.some(o => Math.hypot(o.x - p.x, o.z - p.z) < m)
     && Math.abs(p.x - MUNDO.x) < MEIO_MUNDO - 20 && Math.abs(p.z - MUNDO.z) < MEIO_MUNDO - 20;
-  const achar = (c, d0, d1, m) => { for (let k = 0; k < 60; k++) { const a = rnd() * 6.28, d = d0 + rnd() * (d1 - d0), p = { x: c.x + Math.cos(a) * d, z: c.z + Math.sin(a) * d }; if (livre(p, m)) return p; } return null; };
+  const achar = (c, d0, d1, m, estrada) => { for (let k = 0; k < 80; k++) { const a = rnd() * 6.28, d = d0 + rnd() * (d1 - d0), p = { x: c.x + Math.cos(a) * d, z: c.z + Math.sin(a) * d }; if (livre(p, m, estrada)) return p; } return null; };
   CENTROS.forEach((c, r) => {
-    const cv = achar(c, 60, 95, 40); if (cv) POIS.push({ id: 'c' + r, tipo: 'covil', r, ...cv, nome: COVIS[r][0], chefe: COVIS[r][1], nomeChefe: COVIS[r][2] });
-    LOCAIS[r].forEach(([nome, m, s], i) => { const p = achar(c, 30, 105, 45); if (p) POIS.push({ id: 'l' + r + i, tipo: 'local', r, ...p, nome, m, s }); });
+    const cv = achar(c, 60, 100, 40, 28); if (cv) POIS.push({ id: 'c' + r, tipo: 'covil', r, ...cv, nome: COVIS[r][0], chefe: COVIS[r][1], nomeChefe: COVIS[r][2] });
+    LOCAIS[r].forEach(([nome, m, s], i) => { const p = achar(c, 30, 105, 45, 16); if (p) POIS.push({ id: 'l' + r + i, tipo: 'local', r, ...p, nome, m, s }); });
   });
   for (let k = 0; k < 95; k++) { const p = { x: MUNDO.x + (rnd() - 0.5) * (TAM_MUNDO - 80), z: MUNDO.z + (rnd() - 0.5) * (TAM_MUNDO - 80) }; if (livre(p, 25)) POIS.push({ id: 'b' + k, tipo: 'bau', r: regiaoDe(p), ...p }); }
 }
@@ -69,18 +69,55 @@ export function montarMundoMapa() {
       if (i === 5) { g.strokeStyle = '#ff6a1a'; g.lineWidth = 6; for (let k = 0; k < 14; k++) { g.beginPath(); g.moveTo(P(c.x), P(c.z, 'z')); g.lineTo(P(c.x + (r() - 0.5) * 160), P(c.z + (r() - 0.5) * 160, 'z')); g.stroke(); } }
     });
     g.lineCap = 'round'; g.lineJoin = 'round';
-  });
+  }, 7);
   let sd = 11; const rnd = () => ((sd = (sd * 16807) % 2147483647) / 2147483647);
   const L = [];
   gerarPOIs(rnd);
-  // estrada de pedras com pedrinhas, grama e postes de sinalização nas beiradas
-  const est = C.estrada(TRILHA, 5);
-  for (const p of est.pontos(700)) for (const lado of [-1, 1]) {
-    const d = (3.4 + rnd() * 1.2) * lado, x = p.x + p.nx * d, z = p.z + p.nz * d, k = rnd();
-    if (k < 0.45) L.push({ m: 'Q:Pebble_Round_' + (1 + Math.floor(rnd() * 3)), x, z, ry: rnd() * 6, s: 1.5 + rnd() });
-    else if (k < 0.8) L.push({ m: rnd() < 0.5 ? 'Q:Grass_Common_Short' : 'Q:Grass_Wispy_Tall', x, z, ry: rnd() * 6, s: 1 + rnd() * 0.6 });
-    else if (k < 0.86) L.push({ m: 'Q:Flower_3_Group', x, z, ry: rnd() * 6, s: 1 });
+  // estrada de pedras com as beiradas bem enfeitadas (é por onde o jogador mais passa), com o tema de cada região
+  const est = C.estrada(TRILHA, 5); window.__estrada = est.pontos(300); // para testes
+  const F = n => 'F:' + n + '_Color1', um = l => l[Math.floor(rnd() * l.length)];
+  const ARV_F = ['Tree_1_A', 'Tree_1_B', 'Tree_1_C', 'Tree_2_A', 'Tree_2_B', 'Tree_2_C', 'Tree_2_D', 'Tree_2_E'].map(F), PIN_F = ['Tree_4_A', 'Tree_4_B', 'Tree_4_C'].map(F);
+  const SECA = ['Tree_Bare_1_A', 'Tree_Bare_1_B', 'Tree_Bare_1_C', 'Tree_Bare_2_A', 'Tree_Bare_2_B', 'Tree_Bare_2_C'].map(F), ACACIA = ['Tree_3_A', 'Tree_3_B', 'Tree_3_C'].map(F);
+  const ARB = ['Bush_1_A', 'Bush_1_C', 'Bush_1_E', 'Bush_2_A', 'Bush_2_C', 'Bush_2_E', 'Bush_3_A', 'Bush_3_C', 'Bush_4_A', 'Bush_4_C', 'Bush_4_E'].map(F);
+  const GRAMA = ['Grass_1_A', 'Grass_1_C', 'Grass_2_A', 'Grass_2_C', 'Grass_2_D'].map(F), PEQ = ['Rock_1_A', 'Rock_1_D', 'Rock_1_H', 'Rock_2_A', 'Rock_2_D', 'Rock_2_G'].map(F);
+  const GRD = ['Rock_1_K', 'Rock_1_O', 'Rock_3_A', 'Rock_3_E', 'Rock_3_I', 'Rock_3_M', 'Rock_3_Q'].map(F), FLOR = ['N:flower_redA', 'N:flower_yellowA', 'N:flower_purpleA', 'Q:Flower_3_Group', 'Q:Flower_4_Group'];
+  // [árvores, arbustos, chão (grama/flores), pedras grandes, densidade de árvores]
+  const TEMA = [
+    [[...ARV_F, ...PIN_F], ARB, [...GRAMA, ...GRAMA, ...FLOR, 'N:mushroom_red'], GRD, 1],
+    [[...SECA, 'Q:DeadTree_1', 'Q:DeadTree_3'], ['F:Bush_4_A_Color1', 'F:Bush_4_C_Color1', 'Q:Fern_1'], [...GRAMA, 'N:lily_large', 'N:mushroom_redGroup'], GRD, 0.8],
+    [[...PIN_F, 'N:tree_pineTallA', 'N:tree_pineRoundB', 'N:tree_pineSmallA'], ['F:Bush_3_A_Color1', 'F:Bush_3_C_Color1'], [...GRAMA, ...PEQ], [...GRD, 'N:rock_tallA'], 0.9],
+    [[...ACACIA, 'N:cactus_tall', 'N:tree_palmTall', 'N:tree_palmShort'], ['N:cactus_short'], PEQ, ['F:Rock_2_A_Color1', 'F:Rock_2_D_Color1', 'N:rock_largeD'], 0.5],
+    [[...ARV_F, ...ACACIA], ARB, [...GRAMA, ...FLOR, 'N:statue_columnDamaged'], GRD, 0.9],
+    [SECA, ['F:Bush_4_A_Color1'], PEQ, [...GRD, 'N:rock_tallJ'], 0.6],
+    [[...SECA, 'N:tree_blocks_dark'], ['F:Bush_4_C_Color1', 'F:Bush_4_E_Color1'], [...GRAMA, 'N:mushroom_red', 'N:mushroom_redGroup'], GRD, 0.8],
+    [[...SECA, ...PIN_F], ['F:Bush_3_A_Color1'], PEQ, [...GRD, 'N:rock_tallJ'], 0.6],
+  ];
+  const escala = m => m.startsWith('F:Tree') ? 1.9 + rnd() * 0.7 : m.startsWith('F:Bush') ? 4 + rnd() * 2.5 : m.startsWith('F:Grass') ? 2.4 + rnd() * 1.4
+    : m.startsWith('F:Rock_1_K') || m.startsWith('F:Rock_1_O') || m.startsWith('F:Rock_3') ? 2.5 + rnd() * 2 : m.startsWith('F:Rock') ? 2.5 + rnd() * 2
+    : m.startsWith('Q:') ? 1.3 + rnd() * 0.5 : m.startsWith('N:statue') ? 4 : m.startsWith('N:tree') || m.startsWith('N:cactus') ? 5 + rnd() * 2 : 4 + rnd() * 2;
+  const perto = (x, z) => POIS.some(o => o.tipo !== 'bau' && Math.hypot(o.x - x, o.z - z) < 12) || Math.hypot(GUILDA_W.x - x, GUILDA_W.z - z) < 14;
+  let cerca = 0;
+  for (const p of est.pontos(1400)) {
+    const t = TEMA[regiaoDe(p)], [arv, arb, chao, grd, dens] = t;
+    for (const lado of [-1, 1]) {
+      const em = d => ({ x: p.x + p.nx * d * lado, z: p.z + p.nz * d * lado });
+      // beirada: pedrinhas e grama coladas no calçamento
+      if (rnd() < 0.55) { const q = em(3.2 + rnd() * 1.3), m = rnd() < 0.4 ? 'Q:Pebble_Round_' + (1 + Math.floor(rnd() * 3)) : um(chao); L.push({ m, ...q, ry: rnd() * 6.28, s: m.startsWith('Q:Pebble') ? 1.5 + rnd() : escala(m) }); }
+      // faixa de arbustos e flores
+      if (rnd() < 0.35) { const q = em(5 + rnd() * 3), m = um(rnd() < 0.5 ? arb : chao); if (!perto(q.x, q.z)) L.push({ m, ...q, ry: rnd() * 6.28, s: escala(m) }); }
+      // árvores fazendo corredor ao longo da estrada
+      if (rnd() < 0.2 * dens) { const q = em(11 + rnd() * 9), m = um(arv); if (!perto(q.x, q.z)) L.push({ m, ...q, ry: rnd() * 6.28, s: escala(m) }); }
+      // pedras grandes de vez em quando
+      if (rnd() < 0.04) { const q = em(7 + rnd() * 8), m = um(grd); if (!perto(q.x, q.z)) L.push({ m, ...q, ry: rnd() * 6.28, s: escala(m) }); }
+    }
+    // trechos de cerca nas regiões verdes
+    if (cerca > 0) { cerca--; const lado = cerca % 2 ? 1 : -1; L.push({ m: 'T:fence', x: p.x + p.nx * 4.6 * lado, z: p.z + p.nz * 4.6 * lado, ry: Math.atan2(p.nz, -p.nx), s: 5 }); }
+    else if (rnd() < 0.012 && dens >= 0.9) cerca = 10 + Math.floor(rnd() * 12);
+    // carroças, tocos e placas de vez em quando
+    if (rnd() < 0.006) { const lado = rnd() < 0.5 ? 1 : -1, x = p.x + p.nx * 6 * lado, z = p.z + p.nz * 6 * lado; if (!perto(x, z)) L.push({ m: um(['T:cart', 'N:log_stack', 'N:stump_round', 'N:sign', 'N:campfire_stones']), x, z, ry: rnd() * 6.28, s: 4.5 }); }
   }
+  // placa em cada região
+  CENTROS.forEach((c, i) => L.push({ m: 'N:sign', x: c.x + 6, z: c.z + 6, ry: rnd() * 6, s: 7 }));
   for (const p of est.pontos(36)) L.push({ m: 'T:lantern', x: p.x + p.nx * 4.2, z: p.z + p.nz * 4.2, s: 3 });
   // cenário de cada região (com uma clareira no meio para os acampamentos)
   CENTROS.forEach((c, i) => {

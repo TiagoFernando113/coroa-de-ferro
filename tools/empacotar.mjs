@@ -19,6 +19,7 @@ const D = path.join(KITS, 'mini-dungeon/Models/GLB format');
 const AV = path.join(KITS, 'aventureiros2'), ANI = path.join(KITS, 'animacoes/Animations/gltf/Rig_Medium');
 const A = path.join(AV, 'Assets/gltf'), W = path.join(KITS, 'armas-bits/Assets/gltf');
 const QN = path.join(KITS, 'natureza2/leve');
+const FL = path.join(KITS, 'floresta/KayKit_Forest_Nature_Pack_1.0_FREE/Assets/gltf'); // KayKit Forest Nature Pack (CC0)
 const ANIMAIS = ['Wolf', 'Fox', 'Stag', 'Bull', 'Husky']; // Quaternius Ultimate Animated Animals (CC0) // Quaternius Stylized Nature MegaKit (CC0), texturas reduzidas
 
 const COMUM = ['Idle', 'Running_A', 'Walking_A', 'Death_A', 'Hit_A', 'Dodge_Forward', 'Cheer', 'Interact'];
@@ -72,6 +73,7 @@ const CENARIO = {
     'DeadTree_1', 'DeadTree_3', 'Bush_Common', 'Bush_Common_Flowers', 'Fern_1', 'Grass_Common_Short', 'Grass_Common_Tall', 'Grass_Wispy_Tall', 'Flower_3_Group', 'Flower_4_Group',
     'Mushroom_Common', 'Plant_1_Big', 'Plant_7_Big', 'Clover_1', 'Rock_Medium_1', 'Rock_Medium_2', 'Rock_Medium_3', 'RockPath_Round_Small_1', 'RockPath_Round_Small_2',
     'RockPath_Round_Small_3', 'RockPath_Round_Wide', 'Pebble_Round_1', 'Pebble_Round_2', 'Pebble_Round_3'],
+  F: ['Tree_1_A_Color1', 'Tree_1_B_Color1', 'Tree_1_C_Color1', 'Tree_2_A_Color1', 'Tree_2_B_Color1', 'Tree_2_C_Color1', 'Tree_2_D_Color1', 'Tree_2_E_Color1', 'Tree_3_A_Color1', 'Tree_3_B_Color1', 'Tree_3_C_Color1', 'Tree_4_A_Color1', 'Tree_4_B_Color1', 'Tree_4_C_Color1', 'Tree_Bare_1_A_Color1', 'Tree_Bare_1_B_Color1', 'Tree_Bare_1_C_Color1', 'Tree_Bare_2_A_Color1', 'Tree_Bare_2_B_Color1', 'Tree_Bare_2_C_Color1', 'Bush_1_A_Color1', 'Bush_1_C_Color1', 'Bush_1_E_Color1', 'Bush_2_A_Color1', 'Bush_2_C_Color1', 'Bush_2_E_Color1', 'Bush_3_A_Color1', 'Bush_3_C_Color1', 'Bush_4_A_Color1', 'Bush_4_C_Color1', 'Bush_4_E_Color1', 'Grass_1_A_Color1', 'Grass_1_C_Color1', 'Grass_2_A_Color1', 'Grass_2_C_Color1', 'Grass_2_D_Color1', 'Rock_1_A_Color1', 'Rock_1_D_Color1', 'Rock_1_H_Color1', 'Rock_1_K_Color1', 'Rock_1_O_Color1', 'Rock_2_A_Color1', 'Rock_2_D_Color1', 'Rock_2_G_Color1', 'Rock_3_A_Color1', 'Rock_3_E_Color1', 'Rock_3_I_Color1', 'Rock_3_M_Color1', 'Rock_3_Q_Color1'],
   D: ['coin', 'chest', 'potion', 'key', 'barrel', 'banner', 'column', 'weapon-sword', 'shield-round', 'wall', 'wall-half', 'wall-opening', 'gate',
     'rocks', 'stones', 'trap', 'dirt', 'floor', 'floor-detail', 'wood-support', 'table'],
 };
@@ -151,7 +153,7 @@ for (const [k, [arq, usadas]] of Object.entries(ANIMS)) {
 // cenário: um documento só, cada peça vira um nó "kit:nome" na cena principal
 const cen = new Document(); const cena = cen.createScene('cenario'); cen.createBuffer();
 for (const [kit, nomes] of Object.entries(CENARIO)) {
-  const dir = { T, C, N, D, A, W, Q: QN }[kit], ext = kit === 'A' || kit === 'W' || kit === 'Q' ? '.gltf' : '.glb';
+  const dir = { T, C, N, D, A, W, Q: QN, F: FL }[kit], ext = kit === 'A' || kit === 'W' || kit === 'Q' || kit === 'F' ? '.gltf' : '.glb';
   for (const n of nomes) {
     const src = await io.read(path.join(dir, n + (kit === 'N' ? '.glb' : ext)));
     for (const b of src.getRoot().listBuffers()) b.dispose(); // um buffer só no destino

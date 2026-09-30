@@ -121,7 +121,7 @@ export function iniciarLuta(qid, ids, aoFim) {
   });
   L = { q, ids, lider, aliados, inimigos, proj: [], txt: [], joy: null, mx: 0, mz: 0, t: 0, campo, aoFim, fim: false, reg: REGIOES[q.r], m, forca, loot: [],
     distTotal: Math.hypot(campo.x - lider.x, campo.z - lider.z), emboscada: Math.random() < 0.6 + q.rank * 0.05 ? 0.35 + Math.random() * 0.3 : null };
-  ui.foco = { x: lider.x, z: lider.z }; C.camera.dist = 44; C.camera.pitch = 0.9; C.camera.yaw = Math.PI - 0.3; C.camera.suave = 8;
+  ui.foco = { x: lider.x, z: lider.z }; C.camera.dist = 27; C.camera.pitch = 0.78; C.camera.yaw = Math.PI - 0.3; C.camera.suave = 8; L.neblina = C.neblinaAtual(); C.neblina(55, 135); C.recorte(true);
   montarHud(); som('enviar');
   return true;
 }
@@ -145,7 +145,7 @@ export function iniciarExploracao(aoFim) {
   v.raiz.position.set(lider.x, 0, lider.z); v.tocar('Idle_A');
   L = { explorar: true, q: { nome: 'Explorando o mundo', r: 0, rank: 0, mult: 1 }, ids: [h.id], lider, aliados: [], inimigos: [], proj: [], txt: [], joy: null, mx: 0, mz: 0, t: 0,
     campo: null, aoFim, fim: false, reg: REGIOES[0], forca: 1, loot: [], emboscada: null, spawnT: 0, ganhos: { xp: 0, ouro: 0, mortes: 0 } };
-  ui.foco = { x: lider.x, z: lider.z }; C.camera.dist = 44; C.camera.pitch = 0.9; C.camera.yaw = Math.PI - 0.3; C.camera.suave = 8;
+  ui.foco = { x: lider.x, z: lider.z }; C.camera.dist = 27; C.camera.pitch = 0.78; C.camera.yaw = Math.PI - 0.3; C.camera.suave = 8; L.neblina = C.neblinaAtual(); C.neblina(55, 135); C.recorte(true);
   montarHud(); som('enviar');
   iniciarExpl({ L: () => L, criarMonstro, numero, faixa });
   return true;
@@ -393,7 +393,7 @@ function desenharHud(dt) {
   L.txt = L.txt.filter(t => t.t < 1.1);
 }
 function terminar(ok, desistiu = false) {
-  if (!L) return; const l = L; L = null;
+  if (!L) return; const l = L; L = null; if (l.neblina) C.neblina(...l.neblina); C.recorte(false);
   for (const a of [l.lider, ...l.aliados]) a.v.remover(); for (const e of l.inimigos) e.v.remover(); for (const p of l.proj) C.remover(p.o); for (const b of l.baus || []) C.remover(b);
   removeEventListener('resize', l.medir); $('#luta').remove(); $('#hud').style.visibility = '';
   if (l.explorar) { for (const id of l.ids) { const h = E.heroi(id); if (h) h.estado = 'livre'; } som('fechar'); }

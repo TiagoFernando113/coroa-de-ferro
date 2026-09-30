@@ -8,7 +8,7 @@ import { gerarItem, sortearRaridade } from './itens.js';
 import { ico, som } from './ui.js';
 
 const N = 48, CEL = TAM_MUNDO / N, RAIO_VER = 55, BAU_VOLTA = 3 * 3600e3, COVIL_VOLTA = 40 * 60e3;
-window.__pois = POIS; // para testes
+window.__pois = POIS; window.__trilha = TRILHA; // para testes
 let nev = null, H = null, baus = {}, tMapa = 0, tPoi = 0, sujo = false;
 export function estadoExpl() {
   if (!S.expl) S.expl = { nevoa: '', baus: {}, locais: {}, covis: {} };

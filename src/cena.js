@@ -110,6 +110,21 @@ export function montarMundo(M) {
   return filhos.length;
 }
 // peças estáticas fundidas por material em blocos de 40 m (outra área além da guilda); devolve o grupo
+// recorte: o cenário entre a câmera e o herói some (dá para ver o herói atrás de árvores e pedras)
+const RECORTE = { rHeroi: { value: new THREE.Vector3() }, rCam: { value: new THREE.Vector3() }, rAtivo: { value: 0 } };
+export const recorte = v => { RECORTE.rAtivo.value = v ? 1 : 0; };
+const comRecorte = new Set();
+function aplicarRecorte(mat) {
+  if (comRecorte.has(mat) || mat.onBeforeCompile !== THREE.Material.prototype.onBeforeCompile) return; comRecorte.add(mat);
+  mat.onBeforeCompile = sh => {
+    Object.assign(sh.uniforms, RECORTE);
+    sh.vertexShader = 'varying vec3 vPosMundo;\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n vPosMundo = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+    sh.fragmentShader = 'varying vec3 vPosMundo; uniform vec3 rHeroi; uniform vec3 rCam; uniform float rAtivo;\n' + sh.fragmentShader.replace('void main() {', `void main() {
+      if (rAtivo > 0.5) { vec3 d = rHeroi - rCam; float L = length(d); vec3 u = d / L; vec3 w = vPosMundo - rCam; float t = dot(w, u);
+        if (t > 0.0 && t < L - 2.5 && length(w - u * t) < 3.2 + 1.5 * (1.0 - t / L)) discard; }`);
+  };
+  mat.needsUpdate = true;
+}
 // base de cada malha das peças (convertida uma vez só): atributos em Float32 e índices
 const baseMalha = new Map();
 function base(o, inv) {
@@ -147,7 +162,7 @@ export function montarEstatico(lista) {
       ov += b.n; oi += b.idx.length;
     }
     const g = new THREE.BufferGeometry(); b0.nomes.forEach((n, k) => g.setAttribute(n, new THREE.BufferAttribute(saida[k], b0.tam[k]))); g.setIndex(new THREE.BufferAttribute(idx, 1)); g.computeBoundingSphere();
-    const mesh = new THREE.Mesh(g, mat); mesh.castShadow = true; mesh.receiveShadow = true; mesh.matrixAutoUpdate = false; raiz.add(mesh);
+    aplicarRecorte(mat); const mesh = new THREE.Mesh(g, mat); mesh.castShadow = true; mesh.receiveShadow = true; mesh.matrixAutoUpdate = false; raiz.add(mesh);
   }
   scene.add(raiz); return raiz;
 }
@@ -195,11 +210,29 @@ export function estrada(pts, largura = 5) {
   scene.add(grupo);
   return { grupo, pontos: n => Array.from({ length: n }, (_, i) => { const t = (i + 0.5) / n, p = curva.getPointAt(t), tg = curva.getTangentAt(t); return { x: p.x, z: p.z, nx: -tg.z, nz: tg.x }; }) };
 }
-export function chaoPintado(x0, z0, tam, desenhar) {
+// textura de detalhe (cinza ~0,5): manchas e folhinhas de grama, repetida no chão para ficar nítido de perto
+let texDet = null;
+function texturaDetalhe() {
+  if (texDet) return texDet;
+  const N = 256, cv = document.createElement('canvas'); cv.width = cv.height = N; const g = cv.getContext('2d');
+  let sd = 3; const r = () => ((sd = (sd * 16807) % 2147483647) / 2147483647);
+  g.fillStyle = '#808080'; g.fillRect(0, 0, N, N);
+  const cir = (x, y, rr, c) => { for (const dx of [-N, 0, N]) for (const dy of [-N, 0, N]) { g.fillStyle = c; g.beginPath(); g.arc(x + dx, y + dy, rr, 0, 7); g.fill(); } };
+  for (let i = 0; i < 70; i++) cir(r() * N, r() * N, 10 + r() * 26, `rgba(${r() < 0.5 ? '255,255,255' : '0,0,0'},${0.05 + r() * 0.06})`);
+  for (let i = 0; i < 900; i++) { const x = r() * N, y = r() * N, h = 3 + r() * 6, cl = r() < 0.55; g.strokeStyle = cl ? `rgba(255,255,230,${0.18 + r() * 0.2})` : `rgba(0,20,0,${0.15 + r() * 0.2})`;
+    g.lineWidth = 1 + r(); g.beginPath(); g.moveTo(x, y); g.lineTo(x + (r() - 0.5) * 3, y - h); g.stroke(); }
+  texDet = new THREE.CanvasTexture(cv); texDet.wrapS = texDet.wrapT = THREE.RepeatWrapping; texDet.anisotropy = 4; return texDet;
+}
+export function chaoPintado(x0, z0, tam, desenhar, detalhe = 0) {
   const N = 2048, cv = document.createElement('canvas'); cv.width = cv.height = N; const g = cv.getContext('2d'), k = N / tam;
   desenhar(g, (v, eixo) => (v - (eixo === 'z' ? z0 : x0) + tam / 2) * k, k);
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(tam, tam), new THREE.MeshLambertMaterial({ map: t }));
+  const mat = new THREE.MeshLambertMaterial({ map: t });
+  if (detalhe) mat.onBeforeCompile = sh => { // multiplica pela textura de detalhe repetida a cada `detalhe` metros
+    sh.uniforms.detalhe = { value: texturaDetalhe() }; sh.uniforms.repete = { value: tam / detalhe };
+    sh.fragmentShader = 'uniform sampler2D detalhe; uniform float repete;\n' + sh.fragmentShader.replace('#include <map_fragment>', '#include <map_fragment>\n diffuseColor.rgb *= texture2D(detalhe, vMapUv * repete).rgb * 2.0;');
+  };
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(tam, tam), mat);
   m.rotation.x = -Math.PI / 2; m.position.set(x0, 0.02, z0); m.receiveShadow = true; scene.add(m); return m;
 }
 const clonar = o => { const c = o.clone(); c.position.set(0, 0, 0); c.rotation.set(0, 0, 0); c.scale.set(1, 1, 1); return c; };
@@ -630,7 +663,7 @@ export function faiscas(x, y, z, cor, n = 10, forca = 3) {
 export const camera = { yaw: Math.PI, pitch: 0.72, dist: 12, alvo: new THREE.Vector3(), tremor: 0, suave: 10 };
 const olharTmp = new THREE.Vector3();
 export function quadro(dt, foco) {
-  relogio += dt;
+  relogio += dt; RECORTE.rHeroi.value.set(foco.x, 2.2, foco.z); RECORTE.rCam.value.copy(cam.position);
   if (!pontos) criarPontos();
   // efeitos
   for (let i = efeitos.length - 1; i >= 0; i--) {
@@ -676,6 +709,7 @@ export const info = () => {
 export function medida(m) { const p = pecas[m.replace(':', '')]; if (!p) return null; const b = new THREE.Box3().setFromObject(p), s = b.getSize(new THREE.Vector3()); return [+s.x.toFixed(2), +s.y.toFixed(2), +s.z.toFixed(2), +b.min.x.toFixed(2), +b.min.z.toFixed(2)]; }
 export function debugHerois() { const g = modelos.herois.scene.children[0]; const out = []; g.traverse(o => out.push(o.type + ' ' + o.name + ' p' + o.position.toArray().map(v => v.toFixed(2)) + ' r' + o.rotation.toArray().slice(0, 3).map(v => v.toFixed(2)) + ' s' + o.scale.toArray().map(v => v.toFixed(2)))); return out.slice(0, 14).join('\n'); }
 export function debugCena(f) { scene.traverse(f); }
+export const neblinaAtual = () => [scene.fog.near, scene.fog.far];
 export function neblina(perto, longe) { scene.fog.near = perto; scene.fog.far = longe; cam.far = longe + 80; cam.updateProjectionMatrix(); }
 export const Cor = THREE.Color;
 export const Caixa = THREE.Box3;
