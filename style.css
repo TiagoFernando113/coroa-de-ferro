@@ -548,3 +548,4 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;paddin
 .btn.brilha{animation:pulsaB 1.2s infinite}@keyframes pulsaB{50%{filter:brightness(1.25);box-shadow:0 0 18px #ffd84a}}
 .ascMax{font-size:15px;text-align:center;margin:20px 0}
 .chip.roxo{background:#8a5ad8;color:#fff}
+.sairG{margin:14px auto 4px;display:flex;width:auto;padding:8px 18px}.sairG .ico{width:18px;height:18px}

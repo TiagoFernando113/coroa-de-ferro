@@ -404,7 +404,7 @@ function htmlGuilda() {
       return `<button class="card ${ok ? '' : 'trancado'}" data-predio="${id}"><span class="circ" style="--c:${e.cor}">${ico(ok ? e.icone : 'cadeado')}</span>
         <div class="cTxt"><b>${e.nome}</b><small>${ok ? (n ? `Nível ${n} · ${descEfeito(id, n)}` : 'Toque para construir') : `Guilda nível ${e.fama}`}</small></div>
         ${ok ? `<em class="preco ${pode(c) ? 'ok' : ''}">${ico('ouro')}${fmt(c)}</em>` : ''}</button>`;
-    }).join('') + `</div><button class="btn cinza peq" data-a="sairGuilda">Sair da guilda</button>`;
+    }).join('') + `</div><button class="btn vermelho peq sairG" data-a="sairGuilda">${ico('sair')} Sair da guilda</button>`;
 }
 // ---------------- Sistema do líder ----------------
 function medidorRanking(p) {

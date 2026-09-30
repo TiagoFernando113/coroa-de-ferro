@@ -497,7 +497,8 @@ export function acessorios(v) {
   return { head: cab, hips: quadril, chest: peito };
 }
 // armas modeladas em outro eixo (arcos e bestas): giro para ficarem certas na mão
-const ROT_ARMA = { 'A:crossbow_1handed': [-Math.PI / 2, 0, 0], 'A:crossbow_2handed': [-Math.PI / 2, 0, 0] };
+const ROT_ARMA = { 'A:crossbow_1handed': [-Math.PI / 2, 0, 0], 'A:crossbow_2handed': [-Math.PI / 2, 0, 0],
+  'W:bow_A_withString': [0, Math.PI / 2, 0], 'W:bow_B_withString': [0, Math.PI / 2, 0], 'A:spellbook_open': [-Math.PI / 2, 0, 0] }; // arcos do outro kit e grimório com as páginas de frente
 // escudos: de frente, em pé (com a ponta para baixo) no braço esquerdo
 for (const id of ['A:shield_round', 'A:shield_round_color', 'A:shield_round_barbarian', 'A:shield_badge', 'A:shield_badge_color', 'A:shield_square', 'A:shield_square_color',
   'A:shield_spikes', 'A:shield_spikes_color', 'W:shield_A', 'W:shield_B', 'W:shield_C']) ROT_ARMA[id] = [-Math.PI / 2, 0, -Math.PI / 2];
