@@ -531,3 +531,15 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;paddin
 .thStats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0}
 .thStats div{background:#fff;border:2px solid var(--creme2);border-radius:12px;padding:6px;display:flex;flex-direction:column;align-items:center}
 .thStats .ico{width:20px;height:20px;fill:var(--madeira)}.thStats small{font-size:11px;opacity:.7}.thStats b{font-size:15px}
+/* Ascensão */
+.ascTopo{display:flex;align-items:center;gap:8px;margin:6px 0 10px}.ascTopo>.ico{width:22px;height:22px;fill:var(--madeira)}
+.ascTopo .rank{width:44px;height:44px;font-size:22px}.ascTopo div{display:flex;flex-direction:column}.ascTopo b{font-family:var(--fT);font-weight:400;font-size:18px;color:var(--madeira)}.ascTopo small{opacity:.75}
+.ascReq{background:#fff;border:2px solid var(--creme2);border-radius:12px;padding:8px;margin:6px 0}.ascReq.ok{border-color:#5fb83a;background:#f0ffe8}
+.ascReq>span{display:flex;gap:5px;align-items:center;font-weight:700;font-size:13px}.ascReq>span .ico{width:18px;height:18px}.ascReq small{font-size:11px;opacity:.75}
+.barra.roxa i{background:linear-gradient(90deg,#9a6aff,#c9a0ff)}
+.ascTreino{background:#efe6ff;border:2px solid #b89aff;border-radius:12px;padding:8px;display:flex;flex-direction:column;gap:6px;font-size:13px}
+#thCorpo h4 small{font-size:11px;opacity:.7;font-family:system-ui}
+#thCorpo .linha .btn small{display:block;font-size:10px;opacity:.9}
+.btn.brilha{animation:pulsaB 1.2s infinite}@keyframes pulsaB{50%{filter:brightness(1.25);box-shadow:0 0 18px #ffd84a}}
+.ascMax{font-size:15px;text-align:center;margin:20px 0}
+.chip.roxo{background:#8a5ad8;color:#fff}

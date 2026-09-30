@@ -256,7 +256,7 @@ function ferir(e, v) {
   if (e.hp <= 0) return; v = Math.round(v * (0.9 + Math.random() * 0.2)); const crit = Math.random() < (L.lider.crit || 0.12); if (crit) v = Math.round(v * 1.8);
   e.hp -= v; e.acordado = true; e.flash = 0.12; numero(e.x, e.chefe ? 7 : 4, e.z, (crit ? '!' : '') + fmt(v), crit ? '#ffd84a' : '#fff', crit);
   C.faiscas(e.x, 1.5, e.z, crit ? 0xffd84a : 0xffffff, crit ? 12 : 6, 3);
-  if (e.hp <= 0) { e.lanc = e.pulo = e.investe = null; e.sumido = false; e.v.raiz.visible = true; e.v.raiz.position.y = 0; e.v.tocar(e.bicho ? 'Death' : 'Death_A', { loop: false, reinicia: true }); e.morreu = 0; som('compra'); if (e.covil) covilDerrotado(e); if (e.mundo) abateTarefa(e); if (e.mundo) { recompensaMundo(e); if (Math.random() < (e.raro ? 1 : 0.08)) soltarLoot(e); } else soltarLoot(e); }
+  if (e.hp <= 0) { e.lanc = e.pulo = e.investe = null; e.sumido = false; e.v.raiz.visible = true; e.v.raiz.position.y = 0; e.v.tocar(e.bicho ? 'Death' : 'Death_A', { loop: false, reinicia: true }); e.morreu = 0; som('compra'); if (e.covil) covilDerrotado(e); if (e.mundo) abateTarefa(e); if (e.mundo && Math.random() < (e.unico ? 1 : e.raro ? 0.4 : 0.04)) { E.ganharPergaminho(); numero(e.x, 7.5, e.z, 'Pergaminho de treino!', '#c9a0ff', true); } if (e.mundo) { recompensaMundo(e); if (Math.random() < (e.raro ? 1 : 0.08)) soltarLoot(e); } else soltarLoot(e); }
   else if (!e.chefe && !e.grande && Math.random() < 0.4) e.v.tocar(e.bicho ? 'Idle_HitReact1' : 'Hit_A', { loop: false, reinicia: true });
 }
 function ferirHeroi(a, v) {

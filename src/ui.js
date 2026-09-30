@@ -241,6 +241,7 @@ function configuracoes() {
 }
 
 
+const RANKING_INFO = i => ({ i, letra: RANKING[i][1], cor: RANKING[i][2], titulo: RANKING[i][3] });
 // ---------------- tela do herói: boneco 3D com os espaços de equipamento em volta ----------------
 let TH = null;
 export const telaHeroiAberta = () => !!TH;
@@ -254,7 +255,7 @@ export function abrirTelaHeroi() {
   const el = document.createElement('div'); el.id = 'tHeroi';
   el.innerHTML = `<div id="crTopo"><h2 id="thNome"></h2><button class="xis" data-th="fechar">${ico('fechar')}</button></div>
     <div id="thPalco"><div class="thCol e"></div><div class="thCol d"></div><div id="thPoder"></div></div>
-    <section id="crPainel" class="thPainel"><nav>${[['equip', 'Mochila', 'bau'], ['atr', 'Atributos', 'rank'], ['comp', 'Companheiros', 'herois']].map(([k, t, i]) => `<button data-thaba="${k}">${ico(i)}<span>${t}</span></button>`).join('')}</nav><div id="thCorpo"></div></section>`;
+    <section id="crPainel" class="thPainel"><nav>${[['equip', 'Mochila', 'bau'], ['asc', 'Ascensão', 'treino'], ['atr', 'Atributos', 'rank'], ['comp', 'Guilda', 'herois']].map(([k, t, i]) => `<button data-thaba="${k}">${ico(i)}<span>${t}</span></button>`).join('')}</nav><div id="thCorpo"></div></section>`;
   document.body.append(el); $('#hud').style.visibility = 'hidden';
   el.addEventListener('click', cliqueTH);
   const g = $('#thPalco'); let x0 = null;
@@ -269,14 +270,14 @@ function fecharTH() {
   Object.assign(C.camera, { ...TH.camAntes, suave: 10 }); ui.foco = TH.focoAntes;
   $('#tHeroi').remove(); $('#hud').style.visibility = ''; TH = null; revestir(S.lider); som('fechar');
 }
-export function passoTelaHeroi(dt) { if (!TH) return; TH.P.raiz.rotation.y = TH.giro + Math.sin(C.tempo() * 0.5) * 0.1; TH.P.mixer.update(dt); if (TH.anim && C.tempo() > TH.anim) { TH.anim = 0; TH.P.tocar('Idle_A'); } }
+export function passoTelaHeroi(dt) { if (!TH) return; TH.t = (TH.t || 0) + dt; if (TH.t > 1 && TH.aba === 'asc' && S.treino) { TH.t = 0; desenharTH(); } TH.P.raiz.rotation.y = TH.giro + Math.sin(C.tempo() * 0.5) * 0.1; TH.P.mixer.update(dt); if (TH.anim && C.tempo() > TH.anim) { TH.anim = 0; TH.P.tocar('Idle_A'); } }
 function espacoHtml(k) {
   const it = S.equip?.[k], R = it && RARIDADE_ITEM[it.rar], e = ESPACOS[k];
   return `<button class="thSlot ${it ? 'cheio' : ''} ${TH.sel === it?.id && it ? 'on' : ''}" data-it="${it?.id || ''}" data-slot="${k}" style="--ri:${R?.cor || 'rgba(255,255,255,.35)'}">${ico(e.icone)}${it ? `<i>${it.nivel}</i>` : ''}<small>${e.nome}</small></button>`;
 }
 function desenharTH() {
   if (!TH) return; E.mochila();
-  const l = E.lider(), s = E.sis(), rk = rankPoder(E.poderCombate());
+  const l = E.lider(), s = E.sis(), rk = E.infoRank();
   $('#thNome').innerHTML = `<span class="rank" style="--rk:${rk.cor}">${rk.letra}</span> ${esc(l.nome)} <small>Nv ${s.nivel}</small>`;
   document.querySelector('.thCol.e').innerHTML = LADO_E.map(espacoHtml).join(''); document.querySelector('.thCol.d').innerHTML = LADO_D.map(espacoHtml).join('');
   $('#thPoder').innerHTML = `${ico('poder')} ${fmt(E.poderCombate())}`;
@@ -289,12 +290,29 @@ function desenharTH() {
       h += `<div class="detalhe">${cartaoItem(sel)}${cmp ? `<div class="cmp">${cmp}</div>` : ''}<div class="linha">${eq ? '<button class="btn cinza peq" data-th="tirar">Tirar</button>' : `<button class="btn verde peq" data-th="eq">Equipar</button><button class="btn amarelo peq" data-th="vender">Vender ${fmt(precoItem(sel))}</button>`}</div></div>`; }
     h += `<h4 class="mochT">Mochila ${S.mochila.length}/${E.MOCHILA_MAX} <small>toque num item</small></h4><div class="mochila">${S.mochila.map(it => `<button class="slotM ${it.id === TH.sel ? 'on' : ''}" data-it="${it.id}" style="--ri:${RARIDADE_ITEM[it.rar].cor}">${ico(ESPACOS[it.slot].icone)}<i>${it.nivel}</i></button>`).join('') || '<p class="suave">Vazia. Explore o mundo, vença monstros e abra baús para achar itens!</p>'}</div>`;
   }
+  if (TH.aba === 'asc') {
+    const i = E.rankOficial(), prox = RANKING[i + 1];
+    if (!prox) h += `<p class="ascMax">${ico('coroa')} Você está no rank máximo: <b>SSS · Monarca</b>!</p>`;
+    else {
+      const p = E.poderCombate(), meta = E.metaAsc(i + 1), pts = E.ptsAsc(), okP = p >= prox[0], okT = pts >= meta, t = S.treino;
+      h += `<div class="ascTopo"><span class="rank g" style="--rk:${RANKING[i][2]}">${RANKING[i][1]}</span>${ico('seta')}<span class="rank g" style="--rk:${prox[2]}">${prox[1]}</span><div><b>Prova de Ascensão</b><small>${RANKING[i][3]} → ${prox[3]}</small></div></div>
+        <div class="ascReq ${okP ? 'ok' : ''}"><span>${ico('poder')} Poder de combate</span><div class="barra"><i style="width:${Math.min(100, p / prox[0] * 100)}%"></i><span>${fmt(p)} / ${fmt(prox[0])}</span></div><small>${okP ? '✓ pronto' : 'Lute, explore e equipe itens melhores'}</small></div>
+        <div class="ascReq ${okT ? 'ok' : ''}"><span>${ico('treino')} Pontos de treino</span><div class="barra roxa"><i style="width:${Math.min(100, pts / meta * 100)}%"></i><span>${fmt(pts)} / ${fmt(meta)}</span></div><small>${okT ? '✓ pronto' : 'Treine por tempo ou use pergaminhos'}</small></div>
+        ${okP && okT ? `<button class="btn amarelo grande brilha" data-th="ascender">${ico('rank')} ASCENDER AO RANK ${prox[1]}!</button>` : ''}
+        <h4>${ico('treino')} Treino <small>${E.taxaTreino().toFixed(2)} pontos/min${E.nivel('treino') ? ' · Campo de Treino da guilda' : ' · entre numa guilda com Campo de Treino para acelerar'}</small></h4>
+        ${t ? `<div class="ascTreino"><b>Treinando…</b> +${fmt(Math.floor((Math.min(Date.now(), t.fim) - t.inicio) / 60e3 * E.taxaTreino()))} pontos · termina em ${fmtTempo((t.fim - Date.now()) / 1000)}<button class="btn cinza peq" data-th="parar">Parar e guardar</button></div>`
+          : `<div class="linha">${E.OPCOES_TREINO.map(m => `<button class="btn verde peq" data-tr="${m}">${m < 60 ? m + ' min' : m / 60 + ' h'}<small>+${Math.floor(m * E.taxaTreino())}</small></button>`).join('')}</div><p class="suave">Enquanto treina, o herói fica no Campo de Treino (não sai em missões). Continua treinando com o jogo fechado.</p>`}
+        <h4>${ico('pergaminho')} Pergaminhos de treino: ${S.pergaminhos || 0}</h4>
+        <button class="btn roxo ${S.pergaminhos ? '' : 'sem'}" data-th="perg">Usar pergaminho (+${E.valorPergaminho()} pontos)</button>
+        <p class="suave">Caem de monstros (raros e chefes quase sempre), baús do mundo, caçadas e missões.</p>`;
+    }
+  }
   if (TH.aba === 'atr') {
     const st = E.statsHeroi(), q = atributosEquip(S.equip);
     h += `<div class="barra sis"><i style="width:${s.xp / xpSistema(s.nivel) * 100}%"></i><span>Nível ${s.nivel} · XP ${fmt(s.xp)} / ${fmt(xpSistema(s.nivel))}</span></div>
       <div class="thStats"><div>${ico('poder')}<small>Dano</small><b>${fmt(st.dano)}</b></div><div>${ico('coracao')}<small>Vida</small><b>${fmt(st.vida)}</b></div><div>${ico('raio')}<small>Crítico</small><b>${Math.round(st.crit * 100)}%</b></div>
         <div>${ico('escudo')}<small>Defesa</small><b>${Math.round(st.def * 100)}%</b></div><div>${ico('andar')}<small>Velocidade</small><b>+${Math.round(st.vel * 100)}%</b></div><div>${ico('estrela')}<small>Habilidades</small><b>×${st.hab.toFixed(2)}</b></div></div>
-      <div class="linha"><button class="btn roxo" data-th="sistema">${ico('rank')} Pontos ${s.pontos ? `(+${s.pontos})` : ''}</button>${botaoCompra('Treinar', custoTreinar(l), 'treinar', 'verde')}</div>
+      <div class="linha"><button class="btn roxo" data-th="sistema">${ico('rank')} Pontos ${s.pontos ? `(+${s.pontos})` : ''}</button></div>
       <div class="linha"><button class="btn azul" data-th="visual">${ico('pincel')} Aparência</button></div>
       <p class="suave">Equipamento: +${q.atk}% ataque · +${q.vida} vida · +${q.crit}% crítico · +${q.def}% defesa · +${q.vel}% velocidade</p>`;
   }
@@ -317,6 +335,10 @@ function cliqueTH(e) {
   if (d.th === 'vender' && sel) { const v = E.venderItem(sel.id); if (v) { som('moedas'); aviso(`${ico('ouro')} +${fmt(v)} ouro`); TH.sel = null; } }
   if (d.a === 'treinar') { if (E.treinar(S.lider)) { som('espada'); TH.P.tocar(animAtaque(E.lider().visual), { loop: false, reinicia: true }); TH.anim = C.tempo() + 1.2; } else { som('erro'); aviso(`${ico('ouro')} Ouro insuficiente`, 'erro'); } }
   if (d.th === 'sistema') { som('abrir'); janelaSistema(); }
+  if (d.tr) { if (E.iniciarTreino(+d.tr)) { som('espada'); TH.P.tocar('Push_Ups', { loop: true, reinicia: true }); } else { som('erro'); aviso('Seu herói precisa estar livre para treinar', 'erro'); } }
+  if (d.th === 'parar') { const n = E.coletarTreino(); som('moedas'); aviso(`${ico('treino')} +${n} pontos de treino`); TH.P.tocar('Idle_A'); }
+  if (d.th === 'perg') { const v = E.usarPergaminho(); if (v) { som('livro'); aviso(`${ico('pergaminho')} +${v} pontos de treino`); C.faiscas(C.ESTUDIO.x, 2, C.ESTUDIO.z, 0xc9a0ff, 25, 4); } else som('erro'); }
+  if (d.th === 'ascender') { if (E.ascender()) { fecharTH(); return; } }
   if (d.th === 'visual') { const id = S.lider; fecharTH(); abrirCriador(id, { aoFechar: () => { revestir(id); abrirTelaHeroi(); } }); return; }
   desenharTH();
 }
@@ -386,12 +408,12 @@ function htmlGuilda() {
 }
 // ---------------- Sistema do líder ----------------
 function medidorRanking(p) {
-  const rk = rankPoder(p);
+  const rk = E.infoRank();
   return `<div class="medidor2">${RANKING.map(([, l, c], i) => `<span class="${i < rk.i ? 'feito' : i === rk.i ? 'atual' : ''}" style="--rk:${c}">${l}</span>`).join('')}</div>
     <div class="estrelasR">${Array.from({ length: 5 }, (_, i) => `<i class="${i < rk.estrelas ? 'on' : ''}">${ico('estrela')}</i>`).join('')}<small>${rk.prox ? `${fmt(p)} / ${fmt(rk.prox)} para o rank ${RANKING[rk.i + 1][1]}` : 'Rank máximo!'}</small></div>`;
 }
 function cartaoSistema() {
-  const s = E.sis(), l = E.lider(), rk = rankPoder(E.poderCombate()), r = [0, rk.letra, rk.cor, rk.titulo];
+  const s = E.sis(), l = E.lider(), rk = E.infoRank(), r = [0, rk.letra, rk.cor, rk.titulo];
   return `<button class="sisCard" data-a="sistema" style="--rk:${r[2]}"><span class="rank">${r[1]}</span><div class="cTxt"><b>${esc(l?.nome || 'Líder')} · Nv ${s.nivel}</b>
     <small>${r[3]} · Poder de combate ${fmt(E.poderCombate())}</small><div class="barra sis"><i style="width:${s.xp / xpSistema(s.nivel) * 100}%"></i></div></div>
     ${s.pontos ? `<em class="pts">+${s.pontos}</em>` : ''}</button>`;
@@ -402,7 +424,7 @@ function despertar(rk) {
     <p><b>Seu herói alcançou o rank ${rk.letra}!</b><br>${rk.titulo}</p>${medidorRanking(E.poderCombate())}<button class="btn azul grande" data-ok>Continuar</button></div>`, 'semFundo');
 }
 export function janelaSistema() {
-  const s = E.sis(), l = E.lider(), rk = rankPoder(E.poderCombate()), r = [0, rk.letra, rk.cor, rk.titulo], prox = null, b = E.bonus();
+  const s = E.sis(), l = E.lider(), rk = E.infoRank(), r = [0, rk.letra, rk.cor, rk.titulo], prox = null, b = E.bonus();
   const c = modal(`<div class="sisJan"><div class="sisTopo">${ico('rank')} STATUS DO LÍDER</div>
     <div class="sisNome"><span class="rank g" style="--rk:${r[2]}">${r[1]}</span><div><b>${esc(l?.nome || 'Líder')}</b><small>Rank ${r[1]} · ${r[3]}</small></div></div>
     ${medidorRanking(E.poderCombate())}
@@ -420,6 +442,7 @@ export function janelaSistema() {
 function estrelas(rar) { return `<span class="estrelas">${Array.from({ length: rar + 1 }, () => ico('estrela')).join('')}</span>`; }
 function chipEstado(h) {
   if (h.estado === 'missao') return `<em class="chip azul">${ico('missoes')}Em missão</em>`;
+  if (h.estado === 'treino') return `<em class="chip roxo">${ico('treino')}Treinando</em>`;
   if (h.estado === 'ferido') return `<em class="chip vermelho">${ico('ferido')}${fmtTempo((h.ate - Date.now()) / 1000)}</em>`;
   return `<em class="chip verde">Livre</em>`;
 }
@@ -437,7 +460,7 @@ function htmlHeroi() {
     <div class="stats"><div>${ico('xp')}<small>Nível</small><b>${h.nivel}</b></div><div>${ico('poder')}<small>Poder</small><b>${fmt(E.poder(h))}</b></div><div>${ico('estrela')}<small>Raridade</small><b>×${r.mult}</b></div></div>
     <div class="barra xp"><i style="width:${h.xp / xpHeroi(h.nivel) * 100}%"></i><span>XP ${fmt(h.xp)} / ${fmt(xpHeroi(h.nivel))}</span></div>
     <p class="suave">${chipEstado(h)} ${afins ? `Bônus de +25% em: ${afins}.` : ''}</p>
-    ${h.id === S.lider ? `${botaoCompra('Treinar (+1 nível)', custoTreinar(h), 'treinar', 'verde grande')}
+    ${h.id === S.lider ? `
     <div class="linha"><button class="btn azul" data-a="visual">${ico('pincel')} Aparência</button><button class="btn roxo" data-a="equip">${ico('c_armas')} Equipamento</button></div>
     <p class="suave">${ico('coroa')} Seu herói principal</p>` : `<p class="suave">${ico('herois')} Jogador da guilda <b>${esc(S.guilda?.nome || '')}</b>: ele evolui jogando, você não controla o herói dele. Ajuda nas missões, doa para os prédios e aumenta a Força da guilda.</p>`}`;
 }
@@ -614,6 +637,8 @@ function processarEventos() {
   while (E.fila.length) {
     const e = E.fila.shift();
     if (e.tipo === 'aviso') { som('erro'); aviso(e.txt, 'erro'); }
+    if (e.tipo === 'ascensao') { despertar({ ...RANKING_INFO(e.i) }); aviso(`${ico('gema')} +${e.gemas} gemas`, 'gema'); }
+    if (e.tipo === 'pergaminho' && !TH) aviso(`${ico('pergaminho')} +${e.n} pergaminho de treino`, 'gema', 2200);
     if (e.tipo === 'guilda') { atualizarPredios(); som('lendario'); aviso(`${ico('guilda')} Você entrou na guilda <b>${esc(e.nome)}</b>!`, 'ouro', 3500); }
     if (e.tipo === 'doacao') { aviso(`${ico('ouro')} <b>${esc(e.nome)}</b> doou ${fmt(e.valor)} para ${EDIFICIOS[e.ed].nome}!`, 'ouro', 3000); atualizarPredio(e.ed); }
     if (e.tipo === 'sistema') {
@@ -651,7 +676,7 @@ function revelarNovos(novas) {
   for (const k of novas) {
     if (k.startsWith('ed:')) {
       const id = k.slice(3), p = POS[id]; atualizarPredio(id, true);
-      ui.foco.x = p.x * 0.8; ui.foco.z = p.z * 0.8 + 6; C.faiscas(p.x, 4, p.z, 0xffe27a, 50, 6); C.onda(p.x, p.z, 9, 0xffe27a, 0.8);
+      if (!TH && !document.querySelector('#criador')) { ui.foco.x = p.x * 0.8; ui.foco.z = p.z * 0.8 + 6; } C.faiscas(p.x, 4, p.z, 0xffe27a, 50, 6); C.onda(p.x, p.z, 9, 0xffe27a, 0.8);
       aviso(`${ico('novo')} Novo prédio: <b>${EDIFICIOS[id].nome}</b>`, 'ouro', 3500); som('marco');
     } else if (k.startsWith('nav:')) document.querySelector(`#nav [data-aba="${k.slice(4)}"]`)?.classList.add('novo');
   }
@@ -690,7 +715,6 @@ export function atualizar(dt) {
   const agora = Date.now(), at = S.missoes.map(ms => { const reg = REGIOES[ms.r], k = Math.min(1, (agora - ms.inicio) / (ms.fim - ms.inicio)); return `<div class="miniM" style="--c:${reg.cor}">${ico(reg.icone)}<i style="--k:${k}"></i><small>${fmtTempo((ms.fim - agora) / 1000)}</small></div>`; }).join('');
   if ($('#ativas').innerHTML !== at) $('#ativas').innerHTML = at;
   guiar();
-  { const rk = rankPoder(E.poderCombate()); if (S.rankMax == null) S.rankMax = rk.i; else if (rk.i > S.rankMax && $('#modal').hidden) { S.rankMax = rk.i; despertar(rk); } }
   // rótulos 3D dos prédios
   for (const el of document.querySelectorAll('.rotulo')) {
     const id = el.dataset.ed, p = POS[id], t = C.tela(p.x, id === 'quadro' ? 11 : id === 'biblioteca' || id === 'portal' ? 10 : 8, p.z);

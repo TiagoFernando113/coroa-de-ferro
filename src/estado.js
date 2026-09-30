@@ -4,7 +4,7 @@ import { visualAleatorio } from './aparencia.js';
 import { gerarItem, precoItem, atributosEquip, BAUS, custoBau, GEMAS_BAU, sortearRaridade } from './itens.js';
 import { EDIFICIOS, EF, custoEd, CLASSES, RARIDADES, chancesRecrutar, xpHeroi, custoTreinar, custoRecrutar, GEMAS_RECRUTAR, nomeAleatorio,
   REGIOES, missao, chanceSucesso, xpFama, OBJETIVOS, gemasObjetivo, OFFLINE_MAX, xpSistema, PONTOS_NIVEL, rankDe,
-  RANK_REGIAO, rankIdx, TITULOS, MAX_QUADRO, GEMAS_TROCAR, MAX_ORDENS, ORDEM_SEG, GEMAS_ORDENS, AUTO_MULT, GUILDAS, predioGuilda } from './dados.js';
+  RANK_REGIAO, rankIdx, TITULOS, RANKING, rankPoder, MAX_QUADRO, GEMAS_TROCAR, MAX_ORDENS, ORDEM_SEG, GEMAS_ORDENS, AUTO_MULT, GUILDAS, predioGuilda } from './dados.js';
 
 const SAVE = 'coroa_guilda_v1';
 export let S = null;
@@ -194,6 +194,35 @@ export function recrutar(premium = false, gratis = false, agora = Date.now()) {
   S.herois.push(h); S.st.recrutados++; if (rar === 3) S.st.lendarios++;
   ev('recrutou', { id: h.id }); return h;
 }
+// ---------------- Ascensão de rank (prova para subir de rank: poder + pontos de treino) ----------------
+export const metaAsc = i => Math.round(60 * 2 ** (i - 1)); // pontos de treino para subir para o rank i
+export function rankOficial() { if (S.rankOf == null) S.rankOf = S.rankMax ?? rankPoder(poderCombate()).i; return S.rankOf; }
+// mesmo formato do rankPoder, mas preso ao rank oficial (o poder mostra só o progresso até o próximo)
+export function infoRank() { const i = rankOficial(), ini = RANKING[i][0], fim = RANKING[i + 1]?.[0] ?? Infinity; return { ...rankPoder(Math.max(ini, Math.min(poderCombate(), fim - 1))), i, letra: RANKING[i][1], cor: RANKING[i][2], titulo: RANKING[i][3] }; }
+const asc = () => { if (!S.asc) S.asc = { pts: 0 }; if (S.pergaminhos == null) S.pergaminhos = 0; return S.asc; };
+export const ptsAsc = () => asc().pts + ptsTreinoAgora();
+export const elegivel = () => rankOficial() < RANKING.length - 1 && poderCombate() >= RANKING[rankOficial() + 1][0];
+export const podeAscender = () => elegivel() && ptsAsc() >= metaAsc(rankOficial() + 1);
+export function ascender() {
+  if (!podeAscender()) return false; coletarTreino(); const a = asc(), i = rankOficial() + 1;
+  a.pts = Math.max(0, a.pts - metaAsc(i)); S.rankOf = i; S.rankMax = Math.max(S.rankMax || 0, i); const g = 10 * i; S.gemas += g;
+  ev('ascensao', { i, gemas: g }); return true;
+}
+// treino por tempo (como o treino offline do Tibia): o herói fica no Campo de Treino e junta pontos
+export const taxaTreino = () => 1 + 0.15 * nivel('treino'); // pontos por minuto
+export const OPCOES_TREINO = [30, 120, 480];
+export function iniciarTreino(min, agora = Date.now()) {
+  const l = lider(); if (!l || l.estado !== 'livre' || S.treino) return false; asc();
+  S.treino = { inicio: agora, fim: agora + min * 60e3 }; l.estado = 'treino'; S.st.treinos = (S.st.treinos || 0) + 1; return true;
+}
+function ptsTreinoAgora(agora = Date.now()) { const t = S.treino; return t ? Math.floor((Math.min(agora, t.fim) - t.inicio) / 60e3 * taxaTreino()) : 0; }
+export function coletarTreino(agora = Date.now()) {
+  if (!S.treino) return 0; const n = ptsTreinoAgora(agora); asc().pts += n; S.treino = null;
+  const l = lider(); if (l && l.estado === 'treino') l.estado = 'livre'; if (n) ev('treino', { n }); return n;
+}
+export const valorPergaminho = () => Math.max(10, Math.round(metaAsc(rankOficial() + 1) * 0.15));
+export function usarPergaminho() { asc(); if (!S.pergaminhos) return 0; S.pergaminhos--; const v = valorPergaminho(); S.asc.pts += v; return v; }
+export function ganharPergaminho(n = 1) { asc(); S.pergaminhos += n; ev('pergaminho', { n }); }
 export function treinar(id) {
   const h = heroi(id); if (!h || h.id !== S.lider) return false; const c = custoTreinar(h); if (S.ouro < c) return false;
   S.ouro -= c; h.nivel++; h.xp = 0; S.st.treinos = (S.st.treinos || 0) + 1; ev('heroiNivel', { id }); return true;
@@ -235,7 +264,7 @@ export function trocarPapeis(agora = Date.now()) {
   const n = Math.max(3, S.quadro.filter(q => q.t !== 3).length);
   S.quadro = S.quadro.filter(q => q.t === 3); for (let i = 0; i < n; i++) S.quadro.push(gerarPapel(agora)); return true;
 }
-export const rankHeroi = h => rankIdx(h.nivel);
+export const rankHeroi = h => h.id === S.lider ? Math.min(5, rankOficial()) : rankIdx(h.nivel);
 // modo automático: heróis livres pegam sozinhos os papéis com boa chance de sucesso
 let autoT = 0;
 export const maxOrdens = () => MAX_ORDENS(nivel('quadro'));
@@ -296,7 +325,7 @@ function concluir(ms, agora, silencioso) {
     res.ouro = Math.round(m.ouro * EF.quadro(nivel('quadro')).bonus * EF.mercado(nivel('mercado')) * bonus().ouro * (ms.mult || 1)); ganharOuro(res.ouro);
     ganharXPSis(m.xp * (ms.herois.includes(S.lider) ? 1.2 : 0.5));
     res.xp = Math.round(m.xp * (ms.mult || 1)); for (const h of hs) ganharXP(h, res.xp);
-    ganharFama(m.fama); S.st.missoes++;
+    ganharFama(m.fama); S.st.missoes++; if (Math.random() < 0.1) { ganharPergaminho(); res.pergaminho = true; }
     if (Math.random() < m.bau) { res.gemas = 1 + Math.floor(Math.random() * (2 + ms.r)); S.gemas += res.gemas; const extra = Math.round(renda() * 60); res.ouro += extra; ganharOuro(extra); res.bau = true; }
     if (m.chefe) { S.chefes[ms.r] = true; if (S.regiao < REGIOES.length - 1 && S.regiao === ms.r) { S.regiao++; res.desbloqueou = S.regiao; } }
   } else {
@@ -325,6 +354,7 @@ export const objetivosProntos = () => OBJETIVOS.filter(o => objetivoAtual(o)?.fe
 // ---------------- tempo ----------------
 export function passo(dt, agora = Date.now()) {
   S.ed.quadro = Math.min(40, 1 + Math.floor(sis().nivel / 2)); // licença na Associação acompanha o seu nível
+  { const l = lider(); if (l) l.nivel = sis().nivel; } if (S.treino && agora >= S.treino.fim) coletarTreino(agora);
   atualizarQuadro(agora); regenOrdens(agora); autoMissoes(dt, agora); doacoesMembros(dt, agora);
   ganharOuro(renda() * dt);
   const xps = EF.treino(nivel('treino')) * dt; if (xps > 0) { for (const h of S.herois) if (h.estado === 'livre') ganharXP(h, xps); ganharXPSis(xps * 0.15); }
@@ -349,5 +379,6 @@ export function offline(agora = Date.now()) {
   }
   for (const h of S.herois) if (h.estado === 'ferido' && agora >= h.ate) h.estado = 'livre';
   for (const ms of [...S.missoes]) if (agora >= ms.fim) concluir(ms, agora, true);
+  if (S.treino && agora >= S.treino.fim) coletarTreino(agora);
   return { seg, ouro: S.ouro - antes, missoes: S.st.missoes - missoesAntes };
 }

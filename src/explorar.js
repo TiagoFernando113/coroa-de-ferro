@@ -87,7 +87,7 @@ function abrirNpc(n) {
     if (n.tipo === 'curandeira') h += `<p>"Descanse, aventureiro. Eu cuido das suas feridas."</p><p>Vida: <b>${Math.round(j.hp)}/${Math.round(j.max)}</b></p><button class="btn verde peq" data-n="curar">${ico('coracao')} Curar tudo</button>`;
     if (n.tipo === 'cacador') { const t = S.tarefa;
       if (!t) { const o = oferta(n); h += `<p>"Os monstros estão atacando as caravanas. Me ajude!"</p><p>Caçada: derrote <b>${o.meta} ${o.nome}</b></p><p class="suave">Recompensa: ${ico('ouro')}${fmt(o.ouro)} · ${fmt(o.xp)} XP · ${ico('gema')}${o.gemas}</p><button class="btn verde peq" data-n="aceitar">Aceitar</button>`; }
-      else if (t.feito >= t.meta) h += `<p>"Excelente trabalho!"</p><button class="btn amarelo peq" data-n="entregar">Receber ${ico('ouro')}${fmt(t.ouro)} · ${fmt(t.xp)} XP · ${ico('gema')}${t.gemas}</button>`;
+      else if (t.feito >= t.meta) h += `<p>"Excelente trabalho!"</p><button class="btn amarelo peq" data-n="entregar">Receber ${ico('ouro')}${fmt(t.ouro)} · ${fmt(t.xp)} XP · ${ico('gema')}${t.gemas} · 2 pergaminhos</button>`;
       else h += `<p>Caçada: <b>${t.nome}</b> ${t.feito}/${t.meta}</p><p class="suave">Eles vivem em: ${REGIOES[t.r].nome}</p><button class="btn cinza peq" data-n="desistir">Desistir da caçada</button>`; }
     p.innerHTML = h + `<button class="btn azul peq" data-n="fechar">Fechar</button>`;
   };
@@ -98,7 +98,7 @@ function abrirNpc(n) {
     if (a === 'vender') { let t = 0; for (const i of [...(S.mochila || [])]) if (i.rar <= 1 && !Object.values(S.equip || {}).some(x => x?.id === i.id)) t += E.venderItem(i.id); if (t) { som('moedas'); H.numero(j.x, 5, j.z, `+${fmt(t)} ouro`, '#ffd84a', true); } }
     if (a === 'curar') { j.hp = j.max; C.faiscas(j.x, 2, j.z, 0x7aff9a, 30, 4); som('marco'); }
     if (a === 'aceitar') { S.tarefa = oferta(n); som('confirma'); }
-    if (a === 'entregar') { const t = S.tarefa; S.ouro += t.ouro; S.st.ouroTotal += t.ouro; S.gemas += t.gemas; E.ganharXPSis(t.xp); S.tarefa = null; S.st.tarefas = (S.st.tarefas || 0) + 1;
+    if (a === 'entregar') { const t = S.tarefa; S.ouro += t.ouro; S.st.ouroTotal += t.ouro; S.gemas += t.gemas; E.ganharXPSis(t.xp); E.ganharPergaminho(2); S.tarefa = null; S.st.tarefas = (S.st.tarefas || 0) + 1;
       H.faixa('RECOMPENSA!', `+${fmt(t.ouro)} ouro · +${fmt(t.xp)} XP · +${t.gemas} gemas`); som('lendario'); C.faiscas(j.x, 3, j.z, 0xffd84a, 50, 6); }
     if (a === 'desistir') { S.tarefa = null; som('fechar'); }
     atualizarTarefa(); desenhar(); };
@@ -116,6 +116,7 @@ function abrirBau(o, st, agora) {
   H.numero(o.x, 5, o.z, `+${fmt(ouro)} ouro`, '#ffd84a', true); C.faiscas(o.x, 1.5, o.z, 0xffd84a, 30, 5); som('moedas');
   if (Math.random() < 0.3) { const it = gerarItem(Math.max(1, E.sis().nivel) + r * 3, sortearRaridade(0.3)); L.loot.push(it); H.numero(o.x, 7, o.z, 'Item!', '#7ad0ff', true); }
   if (Math.random() < 0.15) { const g = 3 + Math.floor(Math.random() * 6); S.gemas += g; H.numero(o.x + 1, 6, o.z, `+${g} gemas`, '#b88bff'); }
+  if (Math.random() < 0.2) { E.ganharPergaminho(); H.numero(o.x - 1, 8, o.z, 'Pergaminho de treino!', '#c9a0ff'); }
   S.st.bausMundo = (S.st.bausMundo || 0) + 1;
 }
 function descobrir(o, st) {

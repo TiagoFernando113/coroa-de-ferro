@@ -165,6 +165,7 @@ function animLocal(oq, h) {
 // herói editado no criador: troca as peças do boneco
 export function revestir(id) { const p = pers[id], h = S.herois.find(x => x.id === id); if (!p || !h) return; const v = C.heroi(h.visual); v.raiz.visible = p.v.raiz.visible; p.v.remover(); p.v = v; v.tocar('Idle_A'); }
 function destino(h) {
+  if (h.estado === 'treino') { const k = nivel('treino') > 0 ? 'treino' : 'quadro', p = POS[k]; return { x: p.x * 0.6 + (Math.random() - 0.5) * 3, z: p.z * 0.6 + (Math.random() - 0.5) * 3, oq: 'treino' }; }
   if (h.estado === 'ferido') { const p = POS.enfermaria; return { x: p.x * 0.7 + (Math.random() - 0.5) * 3, z: p.z * 0.7 + (Math.random() - 0.5) * 3, oq: 'ferido' }; }
   const ops = Object.keys(POS).filter(k => visivel(k) && nivel(k) > 0);
   const k = ops[Math.floor(Math.random() * ops.length)] || 'taverna', p = POS[k];
