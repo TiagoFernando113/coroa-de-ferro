@@ -11,7 +11,7 @@ export const ETAPAS = [
   { txt: 'Pegue um papel do <b>Quadro de Missões</b>.', alvo: ['[data-ir]', '.papel:not(.procurado)', 'nav:missoes'], feito: () => S.missoes.length > 0 || S.st.missoes > 0 },
   { txt: 'Seu herói partiu! Ele volta em instantes.', alvo: ['#ativas .miniM'], feito: () => S.st.missoes > 0 },
   { txt: 'Missão cumprida! Abra <b>Herói</b> para ver seu progresso.', revela: ['nav:herois'], alvo: ['nav:herois'], feito: c => c.folha === 'herois' || c.folha === 'heroi' },
-  { txt: 'Toque no seu herói e <b>treine</b> para deixá-lo mais forte.', alvo: ['[data-a="treinar"]', '.heroi.lider', 'nav:herois'], feito: () => (S.st.treinos || 0) > 0 },
+  { txt: 'Na tela do herói, abra <b>Atributos</b> e <b>treine</b> para deixá-lo mais forte.', alvo: ['[data-a="treinar"]', '[data-thaba="atr"]', 'nav:herois'], feito: () => (S.st.treinos || 0) > 0 },
   { txt: 'Você completou um objetivo! Pegue suas <b>gemas</b>.', revela: ['nav:objetivos', 'gemas', 'fama'], alvo: ['[data-obj]:not(.sem)', 'nav:objetivos'], feito: () => Object.keys(S.obj).length > 0 },
   { txt: 'Abra <b>Baús</b> e pegue seu baú grátis: um item para o seu herói!', revela: ['nav:recrutar'], alvo: ['[data-a="gratis"]', 'nav:recrutar'], feito: () => (S.st.baus || 0) >= 1 },
   { txt: 'Entre numa <b>guilda</b>! Juntos vocês ganham prédios, bônus e a Força da guilda (+XP).', revela: ['nav:guilda'], alvo: ['[data-entrar]:not(.sem)', 'nav:guilda'], feito: () => !!S.guilda },

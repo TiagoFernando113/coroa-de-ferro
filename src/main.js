@@ -5,7 +5,7 @@ import { montarBase, atualizarHerois, efeitosBase, posHeroi, revestir } from './
 import { abrirCriador, passoCriador, criadorAberto } from './criador.js';
 import { montarMundoMapa, atualizarMundo } from './mundo.js';
 import { passoLuta } from './luta.js';
-import { montar, atualizar, ui, carregarRecursos, boasVindas, flutuar3d, som, novidadeCriador, novidadeRacas } from './ui.js';
+import { passoTelaHeroi, montar, atualizar, ui, carregarRecursos, boasVindas, flutuar3d, som, novidadeCriador, novidadeRacas } from './ui.js';
 import { VERSAO } from './dados.js';
 import { iniciarEtapas } from './etapas.js';
 
@@ -52,7 +52,7 @@ function entrar(novo) {
   const laco = agora => {
     const dt = Math.min(0.1, (agora - ultimo) / 1000); ultimo = agora;
     E.passo(dt);
-    passoCriador(dt);
+    passoCriador(dt); passoTelaHeroi(dt);
     atualizarHerois(dt); atualizarMundo(dt); passoLuta(dt); efeitosBase(dt, (x, y, z, v) => flutuar3d(x, y, z, v));
     if (!criadorAberto()) atualizar(dt);
     C.quadro(dt, ui.foco);

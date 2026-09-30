@@ -7,6 +7,7 @@ import { GUILDAS, EDIFICIOS, EF, custoEd, descEfeito, proxMarco, marcosAte, CLAS
   REGIOES, missao, reqRegiao, chanceSucesso, xpFama, OBJETIVOS, fmt, fmtTempo, ATRIBUTOS, xpSistema, rankDe, RANKS, RANKING, rankPoder, RANK_REGIAO, LETRAS, GEMAS_TROCAR, ORDEM_SEG, GEMAS_ORDENS } from './dados.js';
 import { POS, atualizarPredio, atualizarPredios, revestir } from './base.js';
 import { abrirCriador } from './criador.js';
+import { animAtaque } from './aparencia.js';
 import { MUNDO, GUILDA_W, CENTROS, MEIO_MUNDO, mostrarMundo, mundoVisivel, camposVisiveis } from './mundo.js';
 import { iniciarLuta, iniciarExploracao } from './luta.js';
 import { RARIDADE_ITEM, ESPACOS, ATR_ITEM, textoAtr, precoItem, atributosEquip, chancesItem, BAUS, GEMAS_BAU } from './itens.js';
@@ -239,6 +240,87 @@ function configuracoes() {
   };
 }
 
+
+// ---------------- tela do herói: boneco 3D com os espaços de equipamento em volta ----------------
+let TH = null;
+export const telaHeroiAberta = () => !!TH;
+const LADO_E = ['elmo', 'amuleto', 'armadura', 'capa', 'luvas'], LADO_D = ['arma', 'escudo', 'anel', 'botas'];
+export function abrirTelaHeroi() {
+  if (TH) return; const l = E.lider(); if (!l) return;
+  $('#folha').hidden = true; folhaAtual = null; ui.aba = null;
+  TH = { aba: 'equip', sel: null, giro: 0, camAntes: { yaw: C.camera.yaw, pitch: C.camera.pitch, dist: C.camera.dist }, focoAntes: { ...ui.foco } };
+  C.estudio(true); refazerTH();
+  ui.foco = { x: C.ESTUDIO.x, z: C.ESTUDIO.z }; C.camera.yaw = Math.PI; C.camera.pitch = 0.16; C.camera.dist = 13; C.camera.suave = 30; C.deslocarVista(0.2);
+  const el = document.createElement('div'); el.id = 'tHeroi';
+  el.innerHTML = `<div id="crTopo"><h2 id="thNome"></h2><button class="xis" data-th="fechar">${ico('fechar')}</button></div>
+    <div id="thPalco"><div class="thCol e"></div><div class="thCol d"></div><div id="thPoder"></div></div>
+    <section id="crPainel" class="thPainel"><nav>${[['equip', 'Mochila', 'bau'], ['atr', 'Atributos', 'rank'], ['comp', 'Companheiros', 'herois']].map(([k, t, i]) => `<button data-thaba="${k}">${ico(i)}<span>${t}</span></button>`).join('')}</nav><div id="thCorpo"></div></section>`;
+  document.body.append(el); $('#hud').style.visibility = 'hidden';
+  el.addEventListener('click', cliqueTH);
+  const g = $('#thPalco'); let x0 = null;
+  g.addEventListener('pointerdown', e => { if (e.target.closest('button')) return; x0 = e.clientX; g.setPointerCapture(e.pointerId); });
+  g.addEventListener('pointermove', e => { if (x0 == null) return; TH.giro += (e.clientX - x0) * 0.012; x0 = e.clientX; });
+  g.addEventListener('pointerup', () => { x0 = null; });
+  som('abrir'); desenharTH();
+}
+function refazerTH() { const P = C.heroi(E.lider().visual); P.raiz.position.set(C.ESTUDIO.x, 0, C.ESTUDIO.z); if (TH.P) { P.raiz.rotation.y = TH.P.raiz.rotation.y; TH.P.remover(); } TH.P = P; P.tocar('Idle_A'); }
+function fecharTH() {
+  if (!TH) return; TH.P.remover(); C.estudio(false); C.deslocarVista(0);
+  Object.assign(C.camera, { ...TH.camAntes, suave: 10 }); ui.foco = TH.focoAntes;
+  $('#tHeroi').remove(); $('#hud').style.visibility = ''; TH = null; revestir(S.lider); som('fechar');
+}
+export function passoTelaHeroi(dt) { if (!TH) return; TH.P.raiz.rotation.y = TH.giro + Math.sin(C.tempo() * 0.5) * 0.1; TH.P.mixer.update(dt); if (TH.anim && C.tempo() > TH.anim) { TH.anim = 0; TH.P.tocar('Idle_A'); } }
+function espacoHtml(k) {
+  const it = S.equip?.[k], R = it && RARIDADE_ITEM[it.rar], e = ESPACOS[k];
+  return `<button class="thSlot ${it ? 'cheio' : ''} ${TH.sel === it?.id && it ? 'on' : ''}" data-it="${it?.id || ''}" data-slot="${k}" style="--ri:${R?.cor || 'rgba(255,255,255,.35)'}">${ico(e.icone)}${it ? `<i>${it.nivel}</i>` : ''}<small>${e.nome}</small></button>`;
+}
+function desenharTH() {
+  if (!TH) return; E.mochila();
+  const l = E.lider(), s = E.sis(), rk = rankPoder(E.poderCombate());
+  $('#thNome').innerHTML = `<span class="rank" style="--rk:${rk.cor}">${rk.letra}</span> ${esc(l.nome)} <small>Nv ${s.nivel}</small>`;
+  document.querySelector('.thCol.e').innerHTML = LADO_E.map(espacoHtml).join(''); document.querySelector('.thCol.d').innerHTML = LADO_D.map(espacoHtml).join('');
+  $('#thPoder').innerHTML = `${ico('poder')} ${fmt(E.poderCombate())}`;
+  document.querySelectorAll('[data-thaba]').forEach(b => b.classList.toggle('on', b.dataset.thaba === TH.aba));
+  let h = '';
+  if (TH.aba === 'equip') {
+    const sel = TH.sel && (S.mochila.find(x => x.id === TH.sel) || Object.values(S.equip).find(x => x?.id === TH.sel));
+    if (sel) { const eq = S.equip[sel.slot]?.id === sel.id, atual = S.equip[sel.slot];
+      const cmp = !eq ? Object.keys(ATR_ITEM).map(k => { const d = (sel.st[k] || 0) - (atual?.st[k] || 0); return d ? `<span class="${d > 0 ? 'mais' : 'menos'}">${d > 0 ? '+' : ''}${d}${ATR_ITEM[k][1]} ${ATR_ITEM[k][0]}</span>` : ''; }).join('') : '';
+      h += `<div class="detalhe">${cartaoItem(sel)}${cmp ? `<div class="cmp">${cmp}</div>` : ''}<div class="linha">${eq ? '<button class="btn cinza peq" data-th="tirar">Tirar</button>' : `<button class="btn verde peq" data-th="eq">Equipar</button><button class="btn amarelo peq" data-th="vender">Vender ${fmt(precoItem(sel))}</button>`}</div></div>`; }
+    h += `<h4 class="mochT">Mochila ${S.mochila.length}/${E.MOCHILA_MAX} <small>toque num item</small></h4><div class="mochila">${S.mochila.map(it => `<button class="slotM ${it.id === TH.sel ? 'on' : ''}" data-it="${it.id}" style="--ri:${RARIDADE_ITEM[it.rar].cor}">${ico(ESPACOS[it.slot].icone)}<i>${it.nivel}</i></button>`).join('') || '<p class="suave">Vazia. Explore o mundo, vença monstros e abra baús para achar itens!</p>'}</div>`;
+  }
+  if (TH.aba === 'atr') {
+    const st = E.statsHeroi(), q = atributosEquip(S.equip);
+    h += `<div class="barra sis"><i style="width:${s.xp / xpSistema(s.nivel) * 100}%"></i><span>Nível ${s.nivel} · XP ${fmt(s.xp)} / ${fmt(xpSistema(s.nivel))}</span></div>
+      <div class="thStats"><div>${ico('poder')}<small>Dano</small><b>${fmt(st.dano)}</b></div><div>${ico('coracao')}<small>Vida</small><b>${fmt(st.vida)}</b></div><div>${ico('raio')}<small>Crítico</small><b>${Math.round(st.crit * 100)}%</b></div>
+        <div>${ico('escudo')}<small>Defesa</small><b>${Math.round(st.def * 100)}%</b></div><div>${ico('andar')}<small>Velocidade</small><b>+${Math.round(st.vel * 100)}%</b></div><div>${ico('estrela')}<small>Habilidades</small><b>×${st.hab.toFixed(2)}</b></div></div>
+      <div class="linha"><button class="btn roxo" data-th="sistema">${ico('rank')} Pontos ${s.pontos ? `(+${s.pontos})` : ''}</button>${botaoCompra('Treinar', custoTreinar(l), 'treinar', 'verde')}</div>
+      <div class="linha"><button class="btn azul" data-th="visual">${ico('pincel')} Aparência</button></div>
+      <p class="suave">Equipamento: +${q.atk}% ataque · +${q.vida} vida · +${q.crit}% crítico · +${q.def}% defesa · +${q.vel}% velocidade</p>`;
+  }
+  if (TH.aba === 'comp') {
+    if (!S.guilda) h += `<p class="suave">Sozinho por enquanto. Entre numa <b>guilda</b> para ter companheiros nas missões e a Força da guilda (+XP).</p>`;
+    else h += `<div class="forcaG">${ico('raio')}<div><b>Força da guilda: +${E.forcaGuilda()}% XP</b><small>${esc(S.guilda.nome)} · ${S.herois.length}/12 membros</small></div></div><div class="grade">` +
+      E.membros().sort((a, b) => E.poder(b) - E.poder(a)).map(h2 => { const c = CLASSES[h2.cls], r = RARIDADES[h2.rar];
+        return `<div class="heroi" style="--r:${r.cor};--c:${c.cor}">${selo(E.rankHeroi(h2), 'mini canto')}<span class="retrato">${ico(c.icone)}</span>${estrelas(h2.rar)}<b>${esc(h2.nome)}</b><small>${c.nome} · Nv ${h2.nivel}</small><div class="poder">${ico('poder')}${fmt(E.poder(h2))}</div>${chipEstado(h2)}</div>`; }).join('') + '</div>';
+  }
+  $('#thCorpo').innerHTML = h;
+}
+function cliqueTH(e) {
+  const b = e.target.closest('button'); if (!b || !TH) return; const d = b.dataset;
+  if (d.th === 'fechar') return fecharTH();
+  if (d.thaba) { TH.aba = d.thaba; som('clique'); return desenharTH(); }
+  if (d.it != null) { if (!d.it && d.slot) { TH.aba = 'equip'; TH.sel = S.mochila.find(x => x.slot === d.slot)?.id || null; if (!TH.sel) aviso(`Nenhum item de ${ESPACOS[d.slot].nome} na mochila`); } else TH.sel = TH.sel === d.it ? null : d.it; TH.aba = 'equip'; som('clique'); return desenharTH(); }
+  const sel = TH.sel && (S.mochila.find(x => x.id === TH.sel) || Object.values(S.equip).find(x => x?.id === TH.sel));
+  if (d.th === 'eq' && sel && E.equipar(sel.id)) { som('espada'); refazerTH(); TH.P.tocar('Cheering', { loop: false, reinicia: true }); TH.anim = C.tempo() + 1.6; C.faiscas(C.ESTUDIO.x, 2, C.ESTUDIO.z, parseInt(RARIDADE_ITEM[sel.rar].cor.slice(1), 16), 30, 4); }
+  if (d.th === 'tirar' && sel && E.desequipar(sel.slot)) { som('clique'); refazerTH(); }
+  if (d.th === 'vender' && sel) { const v = E.venderItem(sel.id); if (v) { som('moedas'); aviso(`${ico('ouro')} +${fmt(v)} ouro`); TH.sel = null; } }
+  if (d.a === 'treinar') { if (E.treinar(S.lider)) { som('espada'); TH.P.tocar(animAtaque(E.lider().visual), { loop: false, reinicia: true }); TH.anim = C.tempo() + 1.2; } else { som('erro'); aviso(`${ico('ouro')} Ouro insuficiente`, 'erro'); } }
+  if (d.th === 'sistema') { som('abrir'); janelaSistema(); }
+  if (d.th === 'visual') { const id = S.lider; fecharTH(); abrirCriador(id, { aoFechar: () => { revestir(id); abrirTelaHeroi(); } }); return; }
+  desenharTH();
+}
+
 // ---------------- folha (abas e painéis) ----------------
 let folhaAtual = null, modoCompra = 1;
 function folha(tipo, titulo, icone, cor) {
@@ -247,6 +329,7 @@ function folha(tipo, titulo, icone, cor) {
   desenharFolha(true);
 }
 export function abrirAba(aba) {
+  if (aba === 'herois') { document.querySelectorAll('#nav [data-aba]').forEach(b => b.classList.remove('on', 'novo')); return abrirTelaHeroi(); }
   ui.aba = aba; document.querySelectorAll('#nav [data-aba]').forEach(b => { b.classList.toggle('on', b.dataset.aba === aba); if (b.dataset.aba === aba) b.classList.remove('novo'); });
   if (!aba) { $('#folha').hidden = true; folhaAtual = null; return; }
   const T = { guilda: ['Guilda', 'guilda', '#c98a3a'], herois: ['Seu herói e companheiros', 'herois', '#4a7bd0'], missoes: ['Missões', 'missoes', '#3f8f4a'], recrutar: ['Baús de itens', 'bau', '#c98a3a'], objetivos: ['Objetivos', 'objetivos', '#e0a83a'] }[aba];
@@ -575,7 +658,7 @@ function revelarNovos(novas) {
 }
 let etapaVista = -1;
 function guiar() {
-  const antes = S.etapa, novas = avancar({ folha: folhaAtual === 'predio' ? 'predio:' + predioAberto : folhaAtual });
+  const antes = S.etapa, novas = avancar({ folha: TH ? 'herois' : folhaAtual === 'predio' ? 'predio:' + predioAberto : folhaAtual });
   if (novas.length) revelarNovos(novas);
   if (S.etapa > antes && etapaVista >= 0) { som('confirma'); aviso(`${ico('check')} Tarefa concluída!`, 'ok', 2200); }
   etapaVista = S.etapa;
