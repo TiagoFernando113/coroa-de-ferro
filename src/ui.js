@@ -59,7 +59,7 @@ export function montar() {
     <div id="modal" hidden></div>
     <div id="avisos"></div>
     <div id="flutua"></div>
-    <div id="guia" hidden>${ico('mao')}</div>`;
+    <div id="guia" hidden><i class="gAnel"></i><i class="gSeta"></i></div>`;
   $('#nav').onclick = e => { const b = e.target.closest('[data-aba]'); if (b) { som('clique'); abrirAba(b.dataset.aba === ui.aba ? null : b.dataset.aba); } };
   $('#folha').addEventListener('click', e => { if (e.target.closest('[data-fechar]')) { som('fechar'); abrirAba(null); } });
   $('#bConfig').onclick = () => { som('clique'); configuracoes(); };
@@ -698,7 +698,10 @@ function guiar() {
   // nada para tocar com o painel aberto? aponta o botão de fechar
   const el = e && (e.alvo.map(alvoEl).find(Boolean) || (folhaAtual && $('#modal').hidden ? alvoEl('[data-fechar]') : null));
   guia.hidden = !el;
-  if (el) { const r = el.getBoundingClientRect(); guia.style.transform = `translate(${r.left + r.width / 2}px,${r.top + r.height * 0.6}px)`; }
+  if (el) { // contorno pulsando em volta do alvo + seta apontando (de cima; de baixo se o alvo estiver no topo da tela)
+    const r = el.getBoundingClientRect(), pad = 5, k = `${Math.round(r.left)},${Math.round(r.top)},${Math.round(r.width)},${Math.round(r.height)}`;
+    if (guia.dataset.k !== k) { guia.dataset.k = k; Object.assign(guia.style, { left: r.left - pad + 'px', top: r.top - pad + 'px', width: r.width + pad * 2 + 'px', height: r.height + pad * 2 + 'px' });
+      guia.classList.toggle('baixo', r.top < 130); guia.style.setProperty('--raio', getComputedStyle(el).borderRadius === '50%' ? '50%' : '16px'); } }
 }
 
 // ---------------- atualização por quadro ----------------

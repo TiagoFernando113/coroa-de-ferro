@@ -81,8 +81,13 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;paddin
 @keyframes surge{from{opacity:0;scale:.85}}
 #hud [hidden]{display:none!important}
 /* mãozinha das etapas */
-#guia{position:absolute;left:0;top:0;z-index:45;pointer-events:none;width:0;height:0}
-#guia .ico{position:absolute;left:-6px;top:0;width:52px;height:52px;color:#fff;filter:drop-shadow(0 0 2px #000) drop-shadow(0 3px 3px rgba(0,0,0,.6));transform:rotate(-20deg);transform-origin:10% 5%;animation:toca .9s ease-in-out infinite}
+#guia{position:fixed;z-index:45;pointer-events:none;transition:left .25s,top .25s,width .25s,height .25s}
+#guia .gAnel{position:absolute;inset:0;border-radius:var(--raio,16px);border:3px solid #ffd84a;box-shadow:0 0 0 3px rgba(90,52,8,.55),0 0 16px 4px rgba(255,216,74,.8);animation:gPulsa 1.1s ease-in-out infinite}
+#guia .gSeta{position:absolute;left:50%;bottom:calc(100% + 6px);width:0;height:0;margin-left:-13px;border-left:13px solid transparent;border-right:13px solid transparent;border-top:18px solid #ffd84a;filter:drop-shadow(0 2px 0 #8a5a14) drop-shadow(0 3px 4px rgba(0,0,0,.5));animation:gPula .7s ease-in-out infinite alternate}
+#guia.baixo .gSeta{bottom:auto;top:calc(100% + 6px);border-top:0;border-bottom:18px solid #ffd84a}
+@keyframes gPulsa{50%{transform:scale(1.06);opacity:.75}}
+@keyframes gPula{to{translate:0 -8px}}
+#guia.baixo .gSeta{animation-name:gPulaB}@keyframes gPulaB{to{translate:0 8px}}
 @keyframes toca{50%{translate:6px 10px;scale:.9}}
 /* novidades */
 .rotulo.novo{border-color:#ffe27a;box-shadow:0 0 0 3px rgba(255,226,122,.5),0 0 18px #ffd23a;animation:pula2 .8s ease-in-out infinite}
