@@ -465,6 +465,9 @@ export function acessorios(v) {
 }
 // armas modeladas em outro eixo (arcos e bestas): giro para ficarem certas na mão
 const ROT_ARMA = { 'A:crossbow_1handed': [-Math.PI / 2, 0, 0], 'A:crossbow_2handed': [-Math.PI / 2, 0, 0] };
+// escudos: de frente, em pé (com a ponta para baixo) no braço esquerdo
+for (const id of ['A:shield_round', 'A:shield_round_color', 'A:shield_round_barbarian', 'A:shield_badge', 'A:shield_badge_color', 'A:shield_square', 'A:shield_square_color',
+  'A:shield_spikes', 'A:shield_spikes_color', 'W:shield_A', 'W:shield_B', 'W:shield_C']) ROT_ARMA[id] = [-Math.PI / 2, 0, -Math.PI / 2];
 export function heroi(v) {
   if (!H) prepararHerois();
   const raiz = new THREE.Group(), corpo = new THREE.Group(), rig = H.raizOsso.clone(true);
