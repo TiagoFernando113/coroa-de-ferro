@@ -9,6 +9,7 @@ import { GUILDA_W, posCampo, ESC_MUNDO, CENTROS } from './mundo.js';
 import { ico, som, ui } from './ui.js';
 import { gerarItem, sortearRaridade, atributosEquip, RARIDADE_ITEM } from './itens.js';
 import { MONSTROS } from './bestiario.js';
+import { iniciarExpl, passoExpl, covilDerrotado, mapaGrande } from './explorar.js';
 
 const $ = s => document.querySelector(s);
 const difAng = (a, b) => Math.atan2(Math.sin(b - a), Math.cos(b - a));
@@ -146,6 +147,7 @@ export function iniciarExploracao(aoFim) {
     campo: null, aoFim, fim: false, reg: REGIOES[0], forca: 1, loot: [], emboscada: null, spawnT: 0, ganhos: { xp: 0, ouro: 0, mortes: 0 } };
   ui.foco = { x: lider.x, z: lider.z }; C.camera.dist = 44; C.camera.pitch = 0.9; C.camera.yaw = Math.PI - 0.3; C.camera.suave = 8;
   montarHud(); som('enviar');
+  iniciarExpl({ L: () => L, criarMonstro, numero, faixa });
   return true;
 }
 function criarMonstro(tp, r, x, z, elite = false) {
@@ -190,7 +192,7 @@ function montarHud() {
       <div class="lMissao"><b>${L.q.nome}</b><small>${ico(L.reg.icone)} ${L.reg.nome} · <span id="lRest"></span></small></div></div>
     <div class="lVida"><span class="retrato">${ico(CLASSES[L.lider.h.cls].icone)}</span><div class="barra vida"><i></i><span></span></div></div>
     <div id="lSeta">${ico('seta')}</div>
-    <canvas id="lJoy"></canvas><div id="lNums"></div><div id="lBarras"></div>
+    <canvas id="lJoy"></canvas>${L.explorar ? '<canvas id="lMapa" width="260" height="260"></canvas>' : ''}<div id="lNums"></div><div id="lBarras"></div>
     <div class="lAcoes">
       <button class="lb h1" data-hab="0">${ico(L.lider.alc > 5 ? 'h_chuva' : 'h_giro')}<i></i></button>
       <button class="lb h2" data-hab="1">${ico(L.lider.alc > 5 ? 'h_fogo' : 'h_investida')}<i></i></button>
@@ -204,7 +206,7 @@ function montarHud() {
   const solta = e => { if (L?.joy && e.pointerId === L.joy.id) L.joy = null; };
   cv.addEventListener('pointerup', solta); cv.addEventListener('pointercancel', solta);
   el.addEventListener('pointerdown', e => { const b = e.target.closest('[data-hab]'); if (b) { e.preventDefault(); usarHab(+b.dataset.hab); } });
-  el.addEventListener('click', e => { if (e.target.closest('[data-l="sair"]')) terminar(false, true); });
+  el.addEventListener('click', e => { if (e.target.closest('[data-l="sair"]')) terminar(false, true); if (e.target.id === 'lMapa') { som('abrir'); mapaGrande(L.lider); } });
 }
 function numero(x, y, z, txt, cor, grande = false) { L.txt.push({ x, y, z, txt, cor, grande, t: 0 }); }
 
@@ -240,7 +242,7 @@ function ferir(e, v) {
   if (e.hp <= 0) return; v = Math.round(v * (0.9 + Math.random() * 0.2)); const crit = Math.random() < (L.lider.crit || 0.12); if (crit) v = Math.round(v * 1.8);
   e.hp -= v; e.acordado = true; e.flash = 0.12; numero(e.x, e.chefe ? 7 : 4, e.z, (crit ? '!' : '') + fmt(v), crit ? '#ffd84a' : '#fff', crit);
   C.faiscas(e.x, 1.5, e.z, crit ? 0xffd84a : 0xffffff, crit ? 12 : 6, 3);
-  if (e.hp <= 0) { e.lanc = e.pulo = e.investe = null; e.sumido = false; e.v.raiz.visible = true; e.v.raiz.position.y = 0; e.v.tocar(e.bicho ? 'Death' : 'Death_A', { loop: false, reinicia: true }); e.morreu = 0; som('compra'); if (e.mundo) { recompensaMundo(e); if (Math.random() < (e.raro ? 1 : 0.08)) soltarLoot(e); } else soltarLoot(e); }
+  if (e.hp <= 0) { e.lanc = e.pulo = e.investe = null; e.sumido = false; e.v.raiz.visible = true; e.v.raiz.position.y = 0; e.v.tocar(e.bicho ? 'Death' : 'Death_A', { loop: false, reinicia: true }); e.morreu = 0; som('compra'); if (e.covil) covilDerrotado(e); if (e.mundo) { recompensaMundo(e); if (Math.random() < (e.raro ? 1 : 0.08)) soltarLoot(e); } else soltarLoot(e); }
   else if (!e.chefe && !e.grande && Math.random() < 0.4) e.v.tocar(e.bicho ? 'Idle_HitReact1' : 'Hit_A', { loop: false, reinicia: true });
 }
 function ferirHeroi(a, v) {
@@ -275,15 +277,17 @@ function soltarLoot(e) {
   for (const it of itens) { L.loot.push(it); const R = RARIDADE_ITEM[it.rar]; numero(e.x, 6, e.z, `${R.nome}!`, R.cor, true); C.faiscas(e.x, 2, e.z, parseInt(R.cor.slice(1), 16), 30, 5); }
   const bau = C.objeto('D:chest', 2.4); bau.position.set(e.x, 0, e.z); L.baus = [...(L.baus || []), bau];
 }
+let faixaAte = 0; // uma faixa por vez (as outras esperam na fila)
 function faixa(tit, sub, cls = '') {
-  const f = document.createElement('div'); f.className = 'lFaixa ' + cls; f.innerHTML = `<b>${tit}</b><span>${sub}</span>`; $('#luta').append(f); setTimeout(() => f.remove(), 3200);
+  const agora = performance.now(), espera = Math.max(0, faixaAte - agora); faixaAte = agora + espera + 2600;
+  setTimeout(() => { const box = $('#luta'); if (!box) return; const f = document.createElement('div'); f.className = 'lFaixa ' + cls; f.innerHTML = `<b>${tit}</b><span>${sub}</span>`; box.append(f); setTimeout(() => f.remove(), 2600); }, espera);
 }
 
 // ---------------- laço ----------------
 export function passoLuta(dt) {
   if (!L) return;
   L.t += dt; const j = L.lider;
-  if (L.explorar) { povoarMundo(dt); if (j.hp > 0 && !L.inimigos.some(e => e.hp > 0 && e.acordado)) j.hp = Math.min(j.max, j.hp + j.max * 0.04 * dt); }
+  if (L.explorar) { povoarMundo(dt); passoExpl(dt); if (j.hp > 0 && !L.inimigos.some(e => e.hp > 0 && e.acordado)) j.hp = Math.min(j.max, j.hp + j.max * 0.04 * dt); }
   if (L.campo && L.emboscada != null && !L.fim && 1 - Math.hypot(L.campo.x - j.x, L.campo.z - j.z) / L.distTotal > L.emboscada) emboscar();
   // joystick → direção no mundo (relativa à câmera)
   let jx = 0, jy = 0; if (L.joy) { const dx = L.joy.x - L.joy.sx, dy = L.joy.y - L.joy.sy, m = Math.hypot(dx, dy); if (m > 6) { const f = Math.min(1, m / 55); jx = dx / m * f; jy = dy / m * f; } }

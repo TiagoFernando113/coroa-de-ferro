@@ -110,25 +110,43 @@ export function montarMundo(M) {
   return filhos.length;
 }
 // peças estáticas fundidas por material em blocos de 40 m (outra área além da guilda); devolve o grupo
+// base de cada malha das peças (convertida uma vez só): atributos em Float32 e índices
+const baseMalha = new Map();
+function base(o, inv) {
+  let b = baseMalha.get(o); if (b) return b;
+  const at = o.geometry.attributes, nomes = ['position', 'normal', 'uv', 'color'].filter(n => at[n]);
+  b = { nomes, dados: nomes.map(n => toF32(at[n]).array), tam: nomes.map(n => at[n].itemSize), n: at.position.count,
+    idx: o.geometry.index ? Uint32Array.from(o.geometry.index.array) : Uint32Array.from({ length: at.position.count }, (_, i) => i),
+    local: new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld), chave: o.material.uuid + '|' + nomes.join(',') };
+  baseMalha.set(o, b); return b;
+}
 export function montarEstatico(lista) {
   const grupos = new Map(), tmp = new THREE.Object3D(), raiz = new THREE.Group();
   for (const p of lista) {
     const modelo = pecas[p.m.replace(':', '')]; if (!modelo) { console.warn('peça ausente', p.m); continue; }
     tmp.position.set(p.x, p.y || 0, p.z); tmp.rotation.set(0, p.ry || 0, 0); tmp.scale.setScalar(p.s || 1); tmp.updateMatrixWorld(true);
-    modelo.updateMatrixWorld(true); const inv = new THREE.Matrix4().copy(modelo.matrixWorld).invert();
-    modelo.traverse(o => {
-      if (!o.isMesh) return;
-      const g = new THREE.BufferGeometry();
-      for (const nome of ['position', 'normal', 'uv', 'color']) if (o.geometry.attributes[nome]) g.setAttribute(nome, toF32(o.geometry.attributes[nome]));
-      g.setIndex(o.geometry.index ? Array.from(o.geometry.index.array) : [...Array(o.geometry.attributes.position.count).keys()]);
-      g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(tmp.matrixWorld, new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld)));
-      const chave = o.material.uuid + '|' + Object.keys(g.attributes).join(',') + '|' + Math.floor(p.x / 40) + ',' + Math.floor(p.z / 40);
-      if (!grupos.has(chave)) grupos.set(chave, { mat: o.material, geos: [] });
-      grupos.get(chave).geos.push(g);
-    });
+    if (!modelo._inv) { modelo.updateMatrixWorld(true); modelo._inv = new THREE.Matrix4().copy(modelo.matrixWorld).invert(); modelo._malhas = []; modelo.traverse(o => { if (o.isMesh) modelo._malhas.push(o); }); }
+    for (const o of modelo._malhas) {
+      const b = base(o, modelo._inv), chave = b.chave + '|' + Math.floor(p.x / 40) + ',' + Math.floor(p.z / 40);
+      if (!grupos.has(chave)) grupos.set(chave, { mat: o.material, b0: b, itens: [] });
+      grupos.get(chave).itens.push([b, new THREE.Matrix4().multiplyMatrices(tmp.matrixWorld, b.local)]);
+    }
   }
-  for (const { mat, geos } of grupos.values()) {
-    const g = mergeGeometries(geos, false); if (!g) continue; g.computeBoundingSphere();
+  const v = new THREE.Vector3(), nm = new THREE.Matrix3();
+  for (const { mat, b0, itens } of grupos.values()) {
+    let nv = 0, ni = 0; for (const [b] of itens) { nv += b.n; ni += b.idx.length; }
+    const saida = b0.nomes.map((n, k) => new Float32Array(nv * b0.tam[k])), idx = new Uint32Array(ni); let ov = 0, oi = 0;
+    for (const [b, m] of itens) {
+      nm.getNormalMatrix(m);
+      b.nomes.forEach((n, k) => {
+        const src = b.dados[k], dst = saida[k], t = b.tam[k];
+        if (n === 'position' || n === 'normal') for (let i = 0; i < b.n; i++) { v.fromArray(src, i * 3); if (n === 'position') v.applyMatrix4(m); else v.applyMatrix3(nm).normalize(); v.toArray(dst, (ov + i) * 3); }
+        else dst.set(src, ov * t);
+      });
+      for (let i = 0; i < b.idx.length; i++) idx[oi + i] = b.idx[i] + ov;
+      ov += b.n; oi += b.idx.length;
+    }
+    const g = new THREE.BufferGeometry(); b0.nomes.forEach((n, k) => g.setAttribute(n, new THREE.BufferAttribute(saida[k], b0.tam[k]))); g.setIndex(new THREE.BufferAttribute(idx, 1)); g.computeBoundingSphere();
     const mesh = new THREE.Mesh(g, mat); mesh.castShadow = true; mesh.receiveShadow = true; mesh.matrixAutoUpdate = false; raiz.add(mesh);
   }
   scene.add(raiz); return raiz;

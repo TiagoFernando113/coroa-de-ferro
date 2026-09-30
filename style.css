@@ -483,3 +483,10 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;paddin
 .crRaca b{font-size:12px}
 .crRaca.on{background:linear-gradient(#ffe27a,#f0a820);border-color:#c07808;box-shadow:0 3px 0 #a86a08;color:#5a3408}
 .mochila>p{grid-column:1/-1}
+/* minimapa da exploração */
+#lMapa{position:absolute;right:10px;top:calc(max(10px,env(safe-area-inset-top)) + 58px);width:130px;height:130px;border-radius:14px;border:3px solid rgba(255,233,176,.9);box-shadow:0 4px 12px rgba(0,0,0,.45);z-index:3;pointer-events:auto}
+.mapaG{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:16px}
+.mapaCaixa{background:#2a2136;border:3px solid #ffd86a;border-radius:18px;padding:12px;width:min(94vw,520px);color:#fff;text-align:center;display:flex;flex-direction:column;gap:8px}
+.mapaCaixa h3{margin:0;display:flex;gap:6px;align-items:center;justify-content:center}.mapaCaixa h3 svg{width:22px;height:22px;fill:#ffd86a}
+.mapaCaixa canvas{width:100%;aspect-ratio:1;border-radius:12px}
+.mapaCaixa p{margin:0;font-size:12px;opacity:.9}

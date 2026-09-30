@@ -6,12 +6,13 @@ import { S } from './estado.js';
 import { REGIOES, missao } from './dados.js';
 import { animAtaque } from './aparencia.js';
 
-export const MUNDO = { x: 900, z: 0 };
-const ESC = 3.4; // 1 unidade do mapa (0–100) = 3,4 m
+export const MUNDO = { x: 1100, z: 0 };
+const ESC = 10; // 1 unidade do mapa (0–100) = 10 m: um mundo de 1 km para explorar
+export const TAM_MUNDO = 1150, MEIO_MUNDO = 520;
 const W = (px, py) => ({ x: MUNDO.x + (px - 50) * ESC, z: MUNDO.z + (py - 50) * ESC });
 export const GUILDA_W = W(8, 94);
 export const CENTROS = REGIOES.map(r => W(r.x, r.y));
-const ESTILO = [
+export const ESTILO = [
   { chao: '#2f6a2a', pecas: ['Q:Pine_1', 'Q:Pine_3', 'Q:CommonTree_2', 'Q:Pine_5', 'Q:CommonTree_4', 'Q:Fern_1'], s: 5 },
   { chao: '#4a5a2a', pecas: ['Q:DeadTree_1', 'Q:DeadTree_3', 'N:tree_blocks_dark', 'Q:Fern_1', 'N:lily_large', 'Q:Rock_Medium_2'], s: 5 },
   { chao: '#c9d2da', pecas: ['N:rock_tallA', 'N:rock_largeC', 'N:cliff_block_rock', 'N:rock_tallE', 'N:tree_pineSmallA'], s: 6 },
@@ -22,52 +23,95 @@ const ESTILO = [
   { chao: '#3a2a3a', pecas: ['C:tower-square', 'C:wall', 'C:tower-hexagon-base', 'N:rock_tallJ'], s: 4 },
 ];
 // trilha: guilda → região 0 → 1 → ...
-const TRILHA = [GUILDA_W, ...CENTROS];
+export const TRILHA = [GUILDA_W, ...CENTROS];
 function distSeg(p, a, b) { const dx = b.x - a.x, dz = b.z - a.z, t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.z - a.z) * dz) / (dx * dx + dz * dz))); return Math.hypot(p.x - a.x - dx * t, p.z - a.z - dz * t); }
-const pertoTrilha = p => { for (let i = 1; i < TRILHA.length; i++) if (distSeg(p, TRILHA[i - 1], TRILHA[i]) < 7) return true; return false; };
+const pertoTrilha = (p, m = 7) => { for (let i = 1; i < TRILHA.length; i++) if (distSeg(p, TRILHA[i - 1], TRILHA[i]) < m) return true; return false; };
+export const regiaoDe = p => { let r = 0, d0 = 1e9; CENTROS.forEach((c, i) => { const d = Math.hypot(c.x - p.x, c.z - p.z); if (d < d0) { d0 = d; r = i; } }); return r; };
+const RAIO_REG = 110;
+// ---------------- pontos de interesse: locais para descobrir, baús escondidos e covis de chefes ----------------
+const LOCAIS = [
+  [['Carvalho Ancião', 'Q:TwistedTree_1', 2.6], ['Moinho Abandonado', 'T:windmill', 5], ['Círculo das Fadas', 'N:mushroom_redGroup', 9]],
+  [['Árvore dos Enforcados', 'Q:DeadTree_1', 2.6], ['Roda d\'Água Podre', 'T:watermill', 5], ['Totem do Brejo', 'N:statue_column', 7]],
+  [['Pico do Eco', 'N:rock_tallE', 12], ['Vigia Congelada', 'C:tower-hexagon-base', 5], ['Cabeça do Gigante', 'N:statue_head', 9]],
+  [['Obelisco do Sol', 'N:statue_obelisk', 8], ['Oásis Perdido', 'T:fountain-round', 5], ['Carroça da Caravana', 'T:cart', 5]],
+  [['Colunata Élfica', 'N:statue_columnDamaged', 8], ['Rosto de Pedra', 'N:statue_head', 11], ['Torre Partida', 'C:tower-square-base', 5]],
+  [['Catapulta Queimada', 'C:siege-catapult-demolished', 5], ['Pilar de Obsidiana', 'N:rock_tallJ', 12], ['Altar de Lava', 'N:statue_obelisk', 7]],
+  [['Mausoléu Esquecido', 'C:tower-square', 4], ['Obelisco dos Mortos', 'N:statue_obelisk', 8], ['Árvore Chorona', 'Q:DeadTree_3', 2.6]],
+  [['Portão do Rei', 'C:gate', 5], ['Balista Esquecida', 'C:siege-ballista', 5], ['Estandarte Negro', 'C:flag-banner-long', 5]],
+];
+const COVIS = [['Toca do Coelho Maldito', 'coelho', 'Sr. Fofinho, o Coelho do Apocalipse'], ['Trono dos Esporos', 'reiCogu', 'Rei Cogumelo, Senhor dos Esporos'],
+  ['Caverna do Yeti', 'yeti', 'Yeti Ancestral'], ['Ninho do Raptor Rei', 'raptor', 'Raptor Rei'], ['Salão do Golem', 'golem', 'Golem Primordial'],
+  ['Ninho de Tiamat', 'draco', 'Tiamat, a Dragoa Escarlate'], ['Cripta de Grumak', 'orcCaveira', 'Grumak, o Orc Imortal'], ['Fortaleza do Orc Rei', 'orc', 'Orc Rei']];
+export const POIS = [];
+function gerarPOIs(rnd) {
+  const livre = (p, m) => !pertoTrilha(p, 10) && Math.hypot(GUILDA_W.x - p.x, GUILDA_W.z - p.z) > 40 && !POIS.some(o => Math.hypot(o.x - p.x, o.z - p.z) < m)
+    && Math.abs(p.x - MUNDO.x) < MEIO_MUNDO - 20 && Math.abs(p.z - MUNDO.z) < MEIO_MUNDO - 20;
+  const achar = (c, d0, d1, m) => { for (let k = 0; k < 60; k++) { const a = rnd() * 6.28, d = d0 + rnd() * (d1 - d0), p = { x: c.x + Math.cos(a) * d, z: c.z + Math.sin(a) * d }; if (livre(p, m)) return p; } return null; };
+  CENTROS.forEach((c, r) => {
+    const cv = achar(c, 60, 95, 40); if (cv) POIS.push({ id: 'c' + r, tipo: 'covil', r, ...cv, nome: COVIS[r][0], chefe: COVIS[r][1], nomeChefe: COVIS[r][2] });
+    LOCAIS[r].forEach(([nome, m, s], i) => { const p = achar(c, 30, 105, 45); if (p) POIS.push({ id: 'l' + r + i, tipo: 'local', r, ...p, nome, m, s }); });
+  });
+  for (let k = 0; k < 95; k++) { const p = { x: MUNDO.x + (rnd() - 0.5) * (TAM_MUNDO - 80), z: MUNDO.z + (rnd() - 0.5) * (TAM_MUNDO - 80) }; if (livre(p, 25)) POIS.push({ id: 'b' + k, tipo: 'bau', r: regiaoDe(p), ...p }); }
+}
 
 let montado = false, visivel = false;
 export function montarMundoMapa() {
   if (montado) return; montado = true;
-  const TAM = 420;
+  const TAM = TAM_MUNDO;
   C.chaoPintado(MUNDO.x, MUNDO.z, TAM, (g, P) => {
     g.fillStyle = '#5c8f3a'; g.fillRect(0, 0, 2048, 2048);
     let sd = 7; const r = () => ((sd = (sd * 16807) % 2147483647) / 2147483647);
     for (let i = 0; i < 7000; i++) { g.fillStyle = `hsla(${85 + r() * 25},40%,${30 + r() * 12}%,.3)`; g.beginPath(); g.arc(r() * 2048, r() * 2048, 3 + r() * 12, 0, 7); g.fill(); }
     CENTROS.forEach((c, i) => {
-      const gr = g.createRadialGradient(P(c.x), P(c.z, 'z'), 0, P(c.x), P(c.z, 'z'), 34 * 2048 / TAM);
+      const gr = g.createRadialGradient(P(c.x), P(c.z, 'z'), 0, P(c.x), P(c.z, 'z'), RAIO_REG * 2048 / TAM);
       gr.addColorStop(0, ESTILO[i].chao); gr.addColorStop(0.7, ESTILO[i].chao); gr.addColorStop(1, 'rgba(0,0,0,0)');
       g.fillStyle = gr; g.fillRect(0, 0, 2048, 2048);
-      if (i === 5) { g.strokeStyle = '#ff6a1a'; g.lineWidth = 6; for (let k = 0; k < 6; k++) { g.beginPath(); g.moveTo(P(c.x), P(c.z, 'z')); g.lineTo(P(c.x + (r() - 0.5) * 50), P(c.z + (r() - 0.5) * 50, 'z')); g.stroke(); } }
+      if (i === 5) { g.strokeStyle = '#ff6a1a'; g.lineWidth = 6; for (let k = 0; k < 14; k++) { g.beginPath(); g.moveTo(P(c.x), P(c.z, 'z')); g.lineTo(P(c.x + (r() - 0.5) * 160), P(c.z + (r() - 0.5) * 160, 'z')); g.stroke(); } }
     });
     g.lineCap = 'round'; g.lineJoin = 'round';
   });
   let sd = 11; const rnd = () => ((sd = (sd * 16807) % 2147483647) / 2147483647);
   const L = [];
+  gerarPOIs(rnd);
   // estrada de pedras com pedrinhas, grama e postes de sinalização nas beiradas
   const est = C.estrada(TRILHA, 5);
-  for (const p of est.pontos(260)) for (const lado of [-1, 1]) {
+  for (const p of est.pontos(700)) for (const lado of [-1, 1]) {
     const d = (3.4 + rnd() * 1.2) * lado, x = p.x + p.nx * d, z = p.z + p.nz * d, k = rnd();
     if (k < 0.45) L.push({ m: 'Q:Pebble_Round_' + (1 + Math.floor(rnd() * 3)), x, z, ry: rnd() * 6, s: 1.5 + rnd() });
     else if (k < 0.8) L.push({ m: rnd() < 0.5 ? 'Q:Grass_Common_Short' : 'Q:Grass_Wispy_Tall', x, z, ry: rnd() * 6, s: 1 + rnd() * 0.6 });
     else if (k < 0.86) L.push({ m: 'Q:Flower_3_Group', x, z, ry: rnd() * 6, s: 1 });
   }
-  for (const p of est.pontos(14)) L.push({ m: 'T:lantern', x: p.x + p.nx * 4.2, z: p.z + p.nz * 4.2, s: 3 });
+  for (const p of est.pontos(36)) L.push({ m: 'T:lantern', x: p.x + p.nx * 4.2, z: p.z + p.nz * 4.2, s: 3 });
   // cenário de cada região (com uma clareira no meio para os acampamentos)
   CENTROS.forEach((c, i) => {
     const e = ESTILO[i];
-    for (let k = 0; k < 34; k++) {
-      const a = rnd() * 6.28, d = 14 + rnd() * 18, p = { x: c.x + Math.cos(a) * d, z: c.z + Math.sin(a) * d };
-      if (pertoTrilha(p)) continue;
+    for (let k = 0; k < 190; k++) {
+      const a = rnd() * 6.28, d = 16 + Math.sqrt(rnd()) * (RAIO_REG - 10), p = { x: c.x + Math.cos(a) * d, z: c.z + Math.sin(a) * d };
+      if (pertoTrilha(p) || POIS.some(o => Math.hypot(o.x - p.x, o.z - p.z) < (o.tipo === 'bau' ? 4 : 12))) continue;
       const m = e.pecas[Math.floor(rnd() * e.pecas.length)]; // peças da Quaternius já estão em metros
       L.push({ m, x: p.x, z: p.z, ry: rnd() * 6.28, s: (m.startsWith('Q:') ? 1.4 : e.s) * (0.8 + rnd() * 0.5) });
     }
   });
-  // árvores e pedras no resto do mapa
-  for (let k = 0; k < 260; k++) {
-    const p = { x: MUNDO.x + (rnd() - 0.5) * TAM * 0.95, z: MUNDO.z + (rnd() - 0.5) * TAM * 0.95 };
-    if (pertoTrilha(p) || CENTROS.some(c => Math.hypot(c.x - p.x, c.z - p.z) < 36) || Math.hypot(GUILDA_W.x - p.x, GUILDA_W.z - p.z) < 22) continue;
-    L.push({ m: rnd() < 0.8 ? ['N:tree_oak', 'N:tree_default', 'N:tree_pineRoundB', 'N:tree_fat'][Math.floor(rnd() * 4)] : 'N:rock_largeA', x: p.x, z: p.z, ry: rnd() * 6.28, s: 5 + rnd() * 2 });
+  // bosques (grupos de árvores), pedras e arbustos no resto do mapa
+  const ocupado = p => pertoTrilha(p) || CENTROS.some(c => Math.hypot(c.x - p.x, c.z - p.z) < RAIO_REG * 0.8) || Math.hypot(GUILDA_W.x - p.x, GUILDA_W.z - p.z) < 25
+    || POIS.some(o => Math.hypot(o.x - p.x, o.z - p.z) < (o.tipo === 'bau' ? 4 : 12));
+  const ARV = ['N:tree_oak', 'N:tree_default', 'N:tree_pineRoundB', 'N:tree_fat', 'N:tree_detailed', 'N:tree_pineTallA'];
+  for (let b = 0; b < 110; b++) {
+    const c = { x: MUNDO.x + (rnd() - 0.5) * TAM * 0.95, z: MUNDO.z + (rnd() - 0.5) * TAM * 0.95 }, tipo = ARV[Math.floor(rnd() * ARV.length)], raio = 12 + rnd() * 22;
+    for (let k = 0; k < 14 + rnd() * 16; k++) { const a = rnd() * 6.28, d = Math.sqrt(rnd()) * raio, p = { x: c.x + Math.cos(a) * d, z: c.z + Math.sin(a) * d }; if (ocupado(p)) continue;
+      L.push({ m: rnd() < 0.8 ? tipo : ARV[Math.floor(rnd() * ARV.length)], x: p.x, z: p.z, ry: rnd() * 6.28, s: 5 + rnd() * 2.5 }); }
+  }
+  for (let k = 0; k < 2200; k++) {
+    const p = { x: MUNDO.x + (rnd() - 0.5) * TAM * 0.97, z: MUNDO.z + (rnd() - 0.5) * TAM * 0.97 }; if (ocupado(p)) continue; const q = rnd();
+    L.push(q < 0.3 ? { m: ARV[Math.floor(rnd() * ARV.length)], x: p.x, z: p.z, ry: rnd() * 6.28, s: 5 + rnd() * 2 } : q < 0.45 ? { m: ['N:rock_largeA', 'N:rock_largeC', 'N:stone_largeB'][Math.floor(rnd() * 3)], x: p.x, z: p.z, ry: rnd() * 6.28, s: 4 + rnd() * 3 }
+      : q < 0.75 ? { m: ['N:plant_bushLarge', 'N:plant_bush', 'N:grass_large'][Math.floor(rnd() * 3)], x: p.x, z: p.z, ry: rnd() * 6.28, s: 4 + rnd() * 2 }
+      : { m: ['N:flower_redA', 'N:flower_yellowA', 'N:flower_purpleA', 'N:mushroom_red', 'N:stump_round', 'N:log'][Math.floor(rnd() * 6)], x: p.x, z: p.z, ry: rnd() * 6.28, s: 4 + rnd() * 2 });
+  }
+  // locais e covis
+  for (const o of POIS) {
+    if (o.tipo === 'local') L.push({ m: o.m, x: o.x, z: o.z, ry: rnd() * 6.28, s: o.s });
+    if (o.tipo === 'covil') { for (let k = 0; k < 7; k++) { const a = k / 7 * 6.28 + 0.4; L.push({ m: k % 2 ? 'N:rock_tallA' : 'N:rock_largeC', x: o.x + Math.cos(a) * 11, z: o.z + Math.sin(a) * 11, ry: rnd() * 6, s: 6 + rnd() * 3 }); }
+      L.push({ m: 'D:banner', x: o.x, z: o.z - 9, s: 4 }, { m: 'N:campfire_stones', x: o.x + 4, z: o.z + 4, s: 5 }); }
   }
   // a sua guilda no mapa
   const g = GUILDA_W;
@@ -82,7 +126,7 @@ const marchas = {}; // uid da missão → { herois: [{id, v}] }
 const MODELO = [['lacaio', [['lamina', 'r']], 1], ['batedor', [['besta', 'r']], 1], ['guerreiro', [['machado', 'r'], ['escudoP', 'l']], 1.15], ['guerreiro', [['machado', 'r'], ['escudoG', 'l']], 2]];
 // acampamento numa clareira em volta do centro da região, fora da estrada
 export function posCampo(r, dx, dy) {
-  const c = CENTROS[r]; let a = Math.atan2(dy || 0.3, dx || 0.3); const d = 12 + Math.abs(dx || 0) * 0.9;
+  const c = CENTROS[r]; let a = Math.atan2(dy || 0.3, dx || 0.3); const d = 16 + Math.abs(dx || 0) * 1.6;
   for (let k = 0; k < 12; k++, a += 0.52) { const p = { x: c.x + Math.cos(a) * d, z: c.z + Math.sin(a) * d }; if (!pertoTrilha(p)) return p; }
   return { x: c.x + d, z: c.z };
 }

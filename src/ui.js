@@ -7,7 +7,7 @@ import { EDIFICIOS, EF, custoEd, descEfeito, proxMarco, marcosAte, CLASSES, RARI
   REGIOES, missao, reqRegiao, chanceSucesso, xpFama, OBJETIVOS, fmt, fmtTempo, ATRIBUTOS, xpSistema, rankDe, RANKS, RANKING, rankPoder, RANK_REGIAO, LETRAS, GEMAS_TROCAR, ORDEM_SEG, GEMAS_ORDENS } from './dados.js';
 import { POS, atualizarPredio, revestir } from './base.js';
 import { abrirCriador } from './criador.js';
-import { MUNDO, GUILDA_W, mostrarMundo, mundoVisivel, camposVisiveis } from './mundo.js';
+import { MUNDO, GUILDA_W, CENTROS, MEIO_MUNDO, mostrarMundo, mundoVisivel, camposVisiveis } from './mundo.js';
 import { iniciarLuta, iniciarExploracao } from './luta.js';
 import { RARIDADE_ITEM, ESPACOS, ATR_ITEM, textoAtr, precoItem, atributosEquip, chancesItem, BAUS, GEMAS_BAU } from './itens.js';
 import { ETAPAS, avancar, etapaAtual, revelado, visivel, livre, proximoTrancado } from './etapas.js';
@@ -86,7 +86,7 @@ function controles() {
     }
     const p0 = C.chaoEm(d.x, d.y), p1 = C.chaoEm(e.clientX, e.clientY);
     if (Math.hypot(e.clientX - ini.x, e.clientY - ini.y) > 8) arrastou = true;
-    if (p0 && p1 && arrastou) { const m = mundoVisivel(), cx = m ? MUNDO.x : 0, cz = m ? MUNDO.z : 0, L = m ? 190 : 26; ui.foco.x = Math.max(cx - L, Math.min(cx + L, ui.foco.x + p0.x - p1.x)); ui.foco.z = Math.max(cz - L, Math.min(cz + (m ? L : 30), ui.foco.z + p0.z - p1.z)); C.camera.suave = 30; }
+    if (p0 && p1 && arrastou) { const m = mundoVisivel(), cx = m ? MUNDO.x : 0, cz = m ? MUNDO.z : 0, L = m ? MEIO_MUNDO - 40 : 26; ui.foco.x = Math.max(cx - L, Math.min(cx + L, ui.foco.x + p0.x - p1.x)); ui.foco.z = Math.max(cz - L, Math.min(cz + (m ? L : 30), ui.foco.z + p0.z - p1.z)); C.camera.suave = 30; }
     d.x = e.clientX; d.y = e.clientY;
   });
   const fim = e => {
@@ -102,9 +102,9 @@ let focoGuilda = null;
 export function irMundo(sim) {
   if (sim === mundoVisivel()) return;
   mostrarMundo(sim); abrirAba(null);
-  if (sim) { focoGuilda = { x: ui.foco.x, z: ui.foco.z, dist: C.camera.dist }; ui.foco = { x: GUILDA_W.x + 40, z: GUILDA_W.z - 40 }; C.camera.dist = 95; }
+  if (sim) { focoGuilda = { x: ui.foco.x, z: ui.foco.z, dist: C.camera.dist }; ui.foco = { x: GUILDA_W.x + 40, z: GUILDA_W.z - 40 }; C.camera.dist = 120; }
   else { ui.foco = { x: focoGuilda?.x || 0, z: focoGuilda?.z || 0 }; C.camera.dist = focoGuilda?.dist || 74; }
-  C.camera.suave = 60; if (sim) C.neblina(160, 420); else C.neblina(70, 150);
+  C.camera.suave = 60; if (sim) C.neblina(180, 480); else C.neblina(70, 150);
   $('#bMundo').innerHTML = sim ? `${ico('guilda')}<span>Guilda</span>` : `${ico('missoes')}<span>Mundo</span>`;
   $('#rotulos').hidden = sim; $('#rotulosMundo').hidden = !sim; $('#bExplorar').hidden = !sim;
   if (sim) aviso(`${ico('missoes')} Mapa do mundo: toque num acampamento ou em Explorar para andar livre`, '', 3200);
@@ -127,7 +127,7 @@ function rotulosMundo() {
     const t = C.tela(x, y, z); if (!t || t[1] < 50 || t[1] > innerHeight - 80) { el.style.display = 'none'; return; }
     el.style.display = ''; el.style.transform = `translate(${t[0]}px,${t[1]}px) translate(-50%,-100%)`;
   };
-  REGIOES.forEach((r, i) => { const p = { x: MUNDO.x + (r.x - 50) * 3.4, z: MUNDO.z + (r.y - 50) * 3.4 };
+  REGIOES.forEach((r, i) => { const p = CENTROS[i];
     por('r' + i, p.x, 14, p.z - 12, `${i > S.regiao ? ico('cadeado') : ico(r.icone)}<b>${r.nome}</b>${selo(RANK_REGIAO[i], 'mini')}`, 'regM ' + (i > S.regiao ? 'trancado' : '')); });
   for (const [k, c] of camposVisiveis()) {
     if (c.q) { const q = c.q; por(k, c.x, c.t === 3 ? 7 : 4.5, c.z, `${selo(q.rank, 'mini')}<b>${q.t === 3 ? 'PROCURADO' : esc(q.nome)}</b>`, 'campoM ' + (q.t === 3 ? 'chefeM' : ''), q.id); }
