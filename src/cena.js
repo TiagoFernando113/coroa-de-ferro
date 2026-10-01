@@ -112,7 +112,8 @@ export function montarMundo(M) {
 // peças estáticas fundidas por material em blocos de 40 m (outra área além da guilda); devolve o grupo
 // recorte: o cenário entre a câmera e o herói some (dá para ver o herói atrás de árvores e pedras)
 const RECORTE = { rHeroi: { value: new THREE.Vector3() }, rCam: { value: new THREE.Vector3() }, rAtivo: { value: 0 } };
-export const recorte = v => { RECORTE.rAtivo.value = v ? 1 : 0; };
+let alvoR = null;
+export const recorte = (v, x, z) => { RECORTE.rAtivo.value = v ? 1 : 0; alvoR = v && x != null ? { x, z } : null; };
 const comRecorte = new Set();
 function aplicarRecorte(mat) {
   if (comRecorte.has(mat) || mat.onBeforeCompile !== THREE.Material.prototype.onBeforeCompile) return; comRecorte.add(mat);
@@ -652,6 +653,11 @@ function criarPontos() {
   pontos.frustumCulled = false; scene.add(pontos);
 }
 const corTmp = new THREE.Color();
+// feixe de luz entre dois pontos (raio em cadeia)
+export function feixe(x1, z1, x2, z2, cor = 0xc9a0ff) {
+  const d = Math.hypot(x2 - x1, z2 - z1), m = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.25, d), MAT_ADD(cor));
+  m.position.set((x1 + x2) / 2, 1.8, (z1 + z2) / 2); m.rotation.y = Math.atan2(x2 - x1, z2 - z1); scene.add(m); efeitos.push({ o: m, t: 0, dur: 0.3, tipo: 'fade' });
+}
 export function faiscas(x, y, z, cor, n = 10, forca = 3) {
   corTmp.set(cor);
   for (let i = 0; i < n && part.length < MAXP; i++) {
@@ -664,7 +670,7 @@ export function faiscas(x, y, z, cor, n = 10, forca = 3) {
 export const camera = { yaw: Math.PI, pitch: 0.72, dist: 12, alvo: new THREE.Vector3(), tremor: 0, suave: 10 };
 const olharTmp = new THREE.Vector3();
 export function quadro(dt, foco) {
-  relogio += dt; RECORTE.rHeroi.value.set(foco.x, 2.2, foco.z); RECORTE.rCam.value.copy(cam.position);
+  relogio += dt; RECORTE.rHeroi.value.set(alvoR ? alvoR.x : foco.x, 2.2, alvoR ? alvoR.z : foco.z); RECORTE.rCam.value.copy(cam.position);
   if (!pontos) criarPontos();
   // efeitos
   for (let i = efeitos.length - 1; i >= 0; i--) {
