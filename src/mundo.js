@@ -183,6 +183,9 @@ export function montarMundoMapa() {
   L.push({ m: 'C:tower-square', x: g.x, z: g.z, s: 5 }, { m: 'C:flag', x: g.x, y: 10, z: g.z, s: 4 }, { m: 'C:wall', x: g.x - 5, z: g.z, s: 5, ry: Math.PI / 2 }, { m: 'C:wall', x: g.x + 5, z: g.z, s: 5, ry: Math.PI / 2 },
     { m: 'T:banner-red', x: g.x + 3, z: g.z - 4, s: 3 }, { m: 'N:tent_detailedOpen', x: g.x - 8, z: g.z - 8, s: 4 });
   window.__pecas = L; // para testes
+  if (C.qualidadeAtual() === 'baixa') { let sd2 = 3; const r2 = () => ((sd2 = (sd2 * 16807) % 2147483647) / 2147483647);
+    const enfeite = m => /^(F:Grass|F:Bush|F:Rock_2|Q:Pebble|Q:Grass|Q:Flower|Q:Clover|N:flower|N:grass|N:plant|N:mushroom)/.test(m);
+    for (let n = L.length - 1; n >= 0; n--) if (enfeite(L[n].m) && r2() < 0.6) L.splice(n, 1); }
   C.montarEstatico(L);
 }
 

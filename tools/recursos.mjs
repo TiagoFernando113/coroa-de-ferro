@@ -8,6 +8,7 @@ const ARQ = {
   clique: path.join(I, 'click_002.ogg'), abrir: path.join(I, 'open_001.ogg'), fechar: path.join(I, 'close_001.ogg'), erro: path.join(I, 'error_004.ogg'),
   compra: path.join(R, 'handleCoins.ogg'), moedas: path.join(R, 'handleCoins2.ogg'), enviar: path.join(R, 'doorOpen_1.ogg'), livro: path.join(R, 'bookFlip2.ogg'),
   espada: path.join(R, 'drawKnife2.ogg'), confirma: path.join(I, 'confirmation_001.ogg'), marco: path.join(J, 'Hit jingles/jingles_HIT00.ogg'), nivel: path.join(J, 'Sax jingles/jingles_SAX07.ogg'),
+  corte: path.join(R, 'knifeSlice.ogg'), corte2: path.join(R, 'knifeSlice2.ogg'), pancada: path.join(R, 'chop.ogg'), metal: path.join(R, 'metalPot1.ogg'),
   lendario: path.join(J, 'Steel jingles/jingles_STEEL04.ogg'), falha: path.join(J, 'Sax jingles/jingles_SAX02.ogg'), recrutar: path.join(J, 'Hit jingles/jingles_HIT02.ogg'),
 };
 const partes = [], cab = {}; let pos = 0;

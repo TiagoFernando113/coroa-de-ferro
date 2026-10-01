@@ -3,10 +3,11 @@
 import * as C from './cena.js';
 import * as E from './estado.js';
 import { S } from './estado.js';
-import { missao, REGIOES, CLASSES, fmt } from './dados.js';
+import { missao, REGIOES, CLASSES, fmt, LETRAS } from './dados.js';
 import { armaInfo, animAtaque } from './aparencia.js';
 import { GUILDA_W, posCampo, ESC_MUNDO, CENTROS } from './mundo.js';
 import { ico, som, ui } from './ui.js';
+import { tema, sfx } from './musica.js';
 import { gerarItem, sortearRaridade, atributosEquip, RARIDADE_ITEM } from './itens.js';
 import { MONSTROS } from './bestiario.js';
 import { iniciarExpl, passoExpl, covilDerrotado, mapaGrande, abateTarefa, usarPocao, pocoes } from './explorar.js';
@@ -122,7 +123,7 @@ export function iniciarLuta(qid, ids, aoFim) {
   L = { q, ids, lider, aliados, inimigos, proj: [], txt: [], joy: null, mx: 0, mz: 0, t: 0, campo, aoFim, fim: false, reg: REGIOES[q.r], m, forca, loot: [],
     distTotal: Math.hypot(campo.x - lider.x, campo.z - lider.z), emboscada: Math.random() < 0.6 + q.rank * 0.05 ? 0.35 + Math.random() * 0.3 : null };
   ui.foco = { x: lider.x, z: lider.z }; C.camera.dist = 34; C.camera.pitch = 0.82; C.camera.yaw = Math.PI - 0.3; C.camera.suave = 8; L.neblina = C.neblinaAtual(); C.neblina(55, 135); C.recorte(true);
-  montarHud(); som('enviar');
+  montarHud(); som('enviar'); tema(q.r);
   return true;
 }
 
@@ -147,7 +148,7 @@ export function iniciarExploracao(aoFim) {
     campo: null, aoFim, fim: false, reg: REGIOES[0], forca: 1, loot: [], emboscada: null, spawnT: 0, ganhos: { xp: 0, ouro: 0, mortes: 0 } };
   ui.foco = { x: lider.x, z: lider.z }; C.camera.dist = 34; C.camera.pitch = 0.82; C.camera.yaw = Math.PI - 0.3; C.camera.suave = 8; L.neblina = C.neblinaAtual(); C.neblina(55, 135); C.recorte(true);
   montarHud(); som('enviar');
-  iniciarExpl({ L: () => L, criarMonstro, numero, faixa, fauna: r => FAUNA[r].filter(t => BICHOS[t]), nomeMonstro: tp => BICHOS[tp]?.[5] || tp });
+  iniciarExpl({ L: () => L, criarMonstro, numero, faixa, atacarCampo, fauna: r => FAUNA[r].filter(t => BICHOS[t]), nomeMonstro: tp => BICHOS[tp]?.[5] || tp });
   return true;
 }
 function criarMonstro(tp, r, x, z, elite = false) {
@@ -159,6 +160,22 @@ function criarMonstro(tp, r, x, z, elite = false) {
   v.raiz.position.set(x, 0, z); v.tocar('Idle');
   return { tp, v, x, z, hp: d.vida * hpM, max: d.vida * hpM, dano: d.dano * dM, alc: d.alc, longe: d.longe, atkAnim: d.atkAnim, bicho, cd: 1, ang: Math.random() * 6, acordado: false,
     r, raro: elite, grande: elite, nome: d.nome || elite ? `${[elite && (bicho ? 'Alfa' : 'Capitão'), d.nome].filter(Boolean).join(' ')} · Nv ${Math.round(1 + r * 8) + (elite ? 3 : 0)}` : null, mundo: true, alt: altura(v) };
+}
+// missão feita no mundo aberto: o acampamento do papel vira luta ali mesmo
+function atacarCampo(q) {
+  if (!L || L.campoAtivo) return;
+  if (E.rankHeroi(E.lider()) < q.rank) { faixa('RANK INSUFICIENTE', `Esta missão pede o rank ${LETRAS[q.rank]}. Suba de rank na Ascensão!`); som('erro'); return; }
+  const c = posCampo(q.r, q.dx, q.dy); q.emLuta = true; L.campoAtivo = q;
+  GRUPOS[q.t].forEach((tp, i) => { const a = i * 2.1, e = criarMonstro(tp, q.r, c.x + Math.cos(a) * (i ? 5 : 0), c.z + Math.sin(a) * (i ? 5 : 0)); Object.assign(e, { missao: q.id, acordado: true, chefe: tp === 'chefe', nome: tp === 'chefe' ? REGIOES[q.r].chefe : e.nome }); L.inimigos.push(e); });
+  faixa(q.t === 3 ? '★ PROCURADO ★' : 'MISSÃO', q.nome, q.t === 3 ? 'unico' : ''); som('enviar'); C.camera.tremor = 0.3;
+}
+function passoCampo() {
+  const q = L.campoAtivo; if (!q) return; const j = L.lider, c = posCampo(q.r, q.dx, q.dy), dele = L.inimigos.filter(e => e.missao === q.id);
+  if (Math.hypot(c.x - j.x, c.z - j.z) > 90) { delete q.emLuta; for (const e of dele) { e.sumiu = true; e.v.remover(); } L.campoAtivo = null; faixa('MISSÃO ABANDONADA', 'Você se afastou do acampamento'); return; }
+  if (dele.length && dele.every(e => e.hp <= 0)) {
+    L.campoAtivo = null; const res = E.concluirManual(q.id, [S.lider], true); E.lider().estado = 'missao';
+    if (res) faixa('MISSÃO CUMPRIDA!', `+${fmt(res.ouro)} ouro · +${fmt(res.xp)} XP${res.desbloqueou != null ? ' · nova região liberada!' : ''}`); som('lendario');
+  }
 }
 function povoarMundo(dt) {
   const j = L.lider; L.spawnT -= dt; if (L.spawnT > 0) return; L.spawnT = 1.2;
@@ -173,7 +190,10 @@ function povoarMundo(dt) {
   const a = Math.random() * 6.28, dd = 26 + Math.random() * 22, x = j.x + Math.cos(a) * dd, z = j.z + Math.sin(a) * dd;
   const elite = Math.random() < 0.06, tipos = FAUNA[r], tp = tipos[Math.floor(Math.random() * tipos.length)];
   const grupo = BICHOS[tp] && !elite && BICHOS[tp][2] < 130 ? 1 + Math.floor(Math.random() * 3) : 1; // só os pequenos andam em bando
-  for (let k = 0; k < grupo; k++) L.inimigos.push(criarMonstro(tp, r, x + k * 2.5, z + k * 1.5, elite));
+  // dificuldade contínua: perto da guilda é mais fácil e vai subindo até a próxima região (sem saltos na fronteira)
+  const ds = CENTROS.map((c, i) => [Math.hypot(c.x - x, c.z - z), i]).sort((p, q) => p[0] - q[0]), [[d1, r1], [d2, r2]] = ds;
+  const borda = r1 + (r2 - r1) * Math.min(0.5, d1 / (d1 + d2)), dif = Math.max(0, borda - (r1 === 0 ? 0.35 * Math.max(0, 1 - Math.hypot(GUILDA_W.x - x, GUILDA_W.z - z) / 160) : 0));
+  for (let k = 0; k < grupo; k++) L.inimigos.push(criarMonstro(tp, dif, x + k * 2.5, z + k * 1.5, elite));
 }
 // altura real do modelo na tela (barra de vida e nome logo acima da cabeça)
 const _cx = new C.Caixa();
@@ -248,6 +268,9 @@ const KITS = {
         feitos.add(e); C.feixe(de.x, de.z, e.x, e.z, 0xc9a0ff); ferir(e, j.dano * mult * j.hab); e.atordoado = 0.4; mult *= 0.8; de = e; } C.camera.tremor = 0.2; } }],
 };
 KITS.besta = KITS.arco;
+// som do golpe de cada tipo de arma
+function somArma(j) { const t = armaInfo(j.h.visual.arma).tipo; if (t === 'arco' || t === 'besta') return sfx('arco'); if (t === 'magia') return sfx('magia');
+  som({ '1m': 'corte', '2m': 'pancada', ad: 'corte2', soco: 'pancada' }[t] || 'corte', 0.35); }
 export const kitDe = j => KITS[armaInfo(j.h.visual.arma).tipo] || KITS['1m'];
 // ---------------- habilidades ----------------
 function usarHab(i) {
@@ -260,7 +283,7 @@ function usarHab(i) {
   }
   const alvo = maisPerto(j, 20), h = kitDe(j)[i]; if (!h) return;
   j.cds[i] = h.cd * j.recarga; if (alvo) j.ang = Math.atan2(alvo.x - j.x, alvo.z - j.z);
-  numero(j.x, 5.5, j.z, h.nome + '!', h.cor); h.f(j, alvo);
+  numero(j.x, 5.5, j.z, h.nome + '!', h.cor); h.f(j, alvo); somArma(j); som('espada', 0.3);
 }
 function maisPerto(de, raio) { let m = null, d0 = raio; for (const e of L.inimigos) if (e.hp > 0 && !e.sumido) { const d = dist(de, e); if (d < d0) { d0 = d; m = e; } } return m; }
 function atirar(de, ang, tipo, vel, dano, dono, explode = 0) {
@@ -320,7 +343,7 @@ export function passoLuta(dt) {
   if (!L) return;
   if (L.pausa > 0) { L.pausa -= dt; dt *= 0.08; } // pausinha no impacto (crítico, chefe caindo)
   L.t += dt; const j = L.lider;
-  if (L.explorar) { C.diaNoite((Date.now() / 1000 % 720) / 720); povoarMundo(dt); passoExpl(dt); if (j.hp > 0 && !L.inimigos.some(e => e.hp > 0 && e.acordado)) j.hp = Math.min(j.max, j.hp + j.max * 0.04 * dt); }
+  if (L.explorar) { const luz = C.diaNoite((Date.now() / 1000 % 720) / 720); tema(L.q.r, luz < 0.35); povoarMundo(dt); passoExpl(dt); passoCampo(); if (j.hp > 0 && !L.inimigos.some(e => e.hp > 0 && e.acordado)) j.hp = Math.min(j.max, j.hp + j.max * 0.04 * dt); }
   if (L.campo && L.emboscada != null && !L.fim && 1 - Math.hypot(L.campo.x - j.x, L.campo.z - j.z) / L.distTotal > L.emboscada) emboscar();
   // joystick → direção no mundo (relativa à câmera)
   let jx = 0, jy = 0; if (L.joy) { const dx = L.joy.x - L.joy.sx, dy = L.joy.y - L.joy.sy, m = Math.hypot(dx, dy); if (m > 6) { const f = Math.min(1, m / 55); jx = dx / m * f; jy = dy / m * f; } }
@@ -335,7 +358,7 @@ export function passoLuta(dt) {
     // ataque automático no monstro mais perto
     j.cd -= dt; const alvo = maisPerto(j, j.alc + 1);
     if (alvo && !j.dash) { if (mv < 0.05) j.ang += difAng(j.ang, Math.atan2(alvo.x - j.x, alvo.z - j.z)) * Math.min(1, dt * 12);
-      if (j.cd <= 0) { j.cd = (j.alc > 5 ? 0.8 : 0.65) * (1 - (j.vel || 0)); j.v.tocar(animAtaque(j.h.visual), { loop: false, reinicia: true, vel: 1.3 }); j.trava = L.t + 0.4;
+      if (j.cd <= 0) { j.cd = (j.alc > 5 ? 0.8 : 0.65) * (1 - (j.vel || 0)); j.v.tocar(animAtaque(j.h.visual), { loop: false, reinicia: true, vel: 1.3 }); j.trava = L.t + 0.4; somArma(j);
         if (j.alc > 5 && dist(alvo, j) > 3) atirar(j, Math.atan2(alvo.x - j.x, alvo.z - j.z), armaInfo(j.h.visual.arma).tipo === 'magia' ? 'magia' : 'flecha', 30, j.dano, true);
         else if (j.alc > 5) ferir(alvo, j.dano); // colado no monstro: acerta direto
         else setTimeout(() => { if (L && alvo.hp > 0 && dist(alvo, j) < j.alc + 1.5) { ferir(alvo, j.dano); C.arco(j.x, j.z, j.ang, 3, 120, 0xfff2c0); } }, 180); } }
@@ -422,7 +445,7 @@ function desenharHud(dt) {
   L.txt = L.txt.filter(t => t.t < 1.1);
 }
 function terminar(ok, desistiu = false) {
-  if (!L) return; const l = L; L = null; if (l.neblina) C.neblina(...l.neblina); C.recorte(false); C.diaNoite(0);
+  if (!L) return; const l = L; L = null; tema('guilda'); if (l.neblina) C.neblina(...l.neblina); C.recorte(false); C.diaNoite(0);
   for (const a of [l.lider, ...l.aliados]) a.v.remover(); for (const e of l.inimigos) e.v.remover(); for (const p of l.proj) C.remover(p.o); for (const b of l.baus || []) C.remover(b);
   removeEventListener('resize', l.medir); $('#luta').remove(); $('#hud').style.visibility = '';
   if (l.explorar) { for (const id of l.ids) { const h = E.heroi(id); if (h) h.estado = 'livre'; } som('fechar'); }

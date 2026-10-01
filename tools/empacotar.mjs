@@ -97,7 +97,7 @@ for (const [k, [arq, extras, tirar]] of Object.entries(PERSONAGENS)) {
 }
 for (const n of ANIMAIS) {
   const doc = await io.read(path.join(KITS, 'animais', n + '.gltf'));
-  await doc.transform(resample({ tolerance: 1e-3 }), prune(), dedup());
+  await doc.transform(resample({ tolerance: 1e-3 }), prune(), dedup(), meshopt({ encoder: MeshoptEncoder, level: 'medium' }));
   out['bicho:' + n] = Buffer.from(await io.writeBinary(doc));
 }
 // monstros (Quaternius Ultimate Monsters, CC0): animações renomeadas para o padrão dos bichos
@@ -146,7 +146,7 @@ for (const [k, [arq, usadas]] of Object.entries(ANIMS)) {
   for (const a of doc.getRoot().listAnimations()) if (!usadas.includes(a.getName())) { for (const s of a.listSamplers()) s.dispose(); for (const c of a.listChannels()) c.dispose(); a.dispose(); }
   for (const nd of doc.getRoot().listNodes()) if (nd.getMesh()) nd.setMesh(null).setSkin(null);
   for (const m of doc.getRoot().listMeshes()) m.dispose();
-  await doc.transform(resample({ tolerance: 1e-3 }), prune({ keepLeaves: true }), dedup());
+  await doc.transform(resample({ tolerance: 1e-3 }), prune({ keepLeaves: true }), dedup(), meshopt({ encoder: MeshoptEncoder, level: 'medium' }));
   out['a:' + k] = Buffer.from(await io.writeBinary(doc));
 }
 
@@ -168,7 +168,7 @@ for (const m of cen.getRoot().listMaterials()) m.setNormalTexture(null); // sem 
 const buf = cen.getRoot().listBuffers()[0];
 for (const a of cen.getRoot().listAccessors()) a.setBuffer(buf);
 for (const b of cen.getRoot().listBuffers()) if (b !== buf) b.dispose();
-await cen.transform(prune({ keepLeaves: true }), dedup(), Q);
+await cen.transform(prune({ keepLeaves: true }), dedup(), Q, meshopt({ encoder: MeshoptEncoder, level: 'medium' }));
 out.cenario = Buffer.from(await io.writeBinary(cen));
 
 const cab = {}; let pos = 0;

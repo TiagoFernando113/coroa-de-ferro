@@ -5,7 +5,7 @@ import { montarBase, atualizarHerois, efeitosBase, posHeroi, revestir } from './
 import { abrirCriador, passoCriador, criadorAberto } from './criador.js';
 import { montarMundoMapa, atualizarMundo } from './mundo.js';
 import { passoLuta } from './luta.js';
-import { passoTelaHeroi, montar, atualizar, ui, carregarRecursos, boasVindas, flutuar3d, som, novidadeCriador, novidadeRacas } from './ui.js';
+import { aviso, passoTelaHeroi, montar, atualizar, ui, carregarRecursos, boasVindas, flutuar3d, som, novidadeCriador, novidadeRacas } from './ui.js';
 import { VERSAO } from './dados.js';
 import { iniciarEtapas } from './etapas.js';
 
@@ -48,7 +48,7 @@ function entrar(novo) {
   else if (!E.S.lider) novidadeCriador();
   else if (!E.S.viuRacas) { E.S.viuRacas = true; novidadeRacas(); }
   else if (off) boasVindas(off);
-  let ultimo = performance.now(), salvarT = 0;
+  let ultimo = performance.now(), salvarT = 0, fpsVisto = false, fpsT = 0, fpsN = 0, fpsAnt = 0;
   const laco = agora => {
     const dt = Math.min(0.1, (agora - ultimo) / 1000); ultimo = agora;
     E.passo(dt);
@@ -57,6 +57,9 @@ function entrar(novo) {
     if (!criadorAberto()) atualizar(dt);
     C.quadro(dt, ui.foco);
     salvarT += dt; if (salvarT > 5) { salvarT = 0; E.salvar(); }
+    // celular lento? depois de uns segundos sugere o modo Leve (uma vez só)
+    if (!fpsVisto) { fpsT += (agora - (fpsAnt || agora)) / 1000; fpsAnt = agora; fpsN++; if (fpsT > 12) { fpsVisto = true; const fps = fpsN / fpsT;
+      if (fps < 24 && ui.qualidade !== 'baixa') aviso(`O jogo está rodando a ${Math.round(fps)} quadros/s. Se estiver travando, use o modo <b>Leve</b> em Configurações.`, '', 6000); } }
     requestAnimationFrame(laco);
   };
   requestAnimationFrame(laco);

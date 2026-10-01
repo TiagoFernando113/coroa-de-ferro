@@ -2,14 +2,14 @@
 import * as C from './cena.js';
 import * as E from './estado.js';
 import { S } from './estado.js';
-import { POIS, MUNDO, TAM_MUNDO, MEIO_MUNDO, CENTROS, GUILDA_W, TRILHA, ESTILO, ESC_MUNDO } from './mundo.js';
+import { POIS, MUNDO, TAM_MUNDO, MEIO_MUNDO, CENTROS, GUILDA_W, TRILHA, ESTILO, ESC_MUNDO, posCampo } from './mundo.js';
 import { visualAleatorio } from './aparencia.js';
 import { REGIOES, fmt } from './dados.js';
 import { gerarItem, sortearRaridade, precoItem } from './itens.js';
 import { ico, som, ui } from './ui.js';
 
 const N = 48, CEL = TAM_MUNDO / N, RAIO_VER = 55, BAU_VOLTA = 3 * 3600e3, COVIL_VOLTA = 40 * 60e3;
-window.__pois = POIS; window.__trilha = TRILHA; // para testes
+window.__pois = POIS; window.__trilha = TRILHA; window.__posCampo = posCampo; // para testes
 let nev = null, H = null, baus = {}, tMapa = 0, tPoi = 0, sujo = false, npcs = null, perto = null;
 export function estadoExpl() {
   if (!S.expl) S.expl = { nevoa: '', baus: {}, locais: {}, covis: {} };
@@ -34,7 +34,7 @@ export function iniciarExpl(h) {
       const v = C.heroi(visualAleatorio(cls)); v.raiz.scale.setScalar(ESC_MUNDO); v.raiz.position.set(x, 0, z); v.raiz.rotation.y = Math.atan2(ux, uz); v.tocar('Idle_A');
       npcs.push({ v, x, z, tipo, nome, vila: o }); }); }
   document.querySelector('#luta')?.insertAdjacentHTML('beforeend', `<button id="lFalar" class="btn amarelo" hidden></button><div id="lTarefa" hidden></div>`);
-  document.querySelector('#lFalar').onclick = () => { if (perto) abrirNpc(perto); };
+  document.querySelector('#lFalar').onclick = () => { if (!perto) return; if (perto.campo) { H.atacarCampo(perto.campo); perto = null; document.querySelector('#lFalar').hidden = true; } else abrirNpc(perto.vila ? perto : perto); };
 }
 const NPCS = [['mercador', 'Mercador', 'lad'], ['curandeira', 'Curandeira', 'mag'], ['cacador', 'Caçador', 'arq']];
 const ICO_NPC = { mercador: 'ouro', curandeira: 'coracao', cacador: 'chefe' };
@@ -63,7 +63,11 @@ export function passoExpl(dt) {
   // NPCs das vilas
   let np = null, d0 = 5.5;
   for (const n of npcs || []) { const d = Math.hypot(n.x - j.x, n.z - j.z); if (d < 70) n.v.mixer.update(dt); if (d < d0) { d0 = d; np = n; } }
-  if (np !== perto) { perto = np; const b = document.querySelector('#lFalar'); if (b) { b.hidden = !np; if (np) b.innerHTML = `${ico(ICO_NPC[np.tipo])} Falar com ${np.nome}`; } }
+  // acampamentos do quadro de missões: chegou perto, pode atacar ali mesmo
+  if (!np && !L.campoAtivo) { let dc = 16; for (const q of S.quadro || []) { if (q.emLuta) continue; const c = posCampo(q.r, q.dx, q.dy), d = Math.hypot(c.x - j.x, c.z - j.z); if (d < dc) { dc = d; np = { campo: q }; } } }
+  const chave = np && (np.campo ? 'c' + np.campo.id : np);
+  if (chave !== perto?.chave) { perto = np && { ...np, chave }; const b = document.querySelector('#lFalar'); if (b) { b.hidden = !np;
+    if (np) b.innerHTML = np.campo ? `${ico('poder')} Atacar: ${np.campo.t === 3 ? 'PROCURADO' : np.campo.nome}` : `${ico(ICO_NPC[np.tipo])} Falar com ${np.nome}`; } }
   tMapa -= dt; if (tMapa <= 0) { tMapa = 0.25; desenharMapa(document.querySelector('#lMapa'), j, false); atualizarTarefa(); }
 }
 // ---------------- NPCs: mercador, curandeira e caçador (tarefas de caça, como no Tibia) ----------------
@@ -165,6 +169,7 @@ export function desenharMapa(cv, j, grande) {
     if (o.tipo === 'covil') { g.fillStyle = st.covis[o.id] > agora ? '#777' : '#ff4a3a'; g.beginPath(); g.arc(x, y, 4 * k, 0, 7); g.fill(); g.fillStyle = '#fff'; g.fillText('☠', x, y + 3.5 * k); }
     if (grande && o.tipo !== 'bau' && o.tipo !== 'portal' && (o.tipo !== 'local' || st.locais[o.id])) { g.font = `700 ${7 * k}px system-ui`; g.fillStyle = '#fff'; g.fillText(o.nome, x, y + 13 * k); g.font = `800 ${10 * k}px system-ui`; }
   }
+  for (const q of S.quadro || []) { const c = posCampo(q.r, q.dx, q.dy); if (!visto(c.x, c.z)) continue; g.fillStyle = q.t === 3 ? '#ff4a3a' : '#ffb04a'; g.fillText('⚔', px(c), pz(c) + 4 * k); }
   if (grande) REGIOES.forEach((r, i) => { if (!visto(CENTROS[i].x, CENTROS[i].z)) return; g.font = `800 ${8 * k}px system-ui`; g.fillStyle = '#ffe9b0'; g.fillText(`${r.nome} · Nv ${1 + i * 8}+`, px(CENTROS[i]), pz(CENTROS[i])); g.font = `800 ${10 * k}px system-ui`; });
   if (j) { const x = px(j), y = pz(j); g.save(); g.translate(x, y); g.rotate(-j.ang + Math.PI); g.fillStyle = '#fff'; g.strokeStyle = '#000'; g.lineWidth = 1.5 * k;
     g.beginPath(); g.moveTo(0, -6 * k); g.lineTo(4.5 * k, 5 * k); g.lineTo(-4.5 * k, 5 * k); g.closePath(); g.fill(); g.stroke(); g.restore(); }
@@ -172,7 +177,7 @@ export function desenharMapa(cv, j, grande) {
 export function mapaGrande(j) {
   const d = document.createElement('div'); d.className = 'mapaG';
   d.innerHTML = `<div class="mapaCaixa"><h3>${ico('missoes')} Mapa do mundo</h3><canvas width="720" height="720"></canvas>
-    <p><b>${porcentagem()}%</b> explorado · <b>${locaisAchados()}/${totalLocais()}</b> locais · ◈ portal (toque para viajar) · ⌂ vila · ★ local · ? a descobrir · ☠ covil · ▪ baú</p>
+    <p><b>${porcentagem()}%</b> explorado · <b>${locaisAchados()}/${totalLocais()}</b> locais · ◈ portal (toque para viajar) · ⌂ vila · ⚔ missão · ★ local · ? a descobrir · ☠ covil · ▪ baú</p>
     <button class="btn azul">Fechar</button></div>`;
   document.body.append(d); const cv = d.querySelector('canvas'); desenharMapa(cv, j, true);
   d.onclick = e => {

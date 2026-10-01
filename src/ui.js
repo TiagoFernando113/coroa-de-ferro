@@ -3,6 +3,7 @@ import * as C from './cena.js';
 import * as E from './estado.js';
 import { S } from './estado.js';
 import { ICONES } from './icones.js';
+import { iniciarMusica, musicaMudo, tema } from './musica.js';
 import { GUILDAS, EDIFICIOS, EF, custoEd, descEfeito, proxMarco, marcosAte, CLASSES, RARIDADES, chancesRecrutar, xpHeroi, custoTreinar, custoRecrutar, GEMAS_RECRUTAR,
   REGIOES, missao, reqRegiao, chanceSucesso, xpFama, OBJETIVOS, fmt, fmtTempo, ATRIBUTOS, xpSistema, rankDe, RANKS, RANKING, rankPoder, RANK_REGIAO, LETRAS, GEMAS_TROCAR, ORDEM_SEG, GEMAS_ORDENS } from './dados.js';
 import { POS, atualizarPredio, atualizarPredios, revestir } from './base.js';
@@ -30,6 +31,7 @@ export async function carregarRecursos(buf) {
   const iniciarAudio = () => {
     if (actx) return; actx = new (window.AudioContext || window.webkitAudioContext)();
     for (const [k, pos] of Object.entries(cab)) if (!k.startsWith('fonte:')) actx.decodeAudioData(pedaco(pos)).then(b => { sons[k] = b; }).catch(() => {});
+    iniciarMusica(actx, mudo); tema('guilda');
   };
   addEventListener('pointerdown', iniciarAudio, { once: true });
 }
@@ -239,7 +241,7 @@ function configuracoes() {
     <button class="btn vermelho peq" data-a="reset">Apagar progresso</button><button class="btn azul" data-ok>Fechar</button>`);
   c.onclick = e => {
     const b = e.target.closest('button'); if (!b) return;
-    if (b.dataset.a === 'som') { mudo = !mudo; try { localStorage.setItem('guilda_mudo', mudo ? '1' : '0'); } catch (x) {} configuracoes(); }
+    if (b.dataset.a === 'som') { mudo = !mudo; musicaMudo(mudo); try { localStorage.setItem('guilda_mudo', mudo ? '1' : '0'); } catch (x) {} configuracoes(); }
     if (b.dataset.q) { ui.qualidade = b.dataset.q; try { localStorage.setItem('guilda_q', b.dataset.q); } catch (x) {} configuracoes(); }
     if (b.dataset.a === 'reset') confirmar('Apagar todo o progresso? Isso não tem volta.', () => { E.apagar(); location.reload(); }, 'Apagar');
   };

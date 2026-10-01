@@ -14,6 +14,7 @@ const modelos = {}; // nome → gltf
 const pecas = {};   // 'kit:nome' → Object3D modelo
 let qualidade = 'media';
 
+export const qualidadeAtual = () => qualidade;
 export function iniciar(canvas, q) {
   qualidade = q || 'media';
   renderer = new THREE.WebGLRenderer({ canvas, antialias: qualidade !== 'baixa', powerPreference: 'high-performance' });
