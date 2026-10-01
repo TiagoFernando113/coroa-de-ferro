@@ -1,0 +1,46 @@
+# Monta o APK (uma janela para o jogo no GitHub Pages) e publica em Releases.
+# Link fixo para baixar sempre o mais novo:
+#   https://github.com/TiagoFernando113/coroa-de-ferro/releases/latest/download/CoroaDeFerro.apk
+# Só precisa rodar quando mudar algo em android/ — mudanças no jogo chegam
+# ao app sozinhas pelo Pages.
+name: APK
+
+on:
+  push:
+    paths:
+      - "android/**"
+      - ".github/workflows/apk.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.7"
+
+      - name: Montar APK
+        run: gradle -p android assembleRelease -PversionCode=${{ github.run_number }} --no-daemon
+
+      - name: Publicar na Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp android/app/build/outputs/apk/release/app-release.apk CoroaDeFerro.apk
+          gh release create "apk-${{ github.run_number }}" CoroaDeFerro.apk \
+            --target "${{ github.sha }}" \
+            --title "Coroa de Ferro — APK ${{ github.run_number }}" \
+            --notes "Instale por cima do anterior. O jogo em si atualiza sozinho: feche e abra o app." \
+            --latest
