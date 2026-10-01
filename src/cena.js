@@ -725,7 +725,7 @@ export function diaNoite(f) {
   if (luz > 0.5) { const k = Math.min(1, (luz - 0.5) * 3); tmpC.copy(C_TARDE).lerp(C_DIA, k); sol.color.copy(SOL_TARDE).lerp(SOL_DIA, k); }
   else { const k = Math.min(1, luz * 2); tmpC.copy(C_NOITE).lerp(C_TARDE, k); sol.color.copy(SOL_NOITE).lerp(SOL_TARDE, k); }
   scene.background.copy(tmpC); scene.fog.color.copy(tmpC);
-  hemi.intensity = 0.32 + 1.03 * luz; sol.intensity = 0.2 + 2.2 * luz; hemi.color.copy(H_NOITE).lerp(H_DIA, Math.min(1, luz * 1.5));
+  hemi.intensity = 0.5 + 0.85 * luz; sol.intensity = 0.35 + 2.05 * luz; hemi.color.copy(H_NOITE).lerp(H_DIA, Math.min(1, luz * 1.5));
   return luz;
 }
 export const neblinaAtual = () => [scene.fog.near, scene.fog.far];
