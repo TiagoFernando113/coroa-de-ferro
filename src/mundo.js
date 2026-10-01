@@ -37,6 +37,57 @@ const pertoTrilha = (p, m = 7) => {
 };
 export const regiaoDe = p => { let r = 0, d0 = 1e9; CENTROS.forEach((c, i) => { const d = Math.hypot(c.x - p.x, c.z - p.z); if (d < d0) { d0 = d; r = i; } }); return r; };
 const RAIO_REG = 110;
+// ---------------- relevo: colinas suaves, montanhas mais altas, pântano mais baixo; estrada, vilas e locais aplainados ----------------
+const RES = 5, NH = Math.ceil(TAM_MUNDO / RES) + 1, X0 = MUNDO.x - TAM_MUNDO / 2, Z0 = MUNDO.z - TAM_MUNDO / 2;
+let HM = null;
+const ALT_REG = [3, -6, 28, 4, 9, 16, 2, 14];
+function distEstrada(x, z, max = 40) {
+  const cx = Math.floor(x / 20), cz = Math.floor(z / 20), r = Math.ceil(max / 20); let d = max;
+  for (let i = -r; i <= r; i++) for (let k = -r; k <= r; k++) for (const q of GRADE.get((cx + i) + ',' + (cz + k)) || []) d = Math.min(d, Math.hypot(q.x - x, q.z - z));
+  return d;
+}
+const suave = (a, b, t) => { const k = Math.max(0, Math.min(1, (t - a) / (b - a))); return k * k * (3 - 2 * k); };
+function alturaBruta(x, z) {
+  let h = 7 + 11 * Math.sin(x * 0.011 + 1.3) * Math.cos(z * 0.009 + 0.4) + 6 * Math.sin(x * 0.023 + z * 0.017 + 2.1) + 2.6 * Math.sin(x * 0.052 - z * 0.044) + 1.2 * Math.sin(x * 0.11 + z * 0.09);
+  CENTROS.forEach((c, i) => { const d = Math.hypot(c.x - x, c.z - z) / 120; h += ALT_REG[i] * Math.exp(-d * d); });
+  // perto da estrada, das vilas e dos locais o chão fica mais plano (dá para andar e as casas não ficam tortas)
+  let f = suave(5, 26, distEstrada(x, z));
+  for (const o of POIS) { if (o.tipo === 'bau') continue; const R = o.tipo === 'vila' ? 40 : o.tipo === 'covil' ? 18 : 12; f = Math.min(f, suave(R * 0.7, R * 1.6, Math.hypot(o.x - x, o.z - z))); }
+  f = Math.min(f, suave(25, 55, Math.hypot(GUILDA_W.x - x, GUILDA_W.z - z)));
+  const borda = suave(0, 60, Math.min(x - X0, X0 + TAM_MUNDO - x, z - Z0, Z0 + TAM_MUNDO - z)); // some na borda do mundo
+  return h * (0.18 + 0.82 * f) * borda;
+}
+function gerarRelevo() { HM = new Float32Array(NH * NH); for (let k = 0; k < NH; k++) for (let i = 0; i < NH; i++) HM[k * NH + i] = alturaBruta(X0 + i * RES, Z0 + k * RES); }
+export function altura(x, z) {
+  if (!HM) return 0; const fx = (x - X0) / RES, fz = (z - Z0) / RES; if (fx < 0 || fz < 0 || fx >= NH - 1 || fz >= NH - 1) return 0;
+  const i = Math.floor(fx), k = Math.floor(fz), u = fx - i, v = fz - k, a = HM[k * NH + i], b = HM[k * NH + i + 1], c = HM[(k + 1) * NH + i], d = HM[(k + 1) * NH + i + 1];
+  return (a * (1 - u) + b * u) * (1 - v) + (c * (1 - u) + d * u) * v;
+}
+// ---------------- colisão: troncos, pedras, paredes, cercas, casas e estátuas (círculos numa grade de 10 m) ----------------
+const COL = new Map();
+const ENFEITE = /grass|Grass|flower|Flower|Pebble|Clover|mushroom|Mushroom|lily|Fern|Plant|Bush|plant_bush|sign|lantern|banner|crops|log$|stump|campfire|coin|potion|D:chest|roof|chimney|stairs|planks|Rock_2_|Rock_1_[ADH]/;
+const TRONCO = /tree|Tree|Pine|palm|cactus|DeadTree/;
+function addCol(x, z, r) { const k = Math.floor(x / 10) + ',' + Math.floor(z / 10); if (!COL.has(k)) COL.set(k, []); COL.get(k).push({ x, z, r }); }
+function montarColisoes(L) {
+  for (const p of L) {
+    if ((p.y || 0) > 1.5 || ENFEITE.test(p.m)) continue; const s = Array.isArray(p.s) ? p.s[0] : (p.s || 1);
+    if (TRONCO.test(p.m)) { addCol(p.x, p.z, Math.min(1.4, 0.5 + s * 0.08)); continue; }
+    const d = C.dimPeca(p.m); if (!d) continue; let hx = d.hx * s, hz = d.hz * s; if (Math.max(hx, hz) < 0.4) continue;
+    const ry = p.ry || 0, cs = Math.cos(ry), sn = Math.sin(ry), cx = p.x + (d.cx * cs + d.cz * sn) * s, cz = p.z + (-d.cx * sn + d.cz * cs) * s;
+    if (Math.max(hx, hz) / Math.max(0.2, Math.min(hx, hz)) > 2) { // comprido (parede, cerca): fileira de círculos
+      const longoX = hx > hz, meio = longoX ? hx : hz, r = Math.max(0.5, longoX ? hz : hx), n = Math.ceil(meio / r);
+      for (let i = -n; i <= n; i++) { const t = i / n * (meio - r * 0.5), lx = longoX ? t : 0, lz = longoX ? 0 : t; addCol(cx + lx * cs + lz * sn, cz - lx * sn + lz * cs, r); }
+    } else addCol(cx, cz, Math.min(hx, hz) * 0.9 + Math.abs(hx - hz) * 0.3);
+  }
+}
+// empurra para fora dos obstáculos (o = {x, z}, r = raio de quem anda)
+export function colidir(o, r = 1) {
+  const cx = Math.floor(o.x / 10), cz = Math.floor(o.z / 10);
+  for (let i = -1; i <= 1; i++) for (let k = -1; k <= 1; k++) for (const c of COL.get((cx + i) + ',' + (cz + k)) || []) {
+    let dx = o.x - c.x, dz = o.z - c.z, d = Math.hypot(dx, dz); const m = c.r + r; if (d >= m) continue;
+    if (d < 1e-4) { dx = 1; dz = 0; d = 1; } o.x = c.x + dx / d * m; o.z = c.z + dz / d * m;
+  }
+}
 // ---------------- pontos de interesse: locais para descobrir, baús escondidos e covis de chefes ----------------
 const LOCAIS = [
   [['Carvalho Ancião', 'Q:TwistedTree_1', 2.6], ['Moinho Abandonado', 'T:windmill', 5], ['Círculo das Fadas', 'N:mushroom_redGroup', 9]],
@@ -70,21 +121,9 @@ let montado = false, visivel = false;
 export function montarMundoMapa() {
   if (montado) return; montado = true;
   const TAM = TAM_MUNDO;
-  C.chaoPintado(MUNDO.x, MUNDO.z, TAM, (g, P) => {
-    g.fillStyle = '#5c8f3a'; g.fillRect(0, 0, 2048, 2048);
-    let sd = 7; const r = () => ((sd = (sd * 16807) % 2147483647) / 2147483647);
-    for (let i = 0; i < 7000; i++) { g.fillStyle = `hsla(${85 + r() * 25},40%,${30 + r() * 12}%,.3)`; g.beginPath(); g.arc(r() * 2048, r() * 2048, 3 + r() * 12, 0, 7); g.fill(); }
-    CENTROS.forEach((c, i) => {
-      const gr = g.createRadialGradient(P(c.x), P(c.z, 'z'), 0, P(c.x), P(c.z, 'z'), RAIO_REG * 2048 / TAM);
-      gr.addColorStop(0, ESTILO[i].chao); gr.addColorStop(0.7, ESTILO[i].chao); gr.addColorStop(1, 'rgba(0,0,0,0)');
-      g.fillStyle = gr; g.fillRect(0, 0, 2048, 2048);
-      if (i === 5) { g.strokeStyle = '#ff6a1a'; g.lineWidth = 6; for (let k = 0; k < 14; k++) { g.beginPath(); g.moveTo(P(c.x), P(c.z, 'z')); g.lineTo(P(c.x + (r() - 0.5) * 160), P(c.z + (r() - 0.5) * 160, 'z')); g.stroke(); } }
-    });
-    g.lineCap = 'round'; g.lineJoin = 'round';
-  }, 7);
   let sd = 11; const rnd = () => ((sd = (sd * 16807) % 2147483647) / 2147483647);
   const L = [];
-  const est = C.estrada(TRILHA, 5); guardarEstrada(est.pontos(2500)); const EP = est.pontos(300); window.__estrada = EP; // para testes
+  const est = C.estrada(TRILHA, 5, true); guardarEstrada(est.pontos(2500)); const EP = est.pontos(300); window.__estrada = EP; // para testes
   gerarPOIs(rnd);
   // estrada de pedras com as beiradas bem enfeitadas (é por onde o jogador mais passa), com o tema de cada região
   // portais de teletransporte (um em cada região, na beira da estrada) e vilas com NPCs
@@ -97,11 +136,25 @@ export function montarMundoMapa() {
     if (o.tipo === 'portal') L.push({ m: 'N:statue_obelisk', x: o.x, z: o.z, s: 6 }, { m: 'C:stairs-stone', x: o.x, z: o.z + 2.5, s: 2.5 });
     if (o.tipo === 'vila') { // casas em volta de uma praça com poço, barracas e lampiões
       for (let k = 0; k < 5; k++) { const a = Math.atan2(o.x - o.px, o.z - o.pz) + (k - 2) * 0.62, hx = o.x + Math.sin(a) * 17, hz = o.z + Math.cos(a) * 17;
-        casa(L, { prof: 2, madeira: k % 2 === 1, S: 5.2, x: hx, z: hz, chamine: k !== 2 }); }
+        casa(L, { prof: 2, madeira: k % 2 === 1, S: 5.2, x: hx, z: hz, chamine: k !== 2 }); addCol(hx, hz, 5.6); }
       L.push({ m: 'T:fountain-round', x: o.x, z: o.z, s: 5 }, { m: 'T:stall-red', x: o.x - 8, z: o.z + 6, s: 4.5, ry: 0.4 }, { m: 'T:stall-green', x: o.x + 8, z: o.z + 6, s: 4.5, ry: -0.4 },
         { m: 'T:lantern', x: o.x - 6, z: o.z - 7, s: 4 }, { m: 'T:lantern', x: o.x + 6, z: o.z - 7, s: 4 }, { m: 'T:banner-red', x: o.px, z: o.pz, s: 4 }, { m: 'N:sign', x: o.px + 2, z: o.pz, s: 6 },
         { m: 'D:barrel', x: o.x - 10, z: o.z + 2, s: 3.5 }, { m: 'T:cart', x: o.x + 11, z: o.z - 2, s: 4.2, ry: 1 }); }
   }
+  gerarRelevo(); C.definirChao(altura);
+  C.chaoPintado(MUNDO.x, MUNDO.z, TAM, (g, P) => {
+    g.fillStyle = '#5c8f3a'; g.fillRect(0, 0, 2048, 2048);
+    let sd = 7; const r = () => ((sd = (sd * 16807) % 2147483647) / 2147483647);
+    for (let i = 0; i < 7000; i++) { g.fillStyle = `hsla(${85 + r() * 25},40%,${30 + r() * 12}%,.3)`; g.beginPath(); g.arc(r() * 2048, r() * 2048, 3 + r() * 12, 0, 7); g.fill(); }
+    CENTROS.forEach((c, i) => {
+      const gr = g.createRadialGradient(P(c.x), P(c.z, 'z'), 0, P(c.x), P(c.z, 'z'), RAIO_REG * 2048 / TAM);
+      gr.addColorStop(0, ESTILO[i].chao); gr.addColorStop(0.7, ESTILO[i].chao); gr.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = gr; g.fillRect(0, 0, 2048, 2048);
+      if (i === 5) { g.strokeStyle = '#ff6a1a'; g.lineWidth = 6; for (let k = 0; k < 14; k++) { g.beginPath(); g.moveTo(P(c.x), P(c.z, 'z')); g.lineTo(P(c.x + (r() - 0.5) * 160), P(c.z + (r() - 0.5) * 160, 'z')); g.stroke(); } }
+    });
+    g.lineCap = 'round'; g.lineJoin = 'round';
+  }, 7, 230);
+  est.montar();
   const F = n => 'F:' + n + '_Color1', um = l => l[Math.floor(rnd() * l.length)];
   const ARV_F = ['Tree_1_A', 'Tree_1_B', 'Tree_1_C', 'Tree_2_A', 'Tree_2_B', 'Tree_2_C', 'Tree_2_D', 'Tree_2_E'].map(F), PIN_F = ['Tree_4_A', 'Tree_4_B', 'Tree_4_C'].map(F);
   const SECA = ['Tree_Bare_1_A', 'Tree_Bare_1_B', 'Tree_Bare_1_C', 'Tree_Bare_2_A', 'Tree_Bare_2_B', 'Tree_Bare_2_C'].map(F), ACACIA = ['Tree_3_A', 'Tree_3_B', 'Tree_3_C'].map(F);
@@ -182,6 +235,7 @@ export function montarMundoMapa() {
   const g = GUILDA_W;
   L.push({ m: 'C:tower-square', x: g.x, z: g.z, s: 5 }, { m: 'C:flag', x: g.x, y: 10, z: g.z, s: 4 }, { m: 'C:wall', x: g.x - 5, z: g.z, s: 5, ry: Math.PI / 2 }, { m: 'C:wall', x: g.x + 5, z: g.z, s: 5, ry: Math.PI / 2 },
     { m: 'T:banner-red', x: g.x + 3, z: g.z - 4, s: 3 }, { m: 'N:tent_detailedOpen', x: g.x - 8, z: g.z - 8, s: 4 });
+  montarColisoes(L); window.__col = COL; // para testes
   window.__pecas = L; // para testes
   if (C.qualidadeAtual() === 'baixa') { let sd2 = 3; const r2 = () => ((sd2 = (sd2 * 16807) % 2147483647) / 2147483647);
     const enfeite = m => /^(F:Grass|F:Bush|F:Rock_2|Q:Pebble|Q:Grass|Q:Flower|Q:Clover|N:flower|N:grass|N:plant|N:mushroom)/.test(m);
@@ -202,9 +256,9 @@ export function posCampo(r, dx, dy) {
 export const ESC_MUNDO = 1.7; // unidades maiores no mapa (como nos jogos de conquista)
 function criarCampo(chave, r, t, dx, dy) {
   const p = posCampo(r, dx, dy), [mod, armas, esc] = MODELO[t], v = C.personagem(mod, armas, esc); v.raiz.scale.setScalar(ESC_MUNDO);
-  v.raiz.position.set(p.x, 0, p.z); v.raiz.rotation.y = Math.atan2(GUILDA_W.x - p.x, GUILDA_W.z - p.z); v.tocar(v.tem('Idle_Combat') ? 'Idle_Combat' : 'Idle');
-  const fogo = C.objeto('N:campfire_logs', 6); fogo.position.set(p.x + 4, 0, p.z + 2.5);
-  const tenda = C.objeto('N:tent_detailedOpen', 5); tenda.position.set(p.x - 4.5, 0, p.z - 3); tenda.rotation.y = Math.random() * 6;
+  v.raiz.position.set(p.x, altura(p.x, p.z), p.z); v.raiz.rotation.y = Math.atan2(GUILDA_W.x - p.x, GUILDA_W.z - p.z); v.tocar(v.tem('Idle_Combat') ? 'Idle_Combat' : 'Idle');
+  const fogo = C.objeto('N:campfire_logs', 6); fogo.position.set(p.x + 4, altura(p.x + 4, p.z + 2.5), p.z + 2.5);
+  const tenda = C.objeto('N:tent_detailedOpen', 5); tenda.position.set(p.x - 4.5, altura(p.x - 4.5, p.z - 3), p.z - 3); tenda.rotation.y = Math.random() * 6;
   return (campos[chave] = { v, fogo, tenda, x: p.x, z: p.z, r, t });
 }
 function tirarCampo(chave) { const c = campos[chave]; if (!c) return; c.v.remover(); C.remover(c.fogo); C.remover(c.tenda); delete campos[chave]; }
@@ -246,7 +300,7 @@ export function atualizarMundo(dt) {
         const lado = (i % 2 ? 1 : -1) * Math.ceil(i / 2) * 1.8; p = { x: p.x + Math.cos(ang) * lado, z: p.z - Math.sin(ang) * lado };
         v.tocar(ms.fim - ms.inicio < 60e3 ? 'Running_A' : 'Walking_A');
       }
-      v.raiz.position.set(p.x, 0, p.z); v.raiz.rotation.y = ang;
+      v.raiz.position.set(p.x, altura(p.x, p.z), p.z); v.raiz.rotation.y = ang;
       if (visivel) v.mixer.update(dt);
     });
     // o monstro luta e cai (ou vence) no fim da luta
@@ -258,3 +312,33 @@ export function atualizarMundo(dt) {
   for (const chave of Object.keys(campos)) if (!vivos.has(chave)) tirarCampo(chave);
   if (visivel) for (const c of Object.values(campos)) c.v.mixer.update(dt);
 }
+
+// ---------------- chunks de vegetação (como no Minecraft): blocos de 40 m gerados em volta do jogador e apagados longe ----------------
+const CH = 40, chunks = new Map();
+let chunkAtual = '';
+const DECOR = {
+  grama: ['F:Grass_1_A_Color1', 'F:Grass_2_A_Color1', 'Q:Grass_Common_Short', 'Q:Grass_Wispy_Tall', 'Q:Grass_Common_Tall'],
+  flor: ['Q:Flower_3_Group', 'Q:Flower_4_Group', 'N:flower_redA', 'N:flower_yellowA', 'N:flower_purpleA', 'Q:Clover_1'],
+  arbusto: ['F:Bush_1_A_Color1', 'F:Bush_2_A_Color1', 'Q:Fern_1', 'Q:Plant_1_Big'],
+  pedra: ['Q:Pebble_Round_1', 'Q:Pebble_Round_2', 'Q:Pebble_Round_3', 'F:Rock_1_A_Color1'],
+};
+// quantidade por chunk em cada região [grama, flor, arbusto, pedra]
+const DENS = [[110, 26, 10, 8], [90, 6, 12, 8], [60, 8, 6, 22], [20, 2, 4, 30], [90, 22, 10, 10], [25, 0, 4, 26], [70, 4, 8, 14], [40, 2, 6, 20]];
+const escDecor = m => m.startsWith('F:Grass') ? 2.2 : m.startsWith('F:Bush') ? 3 : m.startsWith('F:Rock') ? 2 : m.startsWith('N:flower') ? 3.5 : m.startsWith('Q:Pebble') ? 1.5 : 1.2;
+function gerarChunk(ci, ck) {
+  let sd = (ci * 73856093 ^ ck * 19349663) >>> 0 || 1; const r = () => ((sd = (sd * 16807) % 2147483647) / 2147483647);
+  const x0 = ci * CH, z0 = ck * CH, reg = regiaoDe({ x: x0 + CH / 2, z: z0 + CH / 2 }), d = DENS[reg], leve = C.qualidadeAtual() === 'baixa' ? 0.4 : 1, porModelo = {};
+  Object.values(DECOR).forEach((lista, t) => { for (let n = 0; n < d[t] * leve; n++) {
+    const x = x0 + r() * CH, z = z0 + r() * CH, m = lista[Math.floor(r() * lista.length)];
+    if (Math.abs(x - MUNDO.x) > MEIO_MUNDO || Math.abs(z - MUNDO.z) > MEIO_MUNDO || pertoTrilha({ x, z }, 4) || POIS.some(o => o.tipo === 'vila' && Math.hypot(o.x - x, o.z - z) < 30)) continue;
+    (porModelo[m] = porModelo[m] || []).push({ x, y: altura(x, z), z, ry: r() * 6.28, s: escDecor(m) * (0.75 + r() * 0.5) });
+  } });
+  return Object.entries(porModelo).map(([m, l]) => C.instancias(m, l)).filter(Boolean);
+}
+export function atualizarChunks(x, z) {
+  const ci = Math.floor(x / CH), ck = Math.floor(z / CH), k = ci + ',' + ck; if (k === chunkAtual) return; chunkAtual = k;
+  const R = C.qualidadeAtual() === 'baixa' ? 1 : 2;
+  for (let i = -R; i <= R; i++) for (let j = -R; j <= R; j++) { const kk = (ci + i) + ',' + (ck + j); if (!chunks.has(kk)) chunks.set(kk, gerarChunk(ci + i, ck + j)); }
+  for (const [kk, gs] of chunks) { const [a, b] = kk.split(',').map(Number); if (Math.abs(a - ci) > R + 1 || Math.abs(b - ck) > R + 1) { gs.forEach(C.removerGrupo); chunks.delete(kk); } }
+}
+export function limparChunks() { for (const gs of chunks.values()) gs.forEach(C.removerGrupo); chunks.clear(); chunkAtual = ''; }

@@ -15,6 +15,10 @@ const pecas = {};   // 'kit:nome' → Object3D modelo
 let qualidade = 'media';
 
 export const qualidadeAtual = () => qualidade;
+// altura do chão (relevo do mundo aberto); 0 fora do mundo
+let fnChao = () => 0;
+export const chao = (x, z) => fnChao(x, z);
+export const definirChao = f => { fnChao = f; };
 export function iniciar(canvas, q) {
   qualidade = q || 'media';
   renderer = new THREE.WebGLRenderer({ canvas, antialias: qualidade !== 'baixa', powerPreference: 'high-performance' });
@@ -137,11 +141,32 @@ function base(o, inv) {
     local: new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld), chave: o.material.uuid + '|' + nomes.join(',') };
   baseMalha.set(o, b); return b;
 }
+// muitas cópias de uma peça num único desenho (InstancedMesh): usado nos chunks de vegetação
+const base0 = new THREE.Object3D();
+export function instancias(m, lista) { // lista: [{x, y, z, ry, s}]
+  const o = pecas[m.replace(':', '')]; if (!o || !lista.length) return null; o.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(o.matrixWorld).invert(), g = new THREE.Group(), mt = new THREE.Matrix4();
+  o.traverse(c => {
+    if (!c.isMesh) return; const local = new THREE.Matrix4().multiplyMatrices(inv, c.matrixWorld), im = new THREE.InstancedMesh(c.geometry, c.material, lista.length);
+    lista.forEach((p, i) => { base0.position.set(p.x, p.y, p.z); base0.rotation.set(0, p.ry, 0); base0.scale.setScalar(p.s); base0.updateMatrix(); im.setMatrixAt(i, mt.multiplyMatrices(base0.matrix, local)); });
+    im.instanceMatrix.needsUpdate = true; im.computeBoundingSphere(); im.receiveShadow = true; g.add(im);
+  });
+  scene.add(g); return g;
+}
+export function removerGrupo(g) { if (!g) return; scene.remove(g); g.traverse(c => { if (c.isInstancedMesh) c.dispose(); }); }
+// tamanho de uma peça (caixa no chão, sem escala): meia-largura em x e z e o centro
+const dims = {};
+export function dimPeca(m) {
+  if (dims[m] !== undefined) return dims[m]; const o = pecas[m.replace(':', '')]; if (!o) return (dims[m] = null);
+  o.updateMatrixWorld(true); const inv = new THREE.Matrix4().copy(o.matrixWorld).invert(), b = new THREE.Box3();
+  o.traverse(c => { if (c.isMesh) { c.geometry.computeBoundingBox(); b.union(c.geometry.boundingBox.clone().applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, c.matrixWorld))); } });
+  return (dims[m] = b.isEmpty() ? null : { hx: (b.max.x - b.min.x) / 2, hz: (b.max.z - b.min.z) / 2, cx: (b.max.x + b.min.x) / 2, cz: (b.max.z + b.min.z) / 2 });
+}
 export function montarEstatico(lista) {
   const grupos = new Map(), tmp = new THREE.Object3D(), raiz = new THREE.Group();
   for (const p of lista) {
     const modelo = pecas[p.m.replace(':', '')]; if (!modelo) { console.warn('peça ausente', p.m); continue; }
-    tmp.position.set(p.x, p.y || 0, p.z); tmp.rotation.set(0, p.ry || 0, 0); tmp.scale.setScalar(p.s || 1); tmp.updateMatrixWorld(true);
+    tmp.position.set(p.x, (p.y || 0) + chao(p.x, p.z), p.z); tmp.rotation.set(0, p.ry || 0, 0); tmp.scale.setScalar(p.s || 1); tmp.updateMatrixWorld(true);
     if (!modelo._inv) { modelo.updateMatrixWorld(true); modelo._inv = new THREE.Matrix4().copy(modelo.matrixWorld).invert(); modelo._malhas = []; modelo.traverse(o => { if (o.isMesh) modelo._malhas.push(o); }); }
     for (const o of modelo._malhas) {
       const b = base(o, modelo._inv), chave = b.chave + '|' + Math.floor(p.x / 40) + ',' + Math.floor(p.z / 40);
@@ -195,22 +220,24 @@ function texturaPedras() {
   texPedra = new THREE.CanvasTexture(cv); texPedra.wrapS = texPedra.wrapT = THREE.RepeatWrapping; texPedra.colorSpace = THREE.SRGBColorSpace; texPedra.anisotropy = 8;
   return texPedra;
 }
-export function estrada(pts, largura = 5) {
+export function estrada(pts, largura = 5, adiar = false) {
   const curva = new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(p.x, 0, p.z)), false, 'centripetal', 0.5);
   const n = Math.max(2, Math.ceil(curva.getLength() / 1.2)), grupo = new THREE.Group();
+  const montar = () => {
   for (const [w, y, mat] of [[largura + 1.6, 0.04, new THREE.MeshLambertMaterial({ color: 0x6a5238 })], [largura, 0.07, new THREE.MeshLambertMaterial({ map: texturaPedras() })]]) {
     const pos = [], uv = [], idx = []; let dist = 0, ant = null;
     for (let i = 0; i <= n; i++) {
       const t = i / n, p = curva.getPointAt(t), tg = curva.getTangentAt(t), nx = -tg.z, nz = tg.x;
       if (ant) dist += p.distanceTo(ant); ant = p;
-      pos.push(p.x + nx * w / 2, y, p.z + nz * w / 2, p.x - nx * w / 2, y, p.z - nz * w / 2); uv.push(0, dist / largura, 1, dist / largura);
+      const ax = p.x + nx * w / 2, az = p.z + nz * w / 2, bx = p.x - nx * w / 2, bz = p.z - nz * w / 2; pos.push(ax, y + chao(ax, az), az, bx, y + chao(bx, bz), bz); uv.push(0, dist / largura, 1, dist / largura);
       if (i) { const a = (i - 1) * 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
     }
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
     const m = new THREE.Mesh(g, mat); m.receiveShadow = true; grupo.add(m);
   }
-  scene.add(grupo);
-  return { grupo, pontos: n => Array.from({ length: n }, (_, i) => { const t = (i + 0.5) / n, p = curva.getPointAt(t), tg = curva.getTangentAt(t); return { x: p.x, z: p.z, nx: -tg.z, nz: tg.x }; }) };
+  scene.add(grupo); };
+  if (!adiar) montar();
+  return { grupo, montar, pontos: n => Array.from({ length: n }, (_, i) => { const t = (i + 0.5) / n, p = curva.getPointAt(t), tg = curva.getTangentAt(t); return { x: p.x, z: p.z, nx: -tg.z, nz: tg.x }; }) };
 }
 // textura de detalhe (cinza ~0,5): manchas e folhinhas de grama, repetida no chão para ficar nítido de perto
 let texDet = null;
@@ -225,7 +252,7 @@ function texturaDetalhe() {
     g.lineWidth = 1 + r(); g.beginPath(); g.moveTo(x, y); g.lineTo(x + (r() - 0.5) * 3, y - h); g.stroke(); }
   texDet = new THREE.CanvasTexture(cv); texDet.wrapS = texDet.wrapT = THREE.RepeatWrapping; texDet.anisotropy = 4; return texDet;
 }
-export function chaoPintado(x0, z0, tam, desenhar, detalhe = 0) {
+export function chaoPintado(x0, z0, tam, desenhar, detalhe = 0, seg = 1) {
   const N = 2048, cv = document.createElement('canvas'); cv.width = cv.height = N; const g = cv.getContext('2d'), k = N / tam;
   desenhar(g, (v, eixo) => (v - (eixo === 'z' ? z0 : x0) + tam / 2) * k, k);
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
@@ -234,8 +261,10 @@ export function chaoPintado(x0, z0, tam, desenhar, detalhe = 0) {
     sh.uniforms.detalhe = { value: texturaDetalhe() }; sh.uniforms.repete = { value: tam / detalhe };
     sh.fragmentShader = 'uniform sampler2D detalhe; uniform float repete;\n' + sh.fragmentShader.replace('#include <map_fragment>', '#include <map_fragment>\n diffuseColor.rgb *= texture2D(detalhe, vMapUv * repete).rgb * 2.0;');
   };
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(tam, tam), mat);
-  m.rotation.x = -Math.PI / 2; m.position.set(x0, 0.02, z0); m.receiveShadow = true; scene.add(m); return m;
+  const geo = new THREE.PlaneGeometry(tam, tam, seg, seg).rotateX(-Math.PI / 2), pa = geo.attributes.position;
+  for (let i = 0; i < pa.count; i++) pa.setY(i, chao(pa.getX(i) + x0, pa.getZ(i) + z0));
+  geo.computeVertexNormals();
+  const m = new THREE.Mesh(geo, mat); m.position.set(x0, 0.02, z0); m.receiveShadow = true; scene.add(m); return m;
 }
 const clonar = o => { const c = o.clone(); c.position.set(0, 0, 0); c.rotation.set(0, 0, 0); c.scale.set(1, 1, 1); return c; };
 
@@ -282,7 +311,7 @@ export function orbe(x, y, z, r) {
 }
 // anel mágico girando (portal)
 export function anel(x, y, z, r, cor = 0x9a5aff) {
-  const g = new THREE.Group(); g.position.set(x, y, z);
+  const g = new THREE.Group(); g.position.set(x, y + chao(x, z), z);
   const t = new THREE.Mesh(new THREE.TorusGeometry(r, r * 0.08, 8, 40), MAT_ADD(cor)); const d = new THREE.Mesh(new THREE.CircleGeometry(r * 0.95, 32), MAT_ADD(cor)); d.material.opacity = 0.35;
   g.add(t, d); scene.add(g); return g;
 }
@@ -596,11 +625,11 @@ const efeitos = [];
 const MAT_ADD = c => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.9, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
 export function arco(x, z, ang, raio, arcoGraus, cor = 0xffffff) { // rastro de golpe
   const th = arcoGraus * Math.PI / 180, g = new THREE.RingGeometry(raio * 0.72, raio, 24, 1, -th / 2, th);
-  const m = new THREE.Mesh(g, MAT_ADD(cor)); m.rotation.x = -Math.PI / 2; m.rotation.z = -ang + Math.PI / 2; m.position.set(x, 1.0, z);
+  const m = new THREE.Mesh(g, MAT_ADD(cor)); m.rotation.x = -Math.PI / 2; m.rotation.z = -ang + Math.PI / 2; m.position.set(x, 1.0 + chao(x, z), z);
   m.material.opacity = 0.55; scene.add(m); efeitos.push({ o: m, t: 0, dur: 0.2, tipo: 'fade' });
 }
 export function onda(x, z, raio, cor = 0xffffff, dur = 0.4) { // anel que expande
-  const m = new THREE.Mesh(new THREE.RingGeometry(0.85, 1, 40), MAT_ADD(cor)); m.rotation.x = -Math.PI / 2; m.position.set(x, 0.15, z);
+  const m = new THREE.Mesh(new THREE.RingGeometry(0.85, 1, 40), MAT_ADD(cor)); m.rotation.x = -Math.PI / 2; m.position.set(x, 0.15 + chao(x, z), z);
   scene.add(m); efeitos.push({ o: m, t: 0, dur, tipo: 'onda', raio });
 }
 // aviso no chão que enche até o impacto (inimigo = vermelho, herói = azul)
@@ -609,7 +638,7 @@ export function aviso(x, z, raio, dur, cor = 0xff3322) {
   const disco = new THREE.Mesh(new THREE.CircleGeometry(1, 36), base); const cheio = new THREE.Mesh(new THREE.CircleGeometry(1, 36), base.clone());
   const anel = new THREE.Mesh(new THREE.RingGeometry(0.94, 1, 48), new THREE.MeshBasicMaterial({ color: cor, transparent: true, opacity: 0.85, depthWrite: false }));
   for (const m of [disco, cheio, anel]) { m.rotation.x = -Math.PI / 2; g.add(m); }
-  cheio.position.y = 0.01; g.position.set(x, 0.08, z); g.scale.setScalar(raio); scene.add(g);
+  cheio.position.y = 0.01; g.position.set(x, 0.3 + chao(x, z), z); g.traverse(o => { if (o.material) { o.material.depthTest = false; o.renderOrder = 2; } }); g.scale.setScalar(raio); scene.add(g);
   const e = { o: g, t: 0, dur, tipo: 'aviso', cheio }; efeitos.push(e); return e;
 }
 // avisos no chão em linha (investida) e em cone (leque de tiros): o preenchimento cresce até o golpe sair
@@ -617,7 +646,7 @@ function avisoForma(geo, x, z, ang, dur, cor, eixo) {
   const g = new THREE.Group(), base = new THREE.MeshBasicMaterial({ color: cor, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide });
   const fundo = new THREE.Mesh(geo, base), cheio = new THREE.Mesh(geo, base.clone()); cheio.position.y = 0.01;
   const borda = new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({ color: cor, transparent: true, opacity: 0.9 }));
-  g.add(fundo, cheio, borda); g.position.set(x, 0.08, z); g.rotation.y = ang; scene.add(g);
+  g.add(fundo, cheio, borda); g.position.set(x, 0.3 + chao(x, z), z); g.traverse(o => { if (o.material) { o.material.depthTest = false; o.renderOrder = 2; } }); g.rotation.y = ang; scene.add(g);
   const e = { o: g, t: 0, dur, tipo: 'aviso', cheio, eixo }; efeitos.push(e); return e;
 }
 export function avisoLinha(x, z, ang, comp, larg, dur, cor = 0xff3322) {
@@ -629,7 +658,7 @@ export function avisoCone(x, z, ang, raio, abertura, dur, cor = 0xff3322) {
 // poça (veneno, lava): disco que pulsa e some no fim
 export function poca(x, z, raio, dur, cor = 0x5ad82a) {
   const m = new THREE.Mesh(new THREE.CircleGeometry(raio, 32).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: cor, transparent: true, opacity: 0.45, depthWrite: false }));
-  m.position.set(x, 0.07, z); scene.add(m); const e = { o: m, t: 0, dur, tipo: 'poca' }; efeitos.push(e); return e;
+  m.position.set(x, 0.3 + chao(x, z), z); m.material.depthTest = false; m.renderOrder = 2; scene.add(m); const e = { o: m, t: 0, dur, tipo: 'poca' }; efeitos.push(e); return e;
 }
 const GEO_FLECHA = new THREE.CylinderGeometry(0.03, 0.03, 0.8, 5).rotateX(Math.PI / 2);
 const GEO_BOLA = new THREE.SphereGeometry(1, 12, 10);
@@ -657,13 +686,13 @@ const corTmp = new THREE.Color();
 // feixe de luz entre dois pontos (raio em cadeia)
 export function feixe(x1, z1, x2, z2, cor = 0xc9a0ff) {
   const d = Math.hypot(x2 - x1, z2 - z1), m = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.25, d), MAT_ADD(cor));
-  m.position.set((x1 + x2) / 2, 1.8, (z1 + z2) / 2); m.rotation.y = Math.atan2(x2 - x1, z2 - z1); scene.add(m); efeitos.push({ o: m, t: 0, dur: 0.3, tipo: 'fade' });
+  m.position.set((x1 + x2) / 2, 1.8 + chao((x1 + x2) / 2, (z1 + z2) / 2), (z1 + z2) / 2); m.rotation.y = Math.atan2(x2 - x1, z2 - z1); scene.add(m); efeitos.push({ o: m, t: 0, dur: 0.3, tipo: 'fade' });
 }
 export function faiscas(x, y, z, cor, n = 10, forca = 3) {
   corTmp.set(cor);
   for (let i = 0; i < n && part.length < MAXP; i++) {
     const a = Math.random() * 6.28, v = forca * (0.4 + Math.random());
-    part.push({ x, y, z, vx: Math.cos(a) * v, vy: Math.random() * forca * 1.2, vz: Math.sin(a) * v, t: 0, vida: 0.4 + Math.random() * 0.5, r: corTmp.r, g: corTmp.g, b: corTmp.b });
+    const c0 = chao(x, z); part.push({ x, y: y + c0, z, c0, vx: Math.cos(a) * v, vy: Math.random() * forca * 1.2, vz: Math.sin(a) * v, t: 0, vida: 0.4 + Math.random() * 0.5, r: corTmp.r, g: corTmp.g, b: corTmp.b });
   }
 }
 
@@ -671,7 +700,7 @@ export function faiscas(x, y, z, cor, n = 10, forca = 3) {
 export const camera = { yaw: Math.PI, pitch: 0.72, dist: 12, alvo: new THREE.Vector3(), tremor: 0, suave: 10 };
 const olharTmp = new THREE.Vector3();
 export function quadro(dt, foco) {
-  relogio += dt; RECORTE.rHeroi.value.set(alvoR ? alvoR.x : foco.x, 2.2, alvoR ? alvoR.z : foco.z); RECORTE.rCam.value.copy(cam.position);
+  relogio += dt; RECORTE.rHeroi.value.set(alvoR ? alvoR.x : foco.x, 2.2 + chao(alvoR ? alvoR.x : foco.x, alvoR ? alvoR.z : foco.z), alvoR ? alvoR.z : foco.z); RECORTE.rCam.value.copy(cam.position);
   if (!pontos) criarPontos();
   // efeitos
   for (let i = efeitos.length - 1; i >= 0; i--) {
@@ -686,25 +715,26 @@ export function quadro(dt, foco) {
   let n = 0;
   for (let i = part.length - 1; i >= 0; i--) {
     const p = part[i]; p.t += dt; if (p.t > p.vida) { part.splice(i, 1); continue; }
-    p.vy -= 6 * dt; p.x += p.vx * dt; p.y = Math.max(0.05, p.y + p.vy * dt); p.z += p.vz * dt; p.vx *= 0.96; p.vz *= 0.96;
+    p.vy -= 6 * dt; p.x += p.vx * dt; p.y = Math.max(0.05 + (p.c0 || 0), p.y + p.vy * dt); p.z += p.vz * dt; p.vx *= 0.96; p.vz *= 0.96;
   }
   for (const p of part) { const f = 1 - p.t / p.vida; pPos.set([p.x, p.y, p.z], n * 3); pCor.set([p.r * f, p.g * f, p.b * f], n * 3); n++; }
   pontos.geometry.setDrawRange(0, n); pontos.geometry.attributes.position.needsUpdate = true; pontos.geometry.attributes.color.needsUpdate = true;
 
   // câmera atrás do herói
   const c = camera, sy = Math.sin(c.yaw), cy = Math.cos(c.yaw), cp = Math.cos(c.pitch), sp = Math.sin(c.pitch);
-  c.alvo.lerp(olharTmp.set(foco.x, c.altura ?? 1.3, foco.z), Math.min(1, dt * c.suave));
+  c.alvo.lerp(olharTmp.set(foco.x, (c.altura ?? 1.3) + chao(foco.x, foco.z), foco.z), Math.min(1, dt * c.suave));
   cam.position.set(c.alvo.x - sy * cp * c.dist, c.alvo.y + sp * c.dist, c.alvo.z - cy * cp * c.dist);
+  { const hc = chao(cam.position.x, cam.position.z) + 2; if (cam.position.y < hc) cam.position.y = hc; } // câmera nunca entra no morro
   if (c.tremor > 0) { cam.position.x += (Math.random() - 0.5) * c.tremor; cam.position.y += (Math.random() - 0.5) * c.tremor; c.tremor = Math.max(0, c.tremor - dt * 2); }
   cam.lookAt(c.alvo);
   // sombra acompanha o herói
-  sol.position.set(foco.x + 20, 40, foco.z + 10); sol.target.position.set(foco.x, 0, foco.z);
+  { const h = chao(foco.x, foco.z); sol.position.set(foco.x + 20, 40 + h, foco.z + 10); sol.target.position.set(foco.x, h, foco.z); }
   renderer.render(scene, cam);
 }
 // projeta um ponto 3D na tela (px CSS); null se estiver atrás da câmera
 const vTmp = new THREE.Vector3();
 export function tela(x, y, z) {
-  vTmp.set(x, y, z).project(cam);
+  vTmp.set(x, y + chao(x, z), z).project(cam);
   if (vTmp.z > 1) return null;
   return [(vTmp.x + 1) / 2 * innerWidth, (1 - vTmp.y) / 2 * innerHeight];
 }

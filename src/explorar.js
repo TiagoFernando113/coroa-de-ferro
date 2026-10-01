@@ -26,12 +26,12 @@ export const totalLocais = () => POIS.filter(o => o.tipo === 'local').length;
 // h = { criarMonstro, numero, faixa, L } (funções da luta)
 export function iniciarExpl(h) {
   H = h; perto = null; const st = estadoExpl(), agora = Date.now();
-  for (const o of POIS) if (o.tipo === 'bau' && !baus[o.id]) { const b = C.objeto('D:chest', 3); b.position.set(o.x, 0, o.z); b.rotation.y = (o.x * 7) % 6; baus[o.id] = b; }
+  for (const o of POIS) if (o.tipo === 'bau' && !baus[o.id]) { const b = C.objeto('D:chest', 3); b.position.set(o.x, C.chao(o.x, o.z), o.z); b.rotation.y = (o.x * 7) % 6; baus[o.id] = b; }
   for (const o of POIS) if (o.tipo === 'bau') baus[o.id].visible = !(st.baus[o.id] > agora);
   if (!npcs) { npcs = [];
     for (const o of POIS) if (o.tipo === 'vila') NPCS.forEach(([tipo, nome, cls], k) => {
       const dx = o.px - o.x, dz = o.pz - o.z, m = Math.hypot(dx, dz), ux = dx / m, uz = dz / m, x = o.x + ux * 6 + uz * (k - 1) * 6, z = o.z + uz * 6 - ux * (k - 1) * 6;
-      const v = C.heroi(visualAleatorio(cls)); v.raiz.scale.setScalar(ESC_MUNDO); v.raiz.position.set(x, 0, z); v.raiz.rotation.y = Math.atan2(ux, uz); v.tocar('Idle_A');
+      const v = C.heroi(visualAleatorio(cls)); v.raiz.scale.setScalar(ESC_MUNDO); v.raiz.position.set(x, C.chao(x, z), z); v.raiz.rotation.y = Math.atan2(ux, uz); v.tocar('Idle_A');
       npcs.push({ v, x, z, tipo, nome, vila: o }); }); }
   document.querySelector('#luta')?.insertAdjacentHTML('beforeend', `<button id="lFalar" class="btn amarelo" hidden></button><div id="lTarefa" hidden></div>`);
   document.querySelector('#lFalar').onclick = () => { if (!perto) return; if (perto.campo) { H.atacarCampo(perto.campo); perto = null; document.querySelector('#lFalar').hidden = true; } else abrirNpc(perto.vila ? perto : perto); };

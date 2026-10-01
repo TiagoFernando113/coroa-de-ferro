@@ -5,7 +5,7 @@ import * as E from './estado.js';
 import { S } from './estado.js';
 import { missao, REGIOES, CLASSES, fmt, LETRAS } from './dados.js';
 import { armaInfo, animAtaque } from './aparencia.js';
-import { GUILDA_W, posCampo, ESC_MUNDO, CENTROS } from './mundo.js';
+import { GUILDA_W, posCampo, ESC_MUNDO, CENTROS, colidir, atualizarChunks, limparChunks } from './mundo.js';
 import { ico, som, ui } from './ui.js';
 import { tema, sfx } from './musica.js';
 import { gerarItem, sortearRaridade, atributosEquip, RARIDADE_ITEM } from './itens.js';
@@ -107,7 +107,7 @@ export function iniciarLuta(qid, ids, aoFim) {
   const m = missao(q.r, q.t), razao = Math.max(0.2, E.poderEquipe(ids, q.r) / m.req), forca = Math.sqrt(razao);
   q.emLuta = true; for (const id of ids) E.heroi(id).estado = 'missao';
   const campo = posCampo(q.r, q.dx, q.dy), s = E.sis();
-  const mk = (h, x, z) => { const v = C.heroi(h.visual); v.raiz.scale.setScalar(ESC_MUNDO); v.raiz.position.set(x, 0, z); v.tocar('Idle_A'); return { h, v, x, z, ang: 0, cd: 0, alc: alcanceArma(h.visual) }; };
+  const mk = (h, x, z) => { const v = C.heroi(h.visual); v.raiz.scale.setScalar(ESC_MUNDO); v.raiz.position.set(x, C.chao(x, z), z); v.tocar('Idle_A'); return { h, v, x, z, ang: 0, cd: 0, alc: alcanceArma(h.visual) }; };
   const lider = mk(E.heroi(guiaId), GUILDA_W.x + 6, GUILDA_W.z - 6);
   // o nível já entra no poder da equipe (forca); aqui entram os atributos e o equipamento do seu herói
   const st = E.statsHeroi(), eq = atributosEquip(S.equip), meu = guiaId === S.lider;
@@ -117,7 +117,7 @@ export function iniciarLuta(qid, ids, aoFim) {
   const inimigos = GRUPOS[q.t].map((tp, i) => {
     const [mod, armas, esc, vida, dano, alc, longe] = TIPOS[tp], v = C.personagem(mod, armas, esc); v.raiz.scale.setScalar(ESC_MUNDO * (tp === 'chefe' ? 1 : 1));
     const a = i * 2.1, x = campo.x + Math.cos(a) * (i ? 5 : 0), z = campo.z + Math.sin(a) * (i ? 5 : 0);
-    v.raiz.position.set(x, 0, z); v.tocar(v.tem('Idle_Combat') ? 'Idle_Combat' : 'Idle');
+    v.raiz.position.set(x, C.chao(x, z), z); v.tocar(v.tem('Idle_Combat') ? 'Idle_Combat' : 'Idle');
     return { tp, v, x, z, hp: vida, max: vida, dano: dano / forca, alc, longe, cd: 1 + Math.random(), ang: 0, acordado: false, chefe: tp === 'chefe' };
   });
   L = { q, ids, lider, aliados, inimigos, proj: [], txt: [], joy: null, mx: 0, mz: 0, t: 0, campo, aoFim, fim: false, reg: REGIOES[q.r], m, forca, loot: [],
@@ -143,7 +143,7 @@ export function iniciarExploracao(aoFim) {
   h.estado = 'missao'; const st = E.statsHeroi();
   const v = C.heroi(h.visual); v.raiz.scale.setScalar(ESC_MUNDO);
   const lider = { h, v, x: GUILDA_W.x + 6, z: GUILDA_W.z - 6, ang: 0, cd: 0, alc: alcanceArma(h.visual), cds: [0, 0, 0, 0], max: st.vida, hp: st.vida, dano: st.dano, crit: st.crit, def: st.def, vel: st.vel, hab: st.hab, recarga: st.recarga };
-  v.raiz.position.set(lider.x, 0, lider.z); v.tocar('Idle_A');
+  v.raiz.position.set(lider.x, C.chao(lider.x, lider.z), lider.z); v.tocar('Idle_A');
   L = { explorar: true, q: { nome: 'Explorando o mundo', r: 0, rank: 0, mult: 1 }, ids: [h.id], lider, aliados: [], inimigos: [], proj: [], txt: [], joy: null, mx: 0, mz: 0, t: 0,
     campo: null, aoFim, fim: false, reg: REGIOES[0], forca: 1, loot: [], emboscada: null, spawnT: 0, ganhos: { xp: 0, ouro: 0, mortes: 0 } };
   ui.foco = { x: lider.x, z: lider.z }; C.camera.dist = 26; C.camera.pitch = 0.32; C.camera.altura = 5.5; C.camera.yaw = Math.PI - 0.3; C.camera.suave = 10; L.neblina = C.neblinaAtual(); C.neblina(70, C.qualidadeAtual() === 'baixa' ? 150 : 210); C.recorte(true);
@@ -157,7 +157,7 @@ function criarMonstro(tp, r, x, z, elite = false) {
   if (bicho) { const [mod, e0, vida, dano, atk, nome, longe] = BICHOS[tp]; v = C.personagem(mod, [], 1); v.raiz.scale.setScalar(ESC_MUNDO * e0 * (elite ? 1.5 : 1)); d = { vida, dano, alc: longe ? 11 : 2.8 * (elite ? 1.5 : 1), atkAnim: atk, nome, longe }; }
   else { const [mod, armas, esc, vida, dano, alc, longe] = TIPOS[tp]; v = C.personagem(mod, armas, esc * (elite ? 1.4 : 1)); v.raiz.scale.setScalar(ESC_MUNDO); d = { vida, dano, alc, longe }; }
   if (elite) v.corpo.traverse(o => { if (o.isMesh) o.material.color.lerp(new C.Cor(0xff4a2a), 0.35); });
-  v.raiz.position.set(x, 0, z); v.tocar('Idle');
+  v.raiz.position.set(x, C.chao(x, z), z); v.tocar('Idle');
   return { tp, v, x, z, hp: d.vida * hpM, max: d.vida * hpM, dano: d.dano * dM, alc: d.alc, longe: d.longe, atkAnim: d.atkAnim, bicho, cd: 1, ang: Math.random() * 6, acordado: false,
     r, raro: elite, grande: elite, nome: d.nome || elite ? `${[elite && (bicho ? 'Alfa' : 'Capitão'), d.nome].filter(Boolean).join(' ')} · Nv ${Math.round(1 + r * 8) + (elite ? 3 : 0)}` : null, mundo: true, alt: altura(v) };
 }
@@ -293,7 +293,7 @@ function usarHab(i) {
 function maisPerto(de, raio) { let m = null, d0 = raio; for (const e of L.inimigos) if (e.hp > 0 && !e.sumido) { const d = dist(de, e); if (d < d0) { d0 = d; m = e; } } return m; }
 function atirar(de, ang, tipo, vel, dano, dono, explode = 0) {
   const o = C.projetil(tipo); o.scale.setScalar(1.6); const p = { x: de.x + Math.sin(ang) * 1.5, z: de.z + Math.cos(ang) * 1.5, vx: Math.sin(ang) * vel, vz: Math.cos(ang) * vel, o, dano, dono, explode, andou: 0 };
-  o.position.set(p.x, 2, p.z); o.rotation.y = ang; L.proj.push(p); return p;
+  o.position.set(p.x, 2 + C.chao(p.x, p.z), p.z); o.rotation.y = ang; L.proj.push(p); return p;
 }
 function ferir(e, v) {
   if (e.hp <= 0) return; v = Math.round(v * (0.9 + Math.random() * 0.2)); const crit = Math.random() < (L.lider.crit || 0.12); if (crit) v = Math.round(v * 1.8);
@@ -302,7 +302,7 @@ function ferir(e, v) {
   if (crit) { L.pausa = 0.06; C.camera.tremor = Math.max(C.camera.tremor, 0.15); }
   if (!e.chefe && !e.grande && !e.pulo && !e.investe) { const j = L.lider, d = Math.hypot(e.x - j.x, e.z - j.z) || 1, k = crit ? 0.9 : 0.35; e.x += (e.x - j.x) / d * k; e.z += (e.z - j.z) / d * k; }
   if (e.hp - 0 <= 0) { C.faiscas(e.x, 1.5, e.z, 0xffe9a0, 30, 6); C.onda(e.x, e.z, 3 + (e.alt || 3) * 0.5, 0xffffff, 0.35); if (e.chefe || e.unico) { L.pausa = 0.15; C.camera.tremor = 0.5; } }
-  if (e.hp <= 0) { e.lanc = e.pulo = e.investe = null; e.sumido = false; e.v.raiz.visible = true; e.v.raiz.position.y = 0; e.v.tocar(e.bicho ? 'Death' : 'Death_A', { loop: false, reinicia: true }); e.morreu = 0; som('compra'); if (e.covil) covilDerrotado(e); if (e.mundo) abateTarefa(e); if (e.mundo && Math.random() < (e.unico ? 1 : e.raro ? 0.4 : 0.04)) { E.ganharPergaminho(); numero(e.x, 7.5, e.z, 'Pergaminho de treino!', '#c9a0ff', true); } if (e.mundo) { recompensaMundo(e); if (Math.random() < (e.raro ? 1 : 0.08)) soltarLoot(e); } else soltarLoot(e); }
+  if (e.hp <= 0) { e.lanc = e.pulo = e.investe = null; e.sumido = false; e.v.raiz.visible = true; e.yOff = 0; e.v.tocar(e.bicho ? 'Death' : 'Death_A', { loop: false, reinicia: true }); e.morreu = 0; som('compra'); if (e.covil) covilDerrotado(e); if (e.mundo) abateTarefa(e); if (e.mundo && Math.random() < (e.unico ? 1 : e.raro ? 0.4 : 0.04)) { E.ganharPergaminho(); numero(e.x, 7.5, e.z, 'Pergaminho de treino!', '#c9a0ff', true); } if (e.mundo) { recompensaMundo(e); if (Math.random() < (e.raro ? 1 : 0.08)) soltarLoot(e); } else soltarLoot(e); }
   else if (!e.chefe && !e.grande && Math.random() < 0.4) e.v.tocar(e.bicho ? 'Idle_HitReact1' : 'Hit_A', { loop: false, reinicia: true });
 }
 function ferirHeroi(a, v) {
@@ -321,7 +321,7 @@ function emboscar() {
   enc.grupo.forEach(([tp, nome, esc = 1, vidaX = 1, cor], i) => {
     const [mod, e0, vida, dano, atk, nome0, longe] = BICHOS[tp], v = C.personagem(mod, [], 1); v.raiz.scale.setScalar(ESC_MUNDO * e0 * esc);
     if (cor != null) v.corpo.traverse(o => { if (o.isMesh) { o.material.color.lerp(new C.Cor(cor), 0.55); if (o.material.emissive) o.material.emissive.setHex(cor).multiplyScalar(0.15); } });
-    const a = Math.random() * 6.28, x = j.x + Math.cos(a) * (10 + i * 2), z = j.z + Math.sin(a) * (10 + i * 2); v.raiz.position.set(x, 0, z); v.tocar('Idle');
+    const a = Math.random() * 6.28, x = j.x + Math.cos(a) * (10 + i * 2), z = j.z + Math.sin(a) * (10 + i * 2); v.raiz.position.set(x, C.chao(x, z), z); v.tocar('Idle');
     const vv = vida * vidaX * (1 + L.q.r * 0.3);
     L.inimigos.push({ tp, v, x, z, hp: vv, max: vv, dano: dano * (1 + L.q.r * 0.2) * (enc.unico ? 1.6 : 1) / L.forca, alc: longe ? 11 : 2.8 * esc, longe, cd: 1.5, ang: 0, acordado: true, bicho: true, atkAnim: atk,
       nome: nome || nome0, alt: altura(v), raro: enc.raro, unico: enc.unico, grande: esc > 1.4, emb: true });
@@ -341,7 +341,7 @@ function soltarLoot(e) {
   if (e.unico) itens.push(gerarItem(nivel, sortearRaridade(1)));
   // o baú fica no chão: passe por cima para pegar (o que sobrar é pego ao sair)
   const melhor = RARIDADE_ITEM[Math.max(...itens.map(i => i.rar))]; numero(e.x, 6, e.z, `Baú ${melhor.nome}!`, melhor.cor, true);
-  const o = C.objeto('D:chest', 2.4); o.position.set(e.x, 0, e.z); const anel = C.anel(e.x, 0.06, e.z, 1.6, parseInt(melhor.cor.slice(1), 16)); anel.rotation.x = -Math.PI / 2;
+  const o = C.objeto('D:chest', 2.4); o.position.set(e.x, C.chao(e.x, e.z), e.z); const anel = C.anel(e.x, 0.06, e.z, 1.6, parseInt(melhor.cor.slice(1), 16)); anel.rotation.x = -Math.PI / 2;
   L.baus = [...(L.baus || []), { o, anel, x: e.x, z: e.z, itens, t: 0 }];
 }
 let faixaAte = 0; // uma faixa por vez (as outras esperam na fila)
@@ -385,9 +385,12 @@ export function passoLuta(dt) {
     else if (alvo) { a.ang = Math.atan2(alvo.x - a.x, alvo.z - a.z); a.cd -= dt; if (a.cd <= 0) { a.cd = 1.1; a.v.tocar(animAtaque(a.h.visual), { loop: false, reinicia: true }); if (a.alc > 5 && dist(a, alvo) > 3) atirar(a, a.ang, 'flecha', 28, a.dano, true); else ferir(alvo, a.dano); } }
     else a.v.tocar('Idle_A');
   });
+  atualizarChunks(j.x, j.z);
+  // ninguém atravessa paredes, cercas, pedras e troncos
+  colidir(j, 1.1); for (const a of L.aliados) colidir(a, 1.1); for (const e of L.inimigos) if (e.hp > 0 && !e.pulo) colidir(e, e.grande || e.chefe ? 1.8 : 1);
   // monstros
   for (const e of L.inimigos) {
-    if (e.hp <= 0) { e.morreu += dt; if (e.morreu > 2.5) e.v.raiz.position.y = -(e.morreu - 2.5); if (e.morreu > 4) e.v.raiz.visible = false; continue; }
+    if (e.hp <= 0) { e.morreu += dt; if (e.morreu > 2.5) e.yOff = -(e.morreu - 2.5); if (e.morreu > 4) e.v.raiz.visible = false; continue; }
     e.atordoado = Math.max(0, (e.atordoado || 0) - dt);
     const alvos = [j, ...L.aliados].filter(a => a.hp === undefined || a.hp > 0); let alvo = null, d0 = 1e9; for (const a of alvos) { const d = dist(a, e); if (d < d0) { d0 = d; alvo = a; } }
     if (!e.acordado && d0 < 20) { e.acordado = true; if (e.chefe) { e.v.tocar('Taunt', { loop: false, reinicia: true }); e.cd = 1.8; C.camera.tremor = 0.3; } }
@@ -397,8 +400,8 @@ export function passoLuta(dt) {
     if (e.investe) { const iv = e.investe; iv.t -= dt; e.x += iv.vx * dt; e.z += iv.vz * dt;
       for (const h of [j, ...L.aliados]) if (!iv.acertou && dist(h, e) < iv.r + 0.8) { iv.acertou = true; ferirHeroi(h, e.dano * 1.8); C.camera.tremor = Math.max(C.camera.tremor, 0.2); }
       if (iv.t <= 0) e.investe = null; continue; }
-    if (e.pulo) { const p = e.pulo; p.t += dt; const k = Math.min(1, p.t / p.dur); e.x = p.x0 + (p.x1 - p.x0) * k; e.z = p.z0 + (p.z1 - p.z0) * k; e.v.raiz.position.y = Math.sin(k * Math.PI) * p.h;
-      if (k >= 1) { e.pulo = null; e.v.raiz.position.y = 0; C.onda(e.x, e.z, p.r, 0xffc07a, 0.45); C.faiscas(e.x, 0.5, e.z, 0xc8a878, 25, 5); C.camera.tremor = Math.max(C.camera.tremor, 0.3);
+    if (e.pulo) { const p = e.pulo; p.t += dt; const k = Math.min(1, p.t / p.dur); e.x = p.x0 + (p.x1 - p.x0) * k; e.z = p.z0 + (p.z1 - p.z0) * k; e.yOff = Math.sin(k * Math.PI) * p.h;
+      if (k >= 1) { e.pulo = null; e.yOff = 0; C.onda(e.x, e.z, p.r, 0xffc07a, 0.45); C.faiscas(e.x, 0.5, e.z, 0xc8a878, 25, 5); C.camera.tremor = Math.max(C.camera.tremor, 0.3);
         for (const h of [j, ...L.aliados]) if (dist(h, e) < p.r + 0.5) ferirHeroi(h, e.dano * 2); }
       continue; }
     const hb0 = HAB[e.tp], hb = Array.isArray(hb0) ? hb0[Math.floor(Math.random() * hb0.length)] : hb0;
@@ -415,11 +418,11 @@ export function passoLuta(dt) {
   // poças de veneno: dano enquanto pisa
   L.zonas = (L.zonas || []).filter(z => { z.t -= dt; z.tick -= dt; if (z.tick <= 0) { z.tick = 0.5; for (const h of [j, ...L.aliados]) if (Math.hypot(h.x - z.x, h.z - z.z) < z.r) ferirHeroi(h, z.dano); } return z.t > 0; });
   // baús de loot no chão
-  for (const b of L.baus || []) { if (b.pego) continue; b.t += dt; b.o.position.y = 0.3 + Math.sin(b.t * 3) * 0.25; b.o.rotation.y += dt * 1.5;
+  for (const b of L.baus || []) { if (b.pego) continue; b.t += dt; b.o.position.y = C.chao(b.x, b.z) + 0.3 + Math.sin(b.t * 3) * 0.25; b.o.rotation.y += dt * 1.5;
     if (Math.hypot(b.x - j.x, b.z - j.z) < 3.2) pegarBau(b); }
   // projéteis
   for (let i = L.proj.length - 1; i >= 0; i--) {
-    const p = L.proj[i]; p.x += p.vx * dt; p.z += p.vz * dt; p.andou += Math.hypot(p.vx, p.vz) * dt; p.o.position.set(p.x, 2, p.z);
+    const p = L.proj[i]; p.x += p.vx * dt; p.z += p.vz * dt; p.andou += Math.hypot(p.vx, p.vz) * dt; p.o.position.set(p.x, 2 + C.chao(p.x, p.z), p.z);
     let fim = p.andou > 26;
     if (p.dono && p.perfura) { for (const e of L.inimigos) if (e.hp > 0 && !e.sumido && !p.perfura.has(e) && Math.hypot(e.x - p.x, e.z - p.z) < (e.chefe ? 2.5 : 1.6)) { p.perfura.add(e); ferir(e, p.dano); C.faiscas(e.x, 1.6, e.z, 0xa8ff7a, 10, 3); } }
     else if (p.dono) { for (const e of L.inimigos) if (e.hp > 0 && !e.sumido && Math.hypot(e.x - p.x, e.z - p.z) < (e.chefe ? 2.5 : 1.4)) { if (p.explode) { C.onda(p.x, p.z, p.explode, 0xff7a2a, 0.4); for (const o of L.inimigos) if (o.hp > 0 && Math.hypot(o.x - p.x, o.z - p.z) < p.explode + 1) ferir(o, p.dano); } else ferir(e, p.dano); fim = true; break; } }
@@ -427,8 +430,8 @@ export function passoLuta(dt) {
     if (fim) { C.remover(p.o); L.proj.splice(i, 1); }
   }
   // visual
-  for (const a of [j, ...L.aliados]) { a.v.raiz.position.set(a.x, 0, a.z); a.v.raiz.rotation.y = a.ang; a.v.mixer.update(dt); a.flash = Math.max(0, (a.flash || 0) - dt); a.v.brilho(a.flash > 0 ? 0.35 : 0); }
-  for (const e of L.inimigos) { e.v.raiz.position.x = e.x; e.v.raiz.position.z = e.z; e.v.raiz.rotation.y = e.ang; e.v.mixer.update(dt); e.flash = Math.max(0, (e.flash || 0) - dt); e.v.brilho(e.flash > 0 ? 0.4 : 0); }
+  for (const a of [j, ...L.aliados]) { a.v.raiz.position.set(a.x, C.chao(a.x, a.z), a.z); a.v.raiz.rotation.y = a.ang; a.v.mixer.update(dt); a.flash = Math.max(0, (a.flash || 0) - dt); a.v.brilho(a.flash > 0 ? 0.35 : 0); }
+  for (const e of L.inimigos) { e.v.raiz.position.set(e.x, C.chao(e.x, e.z) + (e.yOff || 0), e.z); e.v.raiz.rotation.y = e.ang; e.v.mixer.update(dt); e.flash = Math.max(0, (e.flash || 0) - dt); e.v.brilho(e.flash > 0 ? 0.4 : 0); }
   { // câmera: foca um pouco à frente de onde o herói está indo e gira devagar para ficar atrás dele
     const mv = Math.hypot(L.mx, L.mz), vx = mv > 0.05 ? L.mx / mv : 0, vz = mv > 0.05 ? L.mz / mv : 0;
     L.olhaX = 0; L.olhaZ = 0;
@@ -459,7 +462,7 @@ function desenharHud(dt) {
   L.txt = L.txt.filter(t => t.t < 1.1);
 }
 function terminar(ok, desistiu = false) {
-  if (!L) return; const l = L; L = null; tema('guilda'); if (l.neblina) C.neblina(...l.neblina); C.recorte(false); C.diaNoite(0); C.camera.altura = 1.3;
+  if (!L) return; const l = L; L = null; limparChunks(); tema('guilda'); if (l.neblina) C.neblina(...l.neblina); C.recorte(false); C.diaNoite(0); C.camera.altura = 1.3;
   for (const a of [l.lider, ...l.aliados]) a.v.remover(); for (const e of l.inimigos) e.v.remover(); for (const p of l.proj) C.remover(p.o); for (const b of l.baus || []) { if (!b.pego) { l.loot.push(...b.itens); C.remover(b.o); if (b.anel) C.remover(b.anel); } }
   removeEventListener('resize', l.medir); $('#luta').remove(); $('#hud').style.visibility = '';
   if (l.explorar) { for (const id of l.ids) { const h = E.heroi(id); if (h) h.estado = 'livre'; } som('fechar'); }
