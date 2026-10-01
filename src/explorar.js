@@ -84,7 +84,9 @@ function abrirNpc(n) {
     if (n.tipo === 'mercador') { const comuns = (S.mochila || []).filter(i => i.rar <= 1 && !Object.values(S.equip || {}).some(x => x?.id === i.id)), val = comuns.reduce((a, i) => a + Math.round(precoItem(i)), 0);
       h += `<p>Poções: <b>${S.pocoes}</b> · Ouro: <b>${fmt(S.ouro)}</b></p><div class="linha"><button class="btn verde peq" data-n="p1">Poção ${ico('ouro')}${precoPocao()}</button><button class="btn verde peq" data-n="p5">5 poções ${ico('ouro')}${precoPocao() * 5}</button></div>
         <p class="suave">Vender itens Comuns e Incomuns da mochila (${comuns.length}): ${ico('ouro')}${fmt(val)}</p><button class="btn amarelo peq ${comuns.length ? '' : 'sem'}" data-n="vender">Vender</button>`; }
-    if (n.tipo === 'curandeira') h += `<p>"Descanse, aventureiro. Eu cuido das suas feridas."</p><p>Vida: <b>${Math.round(j.hp)}/${Math.round(j.max)}</b></p><button class="btn verde peq" data-n="curar">${ico('coracao')} Curar tudo</button>`;
+    if (n.tipo === 'curandeira') h += `<p>"Descanse, aventureiro. Eu cuido das suas feridas."</p><p>Vida: <b>${Math.round(j.hp)}/${Math.round(j.max)}</b></p><button class="btn verde peq" data-n="curar">${ico('coracao')} Curar tudo</button>
+      <p class="suave">Se você cair no mundo, perde 10% do ouro e 30% do XP do nível. A <b>Bênção</b> protege da próxima queda.</p>
+      ${S.bencao ? `<p>${ico('estrela')} <b>Abençoado:</b> a próxima queda não tira nada.</p>` : `<button class="btn roxo peq" data-n="bencao">${ico('estrela')} Bênção ${ico('ouro')}${fmt(E.precoBencao())}</button>`}`;
     if (n.tipo === 'cacador') { const t = S.tarefa;
       if (!t) { const o = oferta(n); h += `<p>"Os monstros estão atacando as caravanas. Me ajude!"</p><p>Caçada: derrote <b>${o.meta} ${o.nome}</b></p><p class="suave">Recompensa: ${ico('ouro')}${fmt(o.ouro)} · ${fmt(o.xp)} XP · ${ico('gema')}${o.gemas}</p><button class="btn verde peq" data-n="aceitar">Aceitar</button>`; }
       else if (t.feito >= t.meta) h += `<p>"Excelente trabalho!"</p><button class="btn amarelo peq" data-n="entregar">Receber ${ico('ouro')}${fmt(t.ouro)} · ${fmt(t.xp)} XP · ${ico('gema')}${t.gemas} · 2 pergaminhos</button>`;
@@ -96,6 +98,7 @@ function abrirNpc(n) {
     if (a === 'fechar') { p.remove(); som('fechar'); return; }
     if (a === 'p1' || a === 'p5') { const q = a === 'p5' ? 5 : 1, c = precoPocao() * q; if (S.ouro >= c) { S.ouro -= c; S.pocoes += q; som('moedas'); } else som('erro'); }
     if (a === 'vender') { let t = 0; for (const i of [...(S.mochila || [])]) if (i.rar <= 1 && !Object.values(S.equip || {}).some(x => x?.id === i.id)) t += E.venderItem(i.id); if (t) { som('moedas'); H.numero(j.x, 5, j.z, `+${fmt(t)} ouro`, '#ffd84a', true); } }
+    if (a === 'bencao') { if (E.comprarBencao()) { som('lendario'); C.onda(j.x, j.z, 6, 0xfff2a0, 0.7); C.faiscas(j.x, 3, j.z, 0xfff2a0, 40, 4); } else som('erro'); }
     if (a === 'curar') { j.hp = j.max; C.faiscas(j.x, 2, j.z, 0x7aff9a, 30, 4); som('marco'); }
     if (a === 'aceitar') { S.tarefa = oferta(n); som('confirma'); }
     if (a === 'entregar') { const t = S.tarefa; S.ouro += t.ouro; S.st.ouroTotal += t.ouro; S.gemas += t.gemas; E.ganharXPSis(t.xp); E.ganharPergaminho(2); S.tarefa = null; S.st.tarefas = (S.st.tarefas || 0) + 1;

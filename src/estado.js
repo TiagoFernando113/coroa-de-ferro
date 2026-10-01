@@ -223,6 +223,14 @@ export function coletarTreino(agora = Date.now()) {
 export const valorPergaminho = () => Math.max(10, Math.round(metaAsc(rankOficial() + 1) * 0.15));
 export function usarPergaminho() { asc(); if (!S.pergaminhos) return 0; S.pergaminhos--; const v = valorPergaminho(); S.asc.pts += v; return v; }
 export function ganharPergaminho(n = 1) { asc(); S.pergaminhos += n; ev('pergaminho', { n }); }
+// ---------------- morte no mundo aberto (como no Tibia) e a Bênção que protege ----------------
+export const precoBencao = () => Math.round(80 * sis().nivel ** 1.5);
+export function comprarBencao() { const c = precoBencao(); if (S.bencao || S.ouro < c) return false; S.ouro -= c; S.bencao = true; return true; }
+export function penalidadeMorte() {
+  if (S.bencao) { S.bencao = false; return { protegido: true }; }
+  const ouro = Math.floor(S.ouro * 0.1), s = sis(), xp = Math.floor(s.xp * 0.3); S.ouro -= ouro; s.xp -= xp; S.st.mortes = (S.st.mortes || 0) + 1;
+  return { ouro, xp };
+}
 export function treinar(id) {
   const h = heroi(id); if (!h || h.id !== S.lider) return false; const c = custoTreinar(h); if (S.ouro < c) return false;
   S.ouro -= c; h.nivel++; h.xp = 0; S.st.treinos = (S.st.treinos || 0) + 1; ev('heroiNivel', { id }); return true;

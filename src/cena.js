@@ -710,6 +710,17 @@ export const info = () => {
 export function medida(m) { const p = pecas[m.replace(':', '')]; if (!p) return null; const b = new THREE.Box3().setFromObject(p), s = b.getSize(new THREE.Vector3()); return [+s.x.toFixed(2), +s.y.toFixed(2), +s.z.toFixed(2), +b.min.x.toFixed(2), +b.min.z.toFixed(2)]; }
 export function debugHerois() { const g = modelos.herois.scene.children[0]; const out = []; g.traverse(o => out.push(o.type + ' ' + o.name + ' p' + o.position.toArray().map(v => v.toFixed(2)) + ' r' + o.rotation.toArray().slice(0, 3).map(v => v.toFixed(2)) + ' s' + o.scale.toArray().map(v => v.toFixed(2)))); return out.slice(0, 14).join('\n'); }
 export function debugCena(f) { scene.traverse(f); }
+// dia e noite: f de 0 (meio-dia) a 0,5 (meia-noite) e de volta a 1
+const C_DIA = new THREE.Color(0xa9d4f5), C_TARDE = new THREE.Color(0xf2a878), C_NOITE = new THREE.Color(0x1c2850), SOL_DIA = new THREE.Color(0xfff1d6), SOL_TARDE = new THREE.Color(0xffa060), SOL_NOITE = new THREE.Color(0x9ab0ff);
+const tmpC = new THREE.Color(), H_DIA = new THREE.Color(0xdff1ff), H_NOITE = new THREE.Color(0x5a6ab8);
+export function diaNoite(f) {
+  const luz = (Math.cos(f * Math.PI * 2) + 1) / 2; // 1 = dia, 0 = noite
+  if (luz > 0.5) { const k = Math.min(1, (luz - 0.5) * 3); tmpC.copy(C_TARDE).lerp(C_DIA, k); sol.color.copy(SOL_TARDE).lerp(SOL_DIA, k); }
+  else { const k = Math.min(1, luz * 2); tmpC.copy(C_NOITE).lerp(C_TARDE, k); sol.color.copy(SOL_NOITE).lerp(SOL_TARDE, k); }
+  scene.background.copy(tmpC); scene.fog.color.copy(tmpC);
+  hemi.intensity = 0.32 + 1.03 * luz; sol.intensity = 0.2 + 2.2 * luz; hemi.color.copy(H_NOITE).lerp(H_DIA, Math.min(1, luz * 1.5));
+  return luz;
+}
 export const neblinaAtual = () => [scene.fog.near, scene.fog.far];
 export function neblina(perto, longe) { scene.fog.near = perto; scene.fog.far = longe; cam.far = longe + 80; cam.updateProjectionMatrix(); }
 export const Cor = THREE.Color;

@@ -1,7 +1,7 @@
 // Dados da Guilda de Heróis: prédios, heróis, raridades, regiões/missões e objetivos.
 // Os números crescem de forma exponencial (estilo idle): cada melhoria custa mais e rende mais.
 
-export const VERSAO = 52;
+export const VERSAO = 53;
 
 // ---------------- números grandes ----------------
 const SUF = ['', 'K', 'M', 'B', 'T', 'aa', 'ab', 'ac', 'ad', 'ae', 'af', 'ag', 'ah'];
@@ -38,7 +38,7 @@ export const EDIFICIOS = {
 export const custoEd = (id, n) => Math.ceil(EDIFICIOS[id].base * EDIFICIOS[id].cresc ** n);
 // efeitos no nível n
 export const EF = {
-  taverna: n => n <= 0 ? 0 : 1.5 * n * 2 ** marcosAte(n),                 // ouro/s
+  taverna: n => n <= 0 ? 0 : 0.75 * n * 2 ** marcosAte(n),                // ouro/s (dividido com a guilda)
   quadro: n => ({ vagas: Math.min(6, 1 + Math.floor(n / 4)), bonus: 1 + 0.04 * n }),
   alojamento: n => Math.min(12, 3 + n),                                   // vagas na guilda (até 12 membros)
   portal: n => n,                                                         // nível do portal

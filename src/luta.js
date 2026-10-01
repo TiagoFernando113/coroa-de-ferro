@@ -221,7 +221,7 @@ function montarHud() {
   el.addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse') return; const b = hab(e.target); if (b) { e.preventDefault(); usarHab(+b.dataset.hab); } });
   el.addEventListener('click', e => { if (e.target.closest('[data-l="sair"]')) terminar(false, true); if (e.target.id === 'lMapa') { som('abrir'); mapaGrande(L.lider); } });
 }
-function numero(x, y, z, txt, cor, grande = false) { L.txt.push({ x, y, z, txt, cor, grande, t: 0 }); }
+function numero(x, y, z, txt, cor, grande = false) { L.txt.push({ x: x + (Math.random() - 0.5) * 1.5, y, z, txt, cor, grande, t: 0 }); }
 
 // ---------------- habilidades ----------------
 function usarHab(i) {
@@ -255,14 +255,17 @@ function atirar(de, ang, tipo, vel, dano, dono, explode = 0) {
 function ferir(e, v) {
   if (e.hp <= 0) return; v = Math.round(v * (0.9 + Math.random() * 0.2)); const crit = Math.random() < (L.lider.crit || 0.12); if (crit) v = Math.round(v * 1.8);
   e.hp -= v; e.acordado = true; e.flash = 0.12; numero(e.x, e.chefe ? 7 : 4, e.z, (crit ? '!' : '') + fmt(v), crit ? '#ffd84a' : '#fff', crit);
-  C.faiscas(e.x, 1.5, e.z, crit ? 0xffd84a : 0xffffff, crit ? 12 : 6, 3);
+  C.faiscas(e.x, 1.5, e.z, crit ? 0xffd84a : 0xffffff, crit ? 16 : 7, crit ? 5 : 3);
+  if (crit) { L.pausa = 0.06; C.camera.tremor = Math.max(C.camera.tremor, 0.15); }
+  if (!e.chefe && !e.grande && !e.pulo && !e.investe) { const j = L.lider, d = Math.hypot(e.x - j.x, e.z - j.z) || 1, k = crit ? 0.9 : 0.35; e.x += (e.x - j.x) / d * k; e.z += (e.z - j.z) / d * k; }
+  if (e.hp - 0 <= 0) { C.faiscas(e.x, 1.5, e.z, 0xffe9a0, 30, 6); C.onda(e.x, e.z, 3 + (e.alt || 3) * 0.5, 0xffffff, 0.35); if (e.chefe || e.unico) { L.pausa = 0.15; C.camera.tremor = 0.5; } }
   if (e.hp <= 0) { e.lanc = e.pulo = e.investe = null; e.sumido = false; e.v.raiz.visible = true; e.v.raiz.position.y = 0; e.v.tocar(e.bicho ? 'Death' : 'Death_A', { loop: false, reinicia: true }); e.morreu = 0; som('compra'); if (e.covil) covilDerrotado(e); if (e.mundo) abateTarefa(e); if (e.mundo && Math.random() < (e.unico ? 1 : e.raro ? 0.4 : 0.04)) { E.ganharPergaminho(); numero(e.x, 7.5, e.z, 'Pergaminho de treino!', '#c9a0ff', true); } if (e.mundo) { recompensaMundo(e); if (Math.random() < (e.raro ? 1 : 0.08)) soltarLoot(e); } else soltarLoot(e); }
   else if (!e.chefe && !e.grande && Math.random() < 0.4) e.v.tocar(e.bicho ? 'Idle_HitReact1' : 'Hit_A', { loop: false, reinicia: true });
 }
 function ferirHeroi(a, v) {
   if (a.iframes > 0 || a.hp <= 0) return;
   if (a === L.lider) { v *= 1 - (a.def || 0); a.hp -= v; a.flash = 0.15; numero(a.x, 4, a.z, '-' + fmt(Math.round(v)), '#ff5a4a'); C.camera.tremor = Math.max(C.camera.tremor, 0.12);
-    if (a.hp <= 0) { a.hp = 0; a.v.tocar('Death_A', { loop: false, reinicia: true }); if (L.explorar) faixa('VOCÊ CAIU', 'Voltando para a guilda...'); setTimeout(() => terminar(false), 1800); L.fim = true; } }
+    if (a.hp <= 0) { a.hp = 0; a.v.tocar('Death_A', { loop: false, reinicia: true }); if (L.explorar) { const pen = E.penalidadeMorte(); faixa('VOCÊ CAIU', pen.protegido ? 'A Bênção protegeu você: não perdeu nada!' : `Perdeu ${fmt(pen.ouro)} ouro e ${fmt(pen.xp)} XP · compre uma Bênção com a Curandeira`); } setTimeout(() => terminar(false), 1800); L.fim = true; } }
 }
 
 // ---------------- emboscadas e loot ----------------
@@ -300,8 +303,9 @@ function faixa(tit, sub, cls = '') {
 // ---------------- laço ----------------
 export function passoLuta(dt) {
   if (!L) return;
+  if (L.pausa > 0) { L.pausa -= dt; dt *= 0.08; } // pausinha no impacto (crítico, chefe caindo)
   L.t += dt; const j = L.lider;
-  if (L.explorar) { povoarMundo(dt); passoExpl(dt); if (j.hp > 0 && !L.inimigos.some(e => e.hp > 0 && e.acordado)) j.hp = Math.min(j.max, j.hp + j.max * 0.04 * dt); }
+  if (L.explorar) { C.diaNoite((Date.now() / 1000 % 720) / 720); povoarMundo(dt); passoExpl(dt); if (j.hp > 0 && !L.inimigos.some(e => e.hp > 0 && e.acordado)) j.hp = Math.min(j.max, j.hp + j.max * 0.04 * dt); }
   if (L.campo && L.emboscada != null && !L.fim && 1 - Math.hypot(L.campo.x - j.x, L.campo.z - j.z) / L.distTotal > L.emboscada) emboscar();
   // joystick → direção no mundo (relativa à câmera)
   let jx = 0, jy = 0; if (L.joy) { const dx = L.joy.x - L.joy.sx, dy = L.joy.y - L.joy.sy, m = Math.hypot(dx, dy); if (m > 6) { const f = Math.min(1, m / 55); jx = dx / m * f; jy = dy / m * f; } }
@@ -392,11 +396,11 @@ function desenharHud(dt) {
   for (const e of L.inimigos) { if (e.hp <= 0) continue; const p = C.tela(e.x, e.alt ? e.alt + 1 : e.chefe || e.grande ? 8 : 4.6, e.z); if (!p) continue; const w = e.chefe || e.grande ? 90 : 46;
     if (e.nome) { g.font = '800 13px system-ui'; g.textAlign = 'center'; g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,.8)'; g.strokeText(e.nome, p[0], p[1] - 6); g.fillStyle = e.unico ? '#ffb02e' : '#ff8a7a'; g.fillText(e.nome, p[0], p[1] - 6); }
     g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(p[0] - w / 2 - 1, p[1] - 1, w + 2, 7); g.fillStyle = e.chefe ? '#ff7a2a' : '#e2412f'; g.fillRect(p[0] - w / 2, p[1], w * e.hp / e.max, 5); }
-  for (const t of L.txt) { t.t += dt; const p = C.tela(t.x, t.y + t.t * 2, t.z); if (!p) continue; g.globalAlpha = Math.max(0, 1 - t.t / 1.1); g.font = `800 ${t.grande ? 26 : 18}px system-ui`; g.textAlign = 'center'; g.lineWidth = 4; g.strokeStyle = 'rgba(0,0,0,.75)'; g.strokeText(t.txt, p[0], p[1]); g.fillStyle = t.cor; g.fillText(t.txt, p[0], p[1]); g.globalAlpha = 1; }
+  for (const t of L.txt) { t.t += dt; const p = C.tela(t.x, t.y + t.t * 2, t.z); if (!p) continue; g.globalAlpha = Math.max(0, 1 - Math.max(0, t.t - 0.5) / 0.6); const pop = 1 + 0.7 * Math.max(0, 1 - t.t / 0.14); g.font = `900 ${Math.round((t.grande ? 30 : 20) * pop)}px system-ui`; g.textAlign = 'center'; g.lineWidth = t.grande ? 6 : 4; g.strokeStyle = 'rgba(0,0,0,.75)'; g.strokeText(t.txt, p[0], p[1]); g.fillStyle = t.cor; g.fillText(t.txt, p[0], p[1]); g.globalAlpha = 1; }
   L.txt = L.txt.filter(t => t.t < 1.1);
 }
 function terminar(ok, desistiu = false) {
-  if (!L) return; const l = L; L = null; if (l.neblina) C.neblina(...l.neblina); C.recorte(false);
+  if (!L) return; const l = L; L = null; if (l.neblina) C.neblina(...l.neblina); C.recorte(false); C.diaNoite(0);
   for (const a of [l.lider, ...l.aliados]) a.v.remover(); for (const e of l.inimigos) e.v.remover(); for (const p of l.proj) C.remover(p.o); for (const b of l.baus || []) C.remover(b);
   removeEventListener('resize', l.medir); $('#luta').remove(); $('#hud').style.visibility = '';
   if (l.explorar) { for (const id of l.ids) { const h = E.heroi(id); if (h) h.estado = 'livre'; } som('fechar'); }
