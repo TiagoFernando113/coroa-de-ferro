@@ -560,3 +560,13 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;paddin
 .lSair .ico{width:24px;height:24px}.lSair small{position:absolute;bottom:-14px;font-family:var(--fT);font-size:10px;color:#fff;text-shadow:0 1px 2px #000}
 #lMapa{width:96px!important;height:96px!important;border-width:2px!important}
 #lTarefa{top:calc(max(10px,env(safe-area-inset-top)) + 160px)!important;width:100px!important;font-size:10px!important}
+/* mochila organizada */
+.mochTopo{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:8px 0 6px}.mochTopo b{font-family:var(--fT);font-weight:400;font-size:17px;color:var(--madeira)}
+.mochTopo .btn{width:auto;padding:6px 10px;font-size:12px}.mochTopo .btn .ico{width:14px;height:14px}
+.filtrosM{display:flex;gap:5px;overflow-x:auto;padding:2px 0 8px;scrollbar-width:none}
+.filtrosM button{flex:none;display:flex;align-items:center;gap:3px;padding:5px 9px;border-radius:12px;background:#fff;border:2px solid var(--creme2);font-size:12px;color:#4a2c12}
+.filtrosM button .ico{width:18px;height:18px}.filtrosM button i{font-style:normal;font-size:10px;opacity:.7}
+.filtrosM button.on{background:linear-gradient(#ffe27a,#f0a820);border-color:#c07808}
+.mochila{max-height:none!important}
+.slotM .melhor{position:absolute;left:2px;top:0;color:#2aa84a;font-size:13px;text-shadow:0 0 2px #fff}
+.legM{font-size:10px;opacity:.6;margin:6px 0 0;text-align:center}

@@ -92,7 +92,7 @@ export function doacoesMembros(dt, agora = Date.now(), silencioso = false) {
 export function doar(id, qtd = 1) { const antes = S.ouro, n = melhorarVarias(id, qtd); if (n) { S.doacoes = S.doacoes || {}; S.doacoes[S.lider] = (S.doacoes[S.lider] || 0) + (antes - S.ouro); } return n; }
 
 // ---------------- equipamento e mochila do líder ----------------
-export const MOCHILA_MAX = 30;
+export const MOCHILA_MAX = 60;
 export function mochila() { if (!S.mochila) S.mochila = []; if (!S.equip) S.equip = {}; return S.mochila; }
 export const atrEquip = () => atributosEquip(S.equip);
 export function guardarItem(it) { mochila(); if (S.mochila.length >= MOCHILA_MAX) { ev('aviso', { txt: 'Mochila cheia! Venda alguns itens.' }); return false; } S.mochila.push(it); return true; }

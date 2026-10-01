@@ -11,7 +11,7 @@ import { abrirCriador } from './criador.js';
 import { animAtaque } from './aparencia.js';
 import { MUNDO, GUILDA_W, CENTROS, MEIO_MUNDO, mostrarMundo, mundoVisivel, camposVisiveis } from './mundo.js';
 import { iniciarLuta, iniciarExploracao } from './luta.js';
-import { RARIDADE_ITEM, ESPACOS, ATR_ITEM, textoAtr, precoItem, atributosEquip, chancesItem, BAUS, GEMAS_BAU } from './itens.js';
+import { poderItem, RARIDADE_ITEM, ESPACOS, ATR_ITEM, textoAtr, precoItem, atributosEquip, chancesItem, BAUS, GEMAS_BAU } from './itens.js';
 import { ETAPAS, avancar, etapaAtual, revelado, visivel, livre, proximoTrancado } from './etapas.js';
 
 const $ = s => document.querySelector(s);
@@ -295,7 +295,14 @@ function desenharTH() {
     if (sel) { const eq = S.equip[sel.slot]?.id === sel.id, atual = S.equip[sel.slot];
       const cmp = !eq ? Object.keys(ATR_ITEM).map(k => { const d = (sel.st[k] || 0) - (atual?.st[k] || 0); return d ? `<span class="${d > 0 ? 'mais' : 'menos'}">${d > 0 ? '+' : ''}${d}${ATR_ITEM[k][1]} ${ATR_ITEM[k][0]}</span>` : ''; }).join('') : '';
       h += `<div class="detalhe">${cartaoItem(sel)}${cmp ? `<div class="cmp">${cmp}</div>` : ''}<div class="linha">${eq ? '<button class="btn cinza peq" data-th="tirar">Tirar</button>' : `<button class="btn verde peq" data-th="eq">Equipar</button><button class="btn amarelo peq" data-th="vender">Vender ${fmt(precoItem(sel))}</button>`}</div></div>`; }
-    h += `<h4 class="mochT">Mochila ${S.mochila.length}/${E.MOCHILA_MAX} <small>toque num item</small></h4><div class="mochila">${S.mochila.map(it => `<button class="slotM ${it.id === TH.sel ? 'on' : ''}" data-it="${it.id}" style="--ri:${RARIDADE_ITEM[it.rar].cor}">${ico(ESPACOS[it.slot].icone)}<i>${it.nivel}</i></button>`).join('') || '<p class="suave">Vazia. Explore o mundo, vença monstros e abra baús para achar itens!</p>'}</div>`;
+    // filtros por tipo, melhores primeiro, seta verde no que é melhor que o equipado
+    const f = TH.filtro || '', conta = k => S.mochila.filter(x => x.slot === k).length, pod = it => it.poder ?? poderItem(it), melhor = it => pod(it) > (S.equip[it.slot] ? pod(S.equip[it.slot]) : -1);
+    const lista = S.mochila.filter(x => !f || x.slot === f).sort((a, b) => (Object.keys(ESPACOS).indexOf(a.slot) - Object.keys(ESPACOS).indexOf(b.slot)) * (f ? 0 : 1) || b.rar - a.rar || pod(b) - pod(a));
+    const fracos = S.mochila.filter(x => x.rar <= 1 && !melhor(x));
+    h += `<div class="mochTopo"><b>Mochila ${S.mochila.length}/${E.MOCHILA_MAX}</b>${fracos.length ? `<button class="btn amarelo peq" data-th="venderFracos">Vender ${fracos.length} fracos ${ico('ouro')}${fmt(fracos.reduce((t, x) => t + precoItem(x), 0))}</button>` : ''}</div>
+      <div class="filtrosM"><button class="${!f ? 'on' : ''}" data-filtro="">Todos <i>${S.mochila.length}</i></button>${Object.entries(ESPACOS).filter(([k]) => conta(k)).map(([k, e]) => `<button class="${f === k ? 'on' : ''}" data-filtro="${k}">${ico(e.icone)}<i>${conta(k)}</i></button>`).join('')}</div>
+      <div class="mochila">${lista.map(it => `<button class="slotM ${it.id === TH.sel ? 'on' : ''}" data-it="${it.id}" style="--ri:${RARIDADE_ITEM[it.rar].cor}">${ico(ESPACOS[it.slot].icone)}<i>${it.nivel}</i>${melhor(it) ? '<b class="melhor">▲</b>' : ''}</button>`).join('') || '<p class="suave">Vazia. Explore o mundo, vença monstros e abra baús para achar itens!</p>'}</div>
+      <p class="legM">▲ melhor que o equipado · cor = raridade</p>`;
   }
   if (TH.aba === 'asc') {
     const i = E.rankOficial(), prox = RANKING[i + 1];
@@ -334,8 +341,10 @@ function desenharTH() {
 function cliqueTH(e) {
   const b = e.target.closest('button'); if (!b || !TH) return; const d = b.dataset;
   if (d.th === 'fechar') return fecharTH();
+  if (d.filtro != null) { TH.filtro = d.filtro; som('clique'); return desenharTH(); }
+  if (d.th === 'venderFracos') { const pod = it => it.poder ?? poderItem(it); let t = 0, n = 0; for (const it of [...S.mochila]) if (it.rar <= 1 && pod(it) <= (S.equip[it.slot] ? pod(S.equip[it.slot]) : -1)) { t += E.venderItem(it.id); n++; } if (n) { som('moedas'); aviso(`${ico('ouro')} Vendeu ${n} itens: +${fmt(t)} ouro`); TH.sel = null; } return desenharTH(); }
   if (d.thaba) { TH.aba = d.thaba; som('clique'); return desenharTH(); }
-  if (d.it != null) { if (!d.it && d.slot) { TH.aba = 'equip'; TH.sel = S.mochila.find(x => x.slot === d.slot)?.id || null; if (!TH.sel) aviso(`Nenhum item de ${ESPACOS[d.slot].nome} na mochila`); } else TH.sel = TH.sel === d.it ? null : d.it; TH.aba = 'equip'; som('clique'); return desenharTH(); }
+  if (d.it != null) { if (d.slot) TH.filtro = d.slot; if (!d.it && d.slot) { TH.aba = 'equip'; TH.sel = null; if (!S.mochila.some(x => x.slot === d.slot)) aviso(`Nenhum item de ${ESPACOS[d.slot].nome} na mochila`); } else TH.sel = TH.sel === d.it ? null : d.it; TH.aba = 'equip'; som('clique'); return desenharTH(); }
   const sel = TH.sel && (S.mochila.find(x => x.id === TH.sel) || Object.values(S.equip).find(x => x?.id === TH.sel));
   if (d.th === 'eq' && sel && E.equipar(sel.id)) { som('espada'); refazerTH(); TH.P.tocar('Cheering', { loop: false, reinicia: true }); TH.anim = C.tempo() + 1.6; C.faiscas(C.ESTUDIO.x, 2, C.ESTUDIO.z, parseInt(RARIDADE_ITEM[sel.rar].cor.slice(1), 16), 30, 4); }
   if (d.th === 'tirar' && sel && E.desequipar(sel.slot)) { som('clique'); refazerTH(); }
