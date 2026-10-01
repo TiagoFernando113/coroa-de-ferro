@@ -193,6 +193,11 @@ function desenharFlutuantes(dt) {
 }
 
 // ---------------- janelas (modal) ----------------
+// confirmação dentro do jogo (o confirm() do navegador não aparece no app Android)
+function confirmar(txt, sim, rotulo = 'Confirmar') {
+  const c = modal(`<div class="faixaTit">Tem certeza?</div><p>${txt}</p><div class="linha"><button class="btn cinza" data-ok>Cancelar</button><button class="btn vermelho" data-sim>${rotulo}</button></div>`);
+  c.querySelector('[data-sim]').onclick = e => { e.stopPropagation(); $('#modal').hidden = true; sim(); };
+}
 function modal(html, classe = '') {
   const m = $('#modal'); m.innerHTML = `<div class="caixa ${classe}">${html}</div>`; m.hidden = false;
   m.onclick = e => { if (e.target === m || e.target.closest('[data-ok]')) { som('fechar'); m.hidden = true; } };
@@ -236,7 +241,7 @@ function configuracoes() {
     const b = e.target.closest('button'); if (!b) return;
     if (b.dataset.a === 'som') { mudo = !mudo; try { localStorage.setItem('guilda_mudo', mudo ? '1' : '0'); } catch (x) {} configuracoes(); }
     if (b.dataset.q) { ui.qualidade = b.dataset.q; try { localStorage.setItem('guilda_q', b.dataset.q); } catch (x) {} configuracoes(); }
-    if (b.dataset.a === 'reset' && confirm('Apagar todo o progresso da guilda?')) { E.apagar(); location.reload(); }
+    if (b.dataset.a === 'reset') confirmar('Apagar todo o progresso? Isso não tem volta.', () => { E.apagar(); location.reload(); }, 'Apagar');
   };
 }
 
@@ -567,7 +572,7 @@ function cliqueFolha(e) {
   if (b.dataset.a === 'sistema') { som('abrir'); janelaSistema(); return; }
   if (b.dataset.a === 'equip') { som('abrir'); itemAberto = null; janelaEquip(); return; }
   if (b.dataset.a === 'visual') { som('abrir'); const id = heroiAberto; abrirCriador(id, { aoFechar: () => { revestir(id); abrirHeroi(id); } }); return; }
-  if (b.dataset.a === 'aposentar') { const h = E.heroi(heroiAberto); if (h && confirm(`Aposentar ${h.nome}? Você recebe um pouco de ouro.`)) { const v = E.aposentar(h.id); if (v) { som('moedas'); aviso(`${esc(h.nome)} se aposentou. +${fmt(v)} ouro`); abrirAba('herois'); } } return; }
+  if (b.dataset.a === 'aposentar') { const h = E.heroi(heroiAberto); if (h) confirmar(`Aposentar ${esc(h.nome)}? Você recebe um pouco de ouro.`, () => { const v = E.aposentar(h.id); if (v) { som('moedas'); aviso(`${esc(h.nome)} se aposentou. +${fmt(v)} ouro`); abrirAba('herois'); } }, 'Aposentar'); return; }
   if (b.dataset.a === 'auto') { S.auto = !S.auto; som('clique'); aviso(S.auto ? `${ico('raio')} Modo automático ligado` : 'Modo automático desligado'); }
   if (b.dataset.a === 'ordens') { if (E.recarregarOrdens()) { som('confirma'); aviso(`${ico('pergaminho')} Ordens recarregadas!`); } else { som('erro'); aviso(`${ico('gema')} Gemas insuficientes`, 'erro'); } }
   if (b.dataset.a === 'irmundo') { som('abrir'); irMundo(true); return; }
@@ -581,7 +586,7 @@ function cliqueFolha(e) {
     if (it) revelarItem(it); else { som('erro'); if ((S.mochila || []).length < E.MOCHILA_MAX) aviso(tp === 'gemas' ? `${ico('gema')} Gemas insuficientes` : `${ico('ouro')} Ouro insuficiente`, 'erro'); }
   }
   if (b.dataset.entrar) { if (E.entrarGuilda(b.dataset.entrar)) { abrirAba('guilda'); return; } som('erro'); aviso('Não dá para entrar: guilda cheia ou poder baixo', 'erro'); }
-  if (b.dataset.a === 'sairGuilda') { if (confirm(`Sair de ${S.guilda.nome}? Você perde os prédios e os bônus da guilda.`)) { E.sairGuilda(); atualizarPredios(); som('fechar'); aviso('Você saiu da guilda'); } }
+  if (b.dataset.a === 'sairGuilda') { confirmar(`Sair de <b>${esc(S.guilda.nome)}</b>? Você perde os prédios e os bônus da guilda.`, () => { E.sairGuilda(); atualizarPredios(); som('fechar'); aviso('Você saiu da guilda'); desenharFolha(true); }, 'Sair'); return; }
   if (b.dataset.a === 'convidar') {
     const h = E.recrutar(false, false);
     if (h) revelar(h); else { som('erro'); if (S.herois.length < E.capacidade()) aviso(`${ico('ouro')} Ouro insuficiente`, 'erro'); }
