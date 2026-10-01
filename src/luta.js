@@ -122,7 +122,7 @@ export function iniciarLuta(qid, ids, aoFim) {
   });
   L = { q, ids, lider, aliados, inimigos, proj: [], txt: [], joy: null, mx: 0, mz: 0, t: 0, campo, aoFim, fim: false, reg: REGIOES[q.r], m, forca, loot: [],
     distTotal: Math.hypot(campo.x - lider.x, campo.z - lider.z), emboscada: Math.random() < 0.6 + q.rank * 0.05 ? 0.35 + Math.random() * 0.3 : null };
-  ui.foco = { x: lider.x, z: lider.z }; C.camera.dist = 34; C.camera.pitch = 0.82; C.camera.yaw = Math.PI - 0.3; C.camera.suave = 8; L.neblina = C.neblinaAtual(); C.neblina(55, 135); C.recorte(true);
+  ui.foco = { x: lider.x, z: lider.z }; C.camera.dist = 26; C.camera.pitch = 0.32; C.camera.altura = 5.5; C.camera.yaw = Math.PI - 0.3; C.camera.suave = 10; L.neblina = C.neblinaAtual(); C.neblina(70, C.qualidadeAtual() === 'baixa' ? 150 : 210); C.recorte(true);
   montarHud(); som('enviar'); tema(q.r);
   return true;
 }
@@ -146,7 +146,7 @@ export function iniciarExploracao(aoFim) {
   v.raiz.position.set(lider.x, 0, lider.z); v.tocar('Idle_A');
   L = { explorar: true, q: { nome: 'Explorando o mundo', r: 0, rank: 0, mult: 1 }, ids: [h.id], lider, aliados: [], inimigos: [], proj: [], txt: [], joy: null, mx: 0, mz: 0, t: 0,
     campo: null, aoFim, fim: false, reg: REGIOES[0], forca: 1, loot: [], emboscada: null, spawnT: 0, ganhos: { xp: 0, ouro: 0, mortes: 0 } };
-  ui.foco = { x: lider.x, z: lider.z }; C.camera.dist = 34; C.camera.pitch = 0.82; C.camera.yaw = Math.PI - 0.3; C.camera.suave = 8; L.neblina = C.neblinaAtual(); C.neblina(55, 135); C.recorte(true);
+  ui.foco = { x: lider.x, z: lider.z }; C.camera.dist = 26; C.camera.pitch = 0.32; C.camera.altura = 5.5; C.camera.yaw = Math.PI - 0.3; C.camera.suave = 10; L.neblina = C.neblinaAtual(); C.neblina(70, C.qualidadeAtual() === 'baixa' ? 150 : 210); C.recorte(true);
   montarHud(); som('enviar');
   iniciarExpl({ L: () => L, criarMonstro, numero, faixa, atacarCampo, fauna: r => FAUNA[r].filter(t => BICHOS[t]), nomeMonstro: tp => BICHOS[tp]?.[5] || tp });
   return true;
@@ -183,11 +183,11 @@ function povoarMundo(dt) {
   let r = 0, d0 = 1e9; CENTROS.forEach((c, i) => { const d = Math.hypot(c.x - j.x, c.z - j.z); if (d < d0) { d0 = d; r = i; } });
   if (L.reg !== REGIOES[r]) { L.reg = REGIOES[r]; L.q.r = r; const t = $('#luta .lMissao small'); if (t) t.innerHTML = `${ico(L.reg.icone)} ${L.reg.nome} · <span id="lRest"></span>`; if (r > S.regiao) faixa('ZONA PERIGOSA', `${L.reg.nome}: monstros muito fortes!`); }
   // some quem ficou longe; nasce gente nova perto (fora da vista imediata)
-  for (const e of L.inimigos) if (!e.sumiu && Math.hypot(e.x - j.x, e.z - j.z) > 110) { e.sumiu = true; e.v.remover(); }
+  for (const e of L.inimigos) if (!e.sumiu && Math.hypot(e.x - j.x, e.z - j.z) > 140) { e.sumiu = true; e.v.remover(); }
   L.inimigos = L.inimigos.filter(e => !e.sumiu && !(e.hp <= 0 && e.morreu > 5));
-  const vivos = L.inimigos.filter(e => e.hp > 0 && Math.hypot(e.x - j.x, e.z - j.z) < 70).length;
+  const vivos = L.inimigos.filter(e => e.hp > 0 && Math.hypot(e.x - j.x, e.z - j.z) < 90).length;
   if (vivos >= 7 || Math.hypot(GUILDA_W.x - j.x, GUILDA_W.z - j.z) < 25) return;
-  const a = Math.random() * 6.28, dd = 26 + Math.random() * 22, x = j.x + Math.cos(a) * dd, z = j.z + Math.sin(a) * dd;
+  const a = Math.random() * 6.28, dd = 45 + Math.random() * 30, x = j.x + Math.cos(a) * dd, z = j.z + Math.sin(a) * dd;
   const elite = Math.random() < 0.06, tipos = FAUNA[r], tp = tipos[Math.floor(Math.random() * tipos.length)];
   const grupo = BICHOS[tp] && !elite && BICHOS[tp][2] < 130 ? 1 + Math.floor(Math.random() * 3) : 1; // só os pequenos andam em bando
   // dificuldade contínua: perto da guilda é mais fácil e vai subindo até a próxima região (sem saltos na fronteira)
@@ -226,20 +226,25 @@ function montarHud() {
   el.addEventListener('touchstart', e => {
     for (const t of e.changedTouches) {
       const b = hab(t.target); if (b) { e.preventDefault(); usarHab(+b.dataset.hab); continue; }
-      if (t.target === cv && !L.joy) { e.preventDefault(); L.joy = { id: 't' + t.identifier, sx: t.clientX, sy: t.clientY, x: t.clientX, y: t.clientY, yaw: C.camera.yaw }; }
+      if (t.target !== cv) continue; e.preventDefault();
+      if (t.clientX < innerWidth * 0.5) { if (!L.joy) L.joy = { id: 't' + t.identifier, sx: t.clientX, sy: t.clientY, x: t.clientX, y: t.clientY }; }
+      else if (!L.giro) L.giro = { id: 't' + t.identifier, x: t.clientX, y: t.clientY };
     }
   }, { passive: false });
-  el.addEventListener('touchmove', e => { for (const t of e.changedTouches) if (L?.joy?.id === 't' + t.identifier) { e.preventDefault(); L.joy.x = t.clientX; L.joy.y = t.clientY; } }, { passive: false });
-  const soltaT = e => { for (const t of e.changedTouches) if (L?.joy?.id === 't' + t.identifier) L.joy = null; };
+  el.addEventListener('touchmove', e => { for (const t of e.changedTouches) {
+    if (L?.joy?.id === 't' + t.identifier) { e.preventDefault(); L.joy.x = t.clientX; L.joy.y = t.clientY; }
+    if (L?.giro?.id === 't' + t.identifier) { e.preventDefault(); girarCamera(t.clientX - L.giro.x, t.clientY - L.giro.y); L.giro.x = t.clientX; L.giro.y = t.clientY; } } }, { passive: false });
+  const soltaT = e => { for (const t of e.changedTouches) { if (L?.joy?.id === 't' + t.identifier) L.joy = null; if (L?.giro?.id === 't' + t.identifier) L.giro = null; } };
   el.addEventListener('touchend', soltaT); el.addEventListener('touchcancel', soltaT);
   // mouse (computador)
-  cv.addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse' || L.joy) return; L.joy = { id: e.pointerId, sx: e.clientX, sy: e.clientY, x: e.clientX, y: e.clientY, yaw: C.camera.yaw }; cv.setPointerCapture(e.pointerId); });
-  cv.addEventListener('pointermove', e => { if (L.joy && e.pointerId === L.joy.id) { L.joy.x = e.clientX; L.joy.y = e.clientY; } });
-  const solta = e => { if (L?.joy && e.pointerId === L.joy.id) L.joy = null; };
+  cv.addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse') return; if (e.clientX >= innerWidth * 0.5) { L.giro = { id: e.pointerId, x: e.clientX, y: e.clientY }; cv.setPointerCapture(e.pointerId); return; } if (L.joy) return; L.joy = { id: e.pointerId, sx: e.clientX, sy: e.clientY, x: e.clientX, y: e.clientY }; cv.setPointerCapture(e.pointerId); });
+  cv.addEventListener('pointermove', e => { if (L.joy && e.pointerId === L.joy.id) { L.joy.x = e.clientX; L.joy.y = e.clientY; } if (L.giro && e.pointerId === L.giro.id) { girarCamera(e.clientX - L.giro.x, e.clientY - L.giro.y); L.giro.x = e.clientX; L.giro.y = e.clientY; } });
+  const solta = e => { if (L?.joy && e.pointerId === L.joy.id) L.joy = null; if (L?.giro && e.pointerId === L.giro.id) L.giro = null; };
   cv.addEventListener('pointerup', solta); cv.addEventListener('pointercancel', solta);
   el.addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse') return; const b = hab(e.target); if (b) { e.preventDefault(); usarHab(+b.dataset.hab); } });
   el.addEventListener('click', e => { if (e.target.closest('[data-l="sair"]')) terminar(false, true); if (e.target.id === 'lMapa') { som('abrir'); mapaGrande(L.lider); } });
 }
+function girarCamera(dx, dy) { C.camera.yaw -= dx * 0.008; C.camera.pitch = Math.max(0.12, Math.min(1.1, C.camera.pitch + dy * 0.004)); }
 function numero(x, y, z, txt, cor, grande = false) { L.txt.push({ x: x + (Math.random() - 0.5) * 1.5, y, z, txt, cor, grande, t: 0 }); }
 
 // ---------------- habilidades: um estilo de luta para cada tipo de arma ----------------
@@ -355,7 +360,7 @@ export function passoLuta(dt) {
   // joystick → direção no mundo (relativa à câmera)
   let jx = 0, jy = 0; if (L.joy) { const dx = L.joy.x - L.joy.sx, dy = L.joy.y - L.joy.sy, m = Math.hypot(dx, dy); if (m > 6) { const f = Math.min(1, m / 55); jx = dx / m * f; jy = dy / m * f; } }
   // o joystick usa o ângulo da câmera de quando o dedo encostou (a câmera gira atrás do herói sem bagunçar o controle)
-  const y = L.joy?.yaw ?? C.camera.yaw, sy = Math.sin(y), cy = Math.cos(y); L.mx = -jy * sy - jx * cy; L.mz = -jy * cy + jx * sy;
+  const y = C.camera.yaw, sy = Math.sin(y), cy = Math.cos(y); L.mx = -jy * sy - jx * cy; L.mz = -jy * cy + jx * sy;
   for (let i = 0; i < 4; i++) j.cds[i] = Math.max(0, (j.cds[i] || 0) - dt);
   j.iframes = Math.max(0, (j.iframes || 0) - dt);
   if (j.hp > 0 && !L.fim) {
@@ -426,7 +431,7 @@ export function passoLuta(dt) {
   for (const e of L.inimigos) { e.v.raiz.position.x = e.x; e.v.raiz.position.z = e.z; e.v.raiz.rotation.y = e.ang; e.v.mixer.update(dt); e.flash = Math.max(0, (e.flash || 0) - dt); e.v.brilho(e.flash > 0 ? 0.4 : 0); }
   { // câmera: foca um pouco à frente de onde o herói está indo e gira devagar para ficar atrás dele
     const mv = Math.hypot(L.mx, L.mz), vx = mv > 0.05 ? L.mx / mv : 0, vz = mv > 0.05 ? L.mz / mv : 0;
-    L.olhaX = (L.olhaX || 0) + (vx * 8 - (L.olhaX || 0)) * Math.min(1, dt * 1.5); L.olhaZ = (L.olhaZ || 0) + (vz * 8 - (L.olhaZ || 0)) * Math.min(1, dt * 1.5);
+    L.olhaX = 0; L.olhaZ = 0;
     C.recorte(true, j.x, j.z); const fx = j.x + L.olhaX, fz = j.z + L.olhaZ; ui.foco.x += (fx - ui.foco.x) * Math.min(1, dt * 6); ui.foco.z += (fz - ui.foco.z) * Math.min(1, dt * 6);
   }
   // vitória
@@ -454,7 +459,7 @@ function desenharHud(dt) {
   L.txt = L.txt.filter(t => t.t < 1.1);
 }
 function terminar(ok, desistiu = false) {
-  if (!L) return; const l = L; L = null; tema('guilda'); if (l.neblina) C.neblina(...l.neblina); C.recorte(false); C.diaNoite(0);
+  if (!L) return; const l = L; L = null; tema('guilda'); if (l.neblina) C.neblina(...l.neblina); C.recorte(false); C.diaNoite(0); C.camera.altura = 1.3;
   for (const a of [l.lider, ...l.aliados]) a.v.remover(); for (const e of l.inimigos) e.v.remover(); for (const p of l.proj) C.remover(p.o); for (const b of l.baus || []) { if (!b.pego) { l.loot.push(...b.itens); C.remover(b.o); if (b.anel) C.remover(b.anel); } }
   removeEventListener('resize', l.medir); $('#luta').remove(); $('#hud').style.visibility = '';
   if (l.explorar) { for (const id of l.ids) { const h = E.heroi(id); if (h) h.estado = 'livre'; } som('fechar'); }

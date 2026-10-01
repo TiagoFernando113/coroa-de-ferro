@@ -693,7 +693,7 @@ export function quadro(dt, foco) {
 
   // câmera atrás do herói
   const c = camera, sy = Math.sin(c.yaw), cy = Math.cos(c.yaw), cp = Math.cos(c.pitch), sp = Math.sin(c.pitch);
-  c.alvo.lerp(olharTmp.set(foco.x, 1.3, foco.z), Math.min(1, dt * c.suave));
+  c.alvo.lerp(olharTmp.set(foco.x, c.altura ?? 1.3, foco.z), Math.min(1, dt * c.suave));
   cam.position.set(c.alvo.x - sy * cp * c.dist, c.alvo.y + sp * c.dist, c.alvo.z - cy * cp * c.dist);
   if (c.tremor > 0) { cam.position.x += (Math.random() - 0.5) * c.tremor; cam.position.y += (Math.random() - 0.5) * c.tremor; c.tremor = Math.max(0, c.tremor - dt * 2); }
   cam.lookAt(c.alvo);
