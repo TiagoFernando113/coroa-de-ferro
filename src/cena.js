@@ -700,6 +700,7 @@ export function faiscas(x, y, z, cor, n = 10, forca = 3) {
 export const camera = { yaw: Math.PI, pitch: 0.72, dist: 12, alvo: new THREE.Vector3(), tremor: 0, suave: 10 };
 const olharTmp = new THREE.Vector3();
 export function quadro(dt, foco) {
+  if (camera.fixo) foco = camera.fixo; // cena de diálogo: câmera mira no NPC
   relogio += dt; RECORTE.rHeroi.value.set(alvoR ? alvoR.x : foco.x, 2.2 + chao(alvoR ? alvoR.x : foco.x, alvoR ? alvoR.z : foco.z), alvoR ? alvoR.z : foco.z); RECORTE.rCam.value.copy(cam.position);
   if (!pontos) criarPontos();
   // efeitos

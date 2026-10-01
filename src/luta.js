@@ -462,7 +462,7 @@ function desenharHud(dt) {
   L.txt = L.txt.filter(t => t.t < 1.1);
 }
 function terminar(ok, desistiu = false) {
-  if (!L) return; const l = L; L = null; limparChunks(); tema('guilda'); if (l.neblina) C.neblina(...l.neblina); C.recorte(false); C.diaNoite(0); C.camera.altura = 1.3;
+  if (!L) return; const l = L; L = null; C.camera.fixo = null; C.deslocarVista(0); limparChunks(); tema('guilda'); if (l.neblina) C.neblina(...l.neblina); C.recorte(false); C.diaNoite(0); C.camera.altura = 1.3;
   for (const a of [l.lider, ...l.aliados]) a.v.remover(); for (const e of l.inimigos) e.v.remover(); for (const p of l.proj) C.remover(p.o); for (const b of l.baus || []) { if (!b.pego) { l.loot.push(...b.itens); C.remover(b.o); if (b.anel) C.remover(b.anel); } }
   removeEventListener('resize', l.medir); $('#luta').remove(); $('#hud').style.visibility = '';
   if (l.explorar) { for (const id of l.ids) { const h = E.heroi(id); if (h) h.estado = 'livre'; } som('fechar'); }

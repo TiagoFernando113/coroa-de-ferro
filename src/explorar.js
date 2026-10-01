@@ -25,18 +25,54 @@ export const totalLocais = () => POIS.filter(o => o.tipo === 'local').length;
 
 // h = { criarMonstro, numero, faixa, L } (funções da luta)
 export function iniciarExpl(h) {
-  H = h; perto = null; const st = estadoExpl(), agora = Date.now();
+  H = h; perto = null; falando = null; camAntes = null; C.camera.fixo = null; const st = estadoExpl(), agora = Date.now();
   for (const o of POIS) if (o.tipo === 'bau' && !baus[o.id]) { const b = C.objeto('D:chest', 3); b.position.set(o.x, C.chao(o.x, o.z), o.z); b.rotation.y = (o.x * 7) % 6; baus[o.id] = b; }
   for (const o of POIS) if (o.tipo === 'bau') baus[o.id].visible = !(st.baus[o.id] > agora);
   if (!npcs) { npcs = [];
     for (const o of POIS) if (o.tipo === 'vila') NPCS.forEach(([tipo, nome, cls], k) => {
       const dx = o.px - o.x, dz = o.pz - o.z, m = Math.hypot(dx, dz), ux = dx / m, uz = dz / m, x = o.x + ux * 6 + uz * (k - 1) * 6, z = o.z + uz * 6 - ux * (k - 1) * 6;
       const v = C.heroi(visualAleatorio(cls)); v.raiz.scale.setScalar(ESC_MUNDO); v.raiz.position.set(x, C.chao(x, z), z); v.raiz.rotation.y = Math.atan2(ux, uz); v.tocar('Idle_A');
-      npcs.push({ v, x, z, tipo, nome, vila: o }); }); }
+      npcs.push({ v, x, z, hx: x, hz: z, ang: Math.atan2(ux, uz), tipo, nome, vila: o, t: Math.random() * 5, estado: 'rotina' }); });
+    // moradores andando pela praça
+    for (const o of POIS) if (o.tipo === 'vila') for (let k = 0; k < 3; k++) {
+      const a = Math.random() * 6.28, x = o.x + Math.cos(a) * 10, z = o.z + Math.sin(a) * 10, v = C.heroi(visualAleatorio(['cav', 'bar', 'arq', 'mag', 'lad'][Math.floor(Math.random() * 5)]));
+      v.raiz.scale.setScalar(ESC_MUNDO * (0.85 + Math.random() * 0.2)); v.raiz.position.set(x, C.chao(x, z), z); v.tocar('Idle_A');
+      npcs.push({ v, x, z, ang: a, morador: true, vila: o, t: Math.random() * 4, estado: 'parado' }); } }
   document.querySelector('#luta')?.insertAdjacentHTML('beforeend', `<button id="lFalar" class="btn amarelo" hidden></button><div id="lTarefa" hidden></div>`);
   document.querySelector('#lFalar').onclick = () => { if (!perto) return; if (perto.campo) { H.atacarCampo(perto.campo); perto = null; document.querySelector('#lFalar').hidden = true; } else abrirNpc(perto.vila ? perto : perto); };
 }
 const NPCS = [['mercador', 'Mercador', 'lad'], ['curandeira', 'Curandeira', 'mag'], ['cacador', 'Caçador', 'arq']];
+const ROTINA = { mercador: ['Interact', 'PickUp', 'Use_Item', 'Idle_B'], curandeira: ['Ranged_Magic_Spellcasting', 'Idle_B', 'Use_Item'], cacador: ['Hammering', 'Ranged_Bow_Aiming_Idle', 'Idle_B', 'Throw'] };
+const FALAS = {
+  mercador: ['Bem-vindo, aventureiro! Minhas poções salvaram muitos heróis.', 'Itens velhos? Eu compro! Ouro na hora.', 'Dizem que o Rei Esqueleto guarda um tesouro... eu só vendo poções.'],
+  curandeira: ['Você parece cansado... deixe-me cuidar de você.', 'A Bênção protege quem cai em batalha. Não saia sem ela!', 'Senti uma energia sombria vindo do norte...'],
+  cacador: ['Os monstros estão cada vez mais ousados por aqui.', 'Tenho uma caçada para quem tiver coragem.', 'Já vi um coelho do tamanho de uma casa. Não ria!'],
+};
+const virar = (n, alvo, dt, k = 6) => { n.ang += Math.atan2(Math.sin(alvo - n.ang), Math.cos(alvo - n.ang)) * Math.min(1, dt * k); };
+function vidaNpc(n, j, dt) {
+  const d = Math.hypot(n.x - j.x, n.z - j.z); n.t -= dt;
+  if (n === falando) { virar(n, Math.atan2(j.x - n.x, j.z - n.z), dt); n.v.tocar('Idle_A'); }
+  else if (!n.morador && d < 9) { // jogador chegou perto: vira para ele e acena
+    virar(n, Math.atan2(j.x - n.x, j.z - n.z), dt);
+    if (!n.acenou) { n.acenou = true; n.v.tocar('Waving', { loop: false, reinicia: true }); n.t = 2; } else if (n.t <= 0) n.v.tocar('Idle_A');
+  } else {
+    if (d > 14) n.acenou = false;
+    if (n.morador) { // anda entre pontos da praça
+      if (n.alvo) { const dx = n.alvo.x - n.x, dz = n.alvo.z - n.z, m = Math.hypot(dx, dz);
+        if (m < 0.5) { n.alvo = null; n.t = 2 + Math.random() * 5; n.v.tocar(['Idle_A', 'Idle_B', 'Waving', 'Cheering', 'Sit_Floor_Idle'][Math.floor(Math.random() * 5)]); }
+        else { n.x += dx / m * 2.4 * dt; n.z += dz / m * 2.4 * dt; virar(n, Math.atan2(dx, dz), dt, 8); n.v.tocar('Walking_A'); } }
+      else if (n.t <= 0) { const a = Math.random() * 6.28, r = 7 + Math.random() * 9; n.alvo = { x: n.vila.x + Math.cos(a) * r, z: n.vila.z + Math.sin(a) * r }; }
+    } else if (n.t <= 0) { // rotina do ofício; às vezes dá uma voltinha e volta ao posto
+      const longe = Math.hypot(n.x - n.hx, n.z - n.hz) > 0.5;
+      if (longe) { const dx = n.hx - n.x, dz = n.hz - n.z, m = Math.hypot(dx, dz); n.x += dx / m * 2 * dt; n.z += dz / m * 2 * dt; virar(n, Math.atan2(dx, dz), dt); n.v.tocar('Walking_A'); if (m < 0.6) { n.x = n.hx; n.z = n.hz; n.t = 0; } }
+      else if (Math.random() < 0.2) { const a = Math.random() * 6.28; n.passeio = { x: n.hx + Math.cos(a) * 3, z: n.hz + Math.sin(a) * 3 }; }
+      else { const l = ROTINA[n.tipo]; n.v.tocar(l[Math.floor(Math.random() * l.length)]); n.t = 3 + Math.random() * 4; }
+    }
+    if (n.passeio) { const dx = n.passeio.x - n.x, dz = n.passeio.z - n.z, m = Math.hypot(dx, dz); if (m < 0.4) n.passeio = null; else { n.x += dx / m * 2 * dt; n.z += dz / m * 2 * dt; virar(n, Math.atan2(dx, dz), dt); n.v.tocar('Walking_A'); n.t = 0.5; } }
+  }
+  n.v.raiz.position.set(n.x, C.chao(n.x, n.z), n.z); n.v.raiz.rotation.y = n.ang; n.v.mixer.update(dt);
+}
+let falando = null, camAntes = null;
 const ICO_NPC = { mercador: 'ouro', curandeira: 'coracao', cacador: 'chefe' };
 const precoPocao = () => Math.round(15 + E.sis().nivel * 6);
 export function passoExpl(dt) {
@@ -62,7 +98,7 @@ export function passoExpl(dt) {
   }
   // NPCs das vilas
   let np = null, d0 = 5.5;
-  for (const n of npcs || []) { const d = Math.hypot(n.x - j.x, n.z - j.z); if (d < 70) n.v.mixer.update(dt); if (d < d0) { d0 = d; np = n; } }
+  for (const n of npcs || []) { const d = Math.hypot(n.x - j.x, n.z - j.z); if (d < 70) vidaNpc(n, j, dt); if (!n.morador && d < d0) { d0 = d; np = n; } }
   // acampamentos do quadro de missões: chegou perto, pode atacar ali mesmo
   if (!np && !L.campoAtivo) { let dc = 16; for (const q of S.quadro || []) { if (q.emLuta) continue; const c = posCampo(q.r, q.dx, q.dy), d = Math.hypot(c.x - j.x, c.z - j.z); if (d < dc) { dc = d; np = { campo: q }; } } }
   const chave = np && (np.campo ? 'c' + np.campo.id : np);
@@ -82,33 +118,39 @@ export function abateTarefa(e) {
 function abrirNpc(n) {
   const L = H.L(), j = L.lider, box = document.querySelector('#luta'); if (!box) return;
   document.querySelector('.lPainel')?.remove(); som('abrir');
-  const p = document.createElement('div'); p.className = 'lPainel';
+  falando = n; if (!camAntes) camAntes = { dist: C.camera.dist, pitch: C.camera.pitch, altura: C.camera.altura, yaw: C.camera.yaw };
+  Object.assign(C.camera, { dist: 25, pitch: 0.22, altura: 3.6, yaw: Math.atan2(n.x - j.x, n.z - j.z) + 1.25, fixo: { x: (n.x * 2 + j.x) / 3, z: (n.z * 2 + j.z) / 3 } }); C.deslocarVista(0.22); n.v.tocar('Waving', { loop: false, reinicia: true }); document.querySelector('#lFalar').hidden = true;
+  const fecharCena = () => { falando = null; C.camera.fixo = null; C.deslocarVista(0); perto = null; if (camAntes) { Object.assign(C.camera, camAntes); camAntes = null; } };
+  const p = document.createElement('div'); p.className = 'lPainel dialogo';
   const desenhar = () => {
-    let h = `<h3>${ico(ICO_NPC[n.tipo])} ${n.nome} · ${n.vila.nome}</h3>`;
+    let h = `<h3>${ico(ICO_NPC[n.tipo])} ${n.nome} · ${n.vila.nome}</h3><p class="fala" data-fala></p>`;
     if (n.tipo === 'mercador') { const comuns = (S.mochila || []).filter(i => i.rar <= 1 && !Object.values(S.equip || {}).some(x => x?.id === i.id)), val = comuns.reduce((a, i) => a + Math.round(precoItem(i)), 0);
       h += `<p>Poções: <b>${S.pocoes}</b> · Ouro: <b>${fmt(S.ouro)}</b></p><div class="linha"><button class="btn verde peq" data-n="p1">Poção ${ico('ouro')}${precoPocao()}</button><button class="btn verde peq" data-n="p5">5 poções ${ico('ouro')}${precoPocao() * 5}</button></div>
         <p class="suave">Vender itens Comuns e Incomuns da mochila (${comuns.length}): ${ico('ouro')}${fmt(val)}</p><button class="btn amarelo peq ${comuns.length ? '' : 'sem'}" data-n="vender">Vender</button>`; }
-    if (n.tipo === 'curandeira') h += `<p>"Descanse, aventureiro. Eu cuido das suas feridas."</p><p>Vida: <b>${Math.round(j.hp)}/${Math.round(j.max)}</b></p><button class="btn verde peq" data-n="curar">${ico('coracao')} Curar tudo</button>
+    if (n.tipo === 'curandeira') h += `<p>Vida: <b>${Math.round(j.hp)}/${Math.round(j.max)}</b></p><button class="btn verde peq" data-n="curar">${ico('coracao')} Curar tudo</button>
       <p class="suave">Se você cair no mundo, perde 10% do ouro e 30% do XP do nível. A <b>Bênção</b> protege da próxima queda.</p>
       ${S.bencao ? `<p>${ico('estrela')} <b>Abençoado:</b> a próxima queda não tira nada.</p>` : `<button class="btn roxo peq" data-n="bencao">${ico('estrela')} Bênção ${ico('ouro')}${fmt(E.precoBencao())}</button>`}`;
     if (n.tipo === 'cacador') { const t = S.tarefa;
-      if (!t) { const o = oferta(n); h += `<p>"Os monstros estão atacando as caravanas. Me ajude!"</p><p>Caçada: derrote <b>${o.meta} ${o.nome}</b></p><p class="suave">Recompensa: ${ico('ouro')}${fmt(o.ouro)} · ${fmt(o.xp)} XP · ${ico('gema')}${o.gemas}</p><button class="btn verde peq" data-n="aceitar">Aceitar</button>`; }
+      if (!t) { const o = oferta(n); h += `<p>Caçada: derrote <b>${o.meta} ${o.nome}</b></p><p class="suave">Recompensa: ${ico('ouro')}${fmt(o.ouro)} · ${fmt(o.xp)} XP · ${ico('gema')}${o.gemas}</p><button class="btn verde peq" data-n="aceitar">Aceitar</button>`; }
       else if (t.feito >= t.meta) h += `<p>"Excelente trabalho!"</p><button class="btn amarelo peq" data-n="entregar">Receber ${ico('ouro')}${fmt(t.ouro)} · ${fmt(t.xp)} XP · ${ico('gema')}${t.gemas} · 2 pergaminhos</button>`;
       else h += `<p>Caçada: <b>${t.nome}</b> ${t.feito}/${t.meta}</p><p class="suave">Eles vivem em: ${REGIOES[t.r].nome}</p><button class="btn cinza peq" data-n="desistir">Desistir da caçada</button>`; }
     p.innerHTML = h + `<button class="btn azul peq" data-n="fechar">Fechar</button>`;
   };
-  desenhar(); box.append(p);
+  const fala = FALAS[n.tipo][Math.floor(Math.random() * FALAS[n.tipo].length)]; let letras = 0;
+  const digitar = () => { const el = p.querySelector('[data-fala]'); if (!el) return; el.textContent = '“' + fala.slice(0, letras) + (letras < fala.length ? '' : '”'); if (letras < fala.length && p.isConnected) { letras += 2; setTimeout(digitar, 28); } };
+  const desenhar0 = desenhar; const redesenhar = () => { desenhar0(); letras = Math.min(letras, fala.length); digitar(); };
+  box.append(p); redesenhar(); p._re = redesenhar;
   p.onclick = e => { const b = e.target.closest('[data-n]'); if (!b) return; e.stopPropagation(); const a = b.dataset.n;
-    if (a === 'fechar') { p.remove(); som('fechar'); return; }
+    if (a === 'fechar') { p.remove(); som('fechar'); fecharCena(); return; }
     if (a === 'p1' || a === 'p5') { const q = a === 'p5' ? 5 : 1, c = precoPocao() * q; if (S.ouro >= c) { S.ouro -= c; S.pocoes += q; som('moedas'); } else som('erro'); }
     if (a === 'vender') { let t = 0; for (const i of [...(S.mochila || [])]) if (i.rar <= 1 && !Object.values(S.equip || {}).some(x => x?.id === i.id)) t += E.venderItem(i.id); if (t) { som('moedas'); H.numero(j.x, 5, j.z, `+${fmt(t)} ouro`, '#ffd84a', true); } }
     if (a === 'bencao') { if (E.comprarBencao()) { som('lendario'); C.onda(j.x, j.z, 6, 0xfff2a0, 0.7); C.faiscas(j.x, 3, j.z, 0xfff2a0, 40, 4); } else som('erro'); }
-    if (a === 'curar') { j.hp = j.max; C.faiscas(j.x, 2, j.z, 0x7aff9a, 30, 4); som('marco'); }
+    if (a === 'curar') { n.v.tocar('Ranged_Magic_Spellcasting', { loop: false, reinicia: true }); j.hp = j.max; C.faiscas(j.x, 2, j.z, 0x7aff9a, 30, 4); som('marco'); }
     if (a === 'aceitar') { S.tarefa = oferta(n); som('confirma'); }
     if (a === 'entregar') { const t = S.tarefa; S.ouro += t.ouro; S.st.ouroTotal += t.ouro; S.gemas += t.gemas; E.ganharXPSis(t.xp); E.ganharPergaminho(2); S.tarefa = null; S.st.tarefas = (S.st.tarefas || 0) + 1;
       H.faixa('RECOMPENSA!', `+${fmt(t.ouro)} ouro · +${fmt(t.xp)} XP · +${t.gemas} gemas`); som('lendario'); C.faiscas(j.x, 3, j.z, 0xffd84a, 50, 6); }
     if (a === 'desistir') { S.tarefa = null; som('fechar'); }
-    atualizarTarefa(); desenhar(); };
+    atualizarTarefa(); redesenhar(); };
 }
 // caçada oferecida por um caçador: um monstro da região da vila (sempre o mesmo por vila e dia, para não ficar trocando)
 function oferta(n) {

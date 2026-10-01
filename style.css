@@ -570,3 +570,5 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;paddin
 .mochila{max-height:none!important}
 .slotM .melhor{position:absolute;left:2px;top:0;color:#2aa84a;font-size:13px;text-shadow:0 0 2px #fff}
 .legM{font-size:10px;opacity:.6;margin:6px 0 0;text-align:center}
+.lPainel .fala{font-style:italic;background:#fff;border:2px solid var(--creme2);border-radius:12px;padding:8px 10px;min-height:2.6em;font-size:14px;color:#4a2c12}
+.lPainel.dialogo{top:auto;bottom:calc(max(10px,env(safe-area-inset-bottom)) + 8px);transform:translateX(-50%);max-height:52vh;overflow:auto}
