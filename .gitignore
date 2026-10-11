@@ -1,0 +1,4 @@
+pet/.gradle/
+pet/build/
+pet/app/build/
+pet/local.properties

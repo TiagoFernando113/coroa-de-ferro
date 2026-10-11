@@ -1,0 +1,46 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.tiagofernando.cyronpet'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'com.tiagofernando.cyronpet'
+        // 26: a partir daqui existe a janela "por cima dos outros apps" (TYPE_APPLICATION_OVERLAY).
+        minSdk 26
+        targetSdk 34
+        // O Actions passa o número da execução; cada APK novo instala por cima do anterior.
+        versionCode((project.findProperty('versionCode') ?: '1') as Integer)
+        versionName "pet-${versionCode}"
+    }
+
+    // Mesma ideia da Coroa: chave só de desenvolvimento, versionada, para todo APK
+    // sair com a mesma assinatura e atualizar sem desinstalar (nem perder o pet).
+    signingConfigs {
+        dev {
+            storeFile rootProject.file('dev.keystore')
+            storePassword 'coroadev'
+            keyAlias 'coroa'
+            keyPassword 'coroadev'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.dev
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    lint {
+        checkReleaseBuilds false
+        abortOnError false
+    }
+}
