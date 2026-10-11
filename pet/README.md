@@ -1,41 +1,46 @@
-# CYRON Pet
+# CYRON Pet: a aventura no cantinho
 
-A CYRON em versão chibi, passeando pela borda de baixo da tela por cima de qualquer app,
-com o Mundinho (o planetinha) flutuando do lado. Só Android: o iPhone não deixa um app
+Um mini RPG que roda numa janelinha no canto da tela, por cima de qualquer app, enquanto você
+usa o celular. A CYRON (em versão chibi, com o Mundinho do lado) anda por um mundinho, luta
+sozinha com os monstros, junta moedas e sobe de nível. Só Android: o iPhone não deixa um app
 desenhar por cima dos outros.
 
 **Baixar:** https://github.com/TiagoFernando113/coroa-de-ferro/releases/download/pet/CyronPet.apk
-(instale por cima da versão anterior; o pet não se perde).
+(instale por cima da versão anterior; o progresso não se perde).
 
 ## Como se joga
-- **Na tela:** ela anda, para, senta, acena, fala oi em várias línguas e dorme quando cansa.
-  Toque nela para um carinho (ela pula e solta coraçõezinhos), arraste para mudar de lugar,
-  toque duas vezes para abrir a tela de cuidar. Segurando o dedo nela, ela sai para dar uma
-  volta e volta em 10 minutos (bom quando ela fica em cima do teclado).
-- **Cuidar:** barriga, energia e humor caem com o tempo de verdade, mesmo com o app fechado.
-  Comida (biscoito, onigiri, pudim), brincar e dormir.
-- **Moedas:** uma por minuto em que ela fica na tela com o celular aceso, duas se ela estiver
-  feliz. Servem para comida e acessórios (laço, gorro, óculos, fone grande, coroa), que também
-  pedem um nível de amizade.
+- **No canto:** ela anda e luta sozinha. A cada 10 monstros vem um chefe com 30 segundos para
+  cair; a cada 5 zonas muda a região (campina, bosque, brejo, minas, dunas, picos, cripta, vulcão).
+  Se ela apanhar demais, desmaia, descansa uns segundos e volta.
+- **Toques:** tocar na janelinha dá um golpe extra; baús aparecem no chão e moedas douradas
+  passam voando, e só ficam um tempinho. Arrastar muda a janelinha de lugar (ela encosta na
+  borda mais perto). O **–** vira uma bolinha com o rosto dela; tocar na bolinha volta.
+  A bolsa abre o app.
+- **No app:** melhorias com moedas (arma, moletom, tênis, Mundinho, sorte, toque). A cada 25
+  níveis de arma, arma nova (varinha, espada, martelo de cristal, cajado do Mundo, lâmina
+  arco-íris). Acessórios (laço, gorro, óculos, fone, coroa) com cristais dos baús.
+- **Com o celular parado:** ela continua caçando na zona em que estava, com metade do
+  rendimento e até 8 horas. Passar de zona é com você por perto.
 
 ## Permissões
-- *Aparecer sobre outros apps*: a pessoa libera uma vez; o app leva até a tela certa.
-- *Serviço em primeiro plano* (tipo `specialUse`) e *notificações*: enquanto ela está na tela
-  fica um aviso fixo, com o botão **Guardar**. Na Play Store esse tipo de serviço precisa de
-  uma justificativa no cadastro (o texto está no `AndroidManifest.xml`).
+- *Aparecer sobre outros apps*: liberada uma vez; o app leva até a tela certa.
+- *Serviço em primeiro plano* (tipo `specialUse`) e *notificações*: enquanto a aventura está
+  na tela fica um aviso fixo com o botão **Guardar**. Na Play Store esse tipo de serviço precisa
+  de uma justificativa no cadastro (o texto está no `AndroidManifest.xml`).
 
 ## Como é feito
-Java puro, sem bibliotecas e sem imagens: a CYRON é desenhada em código (`Desenho.java`),
-então cada pose é só um jeito diferente de montar as mesmas peças.
+Java puro, sem bibliotecas e sem imagens: tudo é desenhado em código.
 
-- `Pet.java`: o estado (barriga, energia, humor, moedas, amizade) e o tempo passando.
-- `Desenho.java`: a CYRON chibi, o Mundinho e os coraçõezinhos.
-- `PetService.java`: as janelinhas por cima dos apps, o passeio e o toque.
-- `Balao.java`: o balão de fala, numa janela que deixa o toque passar.
-- `MainActivity.java`: a tela de cuidar e a loja.
+- `Jogo.java`: a regra inteira (luta, zonas, chefes, baús, melhorias, tempo fora, save em texto).
+  Não depende do Android, então dá para simular horas de jogo no computador.
+- `Desenho.java`: a CYRON chibi, as armas, o golpe e o Mundinho.
+- `Monstros.java`: gosma, cogumelo, morcego, assombração, golem e diabrete, com cor por região.
+- `CenaView.java`: a cena (janelinha, tela do app e bolinha) e o que cada toque faz.
+- `PetService.java`: a janelinha por cima dos apps, arrastar, encostar e minimizar.
+- `MainActivity.java`: a base, com melhorias, acessórios e o botão de jogar no canto.
+- `Salvo.java`: guarda o jogo e traz o progresso da primeira versão (o pet de cuidar).
 
-Bateria: 20 quadros por segundo só quando ela se mexe, menos parada ou dormindo, e nada com
-a tela apagada.
+Bateria: 20 quadros por segundo com a janelinha aberta, 2 com a bolinha, nada com a tela apagada.
 
 ```sh
 cd pet && gradle assembleRelease   # precisa do Android SDK (ANDROID_HOME)

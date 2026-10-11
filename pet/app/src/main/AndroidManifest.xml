@@ -33,7 +33,7 @@
             android:foregroundServiceType="specialUse">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Mascote virtual que anda pela borda da tela por cima dos outros apps, enquanto a pessoa quiser" />
+                android:value="Mini jogo que roda numa janela pequena no canto da tela, por cima dos outros apps, enquanto a pessoa quiser" />
         </service>
     </application>
 </manifest>

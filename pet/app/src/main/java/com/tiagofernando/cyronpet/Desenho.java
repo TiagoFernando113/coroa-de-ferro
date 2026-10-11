@@ -17,8 +17,8 @@ import android.graphics.RectF;
  * direita. virada=true espelha para a esquerda.
  */
 final class Desenho {
-    enum Pose { PARADA, ANDANDO, SENTADA, DORMINDO, PULANDO, ACENANDO, ARRASTADA, CAINDO, COMENDO, BRINCANDO }
-    enum Olhos { NORMAL, FELIZ, FECHADOS, TRISTE, SURPRESA, PISCADA }
+    enum Pose { PARADA, ANDANDO, SENTADA, DORMINDO, PULANDO, ACENANDO, ARRASTADA, CAINDO, COMENDO, BRINCANDO, LUTANDO }
+    enum Olhos { NORMAL, FELIZ, FECHADOS, TRISTE, SURPRESA, PISCADA, TONTA }
 
     static final int PELE = 0xFFFBE3D3, PELE_SOMBRA = 0xFFEFC5B2;
     static final int CABELO = 0xFFEEF0F7, CABELO_SOMBRA = 0xFFCDD3E6, CABELO_LINHA = 0xFF8E97B8;
@@ -33,6 +33,9 @@ final class Desenho {
     private final Path path = new Path();
     private final RectF r = new RectF();
     private float u = 1;
+    /* arma na mão (-1 = nenhuma; 0..4 = varinha, espada, martelo, cajado, lâmina) e o golpe (1 = começou, 0 = acabou) */
+    int arma = -1;
+    float golpe;
 
     Desenho() {
         traco.setStyle(Paint.Style.STROKE);
@@ -91,6 +94,7 @@ final class Desenho {
         else if (pose == Pose.ANDANDO) corpoY = -Math.abs((float) Math.sin(t * 9)) * 1.6f;
         else if (pose == Pose.PARADA || pose == Pose.ACENANDO || pose == Pose.COMENDO) corpoY = (float) Math.sin(t * 2.5) * 0.5f;
         else if (pose == Pose.BRINCANDO) corpoY = -Math.abs((float) Math.sin(t * 7)) * 5f;
+        else if (pose == Pose.LUTANDO) corpoY = 1 + (float) Math.sin(t * 6) * 0.6f;
 
         c.translate(0, corpoY * u);
 
@@ -100,6 +104,9 @@ final class Desenho {
         if (sentada) {
             perna(c, -2, -11, 9, -4, true);
             perna(c, 3, -11, 13, -3, false);
+        } else if (pose == Pose.LUTANDO) {
+            perna(c, -3, -18, -9, -5, true);
+            perna(c, 3, -18, 9, -5, false);
         } else if (pose == Pose.PULANDO || pose == Pose.CAINDO) {
             perna(c, -3, -18, -6, -7, true);
             perna(c, 3, -18, 7, -8, false);
@@ -134,6 +141,19 @@ final class Desenho {
 
         // braço da frente (por cima do corpo)
         float[] frente = maoDaFrente(pose, t, balanco);
+        float giroArma = 15;
+        if (pose == Pose.LUTANDO) {
+            float teta = anguloDoGolpe();
+            frente = new float[] { 7 + 13 * (float) Math.sin(teta), -37 + 13 * (float) Math.cos(teta) };
+            giroArma = 120 - (float) Math.toDegrees(teta) * 1.15f;
+        }
+        if (arma >= 0 && pose != Pose.COMENDO && pose != Pose.ACENANDO && pose != Pose.DORMINDO && pose != Pose.SENTADA) {
+            c.save();
+            c.translate(frente[0] * u, frente[1] * u);
+            c.rotate(giroArma);
+            desenharArma(c, arma, t);
+            c.restore();
+        }
         membro(c, 7, -37, frente[0], frente[1], 5.6f, MOLETOM);
         linha(c, 7 + (frente[0] - 7) * 0.55f, -37 + (frente[1] + 37) * 0.55f, 7 + (frente[0] - 7) * 0.8f, -37 + (frente[1] + 37) * 0.8f, 1.2f, CIANO);
         oval(c, frente[0], frente[1], 2.7f, 2.7f, PELE, 1.1f);
@@ -143,6 +163,58 @@ final class Desenho {
             linha(c, frente[0] + 0.8f, frente[1] - 2, frente[0] + 1.8f, frente[1] - 5.5f, 1.6f, PELE);
         }
         c.restore();
+    }
+
+    /* O golpe: puxa a arma para trás da cabeça e desce com tudo para a frente. */
+    private float anguloDoGolpe() {
+        if (golpe <= 0) return 1.0f;
+        float p = 1 - golpe;
+        if (p < 0.35f) return 1.0f + (2.7f - 1.0f) * (p / 0.35f);
+        return 2.7f + (0.5f - 2.7f) * ((p - 0.35f) / 0.65f);
+    }
+
+    private void desenharArma(Canvas c, int tipo, float t) {
+        switch (tipo) {
+            case 0: // varinha estelar
+                linha(c, 0, 3, 0, -15, 1.8f, 0xFF6B4428);
+                oval(c, 0, -18, 5.5f, 5.5f, 0x33FFE27A, 0);
+                path.reset();
+                for (int i = 0; i < 10; i++) {
+                    double a = -Math.PI / 2 + i * Math.PI / 5;
+                    float rr = i % 2 == 0 ? 4.2f : 1.8f;
+                    float px = (float) Math.cos(a) * rr, py = -18 + (float) Math.sin(a) * rr;
+                    if (i == 0) m(px, py); else l(px, py);
+                }
+                path.close();
+                preencher(c, 0xFFFFE27A, 0.8f);
+                break;
+            case 1: // espada curta
+                caixa(c, -1.6f, -22, 3.2f, 19, 1.2f, 0xFFDFE6EE, 0.9f);
+                linha(c, -0.4f, -20, -0.4f, -5, 0.8f, 0xFFFFFFFF);
+                caixa(c, -5, -4, 10, 2.6f, 1, 0xFFF3C13F, 0.8f);
+                caixa(c, -1.2f, -1.5f, 2.4f, 5, 1, 0xFF6B4428, 0);
+                break;
+            case 2: // martelo de cristal
+                linha(c, 0, 4, 0, -16, 2.2f, 0xFF7A5634);
+                path.reset(); m(-6, -17); l(-3, -22); l(3, -22); l(6, -17); l(3, -12); l(-3, -12); path.close();
+                preencher(c, 0xFF5FD6E6, 1f);
+                linha(c, -2, -20, 1, -14, 0.8f, 0xFFB6F1F8);
+                break;
+            case 3: // cajado do Mundo
+                linha(c, 0, 6, 0, -22, 2f, 0xFF5A3A20);
+                oval(c, 0, -26, 6.5f, 6.5f, 0x335CC7FF, 0);
+                oval(c, 0, -26, 4.2f, 4.2f, 0xFF3A8FE0, 0.9f);
+                oval(c, -1.3f, -27.3f, 1.6f, 1.1f, 0xFF5CC76A, 0);
+                oval(c, 1.5f, -24.8f, 1.2f, 1.4f, 0xFF5CC76A, 0);
+                break;
+            default: // lâmina arco-íris
+                int[] cores = { 0xFFFF6B6B, 0xFFFFC94A, 0xFF5CC76A, 0xFF36C6F0, 0xFF9A78E8 };
+                for (int i = 0; i < 5; i++) caixa(c, -2.4f + i * 0.96f, -25, 0.96f, 21, 0.4f, cores[i], 0);
+                caixa(c, -2.4f, -25, 4.8f, 21, 1.4f, 0x00000000, 0.9f);
+                oval(c, 0, -26, 3.5f + (float) Math.sin(t * 5) * 0.6f, 3.5f, 0x55FFFFFF, 0);
+                caixa(c, -5, -4, 10, 2.6f, 1, 0xFFE6EAF5, 0.8f);
+                caixa(c, -1.2f, -1.5f, 2.4f, 5, 1, 0xFF9A78E8, 0);
+        }
     }
 
     private void perna(Canvas c, float x1, float y1, float x2, float y2, boolean deTras) {
@@ -247,6 +319,13 @@ final class Desenho {
             arco(c, rx, y - 1, 3, 2.2f, 20, 140, 1.3f, CONTORNO);
             return;
         }
+        if (olhos == Olhos.TONTA) {
+            for (float ox : new float[] { lx, rx }) {
+                linha(c, ox - 2.4f, y - 2.4f, ox + 2.4f, y + 2.4f, 1.4f, CONTORNO);
+                linha(c, ox - 2.4f, y + 2.4f, ox + 2.4f, y - 2.4f, 1.4f, CONTORNO);
+            }
+            return;
+        }
         if (olhos == Olhos.FELIZ) {
             arco(c, lx, y + 1, 3.2f, 3, 200, 140, 1.5f, CONTORNO);
             arco(c, rx, y + 1, 3.2f, 3, 200, 140, 1.5f, CONTORNO);
@@ -282,6 +361,8 @@ final class Desenho {
         }
         if (olhos == Olhos.TRISTE) { arco(c, x, y + 1.5f, 2.4f, 1.6f, 200, 140, 1.1f, CONTORNO); return; }
         if (olhos == Olhos.SURPRESA) { oval(c, x, y, 1.5f, 1.9f, BOCA, 0.8f); return; }
+        if (olhos == Olhos.TONTA) { oval(c, x, y, 1.6f, 1.2f, BOCA, 0.7f); return; }
+        if (pose == Pose.LUTANDO && olhos == Olhos.NORMAL) { linha(c, x - 2, y - 0.5f, x + 2, y - 0.5f, 1.1f, CONTORNO); return; }
         if (olhos == Olhos.FELIZ || pose == Pose.BRINCANDO || pose == Pose.ACENANDO || pose == Pose.PULANDO) {
             path.reset(); m(x - 3, y - 1); q(x, y + 4.5f, x + 3, y - 1); path.close();
             preencher(c, BOCA, 0.9f);
