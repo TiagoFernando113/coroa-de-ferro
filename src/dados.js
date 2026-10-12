@@ -1,5 +1,5 @@
 // Batalha da Ponte: números das fases e das melhorias.
-export const VERSAO = 64;
+export const VERSAO = 65;
 
 const SUF = ['', 'K', 'M', 'B', 'T'];
 export function fmt(n) {
@@ -50,5 +50,5 @@ export function fase(n) {
   return { n, esq, dir, chefe: { modelo, nome: n > CHEFES.length ? `${nome} +${Math.floor((n - 1) / CHEFES.length)}` : nome, hp: Math.round(220 + 160 * n ** 1.1) },
     // portões no meio da ponte: os soldados azuis que passam se multiplicam
     portoes: [{ tipo: 'vezes', valor: 2, i: 6 }, { tipo: 'mais', valor: 10 + 5 * n, i: 13 }],
-    ritmo: 2 + 0.9 * n ** 1.15, duro: Math.floor(n / 3), moedas: 20 + 12 * n }; // ritmo: vermelhos por segundo no começo (cresce com o tempo)
+    ritmo: 2 + 0.9 * n ** 1.15, rotas: n >= 4 ? 2 : 1, vagas: n >= 4 ? 6 : n >= 2 ? 4 : 2, duro: Math.floor(n / 3), moedas: 20 + 12 * n }; // ritmo: vermelhos por segundo no começo (cresce com o tempo)
 }

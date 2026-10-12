@@ -123,3 +123,22 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;paddin
 .roleta i{position:absolute;top:-4px;bottom:-4px;width:6px;margin-left:-3px;background:#fff;border:2px solid var(--madeira);border-radius:3px}
 .fSo{display:block;margin:6px auto 0;font-size:14px;color:var(--suave);text-decoration:underline}
 .ganho.pulo{animation:entra .4s cubic-bezier(.2,1.8,.4,1)}
+
+.pilula.guerra{position:absolute;left:10px;top:calc(max(10px,env(safe-area-inset-top)) + 52px);height:32px;font-size:16px;pointer-events:none!important}
+.pilula.guerra .ico{width:26px;height:26px;padding:4px;background:radial-gradient(circle at 35% 30%,#ffd0c0,#e8503a 55%,#8a1a10);color:#fff;box-shadow:0 2px 0 #5a0a08}
+#jVagas{position:absolute;inset:0;pointer-events:none!important}
+.vaga{position:absolute;left:0;top:0;translate:-50% -50%;pointer-events:auto;min-width:40px;height:40px;padding:0 6px;border-radius:14px;display:grid;place-items:center;
+  font-family:var(--fT);font-size:20px;color:#fff;background:rgba(40,30,20,.7);border:2px solid rgba(255,255,255,.6);line-height:1}
+.vaga small{display:flex;align-items:center;gap:1px;font-size:11px}
+.vaga small .ico{width:11px;height:11px}
+.vaga .up{width:18px;height:18px;transform:rotate(-90deg)}
+.vaga.pode{background:linear-gradient(#5fd84a,#2f9a2a);border-color:#fff;animation:pronto 1s infinite}
+.vaga.max{background:rgba(40,30,20,.5);border:0;color:#ffd23a;font-size:14px;min-width:0;height:24px}
+.vaga.max i{font-style:normal}
+#jMenuT{position:absolute;left:0;top:0;translate:-50% -100%;display:flex;gap:6px;padding:6px;border-radius:16px;background:var(--creme);border:3px solid var(--madeira);box-shadow:0 5px 0 var(--madeira)}
+#jMenuT button{display:flex;flex-direction:column;align-items:center;gap:2px;width:84px;padding:6px 4px;border-radius:12px;background:#fff;border:2px solid var(--creme2);color:var(--tinta)}
+#jMenuT button .ico{width:30px;height:30px;color:var(--azul2)}
+#jMenuT button b{font-family:var(--fT);font-weight:400;font-size:14px}
+#jMenuT button small{display:flex;align-items:center;gap:2px;font-family:var(--fT);font-size:13px;color:var(--cinza2)}
+#jMenuT button.pode{border-color:var(--verde)}
+#jMenuT button.pode small{color:var(--verde2)}

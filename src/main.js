@@ -3,7 +3,7 @@ import * as C from './cena.js';
 import { VERSAO } from './dados.js';
 import { carregar } from './meta.js';
 import { $, carregarRecursos, som } from './util.js';
-import { montarPonte, abrirLobby, passo, _G, _sim } from './ponte.js';
+import { montarPonte, abrirLobby, passo, _G, _sim, _construir } from './ponte.js';
 
 window.VERSAO = VERSAO;
 let qualidade = 'media';
@@ -35,7 +35,7 @@ async function comecar() {
   const b = document.createElement('button'); b.className = 'btn verde grande'; b.textContent = 'Defender a ponte';
   b.onclick = () => { som('confirma'); $('#titulo').classList.add('sai'); setTimeout(() => $('#titulo').remove(), 600); };
   $('.tMenu').innerHTML = ''; $('.tMenu').append(b);
-  window.__C = C; window.__cam = C.camera; window.__G = _G; window.__sim = _sim; // para testes
+  window.__C = C; window.__cam = C.camera; window.__G = _G; window.__sim = _sim; window.__construir = _construir; // para testes
 }
 
 comecar();
