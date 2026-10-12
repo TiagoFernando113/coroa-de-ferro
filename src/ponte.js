@@ -8,6 +8,7 @@ import { S, salvar, comprar } from './meta.js';
 import { visualPadrao } from './aparencia.js';
 import { ico, som, $, alternarSom, estaMudo } from './util.js';
 import { tema, sfx } from './musica.js';
+import { criarTropas, desenharTropas, voar, passoVoo, limparTropas } from './tropas.js';
 
 // ---------------- medidas da ponte (frente = -z) ----------------
 const MEIA = 17;            // meia largura da ponte
@@ -55,7 +56,7 @@ function texPedra() {
 }
 
 // ---------------- ponte fixa ----------------
-let cena, MAT_PEDRA, MAT_MURO, mAzul, mVerm, GEO_FLECHA, MAT_FLECHA;
+let cena, MAT_PEDRA, MAT_MURO, GEO_FLECHA, MAT_FLECHA;
 export function montarPonte() {
   cena = C.obterCena(); C.ceu(0x8cc4ee); C.neblina(260, 520);
   const tp = texPedra(), len = ZTRAS - ZFRENTE;
@@ -86,20 +87,7 @@ export function montarPonte() {
     { m: 'C:tower-square', x: -MEIA - 3, z: ZBOSS - 12, s: 6 }, { m: 'C:tower-square', x: MEIA + 3, z: ZBOSS - 12, s: 6 },
     { m: 'C:gate', x: 0, z: ZBOSS - 16, s: 7 },
   ]);
-  // soldados (instanciados): corpo, cabeça, elmo e lança com cores por vértice
-  const geoSoldado = (corpo, elmo) => {
-    const cor = (g, c) => { const k = new THREE.Color(c), n = g.attributes.position.count, a = new Float32Array(n * 3); for (let i = 0; i < n; i++) { a[i * 3] = k.r; a[i * 3 + 1] = k.g; a[i * 3 + 2] = k.b; } g.setAttribute('color', new THREE.BufferAttribute(a, 3)); g.deleteAttribute('uv'); return g; };
-    return mergeGeometries([
-      cor(new THREE.CylinderGeometry(0.34, 0.44, 0.95, 8).translate(0, 0.55, 0), corpo),
-      cor(new THREE.SphereGeometry(0.31, 8, 6).translate(0, 1.25, 0), 0xf3c9a0),
-      cor(new THREE.ConeGeometry(0.38, 0.5, 8).translate(0, 1.62, 0), elmo),
-      cor(new THREE.BoxGeometry(0.12, 1.5, 0.12).translate(0.45, 1.0, 0), 0xd8dde2),
-      cor(new THREE.BoxGeometry(0.55, 0.65, 0.12).translate(-0.35, 0.75, 0.25), elmo),
-    ]).scale(1.25, 1.25, 1.25);
-  };
-  const mat = new THREE.MeshLambertMaterial({ vertexColors: true });
-  mAzul = new THREE.InstancedMesh(geoSoldado(0x2f74e0, 0x1a3f9a), mat, MAXU); mVerm = new THREE.InstancedMesh(geoSoldado(0xd8342a, 0x7a1410), mat, MAXU);
-  for (const m of [mAzul, mVerm]) { m.count = 0; m.castShadow = true; m.frustumCulled = false; cena.add(m); }
+  criarTropas(cena);
   GEO_FLECHA = mergeGeometries([new THREE.CylinderGeometry(0.07, 0.07, 2.2, 5).rotateX(Math.PI / 2), new THREE.ConeGeometry(0.2, 0.6, 6).rotateX(-Math.PI / 2).translate(0, 0, -1.3)]);
   MAT_FLECHA = new THREE.MeshBasicMaterial({ color: 0xffd84a });
   montarHud();
@@ -165,7 +153,7 @@ function limparFase() {
   for (const p of G.portoes) cena.remove(p.o);
   G.chefe?.v.remover(); G.heroiV?.remover(); G.gigante?.v.remover();
   for (const c of G.chuvas) for (const f of c.fl) cena.remove(f.o);
-  mAzul.count = mVerm.count = 0; G = null;
+  limparTropas(); G = null;
 }
 
 // ---------------- HUD ----------------
@@ -250,7 +238,6 @@ function terminar(venceu) {
 }
 
 // ---------------- laço ----------------
-const mtx = new THREE.Matrix4(), rot = new THREE.Matrix4();
 export const _G = () => G; // para testes
 export const _sim = dt => passoJogo(dt);
 let distCam = 106;
@@ -263,10 +250,7 @@ export function passo(dt0) {
     else if (G.fim === 'v') { G.chefe.v.mixer.update(dt); }
     else G.chefe.v.mixer.update(dt);
     // desenha os exércitos
-    const desenhar = (mesh, lista, rotY) => { let i = 0; rot.makeRotationY(rotY);
-      for (const u of lista) { if (i >= MAXU) break; mtx.copy(rot); mtx.setPosition(u.x, Math.abs(Math.sin(t * 11 + u.ph)) * 0.3, u.z); mesh.setMatrixAt(i++, mtx); }
-      mesh.count = i; mesh.instanceMatrix.needsUpdate = true; };
-    desenhar(mAzul, G.az, Math.PI); desenhar(mVerm, G.vm, 0);
+    desenharTropas('az', G.az, Math.PI, t); desenharTropas('vm', G.vm, 0, t); passoVoo(dt);
     // pilhas deslizam para a frente da pista
     for (const p of G.pistas) p.forEach((b, i) => { const zAlvo = ZLANE - 2 - i * PASSO; b.z += (zAlvo - b.z) * Math.min(1, dt * 5); b.mesh.position.z = b.z; });
     const ch = G.chefe; ch.flash = Math.max(0, ch.flash - dt);
@@ -283,6 +267,7 @@ export function passo(dt0) {
   if (tela === 'lobby') foco.z = -42 + Math.sin(t * 0.3) * 2;
   distCam += ((final ? 62 : 106) - distCam) * Math.min(1, dt0 * 2);
   C.camera.yaw = Math.PI; C.camera.pitch = 0.9; C.camera.dist = distCam - (G ? G.punch * 7 : 0); C.camera.altura = 0; C.camera.suave = final ? 2.5 : 4;
+  if (window.__ov) { Object.assign(C.camera, window.__ov.cam); Object.assign(foco, window.__ov.foco); } // para testes
   C.quadro(dt, foco);
   desenharFx(dt);
 }
@@ -325,19 +310,27 @@ function passoJogo(dt) {
   // grade dos vermelhos por faixa de z (para choques e flechas)
   const grade = new Map(), K = 1.6; for (const v of G.vm) { const k = Math.floor(v.z / K); let l = grade.get(k); if (!l) grade.set(k, l = []); l.push(v); }
   // marcha
-  for (const a of G.az) { a.z -= VEL_AZ * dt; a.x += (a.ax - a.x) * Math.min(1, dt * 3); }
-  for (const v of G.vm) { v.z += VEL_VM * dt; v.x += (v.ax - v.x) * Math.min(1, dt * 2); }
+  for (const a of G.az) if (!a.luta) { a.z -= VEL_AZ * dt; a.x += (a.ax - a.x) * Math.min(1, dt * 3); }
+  for (const v of G.vm) { if (v.luta && (v.luta.morto || v.luta.luta !== v)) v.luta = null; if (!v.luta) { v.z += VEL_VM * dt; v.x += (v.ax - v.x) * Math.min(1, dt * 2); } }
   // choques: cada azul procura um vermelho à frente e mira nele; encostou, os dois caem
   let poeira = 0;
   for (const a of G.az) {
-    if (a.morto) continue; const k = Math.floor(a.z / K); let perto = null, d0 = 1e9;
+    if (a.morto) continue;
+    if (a.luta) { // duelo: troca espadadas por um instante, depois resolve
+      const v = a.luta; if (v.morto) { a.luta = null; continue; }
+      if ((a.tl -= dt) > 0) continue;
+      v.morto = true; G.mortesVm++; voar('vm', v.x, v.z, (Math.random() - 0.5) * 4, 6 + Math.random() * 4, -4 - Math.random() * 3); if (poeira++ < 6) C.faiscas(v.x, 1.4, v.z, 0xffffff, 4, 3);
+      if (Math.random() >= G.escudo) { a.morto = true; voar('az', a.x, a.z, (Math.random() - 0.5) * 4, 5 + Math.random() * 3, 3 + Math.random() * 2); }
+      a.luta = null; continue;
+    }
+    const k = Math.floor(a.z / K); let perto = null, d0 = 1e9;
     for (let d = -4; d <= 1; d++) for (const v of grade.get(k + d) || []) { if (v.morto) continue; const dz = a.z - v.z, dx = Math.abs(a.x - v.x); if (dz > -1.5 && dz < d0) { d0 = dz; perto = v; } }
     if (!perto) continue;
     a.ax = perto.x; perto.ax = a.x;
-    if (d0 < 1.3 && Math.abs(a.x - perto.x) < 1.4) { perto.morto = true; G.mortesVm++; if (Math.random() >= G.escudo) a.morto = true; if (poeira++ < 6) C.faiscas(perto.x, 1.2, perto.z, 0xffe0c0, 4, 3); }
+    if (d0 < 1.4 && Math.abs(a.x - perto.x) < 1.5) { a.luta = perto; a.tl = 0.2 + Math.random() * 0.3; perto.luta = a; }
   }
   // azuis que passaram batem no chefe
-  for (const a of G.az) if (!a.morto && a.z <= ch.z + 5) { a.morto = true; ferirChefe(1, a.x, a.z); }
+  for (const a of G.az) if (!a.morto && a.z <= ch.z + 5) { a.morto = true; ferirChefe(1, a.x, a.z); voar('az', a.x, a.z, (Math.random() - 0.5) * 10, 10 + Math.random() * 6, 7 + Math.random() * 5); }
   // vermelhos que chegaram batem na muralha
   for (const v of G.vm) if (!v.morto && v.z >= ZMURO - 1.2) { v.morto = true; G.muro--; C.faiscas(v.x, 1.5, v.z, 0xff5a3a, 10, 4); C.camera.tremor = Math.max(C.camera.tremor, 0.25); som('pancada', 0.3); }
   // flechas
@@ -352,7 +345,7 @@ function passoJogo(dt) {
     } else { // pista do meio: vermelhos e depois o chefe
       const k = Math.floor(f.z / K); let alvo = null;
       for (let d = 0; d <= 1 && !alvo; d++) for (const v of grade.get(k + d) || []) if (!v.morto && Math.abs(v.x - f.x) < 1.3 && Math.abs(v.z - f.z) < 1.8) { alvo = v; break; }
-      if (alvo) { alvo.morto = true; G.mortesVm++; f.morta = true; C.faiscas(alvo.x, 1.4, alvo.z, 0xff6a4a, 6, 3); }
+      if (alvo) { alvo.morto = true; G.mortesVm++; f.morta = true; voar('vm', alvo.x, alvo.z, (Math.random() - 0.5) * 3, 5, -6); C.faiscas(alvo.x, 1.4, alvo.z, 0xff6a4a, 6, 3); }
       else if (f.z <= ch.z + 3) { f.morta = true; ferirChefe(1, f.x, ch.z + 3); }
     }
   }
@@ -364,7 +357,7 @@ function passoJogo(dt) {
     G.golpeT = ch.furia ? 3.5 : 5; G.golpePend = 0.45; ch.v.tocar('Attack', { loop: false, reinicia: true });
   }
   if (G.golpePend > 0 && (G.golpePend -= dt) <= 0) { const zc = ch.z + 9; C.onda(0, zc, 9, 0xff9a3a, 0.5); C.faiscas(0, 1, zc, 0xc8a878, 40, 7); C.camera.tremor = 0.6; som('pancada');
-    for (const a of G.az) if (Math.hypot(a.x, a.z - zc) < 9) a.morto = true; G.az = G.az.filter(a => !a.morto); if (G.gigante && Math.abs(G.gigante.z - zc) < 10) G.gigante.hp -= 15; } else if (!/Attack/.test(ch.v.anim) || G.golpeT < 4) ch.v.tocar(G.t > 6 ? 'Gallop' : 'Idle', { vel: 0.45 });
+    for (const a of G.az) if (Math.hypot(a.x, a.z - zc) < 9) { a.morto = true; arremessar('az', a, 0, zc, 12); } G.az = G.az.filter(a => !a.morto); if (G.gigante && Math.abs(G.gigante.z - zc) < 10) G.gigante.hp -= 15; } else if (!/Attack/.test(ch.v.anim) || G.golpeT < 4) ch.v.tocar(G.t > 6 ? 'Gallop' : 'Idle', { vel: 0.45 });
   // o chefe avança devagar até a muralha (mais rápido furioso)
   if (G.t > 6 && !ch.pulo) ch.z = Math.min(ZMURO - 7, ch.z + (0.45 + 0.02 * G.n) * (ch.furia ? 1.6 : 1) * dt);
   // com metade da vida ele fica furioso: cresce, fica vermelho, chama uma onda e começa a pular
@@ -376,14 +369,14 @@ function passoJogo(dt) {
     if (G.puloT <= 0 && !ch.pulo) { G.puloT = 11; const z1 = Math.min(ch.z + 10, ZMURO - 8); ch.pulo = { t: 0, z0: ch.z, z1 }; C.aviso(0, z1 + 4, 11, 0.9, 0xff3322); faixa('CUIDADO: SALTO!', '#ff9a3a'); }
     if (ch.pulo) { const P = ch.pulo; P.t += dt; const k = Math.min(1, P.t / 0.9); ch.z = P.z0 + (P.z1 - P.z0) * k; ch.y = Math.sin(Math.PI * k) * 9;
       if (k >= 1) { ch.pulo = null; ch.y = 0; const zc = ch.z + 4; C.onda(0, zc, 13, 0xff7a2a, 0.6); C.faiscas(0, 1, zc, 0xc8a878, 70, 10); C.camera.tremor = 1.2; G.punch = 1; som('pancada');
-        for (const a of G.az) if (Math.hypot(a.x, a.z - zc) < 11) a.morto = true; G.az = G.az.filter(a => !a.morto); if (G.gigante && Math.abs(G.gigante.z - zc) < 12) G.gigante.hp -= 30; } }
+        for (const a of G.az) if (Math.hypot(a.x, a.z - zc) < 11) { a.morto = true; arremessar('az', a, 0, zc, 16); } G.az = G.az.filter(a => !a.morto); if (G.gigante && Math.abs(G.gigante.z - zc) < 12) G.gigante.hp -= 30; } }
   }
   // poderes: recarga, chuva de flechas caindo e o gigante
   for (const [k, P] of Object.entries(G.pd)) { P.cd = Math.max(0, P.cd - dt); const b = document.querySelector(`[data-pd=${k}]`); if (b) { b.style.setProperty('--p', `${360 * P.cd / P.max}deg`); b.classList.toggle('pronto', P.cd <= 0); } }
   for (const c of G.chuvas) {
     c.t += dt; for (const f of c.fl) { f.o.position.y = Math.max(0.5, f.y0 - 55 * Math.max(0, c.t - f.atraso)); }
     if (c.t >= 0.75 && !c.feito) { c.feito = true; let n = 0;
-      for (const v of G.vm) if (Math.hypot(v.x, v.z - c.z) < 7.5) { v.morto = true; n++; } G.vm = G.vm.filter(v => !v.morto);
+      for (const v of G.vm) if (Math.hypot(v.x, v.z - c.z) < 7.5) { v.morto = true; n++; arremessar('vm', v, 0, c.z, 9); } G.vm = G.vm.filter(v => !v.morto);
       if (Math.abs(ch.z + 3 - c.z) < 9) ferirChefe(Math.round(ch.max * 0.05), 0, ch.z + 3, true);
       C.onda(0, c.z, 9, 0x8ac8ff, 0.5); C.faiscas(0, 1, c.z, 0xffd84a, 50, 8); C.camera.tremor = 0.5; som('pancada', 0.5);
       if (n) G.txt.push({ x: 0, y: 5, z: c.z, txt: `${n} derrotados!`, cor: '#ffd84a', t: 0, grande: true }); }
@@ -395,7 +388,7 @@ function passoJogo(dt) {
     gi.t += dt; gi.hp -= dt * 3;
     if (gi.estado === 'anda') {
       gi.z -= 6 * dt; gi.v.tocar('Running_A', { vel: 0.8 });
-      for (const v of G.vm) if (Math.abs(v.z - gi.z) < 3 && Math.abs(v.x) < 5) { v.morto = true; gi.hp -= 0.5; if (Math.random() < 0.3) C.faiscas(v.x, 1.5, v.z, 0xff6a4a, 5, 4); }
+      for (const v of G.vm) if (Math.abs(v.z - gi.z) < 3 && Math.abs(v.x) < 5) { v.morto = true; gi.hp -= 0.5; voar('vm', v.x, v.z, (v.x < 0 ? -1 : 1) * (8 + Math.random() * 8), 9 + Math.random() * 6, -4); if (Math.random() < 0.3) C.faiscas(v.x, 1.5, v.z, 0xff6a4a, 5, 4); }
       G.vm = G.vm.filter(v => !v.morto);
       if (gi.z <= ch.z + 8) gi.estado = 'luta';
     } else if (gi.estado === 'luta') {
@@ -411,11 +404,13 @@ function passoJogo(dt) {
   $('#jMoedas').textContent = fmt(S.moedas);
   $('#jChefeB').style.width = (100 * ch.hp / ch.max) + '%'; $('#jChefeT').textContent = `${fmt(Math.max(0, ch.hp))} / ${fmt(ch.max)}`;
   $('#jMuroB').style.width = (100 * Math.max(0, G.muro) / G.muroMax) + '%'; $('#jMuroT').textContent = `${Math.max(0, G.muro)} / ${G.muroMax}`;
-  if (ch.hp <= 0) { ch.v.tocar('Death', { loop: false, reinicia: true }); for (const v of G.vm) C.faiscas(v.x, 1.2, v.z, 0xff6a4a, 3, 3); G.vm = []; C.camera.tremor = 1;
+  if (ch.hp <= 0) { ch.v.tocar('Death', { loop: false, reinicia: true }); for (const v of G.vm) arremessar('vm', v, 0, ch.z, 14); G.vm = []; C.camera.tremor = 1;
     G.lento = 1.6; C.faiscas(0, 6, ch.z, 0xffd84a, 120, 12); C.onda(0, ch.z, 16, 0xffd84a, 0.9); faixa('VITÓRIA!', '#ffd84a'); G.heroiV.tocar('Cheering'); terminar(true); }
   else if (ch.z >= ZMURO - 7) { G.muro = 0; C.camera.tremor = 1; faixa('O CHEFE DERRUBOU A MURALHA!', '#ff5a4a'); G.heroiV.tocar('Death_A', { loop: false, reinicia: true }); terminar(false); }
   else if (G.muro <= 0) { G.heroiV.tocar('Death_A', { loop: false, reinicia: true }); terminar(false); }
 }
+// joga o soldado para longe do ponto (x0, z0)
+function arremessar(t, u, x0, z0, f) { const dx = u.x - x0, dz = u.z - z0, d = Math.hypot(dx, dz) || 1; voar(t, u.x, u.z, dx / d * f * 0.8, f * (0.9 + Math.random() * 0.5), dz / d * f * 0.8); }
 function ferirChefe(d, x, z, forte) {
   const ch = G.chefe; ch.hp -= d; ch.flash = forte ? 0.15 : 0.08; if (forte || Math.random() < 0.3) C.faiscas(x, 3, z, 0xffffff, 4, 4);
   if (forte || Math.random() < 0.25) G.txt.push({ x, y: 9, z, txt: '-' + fmt(d), cor: forte ? '#ffd84a' : '#fff', t: 0, grande: forte });
