@@ -275,7 +275,28 @@ function desenharLobby() {
       <button class="btn verde grande" data-a="jogar">${ico('h_triplo')} JOGAR</button></div>`;
 }
 const PODERES = [['chuva', 'Chuva', 'h_chuva'], ['gigante', 'Gigante', 'cav']];
-const bauHtml = (tipo, cls = '') => `<div class="bauG ${tipo} ${cls}"><i class="tampa"></i><i class="corpo"></i><i class="fecho"></i></div>`;
+// baú desenhado em SVG: madeira com tábuas, cintas de metal, rebites e fechadura (cores por tipo)
+const COR_BAU = { madeira: ['#c98a4a', '#7a4a20', '#9aa3ad', '#5a626c', '#ffd23a'], prata: ['#5a7ad8', '#26387a', '#eef3fa', '#9aa8bc', '#ffffff'], ouro: ['#d8403a', '#7a1414', '#ffe27a', '#d89a10', '#fff6c8'] };
+let idBau = 0;
+function bauHtml(tipo, cls = '') {
+  const [m1, m2, f1, f2, br] = COR_BAU[tipo], i = ++idBau;
+  const cinta = x => `<rect x="${x}" y="14" width="11" height="80" rx="2" fill="url(#f${i})" stroke="#2a1a0c" stroke-width="2"/>`;
+  const rebites = (y) => [16, 27, 93, 104].map(x => `<circle cx="${x}" cy="${y}" r="2.2" fill="${br}" stroke="#2a1a0c" stroke-width="1"/>`).join('');
+  return `<div class="bauG ${tipo} ${cls}"><svg viewBox="0 0 120 100">
+    <defs><linearGradient id="m${i}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${m1}"/><stop offset="1" stop-color="${m2}"/></linearGradient>
+      <linearGradient id="f${i}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="${f1}"/><stop offset=".55" stop-color="${f2}"/><stop offset="1" stop-color="${f1}"/></linearGradient></defs>
+    <ellipse cx="60" cy="95" rx="52" ry="5" fill="rgba(0,0,0,.25)"/>
+    <g class="corpo"><rect x="8" y="50" width="104" height="44" rx="6" fill="url(#m${i})" stroke="#2a1a0c" stroke-width="3"/>
+      <path d="M10 64H110M10 79H110" stroke="rgba(0,0,0,.22)" stroke-width="2"/><rect x="8" y="86" width="104" height="8" rx="3" fill="url(#f${i})" stroke="#2a1a0c" stroke-width="2"/>
+      ${cinta(16).replace('y="14" width="11" height="80"', 'y="50" width="11" height="44"')}${cinta(93).replace('y="14" width="11" height="80"', 'y="50" width="11" height="44"')}</g>
+    <g class="tampa"><path d="M8 52V34Q8 14 30 12H90Q112 14 112 34V52Z" fill="url(#m${i})" stroke="#2a1a0c" stroke-width="3"/>
+      <path d="M14 30Q16 18 32 17H88" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="3" stroke-linecap="round"/><path d="M9 40H111" stroke="rgba(0,0,0,.2)" stroke-width="2"/>
+      <path d="M16 52V30Q16 18 27 15V52Z" fill="url(#f${i})" stroke="#2a1a0c" stroke-width="2"/><path d="M104 52V30Q104 18 93 15V52Z" fill="url(#f${i})" stroke="#2a1a0c" stroke-width="2"/>
+      <rect x="6" y="47" width="108" height="8" rx="3" fill="url(#f${i})" stroke="#2a1a0c" stroke-width="2"/>${rebites(51)}</g>
+    <g class="fecho"><rect x="49" y="42" width="22" height="26" rx="4" fill="url(#f${i})" stroke="#2a1a0c" stroke-width="2.5"/><circle cx="60" cy="52" r="3.5" fill="#2a1a0c"/><path d="M58.5 54h3l1 7h-5z" fill="#2a1a0c"/></g>
+    ${tipo === 'ouro' ? '<g class="brilhos"><path d="M100 8l2 6 6 2-6 2-2 6-2-6-6-2 6-2z" fill="#fff"/><path d="M18 4l1.4 4 4 1.4-4 1.4-1.4 4-1.4-4-4-1.4 4-1.4z" fill="#fff"/></g>' : ''}
+  </svg></div>`;
+}
 // janela de baú: toca para abrir, os prêmios aparecem um a um
 function mostrarBau(tipo, titulo, aoAbrir) {
   const j = $('#janela'); j.hidden = false;
