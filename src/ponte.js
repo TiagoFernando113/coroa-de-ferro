@@ -145,13 +145,15 @@ export function iniciarFase(n) {
   const F = dadosFase(n), up = S.up;
   G = { F, n, t: 0, az: [], vm: [], flechas: [], txt: [], fila: 8 * up.exercito, acum: 0, cd: 0.5, pistas: [[], []], spawnVm: 0, golpePend: 0,
     muro: vidaMuralha(up.vida), muroMax: vidaMuralha(up.vida), tiro: tiros(up.fogo), nFlechas: 1 + up.flechas, escudo: escudo(up.escudos),
-    heroi: { x: 0, alvo: 0 }, golpeT: 4, fim: null, mortesVm: 0, portoes: [], ondaT: 16, banner: null, punch: 0, lento: 0, brilhoH: 0 };
+    heroi: { x: 0, alvo: 0 }, golpeT: 4, fim: null, mortesVm: 0, portoes: [], ondaT: 16, banner: null, punch: 0, lento: 0, brilhoH: 0,
+    pd: { chuva: { cd: 4, max: 11 }, gigante: { cd: 12, max: 30 } }, chuvas: [], gigante: null, puloT: 0 };
   for (const p0 of F.portoes) { const p = { ...p0, z: ZLANE - 2 - p0.i * PASSO }; criarPortao(p); G.portoes.push(p); }
   [F.esq, F.dir].forEach((lista, k) => lista.forEach((b0, i) => { const b = { ...b0, z: ZLANE - 2 - i * PASSO };
     if (b.tipo !== 'barreira') b.hp = b.hpMax = (b.tipo === 'mais' ? Math.max(1, Math.round(1.3 * Math.log(b.valor))) : 3) + F.duro; criarBloco(b, k ? 1 : -1); G.pistas[k].push(b); }));
   // chefe
   const ch = C.personagem(F.chefe.modelo, [], 1); ch.raiz.scale.setScalar(5); ch.raiz.position.set(0, 0, ZBOSS); ch.tocar('Idle');
-  G.chefe = { v: ch, hp: F.chefe.hp, max: F.chefe.hp, nome: F.chefe.nome, flash: 0, z: ZBOSS };
+  G.chefe = { v: ch, hp: F.chefe.hp, max: F.chefe.hp, nome: F.chefe.nome, flash: 0, z: ZBOSS, y: 0, esc: 5, mats: [] };
+  ch.raiz.traverse(o => { if (o.material?.emissive) G.chefe.mats.push(o.material); });
   // herói arqueiro
   if (!G.heroiV) { const v = C.heroi(S.visual || visualPadrao('arq')); v.raiz.scale.setScalar(2.4); v.raiz.rotation.y = Math.PI; v.tocar('Ranged_Bow_Aiming_Idle'); G.heroiV = v; }
   G.heroiV.raiz.position.set(0, 0, ZH);
@@ -161,7 +163,8 @@ function limparFase() {
   for (const p of G.pistas) for (const b of p) cena.remove(b.mesh);
   for (const f of G.flechas) cena.remove(f.o);
   for (const p of G.portoes) cena.remove(p.o);
-  G.chefe?.v.remover(); G.heroiV?.remover();
+  G.chefe?.v.remover(); G.heroiV?.remover(); G.gigante?.v.remover();
+  for (const c of G.chuvas) for (const f of c.fl) cena.remove(f.o);
   mAzul.count = mVerm.count = 0; G = null;
 }
 
@@ -171,6 +174,7 @@ function montarHud() {
   $('#hud').innerHTML = `<div id="lobby"></div>
     <div id="jogo" hidden><div class="jTopo"><button class="lSair" data-a="sair">${ico('fechar')}</button><div class="jFase">Fase <b id="jN"></b></div><div class="pilula ouro">${ico('ouro')}<b id="jMoedas"></b></div></div>
       <div class="jChefe"><b id="jChefeN"></b><div class="barra vm"><i id="jChefeB"></i><span id="jChefeT"></span></div></div>
+      <div class="jPoderes"><button class="poder" data-pd="chuva">${ico('h_chuva')}<small>Chuva</small></button><button class="poder" data-pd="gigante">${ico('cav')}<small>Gigante</small></button></div>
       <div class="jMuro">${ico('escudo')}<div class="barra muro"><i id="jMuroB"></i><span id="jMuroT"></span></div></div>
       <p class="jDica" id="jDica">Arraste para mover · as flechas saem sozinhas</p></div>
     <div id="fim" hidden></div>`;
@@ -187,6 +191,7 @@ function montarHud() {
   $('#hud').addEventListener('click', clique);
 }
 export function abrirLobby() {
+  roleta = null;
   tela = 'lobby'; $('#jogo').hidden = true; $('#fim').hidden = true; $('#lobby').hidden = false; tema('guilda');
   iniciarFase(S.fase); desenharLobby();
 }
@@ -207,11 +212,21 @@ function clique(e) {
   if (a === 'sair') { som('fechar'); abrirLobby(); }
   if (a === 'proxima') { som('confirma'); comecarFase(); }
   if (a === 'lobby') { som('clique'); abrirLobby(); }
+  if (b.dataset.pd) usarPoder(b.dataset.pd);
+  if (a === 'roleta') pararRoleta();
 }
 function comecarFase() {
+  roleta = null;
   if (!G || G.n !== S.fase || G.t > 0) iniciarFase(S.fase);
   tela = 'jogo'; $('#lobby').hidden = true; $('#fim').hidden = true; $('#jogo').hidden = false; $('#jDica').hidden = false;
   $('#jN').textContent = G.n; $('#jChefeN').textContent = G.chefe.nome; tema((G.n - 1) % 8);
+}
+const ROLETA = [2, 3, 5, 3, 2];
+let roleta = null;
+function pararRoleta() {
+  if (!roleta || roleta.parada) return; roleta.parada = true; const extra = roleta.ganho * (roleta.m - 1);
+  S.moedas += extra; salvar(); som('lendario'); $('#fGanho').textContent = `+${fmt(roleta.ganho * roleta.m)}`; $('#fGanho').parentElement.classList.add('pulo');
+  $('#fBotoes').hidden = true; $('#fSeguir').hidden = false;
 }
 function terminar(venceu) {
   if (G.fim) return; G.fim = venceu ? 'v' : 'd'; tela = 'fim';
@@ -221,10 +236,16 @@ function terminar(venceu) {
     $('#jogo').hidden = true; const f = $('#fim'); f.hidden = false;
     f.innerHTML = `<div class="fimCaixa ${venceu ? 'vit' : 'der'}"><h2>${venceu ? 'VITÓRIA!' : 'A muralha caiu!'}</h2>
       <p>${venceu ? `${G.chefe.nome} foi derrotado!` : 'Melhore o exército e tente de novo.'}</p>
-      <div class="ganho">${ico('ouro')}<b>+${fmt(ganho)}</b></div>
-      <button class="btn verde grande" data-a="${venceu ? 'proxima' : 'proxima'}">${venceu ? `Fase ${S.fase} ${ico('seta')}` : 'Tentar de novo'}</button>
-      <button class="btn azul" data-a="lobby">${ico('raio')} Melhorias</button></div>`;
+      <div class="ganho">${ico('ouro')}<b id="fGanho">+${fmt(ganho)}</b></div>
+      ${venceu ? `<div class="roleta">${ROLETA.map(m => `<span class="m${m}">x${m}</span>`).join('')}<i id="rAgulha"></i></div>
+      <div id="fBotoes"><button class="btn amarelo grande" data-a="roleta">${ico('ouro')} Pegar <b id="rMult">x2</b></button>
+      <button class="fSo" data-a="proxima">Só +${fmt(ganho)}, próxima fase</button></div>` : ''}
+      <div id="fSeguir" ${venceu ? 'hidden' : ''}><button class="btn verde grande" data-a="proxima">${venceu ? `Fase ${S.fase} ${ico('seta')}` : 'Tentar de novo'}</button>
+      <button class="btn azul" data-a="lobby">${ico('raio')} Melhorias</button></div></div>`;
     som(venceu ? 'lendario' : 'falha');
+    if (venceu) { roleta = { ganho, t0: performance.now(), m: 2 }; const gira = () => { if (!roleta || roleta.parada) return;
+      const k = (Math.sin((performance.now() - roleta.t0) / 1000 * 3.2 - Math.PI / 2) + 1) / 2; roleta.m = ROLETA[Math.min(ROLETA.length - 1, Math.floor(k * ROLETA.length))];
+      $('#rAgulha').style.left = (k * 100) + '%'; $('#rMult').textContent = 'x' + roleta.m; requestAnimationFrame(gira); }; gira(); }
   }, venceu ? 1800 : 1200);
 }
 
@@ -248,8 +269,11 @@ export function passo(dt0) {
     desenhar(mAzul, G.az, Math.PI); desenhar(mVerm, G.vm, 0);
     // pilhas deslizam para a frente da pista
     for (const p of G.pistas) p.forEach((b, i) => { const zAlvo = ZLANE - 2 - i * PASSO; b.z += (zAlvo - b.z) * Math.min(1, dt * 5); b.mesh.position.z = b.z; });
-    G.chefe.flash = Math.max(0, G.chefe.flash - dt); G.chefe.v.brilho(G.chefe.flash > 0 ? 0.45 : 0);
-    G.heroiV.raiz.position.x = G.heroi.x; G.chefe.v.raiz.position.z = G.chefe.z;
+    const ch = G.chefe; ch.flash = Math.max(0, ch.flash - dt);
+    { const f = ch.flash > 0 ? 0.45 : 0, r = ch.furia ? 0.28 + 0.12 * Math.sin(t * 9) : 0; for (const m of ch.mats) m.emissive.setRGB(f + r, f, f); }
+    ch.esc += ((ch.furia ? 6 : 5) - ch.esc) * Math.min(1, dt * 3); ch.v.raiz.scale.setScalar(ch.esc);
+    G.heroiV.raiz.position.x = G.heroi.x; ch.v.raiz.position.set(0, ch.y, ch.z);
+    if (G.gigante) { G.gigante.v.mixer.update(dt); G.gigante.v.raiz.position.z = G.gigante.z; }
     G.brilhoH = Math.max(0, G.brilhoH - dt); G.heroiV.brilho(G.brilhoH > 0 ? 0.5 * G.brilhoH : 0);
     for (const p of G.portoes) { p.pulso = Math.max(0, p.pulso - dt * 4); p.painel.scale.setScalar(1 + p.pulso * 0.12); }
     G.punch = Math.max(0, G.punch - dt * 3);
@@ -336,13 +360,52 @@ function passoJogo(dt) {
   G.flechas = G.flechas.filter(f => !f.morta); G.az = G.az.filter(a => !a.morto); G.vm = G.vm.filter(v => !v.morto);
   // golpe do chefe: esmaga os azuis que chegam perto
   G.golpeT -= dt;
-  if (G.golpeT <= 0 && G.az.some(a => a.z < ch.z + 22)) {
-    G.golpeT = 5; G.golpePend = 0.45; ch.v.tocar('Attack', { loop: false, reinicia: true });
+  if (G.golpeT <= 0 && !ch.pulo && (G.az.some(a => a.z < ch.z + 22) || G.gigante?.estado === 'luta')) {
+    G.golpeT = ch.furia ? 3.5 : 5; G.golpePend = 0.45; ch.v.tocar('Attack', { loop: false, reinicia: true });
   }
   if (G.golpePend > 0 && (G.golpePend -= dt) <= 0) { const zc = ch.z + 9; C.onda(0, zc, 9, 0xff9a3a, 0.5); C.faiscas(0, 1, zc, 0xc8a878, 40, 7); C.camera.tremor = 0.6; som('pancada');
-    for (const a of G.az) if (Math.hypot(a.x, a.z - zc) < 9) a.morto = true; G.az = G.az.filter(a => !a.morto); } else if (!/Attack/.test(ch.v.anim) || G.golpeT < 4) ch.v.tocar(G.t > 6 ? 'Gallop' : 'Idle', { vel: 0.45 });
-  // o chefe avança devagar até a muralha
-  if (G.t > 6) ch.z = Math.min(ZMURO - 7, ch.z + (0.45 + 0.02 * G.n) * dt);
+    for (const a of G.az) if (Math.hypot(a.x, a.z - zc) < 9) a.morto = true; G.az = G.az.filter(a => !a.morto); if (G.gigante && Math.abs(G.gigante.z - zc) < 10) G.gigante.hp -= 15; } else if (!/Attack/.test(ch.v.anim) || G.golpeT < 4) ch.v.tocar(G.t > 6 ? 'Gallop' : 'Idle', { vel: 0.45 });
+  // o chefe avança devagar até a muralha (mais rápido furioso)
+  if (G.t > 6 && !ch.pulo) ch.z = Math.min(ZMURO - 7, ch.z + (0.45 + 0.02 * G.n) * (ch.furia ? 1.6 : 1) * dt);
+  // com metade da vida ele fica furioso: cresce, fica vermelho, chama uma onda e começa a pular
+  if (!ch.furia && ch.hp < ch.max / 2) { ch.furia = true; G.puloT = 4; G.spawnVm += Math.round(ritmo * 6); faixa(`${ch.nome.toUpperCase()} FICOU FURIOSO!`, '#ff4a3a');
+    ch.v.tocar('Attack2', { loop: false, reinicia: true }); C.camera.tremor = 1; C.onda(0, ch.z + 3, 14, 0xff3a2a, 0.8); som('pancada'); }
+  if (ch.furia) {
+    if (Math.random() < dt * 4) C.faiscas((Math.random() - 0.5) * 6, 4 + Math.random() * 6, ch.z, 0xff4a2a, 3, 2);
+    G.puloT -= dt;
+    if (G.puloT <= 0 && !ch.pulo) { G.puloT = 11; const z1 = Math.min(ch.z + 10, ZMURO - 8); ch.pulo = { t: 0, z0: ch.z, z1 }; C.aviso(0, z1 + 4, 11, 0.9, 0xff3322); faixa('CUIDADO: SALTO!', '#ff9a3a'); }
+    if (ch.pulo) { const P = ch.pulo; P.t += dt; const k = Math.min(1, P.t / 0.9); ch.z = P.z0 + (P.z1 - P.z0) * k; ch.y = Math.sin(Math.PI * k) * 9;
+      if (k >= 1) { ch.pulo = null; ch.y = 0; const zc = ch.z + 4; C.onda(0, zc, 13, 0xff7a2a, 0.6); C.faiscas(0, 1, zc, 0xc8a878, 70, 10); C.camera.tremor = 1.2; G.punch = 1; som('pancada');
+        for (const a of G.az) if (Math.hypot(a.x, a.z - zc) < 11) a.morto = true; G.az = G.az.filter(a => !a.morto); if (G.gigante && Math.abs(G.gigante.z - zc) < 12) G.gigante.hp -= 30; } }
+  }
+  // poderes: recarga, chuva de flechas caindo e o gigante
+  for (const [k, P] of Object.entries(G.pd)) { P.cd = Math.max(0, P.cd - dt); const b = document.querySelector(`[data-pd=${k}]`); if (b) { b.style.setProperty('--p', `${360 * P.cd / P.max}deg`); b.classList.toggle('pronto', P.cd <= 0); } }
+  for (const c of G.chuvas) {
+    c.t += dt; for (const f of c.fl) { f.o.position.y = Math.max(0.5, f.y0 - 55 * Math.max(0, c.t - f.atraso)); }
+    if (c.t >= 0.75 && !c.feito) { c.feito = true; let n = 0;
+      for (const v of G.vm) if (Math.hypot(v.x, v.z - c.z) < 7.5) { v.morto = true; n++; } G.vm = G.vm.filter(v => !v.morto);
+      if (Math.abs(ch.z + 3 - c.z) < 9) ferirChefe(Math.round(ch.max * 0.05), 0, ch.z + 3, true);
+      C.onda(0, c.z, 9, 0x8ac8ff, 0.5); C.faiscas(0, 1, c.z, 0xffd84a, 50, 8); C.camera.tremor = 0.5; som('pancada', 0.5);
+      if (n) G.txt.push({ x: 0, y: 5, z: c.z, txt: `${n} derrotados!`, cor: '#ffd84a', t: 0, grande: true }); }
+    if (c.t > 1.4) { for (const f of c.fl) cena.remove(f.o); c.fim = true; }
+  }
+  G.chuvas = G.chuvas.filter(c => !c.fim);
+  const gi = G.gigante;
+  if (gi) {
+    gi.t += dt; gi.hp -= dt * 3;
+    if (gi.estado === 'anda') {
+      gi.z -= 6 * dt; gi.v.tocar('Running_A', { vel: 0.8 });
+      for (const v of G.vm) if (Math.abs(v.z - gi.z) < 3 && Math.abs(v.x) < 5) { v.morto = true; gi.hp -= 0.5; if (Math.random() < 0.3) C.faiscas(v.x, 1.5, v.z, 0xff6a4a, 5, 4); }
+      G.vm = G.vm.filter(v => !v.morto);
+      if (gi.z <= ch.z + 8) gi.estado = 'luta';
+    } else if (gi.estado === 'luta') {
+      gi.z = ch.z + 8; gi.golpe -= dt;
+      if (gi.golpe <= 0) { gi.golpe = 0.7; gi.v.tocar('Melee_2H_Attack_Chop', { loop: false, reinicia: true }); if (!gi.v.tem('Melee_2H_Attack_Chop')) gi.v.tocar('Melee_1H_Attack_Chop', { loop: false, reinicia: true });
+        ferirChefe(Math.round(ch.max * 0.012) + 1, 0, ch.z + 4, true); C.faiscas(0, 5, ch.z + 5, 0xffffff, 12, 6); C.camera.tremor = Math.max(C.camera.tremor, 0.3); som('pancada', 0.35); }
+    }
+    if (gi.hp <= 0 && gi.estado !== 'cai') { gi.estado = 'cai'; gi.v.tocar('Death_A', { loop: false, reinicia: true }); gi.tFim = gi.t + 1.6; }
+    if (gi.estado === 'cai' && gi.t > gi.tFim) { C.faiscas(0, 3, gi.z, 0x8ac8ff, 30, 5); gi.v.remover(); G.gigante = null; }
+  }
   ch.v.mixer.update(dt);
   // HUD
   $('#jMoedas').textContent = fmt(S.moedas);
@@ -353,9 +416,25 @@ function passoJogo(dt) {
   else if (ch.z >= ZMURO - 7) { G.muro = 0; C.camera.tremor = 1; faixa('O CHEFE DERRUBOU A MURALHA!', '#ff5a4a'); G.heroiV.tocar('Death_A', { loop: false, reinicia: true }); terminar(false); }
   else if (G.muro <= 0) { G.heroiV.tocar('Death_A', { loop: false, reinicia: true }); terminar(false); }
 }
-function ferirChefe(d, x, z) {
-  const ch = G.chefe; ch.hp -= d; ch.flash = 0.08; if (Math.random() < 0.3) C.faiscas(x, 3, z, 0xffffff, 4, 4);
-  if (Math.random() < 0.25) G.txt.push({ x, y: 9, z, txt: '-' + d, cor: '#fff', t: 0 });
+function ferirChefe(d, x, z, forte) {
+  const ch = G.chefe; ch.hp -= d; ch.flash = forte ? 0.15 : 0.08; if (forte || Math.random() < 0.3) C.faiscas(x, 3, z, 0xffffff, 4, 4);
+  if (forte || Math.random() < 0.25) G.txt.push({ x, y: 9, z, txt: '-' + fmt(d), cor: forte ? '#ffd84a' : '#fff', t: 0, grande: forte });
+}
+function usarPoder(k) {
+  if (!G || G.fim || tela !== 'jogo') return; const P = G.pd[k]; if (P.cd > 0) { som('erro'); return; }
+  P.cd = P.max; const ch = G.chefe;
+  if (k === 'chuva') { // cai em cima dos vermelhos mais perto da muralha (ou no chefe)
+    let z = ch.z + 3; for (const v of G.vm) if (v.z > z) z = v.z; z = Math.min(z - 2, ZMURO - 8);
+    const c = { t: 0, z, fl: [] }; C.aviso(0, z, 7.5, 0.75, 0x4aa8ff);
+    for (let i = 0; i < 26; i++) { const o = new THREE.Mesh(GEO_FLECHA, MAT_FLECHA), a = Math.random() * 6.28, r = Math.sqrt(Math.random()) * 7, y0 = 30 + Math.random() * 15;
+      o.rotation.x = -Math.PI / 2; o.position.set(Math.cos(a) * r, y0, z + Math.sin(a) * r); cena.add(o); c.fl.push({ o, y0, atraso: Math.random() * 0.2 }); }
+    G.chuvas.push(c); faixa('CHUVA DE FLECHAS!', '#8ac8ff'); G.heroiV.tocar('Ranged_Bow_Release', { loop: false, reinicia: true }); sfx('arco');
+  } else {
+    const v = C.heroi(visualPadrao('cav')); v.raiz.scale.setScalar(4.2); v.raiz.rotation.y = Math.PI; v.raiz.position.set(0, 0, ZSPAWN);
+    G.gigante?.v.remover(); G.gigante = { v, z: ZSPAWN, hp: 40 + 4 * G.n, t: 0, estado: 'anda', golpe: 0 };
+    C.onda(0, ZSPAWN, 8, 0x8ac8ff, 0.6); C.faiscas(0, 3, ZSPAWN, 0x8ac8ff, 40, 7); faixa('GIGANTE ALIADO!', '#8ac8ff'); sfx('magia'); C.camera.tremor = 0.5;
+  }
+  G.brilhoH = 1; som('confirma');
 }
 function acertarBloco(b, pista, lado) {
   if (b.tipo === 'barreira') {
