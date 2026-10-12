@@ -1,17 +1,13 @@
-// Ponto de entrada: carrega modelos e recursos, abre o save (com ganhos offline) e roda o laço.
+// Ponto de entrada: carrega modelos e recursos, monta a ponte e roda o laço.
 import * as C from './cena.js';
-import * as E from './estado.js';
-import { montarBase, atualizarHerois, efeitosBase, posHeroi, revestir } from './base.js';
-import { abrirCriador, passoCriador, criadorAberto } from './criador.js';
-import { montarMundoMapa, atualizarMundo } from './mundo.js';
-import { passoLuta } from './luta.js';
-import { aviso, passoTelaHeroi, montar, atualizar, ui, carregarRecursos, boasVindas, flutuar3d, som, novidadeCriador, novidadeRacas } from './ui.js';
 import { VERSAO } from './dados.js';
-import { iniciarEtapas } from './etapas.js';
+import { carregar } from './meta.js';
+import { $, carregarRecursos, som } from './util.js';
+import { montarPonte, abrirLobby, passo, _G } from './ponte.js';
 
-const $ = s => document.querySelector(s);
 window.VERSAO = VERSAO;
-try { ui.qualidade = localStorage.getItem('guilda_q') || 'media'; } catch (e) {}
+let qualidade = 'media';
+try { qualidade = localStorage.getItem('guilda_q') || 'media'; } catch (e) {}
 
 async function baixar(url, prog) {
   const resp = await fetch(url), total = +resp.headers.get('content-length') || 0;
@@ -22,7 +18,7 @@ async function baixar(url, prog) {
 }
 
 async function comecar() {
-  C.iniciar($('#cena'), ui.qualidade);
+  C.iniciar($('#cena'), qualidade);
   const barra = $('#carga i'); let pm = 0, pr = 0; const prog = () => { barra.style.width = Math.round((pm * 0.9 + pr * 0.1) * 100) + '%'; };
   try {
     const [, rec] = await Promise.all([
@@ -32,39 +28,14 @@ async function comecar() {
     await carregarRecursos(rec);
   } catch (e) { $('.tMenu').innerHTML = `<p>Não foi possível carregar 😢<br><small>${e.message}</small></p>`; return; }
   $('#carga').hidden = true;
-  const novo = !E.carregar(); if (novo) E.novo();
-  const b = document.createElement('button'); b.className = 'btn verde grande'; b.textContent = novo ? 'Fundar minha guilda' : 'Entrar na guilda';
-  b.onclick = () => { som('confirma'); entrar(novo); };
-  $('.tMenu').innerHTML = ''; $('.tMenu').append(b);
-}
-
-function entrar(novo) {
-  $('#titulo').classList.add('sai'); setTimeout(() => $('#titulo').remove(), 600);
-  const off = novo ? null : E.offline();
-  iniciarEtapas(); montarBase(); montarMundoMapa(); montar();
-  C.camera.yaw = Math.PI - 0.45; C.camera.pitch = 0.95; C.camera.dist = 74;
-  if (novo) E.S.viuRacas = true;
-  if (novo) abrirCriador(E.S.lider, { primeiro: true, aoFechar: () => revestir(E.S.lider) });
-  else if (!E.S.lider) novidadeCriador();
-  else if (!E.S.viuRacas) { E.S.viuRacas = true; novidadeRacas(); }
-  else if (off) boasVindas(off);
-  let ultimo = performance.now(), salvarT = 0, fpsVisto = false, fpsT = 0, fpsN = 0, fpsAnt = 0;
-  const laco = agora => {
-    const dt = Math.min(0.1, (agora - ultimo) / 1000); ultimo = agora;
-    E.passo(dt);
-    passoCriador(dt); passoTelaHeroi(dt);
-    atualizarHerois(dt); atualizarMundo(dt); passoLuta(dt); efeitosBase(dt, (x, y, z, v) => flutuar3d(x, y, z, v));
-    if (!criadorAberto()) atualizar(dt);
-    C.quadro(dt, ui.foco);
-    salvarT += dt; if (salvarT > 5) { salvarT = 0; E.salvar(); }
-    // celular lento? depois de uns segundos sugere o modo Leve (uma vez só)
-    if (!fpsVisto) { fpsT += (agora - (fpsAnt || agora)) / 1000; fpsAnt = agora; fpsN++; if (fpsT > 12) { fpsVisto = true; const fps = fpsN / fpsT;
-      if (fps < 24 && ui.qualidade !== 'baixa') aviso(`O jogo está rodando a ${Math.round(fps)} quadros/s. Se estiver travando, use o modo <b>Leve</b> em Configurações.`, '', 6000); } }
-    requestAnimationFrame(laco);
-  };
+  carregar(); montarPonte(); abrirLobby();
+  let ultimo = performance.now();
+  const laco = agora => { const dt = Math.min(0.1, (agora - ultimo) / 1000); ultimo = agora; passo(dt); requestAnimationFrame(laco); };
   requestAnimationFrame(laco);
-  addEventListener('visibilitychange', () => { if (document.hidden) E.salvar(); else { const o = E.offline(); if (o.seg > 60) boasVindas(o); } });
-  window.__E = E; window.__info = C.info; window.__cam = C.camera; window.__ui = ui; window.__pos = posHeroi; window.__C = C; // para testes
+  const b = document.createElement('button'); b.className = 'btn verde grande'; b.textContent = 'Defender a ponte';
+  b.onclick = () => { som('confirma'); $('#titulo').classList.add('sai'); setTimeout(() => $('#titulo').remove(), 600); };
+  $('.tMenu').innerHTML = ''; $('.tMenu').append(b);
+  window.__C = C; window.__cam = C.camera; window.__G = _G; // para testes
 }
 
 comecar();

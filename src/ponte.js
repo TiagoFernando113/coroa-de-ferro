@@ -1,0 +1,342 @@
+// Batalha da Ponte: o herói atira flechas nas pilhas de +N das laterais para ganhar soldados.
+// O exército azul marcha pelo meio contra o exército vermelho e o chefe no fim da ponte.
+import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import * as C from './cena.js';
+import { fase as dadosFase, tiros, vidaMuralha, escudo, fmt, UPGRADES } from './dados.js';
+import { S, salvar, comprar } from './meta.js';
+import { visualPadrao } from './aparencia.js';
+import { ico, som, $, alternarSom, estaMudo } from './util.js';
+import { tema, sfx } from './musica.js';
+
+// ---------------- medidas da ponte (frente = -z) ----------------
+const MEIA = 17;            // meia largura da ponte
+const DIV = 5.8;            // divisórias entre as pistas (x = ±DIV)
+const XL = 11.4;            // centro das pistas laterais
+const XC = 4.4;             // meia largura da pista do meio
+const ZH = -1;              // herói
+const ZMURO = -4.5;         // muralha (os vermelhos batem nela)
+const ZSPAWN = -9;          // onde surgem os soldados azuis
+const ZLANE = -12;          // começo das pistas
+const PASSO = 3.4, NB = 20;
+const ZBOSS = ZLANE - NB * PASSO - 10;
+const MAXU = 900, VEL_AZ = 8, VEL_VM = 4.4, RITMO = 45;
+const ZFRENTE = ZBOSS - 35, ZTRAS = 40;
+
+let G = null;                // partida atual
+let tela = 'lobby';          // 'lobby' | 'jogo' | 'fim'
+let foco = { x: 0, z: -30 };
+
+// ---------------- texturas desenhadas ----------------
+const texCache = {};
+function texRotulo(txt, fundo, borda, w = 256, h = 128) {
+  const k = txt + fundo + w; if (texCache[k]) return texCache[k];
+  const cv = document.createElement('canvas'); cv.width = w; cv.height = h; const g = cv.getContext('2d');
+  desenharRotulo(g, txt, fundo, borda, w, h);
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return (texCache[k] = t);
+}
+function desenharRotulo(g, txt, fundo, borda, w, h) {
+  const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, new THREE.Color(fundo).offsetHSL(0, 0, 0.12).getStyle()); gr.addColorStop(1, fundo);
+  g.fillStyle = borda; g.fillRect(0, 0, w, h); g.fillStyle = gr; g.fillRect(8, 8, w - 16, h - 16);
+  g.font = `${Math.round(h * 0.62)}px Titulo, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.lineWidth = h * 0.09; g.strokeStyle = 'rgba(0,0,0,.55)'; g.strokeText(txt, w / 2, h / 2 + 4); g.fillStyle = '#fff'; g.fillText(txt, w / 2, h / 2 + 4);
+}
+function texPedra() {
+  const cv = document.createElement('canvas'); cv.width = cv.height = 256; const g = cv.getContext('2d');
+  g.fillStyle = '#a9a39a'; g.fillRect(0, 0, 256, 256);
+  for (let y = 0; y < 8; y++) for (let x = 0; x < 4; x++) {
+    const ox = (y % 2) * 32, l = 62 + Math.random() * 14;
+    g.fillStyle = `hsl(35,6%,${l}%)`; g.fillRect(x * 64 + ox + 2 - 64 * (ox && x === 3 ? 0 : 0), y * 32 + 2, 60, 28);
+    if (ox && x === 3) g.fillRect(-32 + 2, y * 32 + 2, 30, 28);
+  }
+  const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+}
+
+// ---------------- ponte fixa ----------------
+let cena, MAT_PEDRA, MAT_MURO, mAzul, mVerm, GEO_FLECHA, MAT_FLECHA;
+export function montarPonte() {
+  cena = C.obterCena(); C.ceu(0x8cc4ee); C.neblina(260, 520);
+  const tp = texPedra(), len = ZTRAS - ZFRENTE;
+  const chao = tp.clone(); chao.needsUpdate = true; chao.repeat.set(MEIA * 2 / 8, len / 8);
+  MAT_PEDRA = new THREE.MeshLambertMaterial({ map: chao });
+  MAT_MURO = new THREE.MeshLambertMaterial({ color: 0x8f8a84 });
+  const add = (geo, mat, x, y, z, sombra = true) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.receiveShadow = true; m.castShadow = sombra; cena.add(m); return m; };
+  // água
+  const agua = new THREE.Mesh(new THREE.PlaneGeometry(3000, 3000), new THREE.MeshLambertMaterial({ color: 0x24527e })); agua.rotation.x = -Math.PI / 2; agua.position.y = -7; cena.add(agua);
+  // piso e laterais da ponte
+  add(new THREE.BoxGeometry(MEIA * 2, 6, len), MAT_PEDRA, 0, -3, (ZTRAS + ZFRENTE) / 2, false);
+  // muros com ameias: laterais, divisórias e a muralha do herói
+  const muro = (x0, x1, z0, z1, h) => { // caixa + ameias, de (x0,z0) a (x1,z1) alinhada a um eixo
+    const geos = [], lx = Math.abs(x1 - x0), lz = Math.abs(z1 - z0), cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, esp = 1.2;
+    geos.push(new THREE.BoxGeometry(Math.max(esp, lx), h, Math.max(esp, lz)).translate(cx, h / 2, cz));
+    const n = Math.floor(Math.max(lx, lz) / 2.4);
+    for (let i = 0; i <= n; i++) { const k = n ? i / n : 0.5, x = lx > lz ? x0 + (x1 - x0) * k : cx, z = lx > lz ? cz : z0 + (z1 - z0) * k; geos.push(new THREE.BoxGeometry(esp, 0.9, esp).translate(x, h + 0.45, z)); }
+    const m = new THREE.Mesh(mergeGeometries(geos), MAT_MURO); m.castShadow = true; m.receiveShadow = true; cena.add(m);
+  };
+  muro(-MEIA - 0.6, -MEIA - 0.6, ZTRAS, ZFRENTE, 1.6); muro(MEIA + 0.6, MEIA + 0.6, ZTRAS, ZFRENTE, 1.6);
+  muro(-DIV, -DIV, ZLANE, ZBOSS - 6, 1.6); muro(DIV, DIV, ZLANE, ZBOSS - 6, 1.6);
+  muro(-MEIA, MEIA, ZMURO, ZMURO, 1.3);
+  muro(-MEIA, MEIA, ZBOSS - 14, ZBOSS - 14, 2.2);
+  // torres do castelo (kit Kenney) nas pontas
+  C.montarEstatico([
+    { m: 'C:tower-square', x: -MEIA - 3, z: ZMURO + 1, s: 5 }, { m: 'C:tower-square', x: MEIA + 3, z: ZMURO + 1, s: 5 },
+    { m: 'C:flag', x: -MEIA - 3, y: 10, z: ZMURO + 1, s: 4 }, { m: 'C:flag', x: MEIA + 3, y: 10, z: ZMURO + 1, s: 4 },
+    { m: 'C:tower-square', x: -MEIA - 3, z: ZBOSS - 12, s: 6 }, { m: 'C:tower-square', x: MEIA + 3, z: ZBOSS - 12, s: 6 },
+    { m: 'C:gate', x: 0, z: ZBOSS - 16, s: 7 },
+  ]);
+  // soldados (instanciados): corpo, cabeça, elmo e lança com cores por vértice
+  const geoSoldado = (corpo, elmo) => {
+    const cor = (g, c) => { const k = new THREE.Color(c), n = g.attributes.position.count, a = new Float32Array(n * 3); for (let i = 0; i < n; i++) { a[i * 3] = k.r; a[i * 3 + 1] = k.g; a[i * 3 + 2] = k.b; } g.setAttribute('color', new THREE.BufferAttribute(a, 3)); g.deleteAttribute('uv'); return g; };
+    return mergeGeometries([
+      cor(new THREE.CylinderGeometry(0.34, 0.44, 0.95, 8).translate(0, 0.55, 0), corpo),
+      cor(new THREE.SphereGeometry(0.31, 8, 6).translate(0, 1.25, 0), 0xf3c9a0),
+      cor(new THREE.ConeGeometry(0.38, 0.5, 8).translate(0, 1.62, 0), elmo),
+      cor(new THREE.BoxGeometry(0.12, 1.5, 0.12).translate(0.45, 1.0, 0), 0xd8dde2),
+      cor(new THREE.BoxGeometry(0.55, 0.65, 0.12).translate(-0.35, 0.75, 0.25), elmo),
+    ]).scale(1.25, 1.25, 1.25);
+  };
+  const mat = new THREE.MeshLambertMaterial({ vertexColors: true });
+  mAzul = new THREE.InstancedMesh(geoSoldado(0x2f74e0, 0x1a3f9a), mat, MAXU); mVerm = new THREE.InstancedMesh(geoSoldado(0xd8342a, 0x7a1410), mat, MAXU);
+  for (const m of [mAzul, mVerm]) { m.count = 0; m.castShadow = true; m.frustumCulled = false; cena.add(m); }
+  GEO_FLECHA = mergeGeometries([new THREE.CylinderGeometry(0.07, 0.07, 2.2, 5).rotateX(Math.PI / 2), new THREE.ConeGeometry(0.2, 0.6, 6).rotateX(-Math.PI / 2).translate(0, 0, -1.3)]);
+  MAT_FLECHA = new THREE.MeshBasicMaterial({ color: 0xffd84a });
+  montarHud();
+}
+
+// ---------------- fase ----------------
+const GEO_BLOCO = new THREE.BoxGeometry(9.4, 2.4, 3);
+const GEO_BARREIRA = new THREE.BoxGeometry(10.4, 3.6, 1.4);
+const MAT_LADO_AZUL = new THREE.MeshLambertMaterial({ color: 0x2a6ad8 }), MAT_LADO_AMAR = new THREE.MeshLambertMaterial({ color: 0xe0a818 }), MAT_MADEIRA = new THREE.MeshLambertMaterial({ color: 0x8a5a2b });
+function criarBloco(b, lado) {
+  const x = lado * XL;
+  if (b.tipo === 'barreira') {
+    const cv = document.createElement('canvas'); cv.width = 256; cv.height = 96; const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+    b.cv = cv; b.tex = t; b.hpMax = b.hp; redesenharBarreira(b);
+    const mf = new THREE.MeshLambertMaterial({ map: t }); b.mesh = new THREE.Mesh(GEO_BARREIRA, [MAT_MADEIRA, MAT_MADEIRA, mf, MAT_MADEIRA, mf, MAT_MADEIRA]);
+  } else {
+    const amarelo = lado > 0, txt = b.tipo === 'vezes' ? `x${b.valor}` : `+${b.valor}`, fundo = b.tipo === 'vezes' ? '#2bb84a' : amarelo ? '#f2b51a' : '#2f7ae8', borda = b.tipo === 'vezes' ? '#13702a' : amarelo ? '#a8740a' : '#173f9a';
+    const mf = new THREE.MeshLambertMaterial({ map: texRotulo(txt, fundo, borda) }), ml = b.tipo === 'vezes' ? new THREE.MeshLambertMaterial({ color: 0x2bb84a }) : amarelo ? MAT_LADO_AMAR : MAT_LADO_AZUL;
+    b.mesh = new THREE.Mesh(GEO_BLOCO, [ml, ml, mf, ml, mf, ml]);
+  }
+  b.mesh.castShadow = true; b.mesh.receiveShadow = true; b.mesh.position.set(x, b.tipo === 'barreira' ? 1.8 : 1.2, b.z); cena.add(b.mesh);
+}
+function redesenharBarreira(b) {
+  const g = b.cv.getContext('2d'); g.clearRect(0, 0, 256, 96);
+  g.fillStyle = '#6a4220'; g.fillRect(0, 0, 256, 96); g.fillStyle = '#8a5a2b'; for (let i = 0; i < 4; i++) g.fillRect(4, 4 + i * 23, 248, 19);
+  g.fillStyle = '#7a7f86'; g.fillRect(0, 0, 18, 96); g.fillRect(238, 0, 18, 96);
+  g.font = '64px Titulo, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineWidth = 8; g.strokeStyle = 'rgba(0,0,0,.6)';
+  g.strokeText(b.hp, 128, 52); g.fillStyle = '#fff'; g.fillText(b.hp, 128, 52); b.tex.needsUpdate = true;
+}
+
+export function iniciarFase(n) {
+  limparFase();
+  const F = dadosFase(n), up = S.up;
+  G = { F, n, t: 0, az: [], vm: [], flechas: [], txt: [], fila: 8 * up.exercito, acum: 0, cd: 0.5, pistas: [[], []], restVm: F.inimigos, spawnVm: 0,
+    muro: vidaMuralha(up.vida), muroMax: vidaMuralha(up.vida), tiro: tiros(up.fogo), nFlechas: 1 + up.flechas, escudo: escudo(up.escudos),
+    heroi: { x: 0, alvo: 0 }, golpeT: 4, fim: null, mortesVm: 0 };
+  [F.esq, F.dir].forEach((lista, k) => lista.forEach((b0, i) => { const b = { ...b0, z: ZLANE - 2 - i * PASSO }; criarBloco(b, k ? 1 : -1); G.pistas[k].push(b); }));
+  // chefe
+  const ch = C.personagem(F.chefe.modelo, [], 1); ch.raiz.scale.setScalar(5); ch.raiz.position.set(0, 0, ZBOSS); ch.tocar('Idle');
+  G.chefe = { v: ch, hp: F.chefe.hp, max: F.chefe.hp, nome: F.chefe.nome, flash: 0 };
+  // herói arqueiro
+  if (!G.heroiV) { const v = C.heroi(S.visual || visualPadrao('arq')); v.raiz.scale.setScalar(2.4); v.raiz.rotation.y = Math.PI; v.tocar('Ranged_Bow_Aiming_Idle'); G.heroiV = v; }
+  G.heroiV.raiz.position.set(0, 0, ZH);
+}
+function limparFase() {
+  if (!G) return;
+  for (const p of G.pistas) for (const b of p) cena.remove(b.mesh);
+  for (const f of G.flechas) cena.remove(f.o);
+  G.chefe?.v.remover(); G.heroiV?.remover();
+  mAzul.count = mVerm.count = 0; G = null;
+}
+
+// ---------------- HUD ----------------
+let fx, gfx;
+function montarHud() {
+  $('#hud').innerHTML = `<div id="lobby"></div>
+    <div id="jogo" hidden><div class="jTopo"><button class="lSair" data-a="sair">${ico('fechar')}</button><div class="jFase">Fase <b id="jN"></b></div><div class="pilula ouro">${ico('ouro')}<b id="jMoedas"></b></div></div>
+      <div class="jChefe"><b id="jChefeN"></b><div class="barra vm"><i id="jChefeB"></i><span id="jChefeT"></span></div></div>
+      <div class="jMuro">${ico('escudo')}<div class="barra muro"><i id="jMuroB"></i><span id="jMuroT"></span></div></div>
+      <p class="jDica" id="jDica">Arraste para mover · as flechas saem sozinhas</p></div>
+    <div id="fim" hidden></div>`;
+  fx = document.createElement('canvas'); fx.id = 'fx'; document.body.append(fx); gfx = fx.getContext('2d');
+  const medir = () => { fx.width = innerWidth * devicePixelRatio; fx.height = innerHeight * devicePixelRatio; gfx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0); };
+  medir(); addEventListener('resize', medir);
+  // arrastar para mover o herói
+  let toque = null;
+  const alvo = $('#toque');
+  alvo.addEventListener('pointerdown', e => { if (tela !== 'jogo' || !G) return; toque = { id: e.pointerId, x0: e.clientX, h0: G.heroi.alvo }; alvo.setPointerCapture(e.pointerId); $('#jDica').hidden = true; });
+  alvo.addEventListener('pointermove', e => { if (!toque || e.pointerId !== toque.id || !G) return; G.heroi.alvo = Math.max(-MEIA + 2.5, Math.min(MEIA - 2.5, toque.h0 + (e.clientX - toque.x0) * (MEIA * 2.4 / innerWidth))); });
+  const solta = e => { if (toque && e.pointerId === toque.id) toque = null; };
+  alvo.addEventListener('pointerup', solta); alvo.addEventListener('pointercancel', solta);
+  $('#hud').addEventListener('click', clique);
+}
+export function abrirLobby() {
+  tela = 'lobby'; $('#jogo').hidden = true; $('#fim').hidden = true; $('#lobby').hidden = false; tema('guilda');
+  iniciarFase(S.fase); desenharLobby();
+}
+function desenharLobby() {
+  const F = dadosFase(S.fase);
+  $('#lobby').innerHTML = `<div class="lbTopo"><div class="pilula ouro">${ico('ouro')}<b>${fmt(S.moedas)}</b></div><button class="redondo" data-a="som">${ico(estaMudo() ? 'mudo' : 'som')}</button></div>
+    <div class="lbTitulo"><small>Batalha da</small><h1>Ponte</h1></div>
+    <div class="lbPainel"><div class="lbFase"><span>FASE</span><b>${S.fase}</b><small>${ico('chefe')} ${F.chefe.nome} · ${fmt(F.inimigos)} inimigos</small></div>
+      <div class="ups">${Object.entries(UPGRADES).map(([k, U]) => { const n = S.up[k], max = n >= U.max, c = U.custo(n);
+        return `<button class="up ${!max && S.moedas >= c ? 'pode' : ''}" data-up="${k}"><span class="upIco">${ico(U.icone)}</span><b>${U.nome}</b><small>${U.desc(n)}</small><em>${max ? 'MÁX' : `${ico('ouro')}${fmt(c)}`}</em><i>Nv ${n}</i></button>`; }).join('')}</div>
+      <button class="btn verde grande" data-a="jogar">${ico('h_triplo')} JOGAR</button></div>`;
+}
+function clique(e) {
+  const b = e.target.closest('button'); if (!b) return; const a = b.dataset.a;
+  if (a === 'som') { alternarSom(); som('clique'); desenharLobby(); }
+  if (b.dataset.up) { if (comprar(b.dataset.up)) { som('compra'); desenharLobby(); } else som('erro'); }
+  if (a === 'jogar') { som('confirma'); comecarFase(); }
+  if (a === 'sair') { som('fechar'); abrirLobby(); }
+  if (a === 'proxima') { som('confirma'); comecarFase(); }
+  if (a === 'lobby') { som('clique'); abrirLobby(); }
+}
+function comecarFase() {
+  if (!G || G.n !== S.fase || G.t > 0) iniciarFase(S.fase);
+  tela = 'jogo'; $('#lobby').hidden = true; $('#fim').hidden = true; $('#jogo').hidden = false; $('#jDica').hidden = false;
+  $('#jN').textContent = G.n; $('#jChefeN').textContent = G.chefe.nome; tema((G.n - 1) % 8);
+}
+function terminar(venceu) {
+  if (G.fim) return; G.fim = venceu ? 'v' : 'd'; tela = 'fim';
+  const ganho = venceu ? G.F.moedas + Math.floor(G.az.length / 4) : Math.round(G.F.moedas * 0.25);
+  S.moedas += ganho; if (venceu) { S.fase++; S.melhor = Math.max(S.melhor, G.n); } salvar();
+  setTimeout(() => {
+    $('#jogo').hidden = true; const f = $('#fim'); f.hidden = false;
+    f.innerHTML = `<div class="fimCaixa ${venceu ? 'vit' : 'der'}"><h2>${venceu ? 'VITÓRIA!' : 'A muralha caiu!'}</h2>
+      <p>${venceu ? `${G.chefe.nome} foi derrotado!` : 'Melhore o exército e tente de novo.'}</p>
+      <div class="ganho">${ico('ouro')}<b>+${fmt(ganho)}</b></div>
+      <button class="btn verde grande" data-a="${venceu ? 'proxima' : 'proxima'}">${venceu ? `Fase ${S.fase} ${ico('seta')}` : 'Tentar de novo'}</button>
+      <button class="btn azul" data-a="lobby">${ico('raio')} Melhorias</button></div>`;
+    som(venceu ? 'lendario' : 'falha');
+  }, venceu ? 1800 : 1200);
+}
+
+// ---------------- laço ----------------
+const mtx = new THREE.Matrix4(), rot = new THREE.Matrix4();
+export const _G = () => G; // para testes
+export function passo(dt) {
+  const t = C.tempo();
+  if (G) {
+    G.heroiV.mixer.update(dt);
+    if (tela === 'jogo' && !G.fim) passoJogo(dt);
+    else if (G.fim === 'v') { G.chefe.v.mixer.update(dt); }
+    else G.chefe.v.mixer.update(dt);
+    // desenha os exércitos
+    const desenhar = (mesh, lista, rotY) => { let i = 0; rot.makeRotationY(rotY);
+      for (const u of lista) { if (i >= MAXU) break; mtx.copy(rot); mtx.setPosition(u.x, Math.abs(Math.sin(t * 11 + u.ph)) * 0.3, u.z); mesh.setMatrixAt(i++, mtx); }
+      mesh.count = i; mesh.instanceMatrix.needsUpdate = true; };
+    desenhar(mAzul, G.az, Math.PI); desenhar(mVerm, G.vm, 0);
+    // pilhas deslizam para a frente da pista
+    for (const p of G.pistas) p.forEach((b, i) => { const zAlvo = ZLANE - 2 - i * PASSO; b.z += (zAlvo - b.z) * Math.min(1, dt * 5); b.mesh.position.z = b.z; });
+    G.chefe.flash = Math.max(0, G.chefe.flash - dt); G.chefe.v.brilho(G.chefe.flash > 0 ? 0.45 : 0);
+    G.heroiV.raiz.position.x = G.heroi.x;
+  }
+  foco.x = (G ? G.heroi.x : 0) * 0.25; foco.z = -42;
+  if (tela === 'lobby') foco.z = -42 + Math.sin(t * 0.3) * 2;
+  C.camera.yaw = Math.PI; C.camera.pitch = 0.9; C.camera.dist = 106; C.camera.altura = 0; C.camera.suave = 4;
+  C.quadro(dt, foco);
+  desenharFx(dt);
+}
+function passoJogo(dt) {
+  G.t += dt; const h = G.heroi, ch = G.chefe;
+  // herói anda e atira
+  h.x += (h.alvo - h.x) * Math.min(1, dt * 14);
+  G.cd -= dt;
+  if (G.cd <= 0) {
+    G.cd = 1 / G.tiro; G.heroiV.tocar('Ranged_Bow_Release', { loop: false, reinicia: true, vel: Math.max(1.2, G.tiro * 0.6) });
+    for (let k = 0; k < G.nFlechas; k++) { const x = h.x + (k - (G.nFlechas - 1) / 2) * 1.1, o = new THREE.Mesh(GEO_FLECHA, MAT_FLECHA); o.position.set(x, 2.6, ZH - 1); cena.add(o); G.flechas.push({ x, z: ZH - 1, o }); }
+    if (Math.random() < 0.5) sfx('arco');
+  }
+  // vermelhos saem do portão do chefe
+  if (G.restVm > 0 && G.t > 2) { G.spawnVm += dt * Math.max(1.5, G.F.inimigos / RITMO); while (G.spawnVm >= 1 && G.restVm > 0 && G.vm.length < MAXU) { G.spawnVm--; G.restVm--; G.vm.push({ x: (Math.random() - 0.5) * XC * 1.8, z: ZBOSS + 5 + Math.random() * 2, ph: Math.random() * 6, ax: (Math.random() - 0.5) * XC * 1.8 }); } }
+  // azuis entram pela base da pista do meio
+  G.acum += dt * 40;
+  while (G.acum >= 1 && G.fila > 0 && G.az.length < MAXU) { G.acum--; G.fila--; G.az.push({ x: (Math.random() - 0.5) * XC * 1.6, z: ZSPAWN + Math.random(), ph: Math.random() * 6, ax: (Math.random() - 0.5) * XC * 1.8 }); }
+  if (G.acum > 2) G.acum = 2;
+  // grade dos vermelhos por faixa de z (para choques e flechas)
+  const grade = new Map(), K = 1.6; for (const v of G.vm) { const k = Math.floor(v.z / K); let l = grade.get(k); if (!l) grade.set(k, l = []); l.push(v); }
+  // marcha
+  for (const a of G.az) { a.z -= VEL_AZ * dt; a.x += (a.ax - a.x) * Math.min(1, dt * 3); }
+  for (const v of G.vm) { v.z += VEL_VM * dt; v.x += (v.ax - v.x) * Math.min(1, dt * 2); }
+  // choques: cada azul procura um vermelho à frente e mira nele; encostou, os dois caem
+  let poeira = 0;
+  for (const a of G.az) {
+    if (a.morto) continue; const k = Math.floor(a.z / K); let perto = null, d0 = 1e9;
+    for (let d = -4; d <= 1; d++) for (const v of grade.get(k + d) || []) { if (v.morto) continue; const dz = a.z - v.z, dx = Math.abs(a.x - v.x); if (dz > -1.5 && dz < d0) { d0 = dz; perto = v; } }
+    if (!perto) continue;
+    a.ax = perto.x; perto.ax = a.x;
+    if (d0 < 1.3 && Math.abs(a.x - perto.x) < 1.4) { perto.morto = true; G.mortesVm++; if (Math.random() >= G.escudo) a.morto = true; if (poeira++ < 6) C.faiscas(perto.x, 1.2, perto.z, 0xffe0c0, 4, 3); }
+  }
+  // azuis que passaram batem no chefe
+  for (const a of G.az) if (!a.morto && a.z <= ZBOSS + 5) { a.morto = true; ferirChefe(1, a.x, a.z); }
+  // vermelhos que chegaram batem na muralha
+  for (const v of G.vm) if (!v.morto && v.z >= ZMURO - 1.2) { v.morto = true; G.muro--; C.faiscas(v.x, 1.5, v.z, 0xff5a3a, 10, 4); C.camera.tremor = Math.max(C.camera.tremor, 0.25); som('pancada', 0.3); }
+  // flechas
+  for (const f of G.flechas) {
+    if (f.morta) continue; f.z -= 95 * dt; f.o.position.z = f.z;
+    const ax = Math.abs(f.x);
+    if (f.z < ZLANE && ax > DIV - 0.9 && ax < DIV + 0.9) { f.morta = true; continue; } // bateu na divisória
+    if (ax >= DIV + 0.9) { // pista lateral: acerta a primeira pilha
+      const p = G.pistas[f.x < 0 ? 0 : 1], b = p[0];
+      if (b && f.z <= b.z + 2) { f.morta = true; acertarBloco(b, p, f.x < 0 ? -1 : 1); }
+      else if (f.z < ZBOSS) f.morta = true;
+    } else { // pista do meio: vermelhos e depois o chefe
+      const k = Math.floor(f.z / K); let alvo = null;
+      for (let d = 0; d <= 1 && !alvo; d++) for (const v of grade.get(k + d) || []) if (!v.morto && Math.abs(v.x - f.x) < 1.3 && Math.abs(v.z - f.z) < 1.8) { alvo = v; break; }
+      if (alvo) { alvo.morto = true; G.mortesVm++; f.morta = true; C.faiscas(alvo.x, 1.4, alvo.z, 0xff6a4a, 6, 3); }
+      else if (f.z <= ZBOSS + 3) { f.morta = true; ferirChefe(1, f.x, ZBOSS + 3); }
+    }
+  }
+  for (const f of G.flechas) if (f.morta) cena.remove(f.o);
+  G.flechas = G.flechas.filter(f => !f.morta); G.az = G.az.filter(a => !a.morto); G.vm = G.vm.filter(v => !v.morto);
+  // golpe do chefe: esmaga os azuis que chegam perto
+  G.golpeT -= dt;
+  if (G.golpeT <= 0 && G.az.some(a => a.z < ZBOSS + 22)) {
+    G.golpeT = 5; ch.v.tocar('Attack', { loop: false, reinicia: true });
+    setTimeout(() => { if (!G || G.fim) return; const zc = ZBOSS + 9; C.onda(0, zc, 9, 0xff9a3a, 0.5); C.faiscas(0, 1, zc, 0xc8a878, 40, 7); C.camera.tremor = 0.6; som('pancada');
+      for (const a of G.az) if (Math.hypot(a.x, a.z - zc) < 9) a.morto = true; G.az = G.az.filter(a => !a.morto); }, 450);
+  } else if (ch.v.anim !== 'Attack' || G.golpeT < 4) ch.v.tocar('Idle');
+  ch.v.mixer.update(dt);
+  // HUD
+  $('#jMoedas').textContent = fmt(S.moedas);
+  $('#jChefeB').style.width = (100 * ch.hp / ch.max) + '%'; $('#jChefeT').textContent = `${fmt(Math.max(0, ch.hp))} / ${fmt(ch.max)}`;
+  $('#jMuroB').style.width = (100 * Math.max(0, G.muro) / G.muroMax) + '%'; $('#jMuroT').textContent = `${Math.max(0, G.muro)} / ${G.muroMax}`;
+  if (ch.hp <= 0) { ch.v.tocar('Death', { loop: false, reinicia: true }); for (const v of G.vm) C.faiscas(v.x, 1.2, v.z, 0xff6a4a, 3, 3); G.vm = []; G.restVm = 0; C.camera.tremor = 0.8; G.heroiV.tocar('Cheering'); terminar(true); }
+  else if (G.muro <= 0) { G.heroiV.tocar('Death_A', { loop: false, reinicia: true }); terminar(false); }
+}
+function ferirChefe(d, x, z) {
+  const ch = G.chefe; ch.hp -= d; ch.flash = 0.08; if (Math.random() < 0.3) C.faiscas(x, 3, z, 0xffffff, 4, 4);
+  if (Math.random() < 0.25) G.txt.push({ x, y: 9, z, txt: '-' + d, cor: '#fff', t: 0 });
+}
+function acertarBloco(b, pista, lado) {
+  if (b.tipo === 'barreira') {
+    b.hp--; C.faiscas(b.mesh.position.x + (Math.random() - 0.5) * 6, 2.5, b.z + 0.8, 0xc89a5a, 5, 3);
+    if (b.hp > 0) { redesenharBarreira(b); return; }
+    som('pancada', 0.5); C.faiscas(b.mesh.position.x, 2, b.z, 0x8a5a2b, 40, 7); C.camera.tremor = 0.3;
+  } else {
+    const n = b.tipo === 'vezes' ? Math.min(250, G.az.length + G.fila) : b.valor;
+    G.fila += n; G.txt.push({ x: lado * XL, y: 4, z: b.z, txt: b.tipo === 'vezes' ? `x${b.valor}!` : `+${b.valor}`, cor: b.tipo === 'vezes' ? '#7aff8a' : lado > 0 ? '#ffd84a' : '#8ac8ff', t: 0, grande: n >= 10 });
+    C.faiscas(b.mesh.position.x, 2, b.z + 1, b.tipo === 'vezes' ? 0x4aff6a : lado > 0 ? 0xffd84a : 0x5aa8ff, n >= 10 ? 26 : 12, 5);
+    som('moedas', n >= 10 ? 0.45 : 0.2);
+  }
+  cena.remove(b.mesh); pista.splice(pista.indexOf(b), 1);
+}
+// textos flutuantes e contadores dos exércitos
+function desenharFx(dt) {
+  gfx.clearRect(0, 0, innerWidth, innerHeight); if (!G) return;
+  const selo = (lista, cor, borda) => { if (!lista.length) return; let sx = 0, sz = 0; const n = Math.min(lista.length, 60); for (let i = 0; i < n; i++) { sx += lista[i].x; sz += lista[i].z; }
+    const p = C.tela(sx / n, 5, sz / n); if (!p) return; const txt = fmt(lista.length);
+    gfx.font = '22px Titulo, sans-serif'; const w = gfx.measureText(txt).width + 22;
+    gfx.fillStyle = borda; gfx.beginPath(); gfx.roundRect(p[0] - w / 2 - 2, p[1] - 17, w + 4, 34, 12); gfx.fill();
+    gfx.fillStyle = cor; gfx.beginPath(); gfx.roundRect(p[0] - w / 2, p[1] - 15, w, 30, 10); gfx.fill();
+    gfx.fillStyle = '#fff'; gfx.textAlign = 'center'; gfx.textBaseline = 'middle'; gfx.fillText(txt, p[0], p[1] + 1); };
+  if (tela === 'jogo') {
+    selo(G.az, '#2f74e0', '#0f2f6a'); selo(G.vm, '#d8342a', '#5a0e0a');
+    if (G.fila > 0) { const p = C.tela(0, 3, ZSPAWN); if (p) { gfx.font = '20px Titulo, sans-serif'; gfx.textAlign = 'center'; gfx.lineWidth = 4; gfx.strokeStyle = '#0f2f6a'; gfx.strokeText(`+${fmt(G.fila)}`, p[0], p[1]); gfx.fillStyle = '#8ac8ff'; gfx.fillText(`+${fmt(G.fila)}`, p[0], p[1]); } }
+  }
+  for (const t of G.txt) { t.t += dt; const p = C.tela(t.x, t.y + t.t * 3, t.z); if (!p) continue; gfx.globalAlpha = Math.max(0, 1 - Math.max(0, t.t - 0.5) / 0.5);
+    gfx.font = `${t.grande ? 34 : 24}px Titulo, sans-serif`; gfx.textAlign = 'center'; gfx.lineWidth = 5; gfx.strokeStyle = 'rgba(0,0,0,.7)'; gfx.strokeText(t.txt, p[0], p[1]); gfx.fillStyle = t.cor; gfx.fillText(t.txt, p[0], p[1]); gfx.globalAlpha = 1; }
+  G.txt = G.txt.filter(t => t.t < 1);
+}

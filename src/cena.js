@@ -762,4 +762,6 @@ export function diaNoite(f) {
 export const neblinaAtual = () => [scene.fog.near, scene.fog.far];
 export function neblina(perto, longe) { scene.fog.near = perto; scene.fog.far = longe; cam.far = longe + 80; cam.updateProjectionMatrix(); }
 export const Cor = THREE.Color;
+export const obterCena = () => scene;
+export function ceu(cor) { scene.background = new THREE.Color(cor); scene.fog.color.set(cor); }
 export const Caixa = THREE.Box3;

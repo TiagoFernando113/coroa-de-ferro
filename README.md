@@ -1,14 +1,13 @@
-# Guilda dos Heróis
+# Batalha da Ponte
 
-Tycoon de administração em 3D para celular (Android, via WebView). Você comanda uma guilda:
-melhora prédios (Taverna, Quadro de Missões, Alojamento, Portal, Campo de Treino, Forja,
-Mercado, Enfermaria, Biblioteca), recruta heróis de 5 classes e 4 raridades, manda equipes em
-missões por 8 regiões com chefes e acompanha os números crescerem — inclusive com o jogo fechado.
+Jogo 3D de celular (Android, via WebView). Seu arqueiro atira sozinho: arraste para mirar nas
+pilhas das laterais (+1, +99, x2, barricadas) e ganhar soldados. O exército azul marcha pelo
+meio da ponte contra o exército vermelho e o chefe. Moedas compram melhorias entre as fases.
+O jogo antigo (Guilda dos Heróis / Coroa) fica no histórico do git, commit `9c78232`.
 
 ## Como é feito
-- `src/` — código (módulos JS): `dados.js` (números e textos), `estado.js` (lógica e save, sem
-  gráficos), `base.js` (a sede em 3D e os heróis passeando), `cena.js` (three.js), `ui.js`
-  (interface, sons, controles), `icones.js` (gerado), `main.js` (entrada).
+- `src/` — código (módulos JS): `dados.js` (fases e melhorias), `meta.js` (save), `ponte.js`
+  (a partida e a interface), `cena.js` (three.js), `util.js` (sons, ícones), `main.js` (entrada).
 - `jogo.js` — tudo empacotado com three.js (`node tools/build.mjs`).
 - `modelos.bin` — modelos 3D (`node tools/empacotar.mjs`); `recursos.bin` — fontes e sons
   (`node tools/recursos.mjs`); `src/icones.js` — ícones (`node tools/icones.mjs`).

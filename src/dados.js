@@ -1,188 +1,48 @@
-// Dados da Guilda de Heróis: prédios, heróis, raridades, regiões/missões e objetivos.
-// Os números crescem de forma exponencial (estilo idle): cada melhoria custa mais e rende mais.
+// Batalha da Ponte: números das fases e das melhorias.
+export const VERSAO = 61;
 
-export const VERSAO = 60;
-
-// ---------------- números grandes ----------------
-const SUF = ['', 'K', 'M', 'B', 'T', 'aa', 'ab', 'ac', 'ad', 'ae', 'af', 'ag', 'ah'];
+const SUF = ['', 'K', 'M', 'B', 'T'];
 export function fmt(n) {
   if (!isFinite(n)) return '∞';
-  if (n < 1000) return n < 10 && n % 1 ? n.toFixed(1) : Math.floor(n).toString();
+  if (n < 1000) return Math.floor(n).toString();
   let i = 0; while (n >= 1000 && i < SUF.length - 1) { n /= 1000; i++; }
   return (n < 10 ? n.toFixed(2) : n < 100 ? n.toFixed(1) : Math.floor(n)) + SUF[i];
 }
-export function fmtTempo(s) {
-  s = Math.max(0, Math.ceil(s));
-  if (s < 60) return s + 's';
-  if (s < 3600) return Math.floor(s / 60) + 'm ' + (s % 60 ? (s % 60) + 's' : '');
-  return Math.floor(s / 3600) + 'h ' + Math.floor((s % 3600) / 60) + 'm';
-}
 
-// ---------------- prédios ----------------
-// custo(n) = preço para ir do nível n para n+1 (n = 0: construir)
-// marcos: a cada marco o efeito principal dobra (clássico dos idles)
-export const MARCOS = [10, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500];
-export const marcosAte = n => MARCOS.filter(m => n >= m).length;
-export const proxMarco = n => MARCOS.find(m => m > n) || null;
-export const EDIFICIOS = {
-  taverna: { nome: 'Taverna', icone: 'taverna', fama: 1, base: 10, cresc: 1.12, cor: '#e0923a', desc: 'Aventureiros comem, bebem e pagam. Sua renda principal de ouro.' },
-  quadro: { nome: 'Associação dos Aventureiros', icone: 'quadro', fama: 0, base: 60, cresc: 1.42, cor: '#c9a46a', desc: 'O QG de todos os aventureiros: pegue missões no quadro. Mais vagas conforme o seu nível.' },
-  alojamento: { nome: 'Alojamento', icone: 'alojamento', fama: 1, base: 80, cresc: 1.5, cor: '#8a6a4a', desc: 'Camas para mais heróis na guilda.' },
-  portal: { nome: 'Portal de Recrutamento', icone: 'portal', fama: 2, base: 250, cresc: 1.55, cor: '#8a5ad8', desc: 'Heróis mais raros aparecem no recrutamento.' },
-  treino: { nome: 'Campo de Treino', icone: 'treino', fama: 3, base: 400, cresc: 1.3, cor: '#5fb83a', desc: 'Heróis descansando na guilda ganham experiência.' },
-  forja: { nome: 'Forja', icone: 'forja', fama: 4, base: 1200, cresc: 1.32, cor: '#d8543a', desc: 'Armas melhores: mais poder para todos os heróis.' },
-  mercado: { nome: 'Mercado', icone: 'mercado', fama: 5, base: 5000, cresc: 1.3, cor: '#3aa0c8', desc: 'Vende os troféus das missões: mais ouro de tudo.' },
-  enfermaria: { nome: 'Enfermaria', icone: 'enfermaria', fama: 6, base: 15000, cresc: 1.36, cor: '#e05a7a', desc: 'Heróis feridos se recuperam mais rápido e se ferem menos.' },
-  biblioteca: { nome: 'Biblioteca Arcana', icone: 'biblioteca', fama: 8, base: 60000, cresc: 1.34, cor: '#4a6ad8', desc: 'Mapas e magias: missões mais rápidas.' },
+// melhorias compradas com moedas entre as fases
+export const tiros = n => 2.4 * 1.09 ** n;            // flechas por segundo
+export const vidaMuralha = n => 10 + 3 * n;
+export const escudo = n => Math.min(0.6, n * 0.06);   // chance do soldado azul sobreviver ao choque
+export const UPGRADES = {
+  fogo: { nome: 'Tiro rápido', icone: 'raio', desc: n => `${tiros(n).toFixed(1)} tiros/s`, custo: n => Math.round(20 * 1.42 ** n), max: 30 },
+  flechas: { nome: 'Flechas por tiro', icone: 'h_triplo', desc: n => `${1 + n} flecha${n ? 's' : ''}`, custo: n => Math.round(160 * 3.4 ** n), max: 4 },
+  exercito: { nome: 'Exército inicial', icone: 'herois', desc: n => `+${8 * n} soldados`, custo: n => Math.round(25 * 1.38 ** n), max: 40 },
+  vida: { nome: 'Muralha', icone: 'escudo', desc: n => `${vidaMuralha(n)} de vida`, custo: n => Math.round(20 * 1.38 ** n), max: 40 },
+  escudos: { nome: 'Escudos', icone: 'cav', desc: n => `${Math.round(escudo(n) * 100)}% sobrevivem`, custo: n => Math.round(45 * 1.6 ** n), max: 10 },
 };
-export const custoEd = (id, n) => Math.ceil(EDIFICIOS[id].base * EDIFICIOS[id].cresc ** n);
-// efeitos no nível n
-export const EF = {
-  taverna: n => n <= 0 ? 0 : 0.75 * n * 2 ** marcosAte(n),                // ouro/s (dividido com a guilda)
-  quadro: n => ({ vagas: Math.min(6, 1 + Math.floor(n / 4)), bonus: 1 + 0.04 * n }),
-  alojamento: n => Math.min(12, 3 + n),                                   // vagas na guilda (até 12 membros)
-  portal: n => n,                                                         // nível do portal
-  treino: n => n <= 0 ? 0 : 0.6 * n * 1.06 ** n,                          // XP/s por herói na guilda
-  forja: n => 1 + 0.06 * n * (1 + 0.5 * marcosAte(n)),                    // multiplicador de poder
-  mercado: n => 1 + 0.05 * n * (1 + 0.5 * marcosAte(n)),                  // multiplicador de ouro
-  enfermaria: n => ({ tempo: 0.93 ** n, chance: Math.max(0.1, 0.6 - 0.02 * n) }),
-  biblioteca: n => Math.max(0.35, 1 - 0.025 * n),                         // multiplicador do tempo das missões
-};
-export function descEfeito(id, n) {
-  const e = EF[id](n);
-  switch (id) {
-    case 'taverna': return `${fmt(e)} de ouro/s`;
-    case 'quadro': return `${e.vagas} missões ao mesmo tempo · recompensas +${Math.round((e.bonus - 1) * 100)}%`;
-    case 'alojamento': return `Até ${e} membros na guilda (máx. 12)`;
-    case 'portal': return `Chance de raros: ${chancesRecrutar(n).slice(1).map((c, i) => `${RARIDADES[i + 1].nome} ${(c * 100).toFixed(1)}%`).join(' · ')}`;
-    case 'treino': return `+${fmt(e)} XP/s por herói descansando`;
-    case 'forja': return `Poder dos heróis ×${e.toFixed(2)}`;
-    case 'mercado': return `Ouro ×${e.toFixed(2)}`;
-    case 'enfermaria': return `Recuperação ${Math.round(e.tempo * 100)}% do tempo · chance de ferir ${Math.round(e.chance * 100)}%`;
-    case 'biblioteca': return `Missões levam ${Math.round(e * 100)}% do tempo`;
+
+// chefes (monstros Quaternius): [modelo, nome]
+export const CHEFES = [['mg:Orc', 'Grom, o Brutal'], ['mg:Demon', 'Demônio da Ponte'], ['mg:Yeti', 'Yeti Furioso'], ['mg:Orc_Skull', 'Orc Caveira'],
+  ['mg:MushroomKing', 'Rei Cogumelo'], ['mg:BlueDemon', 'Demônio Azul'], ['mg:Dino', 'Raptor Rei'], ['mg:Tribal', 'Xamã Tribal']];
+
+// configuração de cada fase (n = 1, 2, 3...)
+export function fase(n) {
+  let sd = n * 7919 + 13; const r = () => ((sd = (sd * 16807) % 2147483647) / 2147483647);
+  const NB = 20, esq = [], dir = [];
+  // pista da esquerda: valores pequenos, sempre aberta; um x2 de vez em quando
+  for (let i = 0; i < NB; i++) {
+    if (i === 10 && n >= 3) { esq.push({ tipo: 'barreira', hp: 3 + n }); continue; }
+    if (i % 7 === 6) { esq.push({ tipo: 'vezes', valor: 2 }); continue; }
+    const l = [1, 1, 2, 2, 3, 5]; esq.push({ tipo: 'mais', valor: l[Math.floor(r() * Math.min(l.length, 3 + Math.floor(i / 5)))] });
   }
-}
-
-// ---------------- heróis ----------------
-export const CLASSES = {
-  cav: { nome: 'Cavaleiro', modelo: 'cav', icone: 'cav', poder: 12, cor: '#4a7bd0' },
-  bar: { nome: 'Bárbaro', modelo: 'bar', icone: 'bar', poder: 14, cor: '#d0663a' },
-  arq: { nome: 'Arqueira', modelo: 'arq', icone: 'arq', poder: 11, cor: '#4aa84a' },
-  mag: { nome: 'Maga', modelo: 'mag', icone: 'mag', poder: 13, cor: '#8a5ad8' },
-  lad: { nome: 'Ladino', modelo: 'npc', icone: 'lad', poder: 10, cor: '#6a6a7a' },
-};
-export const RARIDADES = [
-  { nome: 'Comum', cor: '#b8b8b8', mult: 1 },
-  { nome: 'Raro', cor: '#4aa3ff', mult: 1.7 },
-  { nome: 'Épico', cor: '#b86bff', mult: 2.9 },
-  { nome: 'Lendário', cor: '#ffb02e', mult: 5 },
-];
-export function chancesRecrutar(portal, premium = false) {
-  let l = premium ? 0.05 + 0.004 * portal : 0.004 + 0.0015 * portal, e = premium ? 0.25 + 0.01 * portal : 0.04 + 0.006 * portal, r = premium ? 0.5 : 0.22 + 0.012 * portal;
-  l = Math.min(l, 0.2); e = Math.min(e, 0.4); r = Math.min(r, 0.55);
-  return [Math.max(0, 1 - l - e - r), r, e, l];
-}
-export const xpHeroi = n => Math.round(25 * 1.22 ** (n - 1));
-export const custoTreinar = (h) => Math.ceil(15 * 1.24 ** (h.nivel - 1) * (1 + h.rar * 0.5));
-export const custoRecrutar = total => Math.ceil(40 * 1.75 ** total);
-export const GEMAS_RECRUTAR = 40;
-const NOMES = ['Aldo', 'Bruna', 'Caio', 'Dora', 'Enzo', 'Fia', 'Gael', 'Hana', 'Ivo', 'Júlia', 'Kael', 'Luna', 'Mauro', 'Nina', 'Otto', 'Pietra', 'Quim', 'Rosa', 'Saulo', 'Tainá', 'Ugo', 'Vera', 'Wado', 'Yara', 'Zeca', 'Rurik', 'Isolda', 'Tibério', 'Morgana', 'Bento', 'Íris', 'Leão', 'Cora', 'Davi', 'Elba', 'Fausto', 'Greta', 'Heitor', 'Inês', 'Joca'];
-export const nomeAleatorio = (usados = []) => { const l = NOMES.filter(n => !usados.includes(n)); const p = l.length ? l : NOMES; return p[Math.floor(Math.random() * p.length)]; };
-
-// ---------------- regiões e missões ----------------
-// requisito de poder cresce ×12 por região; cada região tem 3 missões repetíveis e 1 chefe
-export const REGIOES = [
-  { id: 'floresta', nome: 'Floresta Sombria', icone: 'floresta', cor: '#3f8f4a', afin: 'arq', chefe: 'Lobo Gigante', ini: ['lobos', 'goblins', 'aranhas'], x: 22, y: 78 },
-  { id: 'pantano', nome: 'Pântano Venenoso', icone: 'pantano', cor: '#6a8a3a', afin: 'mag', chefe: 'Bruxa do Pântano', ini: ['sapos gigantes', 'lodosos', 'bruxas'], x: 58, y: 84 },
-  { id: 'montanha', nome: 'Montanhas Gélidas', icone: 'montanha', cor: '#7aa0c8', afin: 'bar', chefe: 'Gigante de Gelo', ini: ['yetis', 'lobos de gelo', 'trolls'], x: 80, y: 62 },
-  { id: 'deserto', nome: 'Deserto Escaldante', icone: 'deserto', cor: '#d8a84a', afin: 'lad', chefe: 'Escorpião Rei', ini: ['escorpiões', 'bandidos', 'múmias'], x: 42, y: 56 },
-  { id: 'ruinas', nome: 'Ruínas Élficas', icone: 'ruinas', cor: '#8aa08a', afin: 'mag', chefe: 'Golem Antigo', ini: ['golens', 'espíritos', 'guardiões'], x: 16, y: 44 },
-  { id: 'vulcao', nome: 'Vulcão Rugidor', icone: 'vulcao', cor: '#d8543a', afin: 'cav', chefe: 'Dragão de Fogo', ini: ['salamandras', 'demônios', 'dracos'], x: 70, y: 32 },
-  { id: 'cemiterio', nome: 'Cemitério Maldito', icone: 'cemiterio', cor: '#6a6a8a', afin: 'cav', chefe: 'Necromante', ini: ['zumbis', 'fantasmas', 'carniçais'], x: 34, y: 22 },
-  { id: 'trono', nome: 'Trono do Rei Esqueleto', icone: 'trono', cor: '#8a3a5a', afin: 'bar', chefe: 'Rei Esqueleto', ini: ['cavaleiros esqueleto', 'liches', 'gárgulas'], x: 62, y: 9 },
-];
-export const TIPOS_MISSAO = [
-  { id: 'patrulha', nome: 'Patrulha', dur: 30, req: 1, ouro: 8, xp: 1, fama: 1, bau: 0, max: 1 },
-  { id: 'cacada', nome: 'Caçada', dur: 120, req: 2.2, ouro: 40, xp: 3, fama: 3, bau: 0.08, max: 2 },
-  { id: 'expedicao', nome: 'Expedição', dur: 600, req: 5, ouro: 260, xp: 10, fama: 8, bau: 0.35, max: 4 },
-  { id: 'chefe', nome: 'Chefe', dur: 300, req: 12, ouro: 900, xp: 20, fama: 25, bau: 1, max: 4, chefe: true },
-];
-export const reqRegiao = r => 10 * 12 ** r;
-export function missao(r, t) {
-  const T = TIPOS_MISSAO[t], base = reqRegiao(r);
-  return { r, t, req: Math.round(base * T.req), dur: T.dur, ouro: Math.round(base * T.ouro), xp: Math.round(6 * 3.2 ** r * T.xp), fama: T.fama * (r + 1), bau: T.bau, max: T.max, chefe: !!T.chefe, nome: T.chefe ? REGIOES[r].chefe : T.nome };
-}
-// quadro de missões (estilo guilda de anime): papéis com rank exigido
-export const RANK_REGIAO = [0, 0, 1, 2, 3, 3, 4, 5];
-export const rankIdx = n => { let i = 0; for (let k = 0; k < 6; k++) if (n >= [1, 10, 20, 35, 50, 75][k]) i = k; return i; };
-export const LETRAS = ['E', 'D', 'C', 'B', 'A', 'S'];
-export const TITULOS = [
-  ['Vigiar a estrada da {reg}', 'Afastar {ini} da trilha', 'Escoltar um mercador', 'Achar a ovelha perdida', 'Ronda noturna'],
-  ['Caçar {ini}', 'Recompensa por {ini}', 'Limpar o ninho de {ini}', 'Proteger a vila de {ini}'],
-  ['Explorar {reg}', 'Recuperar a relíquia perdida', 'Mapear as cavernas', 'Resgatar o aventureiro sumido'],
-  ['PROCURADO: {chefe}'],
-];
-export const MAX_QUADRO = nq => Math.min(9, 4 + Math.floor(nq / 5));
-export const GEMAS_TROCAR = 5;
-// Ordens da Guilda: cada envio do modo automático gasta 1 (voltam com o tempo)
-export const MAX_ORDENS = nq => 12 + 2 * Math.floor(nq / 5);
-export const ORDEM_SEG = 900, GEMAS_ORDENS = 10, AUTO_MULT = 0.9;
-// chance de sucesso: poder igual ao requisito = 100%
-export const chanceSucesso = (poder, req) => Math.max(0.05, Math.min(1, (poder / req) ** 2));
-
-// ---------------- fama (nível da guilda) ----------------
-export const xpFama = n => Math.round(12 * 1.55 ** (n - 1));
-
-// ---------------- objetivos (dão gemas) ----------------
-export const OBJETIVOS = [
-  { id: 'missoes', nome: 'Missões concluídas', icone: 'missoes', metas: [1, 5, 15, 50, 150, 500, 2000, 8000] },
-  { id: 'recrutados', nome: 'Heróis recrutados', icone: 'recrutar', metas: [3, 6, 10, 15, 22, 30] },
-  { id: 'taverna', nome: 'Nível da Taverna', icone: 'taverna', metas: [10, 25, 50, 100, 150, 200, 300] },
-  { id: 'ouroTotal', nome: 'Ouro ganho no total', icone: 'ouro', metas: [1e3, 1e5, 1e7, 1e9, 1e11, 1e13, 1e15] },
-  { id: 'regioes', nome: 'Chefes derrotados', icone: 'chefe', metas: [1, 2, 3, 4, 5, 6, 7, 8] },
-  { id: 'nivelHeroi', nome: 'Nível do melhor herói', icone: 'treinar', metas: [10, 25, 50, 75, 100, 150] },
-  { id: 'lendarios', nome: 'Heróis lendários', icone: 'estrela', metas: [1, 3, 5, 10] },
-];
-export const gemasObjetivo = i => 5 * 2 ** i;
-// ---------------- Sistema do líder (evolução estilo "Solo Leveling") ----------------
-// o líder ganha XP com tudo o que a guilda faz; cada nível dá pontos de atributo que dão bônus à guilda inteira
-export const ATRIBUTOS = {
-  for: { nome: 'Força', icone: 'forca', cor: '#ff6a4a', txt: v => `+${v * 3}% de dano` },
-  agi: { nome: 'Agilidade', icone: 'agi', cor: '#5fd84a', txt: v => `+${(v * 1.2).toFixed(1)}% vel. de ataque e passo · +${(v * 0.3).toFixed(1)}% crítico` },
-  vit: { nome: 'Vitalidade', icone: 'vit', cor: '#ff5a8a', txt: v => `+${v * 12} de vida · +${(v * 0.4).toFixed(1)}% defesa` },
-  int: { nome: 'Inteligência', icone: 'int', cor: '#5ab8ff', txt: v => `+${v * 4}% dano das habilidades · -${Math.min(40, v)}% recarga` },
-};
-export const PONTOS_NIVEL = 3;
-export const xpSistema = n => Math.round(40 * 1.3 ** (n - 1));
-export const RANKS = [[1, 'E', '#a8b0b8', 'Caçador iniciante'], [10, 'D', '#5fb83a', 'Caçador promissor'], [20, 'C', '#3aa0e0', 'Caçador experiente'],
-  [35, 'B', '#8a5ad8', 'Caçador de elite'], [50, 'A', '#e0a02a', 'Caçador lendário'], [75, 'S', '#ff4a3a', 'Monarca']];
-export const rankDe = n => RANKS.filter(r => n >= r[0]).pop();
-// ranking do herói principal pelo Poder de combate (como no Solo Leveling): E → SSS, com 5 estrelas em cada rank
-export const RANKING = [[0, 'E', '#a8b0b8', 'Iniciante'], [300, 'D', '#5fb83a', 'Aventureiro'], [1000, 'C', '#3aa0e0', 'Veterano'], [3000, 'B', '#8a5ad8', 'Elite'],
-  [9000, 'A', '#e0a02a', 'Herói'], [27000, 'S', '#ff4a3a', 'Lenda'], [81000, 'SS', '#ff2a8a', 'Mito'], [243000, 'SSS', '#ffd23a', 'Monarca']];
-export function rankPoder(p) {
-  let i = 0; for (let k = 0; k < RANKING.length; k++) if (p >= RANKING[k][0]) i = k;
-  const [ini, letra, cor, titulo] = RANKING[i], fim = RANKING[i + 1]?.[0];
-  const f = fim ? Math.log(Math.max(1, p) / Math.max(1, ini || 100)) / Math.log(fim / Math.max(1, ini || 100)) : 1;
-  return { i, letra, cor, titulo, prox: fim, estrelas: Math.max(0, Math.min(5, Math.floor(f * 5))), f: Math.max(0, Math.min(1, f)) };
-}
-export const OFFLINE_MAX = 4 * 3600; // ganhos offline até 4h
-
-// ---------------- guildas (alianças) ----------------
-// por enquanto simuladas; depois serão guildas de jogadores de verdade (online).
-// nv: nível da guilda (libera prédios como a Fama fazia), membros: vagas ocupadas de 12, req: poder de combate mínimo
-export const GUILDAS = [
-  { id: 'lobos', nome: 'Lobos de Prata', lema: 'Caçamos juntos, dividimos tudo.', cor: '#7a9ab8', icone: 'floresta', nv: 2, membros: 4, req: 0 },
-  { id: 'grifo', nome: 'Ordem do Grifo', lema: 'Honra acima de tudo.', cor: '#d8a84a', icone: 'escudo', nv: 3, membros: 7, req: 150 },
-  { id: 'taverneiros', nome: 'Os Taverneiros', lema: 'Primeiro a cerveja, depois o dragão.', cor: '#c98a3a', icone: 'taverna', nv: 4, membros: 9, req: 300 },
-  { id: 'aurora', nome: 'Aurora Carmesim', lema: 'A luz vem depois da batalha.', cor: '#d8543a', icone: 'raio', nv: 5, membros: 11, req: 600 },
-  { id: 'corvos', nome: 'Corvos da Noite', lema: 'Ninguém nos vê chegar.', cor: '#5a4a7a', icone: 'lad', nv: 6, membros: 12, req: 1200 },
-  { id: 'coroa', nome: 'Coroa de Ferro', lema: 'Os mais fortes do servidor.', cor: '#8a3a5a', icone: 'coroa', nv: 8, membros: 10, req: 3000 },
-  { id: 'dragoes', nome: 'Presas do Dragão', lema: 'Só entram lendas.', cor: '#b83a2a', icone: 'vulcao', nv: 8, membros: 12, req: 9000 },
-];
-// nível de cada prédio de uma guilda (fixo por guilda, para a lista mostrar sempre o mesmo)
-export function predioGuilda(g, id) {
-  const e = EDIFICIOS[id]; if (id === 'quadro' || e.fama > g.nv) return 0;
-  let h = 0; for (const c of g.id + id) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-  return Math.max(1, Math.round((g.nv - e.fama + 1) * (2 + (h % 3))));
+  // pista da direita: rica, mas fechada por barreiras
+  const grandes = [10, 15, 20, 25, 50, 99];
+  for (let i = 0; i < NB; i++) {
+    if (i === 0) { dir.push({ tipo: 'barreira', hp: 6 + 4 * n }); continue; }
+    if (i === 10) { dir.push({ tipo: 'barreira', hp: 10 + 7 * n }); continue; }
+    dir.push({ tipo: 'mais', valor: grandes[Math.min(grandes.length - 1, Math.floor(i / 3.4 + r() * 1.5))] });
+  }
+  const [modelo, nome] = CHEFES[(n - 1) % CHEFES.length];
+  return { n, esq, dir, chefe: { modelo, nome: n > CHEFES.length ? `${nome} +${Math.floor((n - 1) / CHEFES.length)}` : nome, hp: Math.round(60 + 50 * n ** 1.15) },
+    inimigos: Math.round(25 + 30 * n ** 1.1), moedas: 20 + 12 * n };
 }
