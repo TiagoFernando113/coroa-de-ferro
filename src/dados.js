@@ -1,5 +1,5 @@
 // Batalha da Ponte: números das fases e das melhorias.
-export const VERSAO = 61;
+export const VERSAO = 62;
 
 const SUF = ['', 'K', 'M', 'B', 'T'];
 export function fmt(n) {
@@ -33,6 +33,8 @@ export function fase(n) {
   for (let i = 0; i < NB; i++) {
     if (i === 10 && n >= 3) { esq.push({ tipo: 'barreira', hp: 3 + n }); continue; }
     if (i % 7 === 6) { esq.push({ tipo: 'vezes', valor: 2 }); continue; }
+    if (i === 4) { esq.push({ tipo: 'poder', p: 'flecha' }); continue; }
+    if (i === 15) { esq.push({ tipo: 'poder', p: 'rapido' }); continue; }
     const l = [1, 1, 2, 2, 3, 5]; esq.push({ tipo: 'mais', valor: l[Math.floor(r() * Math.min(l.length, 3 + Math.floor(i / 5)))] });
   }
   // pista da direita: rica, mas fechada por barreiras
@@ -40,9 +42,13 @@ export function fase(n) {
   for (let i = 0; i < NB; i++) {
     if (i === 0) { dir.push({ tipo: 'barreira', hp: 6 + 4 * n }); continue; }
     if (i === 10) { dir.push({ tipo: 'barreira', hp: 10 + 7 * n }); continue; }
+    if (i === 6) { dir.push({ tipo: 'poder', p: 'rapido' }); continue; }
+    if (i === 15) { dir.push({ tipo: 'poder', p: 'flecha' }); continue; }
     dir.push({ tipo: 'mais', valor: grandes[Math.min(grandes.length - 1, Math.floor(i / 3.4 + r() * 1.5))] });
   }
   const [modelo, nome] = CHEFES[(n - 1) % CHEFES.length];
-  return { n, esq, dir, chefe: { modelo, nome: n > CHEFES.length ? `${nome} +${Math.floor((n - 1) / CHEFES.length)}` : nome, hp: Math.round(60 + 50 * n ** 1.15) },
-    inimigos: Math.round(25 + 30 * n ** 1.1), moedas: 20 + 12 * n };
+  return { n, esq, dir, chefe: { modelo, nome: n > CHEFES.length ? `${nome} +${Math.floor((n - 1) / CHEFES.length)}` : nome, hp: Math.round(220 + 160 * n ** 1.1) },
+    // portões no meio da ponte: os soldados azuis que passam se multiplicam
+    portoes: [{ tipo: 'vezes', valor: 2, i: 6 }, { tipo: 'mais', valor: 10 + 5 * n, i: 13 }],
+    ritmo: 2 + 0.9 * n ** 1.15, duro: Math.floor(n / 3), moedas: 20 + 12 * n }; // ritmo: vermelhos por segundo no começo (cresce com o tempo)
 }
