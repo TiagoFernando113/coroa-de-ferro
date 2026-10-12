@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import * as C from './cena.js';
 import { fase as dadosFase, tiros, vidaMuralha, escudo, fmt, UPGRADES } from './dados.js';
-import { S, salvar, comprar } from './meta.js';
+import { S, salvar, comprar, BAUS, MAX_BAUS, ganharBau, abrirBau, cartasPara, DIARIO, diarioPronto, diaDoPresente, pegarDiario } from './meta.js';
 import { visualPadrao } from './aparencia.js';
 import { ico, som, $, alternarSom, estaMudo } from './util.js';
 import { tema, sfx, intensidade } from './musica.js';
@@ -197,7 +197,7 @@ export function iniciarFase(n) {
   G = { F, n, t: 0, az: [], vm: [], flechas: [], txt: [], fila: 8 * up.exercito, acum: 0, cd: 0.5, pistas: [[], []], spawnVm: 0, golpePend: 0,
     muro: vidaMuralha(up.vida), muroMax: vidaMuralha(up.vida), tiro: tiros(up.fogo), nFlechas: 1 + up.flechas, escudo: escudo(up.escudos),
     heroi: { x: 0, alvo: 0 }, golpeT: 4, fim: null, mortesVm: 0, portoes: [], ondaT: 16, banner: null, punch: 0, lento: 0, brilhoH: 0,
-    pd: { chuva: { cd: 4, max: 11 }, gigante: { cd: 12, max: 30 } }, chuvas: [], gigante: null, puloT: 0,
+    pd: { chuva: { cd: 4, max: Math.max(6, 11 - 0.6 * (S.pd.chuva.nv - 1)), nv: S.pd.chuva.nv }, gigante: { cd: 12, max: Math.max(16, 30 - 1.8 * (S.pd.gigante.nv - 1)), nv: S.pd.gigante.nv } }, chuvas: [], gigante: null, puloT: 0,
     rotas: F.rotas, ouro: 25, vagas: [], tiros: [], menuVaga: null };
   // duas rotas: um muro baixo divide a pista do meio
   if (G.rotas > 1) { G.forquilha = new THREE.Mesh(new THREE.BoxGeometry(1, 1.6, ZFORK0 - ZFORK1).translate(0, 0.8, (ZFORK0 + ZFORK1) / 2), MAT_MURO); G.forquilha.castShadow = G.forquilha.receiveShadow = true; cena.add(G.forquilha); }
@@ -241,7 +241,7 @@ function montarHud() {
       <div class="jPoderes"><button class="poder" data-pd="chuva">${ico('h_chuva')}<small>Chuva</small></button><button class="poder" data-pd="gigante">${ico('cav')}<small>Gigante</small></button></div>
       <div class="jMuro">${ico('escudo')}<div class="barra muro"><i id="jMuroB"></i><span id="jMuroT"></span></div></div>
       <p class="jDica" id="jDica">Arraste para mover · as flechas saem sozinhas</p></div>
-    <div id="fim" hidden></div>`;
+    <div id="fim" hidden></div><div id="janela" hidden></div>`;
   fx = document.createElement('canvas'); fx.id = 'fx'; document.body.append(fx); gfx = fx.getContext('2d');
   const medir = () => { fx.width = innerWidth * devicePixelRatio; fx.height = innerHeight * devicePixelRatio; gfx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0); };
   medir(); addEventListener('resize', medir);
@@ -258,15 +258,46 @@ export function abrirLobby() {
   roleta = null;
   tela = 'lobby'; $('#jogo').hidden = true; $('#fim').hidden = true; $('#lobby').hidden = false; tema('guilda');
   iniciarFase(S.fase); desenharLobby();
+  if (!diarioVisto && diarioPronto()) { diarioVisto = true; setTimeout(mostrarDiario, 900); }
 }
+let diarioVisto = false;
 function desenharLobby() {
   const F = dadosFase(S.fase);
-  $('#lobby').innerHTML = `<div class="lbTopo"><div class="pilula ouro">${ico('ouro')}<b>${fmt(S.moedas)}</b></div><button class="redondo" data-a="som">${ico(estaMudo() ? 'mudo' : 'som')}</button></div>
+  $('#lobby').innerHTML = `<div class="lbTopo"><div class="pilula ouro">${ico('ouro')}<b>${fmt(S.moedas)}</b></div><button class="redondo presente" data-a="diario">${ico('presente')}${diarioPronto() ? '<i class="ponto"></i>' : ''}</button><button class="redondo" data-a="som">${ico(estaMudo() ? 'mudo' : 'som')}</button></div>
     <div class="lbTitulo"><small>Batalha da</small><h1>Ponte</h1></div>
     <div class="lbPainel"><div class="lbFase"><span>FASE</span><b>${S.fase}</b><small>${ico('chefe')} ${F.chefe.nome} · vida ${fmt(F.chefe.hp)}</small></div>
       <div class="ups">${Object.entries(UPGRADES).map(([k, U]) => { const n = S.up[k], max = n >= U.max, c = U.custo(n);
         return `<button class="up ${!max && S.moedas >= c ? 'pode' : ''}" data-up="${k}"><span class="upIco">${ico(U.icone)}</span><b>${U.nome}</b><small>${U.desc(n)}</small><em>${max ? 'MÁX' : `${ico('ouro')}${fmt(c)}`}</em><i>Nv ${n}</i></button>`; }).join('')}</div>
+      <div class="lbPd">${PODERES.map(([k, nome, icone]) => { const P = S.pd[k], need = cartasPara(P.nv);
+        return `<div class="pdCarta ${k}"><span>${ico(icone)}</span><b>${nome} <i>Nv ${P.nv}</i></b><div class="pdBarra"><i style="width:${P.nv >= 10 ? 100 : 100 * P.c / need}%"></i><small>${P.nv >= 10 ? 'MÁX' : `${P.c}/${need} cartas`}</small></div></div>`; }).join('')}</div>
+      <div class="baus">${Array.from({ length: MAX_BAUS }, (_, i) => { const b = S.baus[i];
+        return b ? `<button class="slotBau" data-bau="${i}">${bauHtml(b.tipo, 'mini')}<small>Abrir!</small></button>` : `<div class="slotBau vazio"><small>Vença para ganhar baú</small></div>`; }).join('')}</div>
       <button class="btn verde grande" data-a="jogar">${ico('h_triplo')} JOGAR</button></div>`;
+}
+const PODERES = [['chuva', 'Chuva', 'h_chuva'], ['gigante', 'Gigante', 'cav']];
+const bauHtml = (tipo, cls = '') => `<div class="bauG ${tipo} ${cls}"><i class="tampa"></i><i class="corpo"></i><i class="fecho"></i></div>`;
+// janela de baú: toca para abrir, os prêmios aparecem um a um
+function mostrarBau(tipo, titulo, aoAbrir) {
+  const j = $('#janela'); j.hidden = false;
+  j.innerHTML = `<div class="jBau"><h2>${titulo}</h2><div class="raios"></div>${bauHtml(tipo, 'grande treme')}<p class="dicaBau">Toque para abrir</p><div class="premios"></div></div>`;
+  let aberto = false;
+  j.querySelector('.jBau').onclick = () => {
+    if (aberto) return; aberto = true; const p = aoAbrir(); const b = j.querySelector('.bauG'); b.classList.remove('treme'); b.classList.add('aberto'); j.querySelector('.raios').classList.add('liga');
+    j.querySelector('.dicaBau').remove(); sfx('brilho'); setTimeout(() => sfx('vitoria'), 250);
+    const itens = [`<div class="premio">${ico('ouro')}<b>+${fmt(p.moedas)}</b><small>moedas</small></div>`];
+    for (const [k, nome, icone] of PODERES) if (p.cartas[k]) { const P = S.pd[k], need = cartasPara(P.nv);
+      itens.push(`<div class="premio carta ${k}">${ico(icone)}<b>x${p.cartas[k]}</b><small>${nome}${p.sobe[k] ? ` · <em>Nível ${P.nv}!</em>` : ` · ${P.c}/${need}`}</small></div>`); }
+    const box = j.querySelector('.premios'); itens.forEach((h, i) => setTimeout(() => { box.insertAdjacentHTML('beforeend', h); sfx('nota', 3 + i * 2); }, 500 + i * 380));
+    setTimeout(() => box.insertAdjacentHTML('afterend', `<button class="btn verde grande" data-a="fecharJanela">Pegar</button>`), 600 + itens.length * 380);
+  };
+}
+function mostrarDiario() {
+  const j = $('#janela'); j.hidden = false; const pronto = diarioPronto(), dia = diaDoPresente(), hojeI = pronto ? dia : (dia + 6) % 7;
+  j.innerHTML = `<div class="jDiario"><h2>${ico('presente')} Presente diário</h2><p>Entre todo dia: o presente cresce. Se faltar um dia, volta ao começo.</p>
+    <div class="dias">${DIARIO.map((D, i) => `<div class="dia ${i < hojeI || (!pronto && i === hojeI) ? 'pego' : i === hojeI ? 'hoje' : ''}"><small>Dia ${i + 1}</small>
+      ${D.bau ? bauHtml(D.bau, 'mini') : `${ico('ouro')}<b>${fmt(Math.round((40 + 12 * S.fase) * D.moedas))}</b>`}${i < hojeI || (!pronto && i === hojeI) ? `<i>${ico('check')}</i>` : ''}</div>`).join('')}</div>
+    ${pronto ? `<button class="btn amarelo grande" data-a="pegarDiario">${ico('presente')} Pegar presente</button>` : '<p class="volte">Volte amanhã para o próximo!</p>'}
+    <button class="btn azul" data-a="fecharJanela">Fechar</button></div>`;
 }
 function clique(e) {
   const b = e.target.closest('button'); if (!b) return; const a = b.dataset.a;
@@ -278,6 +309,12 @@ function clique(e) {
   if (a === 'lobby') { som('clique'); abrirLobby(); }
   if (b.dataset.pd) usarPoder(b.dataset.pd);
   if (a === 'roleta') pararRoleta();
+  if (a === 'diario') { som('clique'); mostrarDiario(); }
+  if (a === 'fecharJanela') { som('fechar'); $('#janela').hidden = true; if (tela === 'lobby') desenharLobby(); }
+  if (a === 'pegarDiario') { const D = DIARIO[diaDoPresente()];
+    if (D.bau) mostrarBau(D.bau, 'Presente do dia!', () => pegarDiario());
+    else { const p = pegarDiario(); if (p) { sfx('vitoria'); mostrarDiario(); $('#janela .jDiario h2').insertAdjacentHTML('afterend', `<div class="premio grande">${ico('ouro')}<b>+${fmt(p.moedas)}</b></div>`); } } }
+  if (b.dataset.bau) { const i = +b.dataset.bau, tipo = S.baus[i]?.tipo; if (tipo) { som('clique'); mostrarBau(tipo, BAUS[tipo].nome, () => abrirBau(i)); } }
   if (b.dataset.vaga) tocarVaga(+b.dataset.vaga);
   if (b.dataset.tor) construir(G.menuVaga, b.dataset.tor);
 }
@@ -324,12 +361,13 @@ function pararRoleta() {
 function terminar(venceu) {
   if (G.fim) return; G.fim = venceu ? 'v' : 'd'; tela = 'fim';
   const ganho = venceu ? G.F.moedas + Math.floor(G.az.length / 4) : Math.round(G.F.moedas * 0.25);
-  S.moedas += ganho; if (venceu) { S.fase++; S.melhor = Math.max(S.melhor, G.n); } salvar();
+  S.moedas += ganho; let bau = null; if (venceu) { bau = ganharBau(G.n); S.fase++; S.melhor = Math.max(S.melhor, G.n); } salvar();
   setTimeout(() => {
     $('#jogo').hidden = true; const f = $('#fim'); f.hidden = false;
     f.innerHTML = `<div class="fimCaixa ${venceu ? 'vit' : 'der'}"><h2>${venceu ? 'VITÓRIA!' : 'A muralha caiu!'}</h2>
       <p>${venceu ? `${G.chefe.nome} foi derrotado!` : 'Melhore o exército e tente de novo.'}</p>
       <div class="ganho">${ico('ouro')}<b id="fGanho">+${fmt(ganho)}</b></div>
+      ${venceu ? `<div class="fBau">${bau ? `${bauHtml(bau, 'mini')}<b>${BAUS[bau].nome}!</b>` : `<small>Espaços de baú cheios: abra seus baús!</small>`}</div>` : ''}
       ${venceu ? `<div class="roleta">${ROLETA.map(m => `<span class="m${m}">x${m}</span>`).join('')}<i id="rAgulha"></i></div>
       <div id="fBotoes"><button class="btn amarelo grande" data-a="roleta">${ico('ouro')} Pegar <b id="rMult">x2</b></button>
       <button class="fSo" data-a="proxima">Só +${fmt(ganho)}, próxima fase</button></div>` : ''}
@@ -523,8 +561,9 @@ function passoJogo(dt) {
   for (const c of G.chuvas) {
     c.t += dt; for (const f of c.fl) { f.o.position.y = Math.max(0.5, f.y0 - 55 * Math.max(0, c.t - f.atraso)); }
     if (c.t >= 0.75 && !c.feito) { c.feito = true; let n = 0;
-      for (const v of G.vm) if (Math.hypot(v.x, v.z - c.z) < 7.5) { v.morto = true; n++; arremessar('vm', v, 0, c.z, 9); } limparVm();
-      if (Math.abs(ch.z + 3 - c.z) < 9) ferirChefe(Math.round(ch.max * 0.05), 0, ch.z + 3, true);
+      const raio = 7.5 + 0.5 * (G.pd.chuva.nv - 1);
+      for (const v of G.vm) if (Math.hypot(v.x, v.z - c.z) < raio) { v.morto = true; n++; arremessar('vm', v, 0, c.z, 9); } limparVm();
+      if (Math.abs(ch.z + 3 - c.z) < 9) ferirChefe(Math.round(ch.max * (0.05 + 0.008 * (G.pd.chuva.nv - 1))), 0, ch.z + 3, true);
       C.faiscas(0, 1, c.z, 0xffd84a, 50, 8); C.camera.tremor = 0.5; som('pancada', 0.5);
       if (n) G.txt.push({ x: 0, y: 5, z: c.z, txt: `${n} derrotados!`, cor: '#ffd84a', t: 0, grande: true }); }
     if (c.t > 1.4) { for (const f of c.fl) cena.remove(f.o); c.fim = true; }
@@ -541,7 +580,7 @@ function passoJogo(dt) {
     } else if (gi.estado === 'luta') {
       gi.z = ch.z + 8; gi.golpe -= dt;
       if (gi.golpe <= 0) { gi.golpe = 0.7; gi.v.tocar('Melee_2H_Attack_Chop', { loop: false, reinicia: true }); if (!gi.v.tem('Melee_2H_Attack_Chop')) gi.v.tocar('Melee_1H_Attack_Chop', { loop: false, reinicia: true });
-        ferirChefe(Math.round(ch.max * 0.012) + 1, 0, ch.z + 4, true); C.faiscas(0, 5, ch.z + 5, 0xffffff, 12, 6); C.camera.tremor = Math.max(C.camera.tremor, 0.3); som('pancada', 0.35); }
+        ferirChefe(Math.round(ch.max * (0.012 + 0.002 * (G.pd.gigante.nv - 1))) + 1, 0, ch.z + 4, true); C.faiscas(0, 5, ch.z + 5, 0xffffff, 12, 6); C.camera.tremor = Math.max(C.camera.tremor, 0.3); som('pancada', 0.35); }
     }
     if (gi.hp <= 0 && gi.estado !== 'cai') { gi.estado = 'cai'; gi.v.tocar('Death_A', { loop: false, reinicia: true }); gi.tFim = gi.t + 1.6; }
     if (gi.estado === 'cai' && gi.t > gi.tFim) { C.faiscas(0, 3, gi.z, 0x8ac8ff, 30, 5); gi.v.remover(); G.gigante = null; }
@@ -574,7 +613,7 @@ function usarPoder(k) {
     G.chuvas.push(c); faixa('CHUVA DE FLECHAS!', '#8ac8ff'); G.heroiV.tocar('Ranged_Bow_Release', { loop: false, reinicia: true }); sfx('arco');
   } else {
     const v = C.heroi(visualPadrao('cav')); v.raiz.scale.setScalar(4.2); v.raiz.rotation.y = Math.PI; const gx = G.rotas > 1 ? ladoHeroi() * 2.4 : 0; v.raiz.position.set(gx, 0, ZSPAWN);
-    G.gigante?.v.remover(); G.gigante = { v, x: gx, z: ZSPAWN, hp: 40 + 4 * G.n, t: 0, estado: 'anda', golpe: 0 };
+    G.gigante?.v.remover(); G.gigante = { v, x: gx, z: ZSPAWN, hp: (40 + 4 * G.n) * (1 + 0.25 * (G.pd.gigante.nv - 1)), t: 0, estado: 'anda', golpe: 0 };
     C.faiscas(0, 3, ZSPAWN, 0x8ac8ff, 40, 7); faixa('GIGANTE ALIADO!', '#8ac8ff'); sfx('magia'); C.camera.tremor = 0.5;
   }
   G.brilhoH = 1; som('confirma');

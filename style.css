@@ -143,3 +143,73 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;paddin
 #jMenuT button small{display:flex;align-items:center;gap:2px;font-family:var(--fT);font-size:13px;color:var(--cinza2)}
 #jMenuT button.pode{border-color:var(--verde)}
 #jMenuT button.pode small{color:var(--verde2)}
+
+/* ---------- baús, cartas de poder e presente diário ---------- */
+#janela{position:absolute;inset:0;z-index:20;display:grid;place-items:center;background:rgba(8,16,32,.72);pointer-events:auto}
+.presente{position:relative;background:linear-gradient(#ff8a6a,#d8303a);border-color:#6a1010;box-shadow:0 3px 0 #6a1010}
+.ponto{position:absolute;top:-2px;right:-2px;width:14px;height:14px;border-radius:50%;background:#ffd23a;border:2px solid #fff;animation:pisca 1s infinite}
+.lbPd{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+.pdCarta{display:grid;grid-template-columns:34px 1fr;column-gap:6px;align-items:center;padding:6px;border-radius:12px;background:#fff;border:2px solid var(--creme2)}
+.pdCarta span{grid-row:1/3;width:34px;height:34px;border-radius:9px;display:grid;place-items:center;color:#fff;background:linear-gradient(#6ab8ff,#2466c8)}
+.pdCarta.gigante span{background:linear-gradient(#ffc85a,#d8701a)}
+.pdCarta b{font-family:var(--fT);font-weight:400;font-size:13px}
+.pdCarta b i{font-style:normal;color:var(--suave);font-size:11px}
+.pdBarra{position:relative;height:14px;border-radius:7px;background:#e8dcc4;overflow:hidden}
+.pdBarra i{display:block;height:100%;background:linear-gradient(#a07aff,#6a3ad8)}
+.pdBarra small{position:absolute;inset:0;display:grid;place-items:center;font-size:10px;color:#fff;text-shadow:0 1px 1px rgba(0,0,0,.5)}
+.baus{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:4px}
+.slotBau{height:72px;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:linear-gradient(#5a8fd8,#2a4a8a);border:2px solid #1a2a5a;color:#fff}
+.slotBau small{font-family:var(--fT);font-size:12px}
+.slotBau.vazio{background:#efe3c8;border:2px dashed #c8b48a;color:var(--suave)}
+.slotBau.vazio small{font-family:var(--fX);font-size:10px;text-align:center;padding:0 4px;line-height:1.1}
+.slotBau:not(.vazio){animation:pronto 1.6s infinite}
+/* baú desenhado em CSS */
+.bauG{--a:#b07a3a;--b:#7a4a1a;--f:#c8ccd2;position:relative;width:64px;height:52px}
+.bauG.prata{--a:#9ab0c8;--b:#5a6a80;--f:#ffffff}
+.bauG.ouro{--a:#ffcf3a;--b:#c08008;--f:#fff6c8}
+.bauG .corpo{position:absolute;left:0;right:0;bottom:0;height:60%;border-radius:4px 4px 8px 8px;background:linear-gradient(var(--a),var(--b));border:3px solid #3a2410;box-shadow:inset 0 -6px 0 rgba(0,0,0,.18)}
+.bauG .tampa{position:absolute;left:0;right:0;top:0;height:46%;border-radius:18px 18px 3px 3px;background:linear-gradient(var(--a),var(--b));border:3px solid #3a2410;z-index:1;transform-origin:50% 100%;transition:transform .35s cubic-bezier(.3,1.8,.5,1)}
+.bauG .fecho{position:absolute;left:50%;top:36%;width:14px;height:16px;margin-left:-7px;border-radius:3px;background:var(--f);border:2px solid #3a2410;z-index:2}
+.bauG.mini{width:40px;height:32px}
+.bauG.mini .tampa,.bauG.mini .corpo{border-width:2px}
+.bauG.mini .fecho{width:9px;height:10px;margin-left:-4.5px}
+.bauG.grande{width:150px;height:120px;margin:64px auto 10px}
+.bauG.grande .tampa,.bauG.grande .corpo{border-width:5px}
+.bauG.grande .fecho{width:30px;height:34px;margin-left:-15px}
+.bauG.treme{animation:treme 1.4s infinite}
+@keyframes treme{0%,70%,100%{transform:none}75%{transform:rotate(-6deg) scale(1.05)}80%{transform:rotate(6deg) scale(1.05)}85%{transform:rotate(-4deg)}90%{transform:rotate(3deg)}}
+.bauG.aberto .tampa{transform:translateY(-30px) rotate(-25deg)}
+.bauG.aberto .fecho{opacity:0}
+.jBau,.jDiario{position:relative;width:min(340px,90vw);text-align:center;color:#fff}
+.jBau h2,.jDiario h2{margin:0;font-family:var(--fT);font-weight:400;font-size:30px;color:#ffd23a;-webkit-text-stroke:2px #6b3f1d;paint-order:stroke fill;display:flex;align-items:center;justify-content:center;gap:8px}
+.raios{position:absolute;left:50%;top:184px;width:360px;height:360px;margin:-180px 0 0 -180px;border-radius:50%;opacity:0;pointer-events:none;
+  background:repeating-conic-gradient(rgba(255,220,120,.35) 0 10deg,transparent 10deg 20deg);-webkit-mask:radial-gradient(circle,#000 30%,transparent 70%);mask:radial-gradient(circle,#000 30%,transparent 70%)}
+.raios.liga{opacity:1;animation:gira 6s linear infinite;transition:opacity .4s}
+@keyframes gira{to{transform:rotate(360deg)}}
+.dicaBau{animation:pisca 1.2s infinite;font-size:16px}
+.premios{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin:12px 0}
+.premio{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:92px;padding:10px 8px;border-radius:14px;background:var(--creme);color:var(--tinta);border:3px solid var(--madeira);animation:entra .35s cubic-bezier(.2,1.6,.4,1)}
+.premio .ico{width:34px;height:34px;color:var(--amarelo2)}
+.premio.carta .ico{color:var(--azul2)}
+.premio.gigante .ico{color:#d8701a}
+.premio b{font-family:var(--fT);font-weight:400;font-size:22px}
+.premio small{font-size:12px;color:var(--suave)}
+.premio small em{font-style:normal;color:var(--verde2);font-family:var(--fT)}
+.premio.grande{flex-direction:row;justify-content:center;gap:8px;margin:10px auto;width:max-content}
+.premio.grande b{font-size:30px}
+.jDiario{padding:16px;border-radius:22px;background:var(--creme);border:3px solid var(--madeira);box-shadow:0 6px 0 var(--madeira);color:var(--tinta)}
+.jDiario p{margin:6px 0 10px;font-size:14px;color:var(--suave)}
+.dias{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px}
+.dia{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;height:78px;border-radius:12px;background:#fff;border:2px solid var(--creme2)}
+.dia:last-child{grid-column:span 2}
+.dia small{font-size:11px;color:var(--suave)}
+.dia .ico{width:26px;height:26px;color:var(--amarelo2)}
+.dia b{font-family:var(--fT);font-weight:400;font-size:15px}
+.dia.hoje{border-color:var(--verde);box-shadow:0 0 0 3px rgba(95,216,74,.35);animation:pronto 1.4s infinite}
+.dia.pego{opacity:.55}
+.dia > i{position:absolute;inset:0;display:grid;place-items:center;font-style:normal}
+.dia > i .ico{width:40px;height:40px;color:var(--verde2)}
+.volte{font-family:var(--fT);color:var(--verde2)!important}
+.fBau{display:flex;align-items:center;justify-content:center;gap:8px;margin:-4px 0 8px}
+.fBau b{font-family:var(--fT);font-weight:400;font-size:18px;color:var(--madeira)}
+.fBau small{color:var(--suave)}
