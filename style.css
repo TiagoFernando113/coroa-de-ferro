@@ -109,14 +109,15 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;paddin
 .ganho b{font-weight:400}
 
 .jPoderes{position:absolute;right:12px;bottom:calc(max(12px,env(safe-area-inset-bottom)) + 52px);display:flex;flex-direction:column;gap:18px}
-.poder{--p:0deg;position:relative;width:64px;height:64px;border-radius:50%;display:grid;place-items:center;color:#fff;background:radial-gradient(circle at 35% 30%,#7ac0ff,#2466c8);border:3px solid #fff;box-shadow:0 4px 0 #0f3a7a,0 6px 12px rgba(0,0,0,.4)}
-.poder[data-pd=gigante]{background:radial-gradient(circle at 35% 30%,#ffd27a,#d8801a);box-shadow:0 4px 0 #7a4008,0 6px 12px rgba(0,0,0,.4)}
-.poder .ico{width:34px;height:34px;filter:drop-shadow(0 2px 0 rgba(0,0,0,.35))}
-.poder small{position:absolute;bottom:-14px;left:50%;transform:translateX(-50%);font-family:var(--fT);font-size:12px;color:#fff;text-shadow:0 1px 2px #000;white-space:nowrap}
-.poder::after{content:'';position:absolute;inset:-3px;border-radius:50%;background:conic-gradient(rgba(0,0,0,.6) var(--p),transparent 0)}
-.poder.pronto{animation:pronto 1s infinite}
-@keyframes pronto{50%{transform:scale(1.08);box-shadow:0 4px 0 #0f3a7a,0 0 18px 6px rgba(255,230,120,.8)}}
-.poder:active{transform:scale(.92)}
+.poder{--p:0deg;--h:0%;position:relative;width:70px;height:70px;border-radius:18px;display:grid;place-items:center;color:#fff;overflow:hidden;
+  background:linear-gradient(#6ab8ff,#2466c8);border:3px solid #fff;box-shadow:0 5px 0 #0f3a7a,0 8px 14px rgba(0,0,0,.35)}
+.poder[data-pd=gigante]{background:linear-gradient(#ffc85a,#d8701a);box-shadow:0 5px 0 #7a4008,0 8px 14px rgba(0,0,0,.35)}
+.poder .ico{width:34px;height:34px;margin-top:-10px;filter:drop-shadow(0 2px 0 rgba(0,0,0,.35))}
+.poder small{position:absolute;bottom:4px;left:0;right:0;text-align:center;font-family:var(--fT);font-size:12px;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.6)}
+.poder::after{content:'';position:absolute;left:0;right:0;bottom:0;height:var(--h);background:rgba(10,20,40,.62);transition:height .1s}
+.poder.pronto{animation:pronto 1.2s infinite}
+@keyframes pronto{50%{box-shadow:0 5px 0 #0f3a7a,0 0 16px 4px rgba(255,230,120,.85)}}
+.poder:active{transform:translateY(3px)}
 .roleta{position:relative;display:flex;height:40px;border-radius:12px;overflow:hidden;border:3px solid var(--madeira);margin:4px 0 12px}
 .roleta span{flex:1;display:grid;place-items:center;font-family:var(--fT);font-size:18px;color:#fff;text-shadow:0 2px 0 rgba(0,0,0,.35)}
 .roleta .m2{background:#4aa8ff}.roleta .m3{background:#5fd84a}.roleta .m5{background:#ff8a2a}

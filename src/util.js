@@ -20,7 +20,10 @@ export async function carregarRecursos(buf) {
   };
   addEventListener('pointerdown', iniciarAudio, { once: true });
 }
+const ultimoSom = {};
 export function som(n, vol = 0.6) {
   if (mudo || !actx || !sons[n]) return;
-  const s = actx.createBufferSource(), g = actx.createGain(); g.gain.value = vol; s.buffer = sons[n]; s.connect(g).connect(actx.destination); s.start();
+  const a = actx.currentTime; if (ultimoSom[n] && a - ultimoSom[n] < 0.08) return; ultimoSom[n] = a; // evita metralhadora de sons iguais
+  const s = actx.createBufferSource(), g = actx.createGain(); g.gain.value = vol * 0.8; s.buffer = sons[n]; s.playbackRate.value = 0.92 + Math.random() * 0.16;
+  s.connect(g).connect(actx.destination); s.start();
 }
