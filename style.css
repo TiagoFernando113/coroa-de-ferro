@@ -383,3 +383,5 @@ input{font:inherit;user-select:text;-webkit-user-select:text}
 .heroiC em.preco.pode{background:linear-gradient(#ffd23a,#d8901a);color:#5a2e08}
 .heroiC em .ico{width:13px;height:13px}
 .heroiC.bloq > span{filter:grayscale(.6)}
+
+.fN.corrida{background:linear-gradient(#6ad86a,#2a8a3a);color:#0a3a10}
