@@ -295,7 +295,7 @@ function limparFase() {
   for (const f of G.flechas) cena.remove(f.o);
   for (const p of G.portoes) cena.remove(p.o);
   G.chefe?.v.remover(); G.heroiV?.remover(); G.gigante?.v.remover();
-  if (G.dupla) { G.dupla.v.remover(); G.dupla.canal?.fechar(); }
+  if (G.dupla) { G.dupla.v.remover(); if (!G.dupla.manter) G.dupla.canal?.fechar(); }
   for (const c of G.chuvas) for (const f of c.fl) cena.remove(f.o);
   for (const p of G.pedras) cena.remove(p.o);
   for (const v of G.vagas) { cena.remove(v.base); if (v.o) cena.remove(v.o); }
@@ -509,12 +509,15 @@ function comecarDupla(d) {
 }
 function receberDupla(ev, p) {
   const D = G?.dupla; if (!D) return;
-  if (ev === '_caiu') { if (!D.saiu && !G.fim) { D.saiu = true; faixa(`${D.apelido.toUpperCase()} SAIU`, '#ff9a3a'); } return; }
+  if (ev === '_caiu') { if (!D.saiu) { D.saiu = true; if (!G.fim) faixa(`${D.apelido.toUpperCase()} SAIU`, '#ff9a3a'); atualizarRevanche(); } return; }
+  if (ev === 'sair') { D.saiu = true; if (!G.fim) faixa(`${D.apelido.toUpperCase()} SAIU`, '#ff9a3a'); atualizarRevanche(); return; }
+  if (ev === 'rv') { D.rvParc = true; if (G.fim) { sfx('brilho'); atualizarRevanche(); tentarRevanche(); } }
+  if (ev === 'go') { if (D.rvEu) iniciarRevanche(p.fase); return; }
   D.visto = performance.now();
   if (ev === 'h') D.alvo = Math.max(-MEIA + 2.5, Math.min(MEIA - 2.5, -p.x)); // o parceiro aparece espelhado (do outro lado)
   if (ev === 'd' && p.t > D.dano) { const k = p.t - D.dano; D.dano = p.t; if (!G.fim) { G.chefe.hp -= k; G.chefe.flash = 0.06; } }
   if (ev === 'r' && p.n > 0 && !G.fim) { G.fila = Math.min(maxFila(), G.fila + p.n); G.txt.push({ x: D.x, y: 5, z: ZSPAWN, txt: `+${p.n} ${D.apelido}`, cor: '#8ae0ff', t: 0, grande: p.n >= 10 }); }
-  if (ev === 'f') { D.fim = p.v ? 'v' : 'd'; if (p.v && !G.fim) G.chefe.hp = 0; else if (!p.v && !G.fim) faixa(`${D.apelido.toUpperCase()} CAIU! AGUENTE!`, '#ff5a4a'); }
+  if (ev === 'f') { D.fim = p.v ? 'v' : 'd'; if (G.fim) atualizarRevanche(); if (p.v && !G.fim) G.chefe.hp = 0; else if (!p.v && !G.fim) faixa(`${D.apelido.toUpperCase()} CAIU! AGUENTE!`, '#ff5a4a'); }
 }
 function passoDupla(dt) {
   const D = G.dupla; if (!D) return; D.tEnvio -= dt; D.tTiro -= dt;
@@ -534,7 +537,33 @@ function passoDupla(dt) {
     const o = new THREE.Mesh(GEO_FLECHA, MAT_FLECHA_P); o.position.set(D.x, 2.6, ZH - 1); cena.add(o); G.flechas.push({ x: D.x, z: ZH - 1, o, parc: true }); }
 }
 const MAT_FLECHA_P = new THREE.MeshBasicMaterial({ color: 0x8ae0ff });
-function fimDupla(venceu) { const D = G.dupla; if (!D) return; if (D.canal) { D.canal.enviar('f', { v: venceu }); setTimeout(() => D.canal.fechar(), 1500); } }
+function fimDupla(venceu) { const D = G.dupla; if (D?.canal) D.canal.enviar('f', { v: venceu }); }
+// ---- jogar de novo com o mesmo parceiro: os dois precisam aceitar ----
+function pedirRevanche() {
+  const D = G?.dupla; if (!D || D.rvEu) return; D.rvEu = true; som('confirma');
+  if (D.bot) setTimeout(() => { if (G?.dupla === D) { D.rvParc = true; tentarRevanche(); } }, 1200 + Math.random() * 1200);
+  else D.canal?.enviar('rv', {});
+  atualizarRevanche(); tentarRevanche();
+  setTimeout(() => { if (G?.dupla === D && G.fim && !D.rvParc) { D.semResposta = true; atualizarRevanche(); } }, 20000);
+}
+function tentarRevanche() {
+  const D = G?.dupla; if (!D || !D.rvEu || !D.rvParc || !G.fim) return;
+  if (D.bot || D.host) { const fase = G.fim === 'v' || D.fim === 'v' ? G.n + 1 : G.n; D.canal?.enviar('go', { fase }); iniciarRevanche(fase); }
+}
+function iniciarRevanche(fase) {
+  const A = G.dupla; A.manter = true; $('#fim').hidden = true; sfx('vitoria');
+  comecarFase(false, { apelido: A.apelido, bot: A.bot, host: A.host, fase }); G.dupla.canal = A.canal;
+}
+function atualizarRevanche() {
+  const D = G?.dupla, el = $('#rvTxt'), b = document.querySelector('[data-a=revanche]'); if (!D || !el || !b) return;
+  const nome = esc(D.apelido);
+  if (D.saiu || D.semResposta) { el.textContent = D.saiu ? `${D.apelido} saiu da sala.` : `${D.apelido} não respondeu.`; b.dataset.a = 'dupla'; b.innerHTML = `${ico('herois')} Procurar outro parceiro`; b.classList.remove('pulsa'); return; }
+  b.classList.toggle('pulsa', D.rvParc && !D.rvEu);
+  if (D.rvEu && !D.rvParc) { el.innerHTML = D.fim ? `Esperando <b>${nome}</b> aceitar...` : `<b>${nome}</b> ainda está jogando. Esperando...`; b.disabled = true; b.innerHTML = `${ico('relogio')} Esperando...`; }
+  else if (D.rvParc && !D.rvEu) { el.innerHTML = `<b>${nome}</b> quer jogar de novo!`; b.innerHTML = `${ico('check')} Aceitar e jogar de novo`; }
+  else if (!D.fim) el.innerHTML = `<b>${nome}</b> ainda está jogando...`;
+  else el.textContent = '';
+}
 function mostrarDiario() {
   const j = $('#janela'); j.hidden = false; const pronto = diarioPronto(), dia = diaDoPresente(), hojeI = pronto ? dia : (dia + 6) % 7;
   j.innerHTML = `<div class="jDiario"><h2>${ico('presente')} Presente diário</h2><p>Entre todo dia: o presente cresce. Se faltar um dia, volta ao começo.</p>
@@ -551,7 +580,7 @@ function clique(e) {
   if (a === 'jogar') { som('confirma'); comecarFase(); }
   if (a === 'infinito') { if (S.melhor < 3) { som('erro'); return; } som('confirma'); comecarFase(true); }
   if (a === 'denovoInf') { som('confirma'); comecarFase(true); }
-  if (a === 'sair') { som('fechar'); $('#janela').hidden = true; abrirLobby(); }
+  if (a === 'sair') { som('fechar'); G?.dupla?.canal?.enviar('sair', {}); $('#janela').hidden = true; abrirLobby(); }
   if (a === 'proxima') { som('confirma'); comecarFase(); }
   if (a === 'lobby') { som('clique'); abrirLobby(); }
   if (b.dataset.pd) usarPoder(b.dataset.pd);
@@ -560,6 +589,8 @@ function clique(e) {
   if (a === 'online') { som('clique'); mostrarOnline(); }
   if (b.dataset.aba || b.dataset.cla || ['trocarNome', 'salvarNome', 'claCriar', 'claSair'].includes(a)) cliqueOnline(b);
   if (a === 'dupla') { som('confirma'); procurarDupla(); }
+  if (a === 'revanche') pedirRevanche();
+  if (a === 'sairDupla') { som('fechar'); G?.dupla?.canal?.enviar('sair', {}); abrirLobby(); }
   if (a === 'cancelarDupla') { som('fechar'); pararBusca(); $('#janela').hidden = true; }
   if (a === 'fecharJanela') { som('fechar'); $('#janela').hidden = true; if (tela === 'lobby') desenharLobby(); }
   if (a === 'pegarDiario') { const D = DIARIO[diaDoPresente()];
@@ -647,13 +678,15 @@ function terminar(venceu) {
       <p>${venceu ? `${G.chefe.nome} foi derrotado!` : 'Melhore o exército e tente de novo.'}${G.dupla ? ` <b>Em dupla com ${esc(G.dupla.apelido)}: +50% moedas</b>` : ''}</p>
       <div class="ganho">${ico('ouro')}<b id="fGanho">+${fmt(ganho)}</b></div>
       ${venceu ? `<div class="fBau">${bau ? `${bauHtml(bau, 'mini')}<b>${BAUS[bau].nome}!</b>` : `<small>Espaços de baú cheios: abra seus baús!</small>`}</div>` : ''}
-      ${venceu ? `<div class="roleta">${ROLETA.map(m => `<span class="m${m}">x${m}</span>`).join('')}<i id="rAgulha"></i></div>
+      ${G.dupla ? `<div id="fDupla"><button class="btn verde grande" data-a="revanche">${ico('herois')} Jogar de novo com ${esc(G.dupla.apelido)}</button><p id="rvTxt" class="pos"></p>
+        <button class="btn azul" data-a="sairDupla">Sair</button></div>` : venceu ? `<div class="roleta">${ROLETA.map(m => `<span class="m${m}">x${m}</span>`).join('')}<i id="rAgulha"></i></div>
       <div id="fBotoes"><button class="btn amarelo grande" data-a="roleta">${ico('ouro')} Pegar <b id="rMult">x2</b></button>
       <button class="fSo" data-a="proxima">Só +${fmt(ganho)}, próxima fase</button></div>` : ''}
-      <div id="fSeguir" ${venceu ? 'hidden' : ''}><button class="btn verde grande" data-a="proxima">${venceu ? `Fase ${S.fase} ${ico('seta')}` : 'Tentar de novo'}</button>
+      <div id="fSeguir" ${venceu || G.dupla ? 'hidden' : ''}><button class="btn verde grande" data-a="proxima">${venceu ? `Fase ${S.fase} ${ico('seta')}` : 'Tentar de novo'}</button>
       <button class="btn azul" data-a="lobby">${ico('raio')} Melhorias</button></div></div>`;
     sfx(venceu ? 'vitoria' : 'derrota');
-    if (venceu) { roleta = { ganho, t0: performance.now(), m: 2 }; const gira = () => { if (!roleta || roleta.parada) return;
+    atualizarRevanche();
+    if (venceu && !G.dupla) { roleta = { ganho, t0: performance.now(), m: 2 }; const gira = () => { if (!roleta || roleta.parada) return;
       const k = (Math.sin((performance.now() - roleta.t0) / 1000 * 3.2 - Math.PI / 2) + 1) / 2; roleta.m = ROLETA[Math.min(ROLETA.length - 1, Math.floor(k * ROLETA.length))];
       $('#rAgulha').style.left = (k * 100) + '%'; $('#rMult').textContent = 'x' + roleta.m; requestAnimationFrame(gira); }; gira(); }
   }, venceu ? 1800 : 1200);
