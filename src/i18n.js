@@ -13,6 +13,7 @@ const cache = new Map();
 window.__textos = window.__textos || null; // para coletar textos nos testes
 export function t(txt) {
   if (txt == null) return txt; const s = String(txt), limpo = s.trim(); if (!limpo || !/\p{L}/u.test(limpo)) return s;
+  const pt = limpo.match(/^(·\s*)?(.*?)(\s*·)?$/); if ((pt[1] || pt[3]) && pt[2]) return s.replace(limpo, (pt[1] || '') + t(pt[2]) + (pt[3] || ''));
   if (limpo.includes(' · ')) { const partes = limpo.split(' · '); if (partes.length > 1 && !(lang.startsWith('pt') && !window.__textos)) return s.replace(limpo, partes.map(p => t(p)).join(' · ')); }
   const nums = limpo.match(NUM) || [], k = limpo.replace(NUM, '#');
   if (window.__textos) window.__textos.add(k);

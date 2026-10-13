@@ -56,7 +56,7 @@ let foco = { x: 0, z: -30 };
 // ---------------- texturas desenhadas ----------------
 const texCache = {};
 function texRotulo(txt, fundo, borda, w = 256, h = 128) {
-  const k = txt + fundo + w; if (texCache[k]) return texCache[k];
+  txt = tr(txt); const k = txt + fundo + w; if (texCache[k]) return texCache[k];
   const cv = document.createElement('canvas'); cv.width = w; cv.height = h; const g = cv.getContext('2d');
   desenharRotulo(g, txt, fundo, borda, w, h);
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return (texCache[k] = t);
