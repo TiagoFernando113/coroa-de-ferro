@@ -178,6 +178,10 @@ const T = {
   'código ou senha errados': L('wrong code or password', 'código o contraseña incorrectos'), 'muitas tentativas, espere # hora': L('too many tries, wait # hour', 'demasiados intentos, espera # hora'),
   'Progresso recuperado! Reiniciando...': L('Progress recovered! Restarting...', '¡Progreso recuperado! Reiniciando...'),
   'Menu': L('Menu', 'Menú'),
+  // convites
+  'Jogar junto': L('Play together', 'Jugar juntos'), 'Jogar junto (Dupla)': L('Play together (Duo)', 'Jugar juntos (Dúo)'), 'Convidando': L('Inviting', 'Invitando'), '... esperando aceitar': L('... waiting to accept', '... esperando que acepte'),
+  'Convite recusado.': L('Invite declined.', 'Invitación rechazada.'), 'Ninguém respondeu.': L('No answer.', 'Nadie respondió.'), 'Convite!': L('Invite!', '¡Invitación!'),
+  'chamou você para jogar em dupla (fase #).': L('invited you to play as a duo (stage #).', 'te invitó a jugar en dúo (fase #).'), 'Aceitar': L('Accept', 'Aceptar'), 'Recusar': L('Decline', 'Rechazar'), 'convite expirou': L('invite expired', 'la invitación expiró'),
 };
 export const TEXTOS = { en: {}, es: {} };
 for (const [k, v] of Object.entries(T)) { TEXTOS.en[k] = v.en; TEXTOS.es[k] = v.es; }

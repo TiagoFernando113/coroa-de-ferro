@@ -745,6 +745,36 @@ function procurarDupla() {
   };
   passo();
 }
+// ---- convite direto para a dupla ----
+let convite = null, convitesVistos = new Set();
+async function convidarDupla(codigo, nome) {
+  const j = $('#janela'); j.hidden = false;
+  j.innerHTML = `<div class="jOnline"><h2>${ico('herois')} Jogar junto</h2><div class="radar"><i></i><i></i>${ico('herois')}</div>
+    <p id="convTxt">Convidando <b data-nt>${esc(nome || '')}</b>... esperando aceitar</p><button class="btn azul" data-a="cancelarConvite">Cancelar</button></div>`;
+  let id; try { id = await ON.convidar(codigo, S.fase); } catch (e) { const t = $('#convTxt'); if (t) t.textContent = e.message; som('erro'); return; }
+  const c = convite = { id, ativo: true };
+  const passo = async () => { if (!c.ativo) return;
+    try { const r = await ON.conviteEstado(id); if (!c.ativo) return;
+      if (r?.estado === 'aceito') { c.ativo = false; convite = null; j.hidden = true; sfx('vitoria'); comecarDupla({ sala: r.sala, apelido: r.apelido, fase: r.fase, host: true }); return; }
+      if (r && r.estado !== 'pendente') { c.ativo = false; convite = null; const t = $('#convTxt'); if (t) t.textContent = tr(r.estado === 'recusado' ? 'Convite recusado.' : 'Ninguém respondeu.'); som('erro'); return; }
+    } catch (e) {}
+    setTimeout(passo, 2000); };
+  setTimeout(passo, 2000);
+}
+// quem está no lobby recebe os convites (consulta a cada 6 s)
+setInterval(() => {
+  if (tela !== 'lobby' || !S.online?.codigo || busca || convite || !$('#janela').hidden) return;
+  ON.convites().then(l => { const c = (l || []).find(x => !convitesVistos.has(x.id)); if (!c || tela !== 'lobby' || !$('#janela').hidden) return; convitesVistos.add(c.id);
+    const j = $('#janela'); j.hidden = false; sfx('brilho'); som('confirma');
+    j.innerHTML = `<div class="jOnline convite"><h2>${ico('herois')} Convite!</h2><p><b data-nt>${esc(c.apelido)}</b> chamou você para jogar em dupla (fase ${c.fase}).</p>
+      <button class="btn verde grande" data-responder="${c.id}" data-aceita="1">${ico('check')} Aceitar</button><button class="btn cinza" data-responder="${c.id}" data-aceita="0">Recusar</button></div>`; }).catch(() => {});
+}, 6000);
+async function responderConvite(id, aceita) {
+  const j = $('#janela');
+  try { const r = await ON.conviteResponder(id, aceita); j.hidden = true;
+    if (aceita && r?.sala) { sfx('vitoria'); comecarDupla({ sala: r.sala, apelido: r.apelido, fase: r.fase, host: false }); } else som('fechar'); }
+  catch (e) { j.innerHTML = `<div class="jOnline"><p class="erro">${esc(e.message)}</p><button class="btn azul" data-a="fecharJanela">Fechar</button></div>`; som('erro'); }
+}
 function pararBusca() { if (busca) busca.ativo = false; busca = null; ON.cancelar(); }
 function comecarDupla(d) {
   const bot = !d.sala; comecarFase(false, { apelido: d.apelido || NOMES_BOT[Math.floor(Math.random() * NOMES_BOT.length)], bot, host: d.host, fase: d.fase || S.fase });
@@ -894,6 +924,7 @@ function pintarPerfil(codigo, P) {
       <small><i class="pontoOn ${P.online ? 'on' : ''}"></i>${P.online ? 'online' : 'offline'}${P.cla ? ` · <span data-nt>${esc(P.cla)}</span>` : ''}${d.renasc ? ` · ${ico('girar')} ×${d.renasc}` : ''}</small></div></div>
     <div class="pfLista">${(d.equipe || []).length ? `<h3>Equipe <small>${ico('forca')} ${fmt(d.forca || 0)}</small></h3><div class="pfEquipe">${d.equipe.filter(k => PETS[base(k)]).map(k => `<span class="r${PETS[base(k)].r}" style="--r:${RARIDADES[PETS[base(k)].r].cor}"><img src="${fotoPet(k)}" alt="">${est(k) ? `<i style="color:${ESTRELAS[est(k)].cor}">${'★'.repeat(est(k))}</i>` : ''}</span>`).join('')}</div>` : ''}
       <h3>Estatísticas</h3>${htmlStats(d)}${meds ? `<h3>Medalhas</h3><div class="pfMeds">${meds}</div>` : ''}</div>
+    ${P.online ? `<button class="btn amarelo" data-convidar="${codigo}" data-nome="${esc(P.apelido)}">${ico('h_triplo')} Jogar junto (Dupla)</button>` : ''}
     ${(S.amigosC || []).includes(codigo) ? `<button class="btn cinza" data-amigo="${codigo}" data-ativo="0">${ico('check')} Amigo · remover</button>` : `<button class="btn verde" data-amigo="${codigo}" data-ativo="1">${ico('herois')} Adicionar amigo</button>`}
     <p class="erro" id="amErro"></p><button class="btn azul" data-a="fecharJanela">Fechar</button></div>`;
 }
@@ -983,6 +1014,9 @@ function clique(e) {
   if (a?.startsWith('ct')) { acaoConta(a, b); return; }
   if (b.dataset.perfil) { som('clique'); verPerfil(b.dataset.perfil); return; }
   if (b.dataset.amigo) { marcarAmigo(b); return; }
+  if (b.dataset.convidar) { som('confirma'); convidarDupla(b.dataset.convidar, b.dataset.nome); return; }
+  if (a === 'cancelarConvite') { som('fechar'); if (convite) { convite.ativo = false; ON.conviteCancelar(convite.id); convite = null; } $('#janela').hidden = true; return; }
+  if (b.dataset.responder) { responderConvite(+b.dataset.responder, b.dataset.aceita === '1'); return; }
   if (a === 'amigoCod') { const c = $('#amCod').value.trim(); if (c.length < 4) { som('erro'); return; } b.dataset.amigo = c; b.dataset.ativo = '1'; marcarAmigo(b).then(() => { const i = $('#amCod'); if (i && !$('#amErro')?.textContent) i.value = ''; }); return; }
   if (b.dataset.avatar) { S.avatar = b.dataset.avatar; salvar(); som('clique'); mostrarPerfil(); desenharLobby(); }
   if (b.dataset.medalha) { const r = pegarMedalha(b.dataset.medalha); if (!r) { som('erro'); return; } sfx('medalha'); som('moedas'); mostrarPerfil(); desenharLobby(); }

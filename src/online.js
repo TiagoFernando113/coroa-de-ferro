@@ -42,6 +42,12 @@ export const saveEnviar = comConta(dados => rpc('ponte_save_enviar', { ...id(), 
 export const senhaDefinir = comConta(senha => rpc('ponte_senha_definir', { ...id(), p_senha: senha }));
 export const temSenha = comConta(() => rpc('ponte_tem_senha', id()));
 export async function recuperar(codigo, senha) { const novo = aleatorio(24); const r = await rpc('ponte_recuperar', { p_codigo: codigo, p_senha: senha, p_novo_segredo: novo }); return { ...r, segredo: novo }; }
+// convites para jogar em dupla
+export const convidar = comConta((codigo, fase) => rpc('ponte_convidar', { ...id(), p_codigo: codigo, p_fase: fase }));
+export const conviteEstado = comConta(conv => rpc('ponte_convite_estado', { ...id(), p_conv: conv }));
+export const conviteCancelar = conv => S.online?.codigo ? rpc('ponte_convite_cancelar', { ...id(), p_conv: conv }).catch(() => {}) : Promise.resolve();
+export const convites = comConta(() => rpc('ponte_convites', id()));
+export const conviteResponder = comConta((conv, aceita) => rpc('ponte_convite_responder', { ...id(), p_conv: conv, p_aceita: aceita }));
 export const ranking = () => rpc('ponte_top3', { p_limite: 50, p_id: S.online?.id || null });
 export const ajudaAuto = comConta(fase => rpc('ponte_ajuda_auto', { ...id(), p_fase: fase }));
 export const premios = comConta(() => rpc('ponte_premios', id()));
