@@ -4,7 +4,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
-        android:label="Coroa de Ferro"
+        android:label="Batalha da Ponte"
         android:icon="@drawable/ic_launcher"
         android:theme="@style/Tema"
         android:allowBackup="true">

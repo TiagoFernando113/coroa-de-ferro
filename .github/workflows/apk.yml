@@ -41,6 +41,6 @@ jobs:
           cp android/app/build/outputs/apk/release/app-release.apk CoroaDeFerro.apk
           gh release create "apk-${{ github.run_number }}" CoroaDeFerro.apk \
             --target "${{ github.sha }}" \
-            --title "Coroa de Ferro — APK ${{ github.run_number }}" \
+            --title "Batalha da Ponte — APK ${{ github.run_number }}" \
             --notes "Instale por cima do anterior. O jogo em si atualiza sozinho: feche e abra o app." \
             --latest
