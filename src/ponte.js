@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import * as C from './cena.js';
 import { HABILIDADES, fase as dadosFase, tiros, vidaMuralha, escudo, fmt, UPGRADES } from './dados.js';
-import { S, salvar, mudouDesdeBackup, backupFeito, darCartas, comprar, BAUS, MAX_BAUS, ganharBau, abrirBau, cartasPara, CARTAS, DIARIO, diarioPronto, diaDoPresente, pegarDiario } from './meta.js';
+import { S, salvar, fimDeSemana, mudouDesdeBackup, backupFeito, darCartas, comprar, BAUS, MAX_BAUS, ganharBau, abrirBau, cartasPara, CARTAS, DIARIO, diarioPronto, diaDoPresente, pegarDiario } from './meta.js';
 import { visualPadrao } from './aparencia.js';
 import { ico, som, $, alternarSom, estaMudo } from './util.js';
 import { tema, sfx, intensidade } from './musica.js';
@@ -453,6 +453,7 @@ function desenharLobby() {
     <div class="lbFaseCard"><span class="fN ${ehCorrida(S.fase) ? 'corrida' : ''}"><small>${ehCorrida(S.fase) ? 'CORRIDA' : 'FASE'}</small><b>${S.fase}</b></span><span class="fInfo"><b>${ico('chefe')} ${F.chefe.nome}</b><small>${HABILIDADES[F.chefe.modelo]?.desc || ''} · ${BIOMAS[biomaDe(S.fase)].nome} · vida ${fmt(F.chefe.hp)}${O?.apelido ? ` · <span data-nt>${esc(O.apelido)}</span>` : ''}</small>
       ${eventoDaFase(S.fase) ? (E => `<em class="fEvento" style="--c:${E.cor}">${ico(E.icone)}<b>${E.nome}:</b> ${E.desc}</em>`)(EVENTOS[eventoDaFase(S.fase)]) : ''}</span></div>
     <div class="lbBase">
+      ${fimDeSemana() ? `<div class="fdsFaixa">${ico('festa')}<span><b>Fim de semana dourado!</b><small>Moedas x2 · ovos com sorte x2 · guerra de clãs</small></span></div>` : ''}
       <button class="cqEntrar" data-a="conquista">${ico('bandeira')}<span><b>Conquista</b><small>Estágio ${S.cq.est} · seus pets lutam sozinhos</small></span>${lucroOcioso() > 0 ? `<em>${ico('ouro')}${fmt(lucroOcioso())}</em>` : ''}</button>
       <div class="baus">${Array.from({ length: MAX_BAUS }, (_, i) => { const b = S.baus[i];
         return b ? `<button class="slotBau" data-bau="${i}">${bauHtml(b.tipo, 'mini')}<small>Abrir!</small></button>` : `<div class="slotBau vazio">${ico('bau')}</div>`; }).join('')}</div>
@@ -627,8 +628,10 @@ function carregarOnline(aba) {
         <div class="claChefe"><small>${ico('chefe')} Chefe do clã (semana) — todo dano que vocês dão nas batalhas conta</small>
           <div class="barra vm"><i style="width:${100 - 100 * k}%"></i><span>${fmt(c.vida - c.dano)} / ${fmt(c.vida)}</span></div>
           <small>Derrotar dá ${ico('ouro')} ${150 + 50 * c.nivel} para cada membro</small></div>
+        <div id="guerraCard"></div>
         <div class="lista">${c.membros.map(m => `<div class="linha ${m.eu ? 'eu' : ''}"><i class="pontoOn ${m.online ? 'on' : ''}"></i><button class="nomeBtn" data-perfil="${m.codigo}" data-nt>${esc(m.apelido)}</button><small>fase ${m.fase}</small><em>${fmt(m.dano)}</em></div>`).join('')}</div>
         <button class="fSo" data-a="claSair">Sair do clã</button>`;
+      comCache('guerra', () => ON.guerra(), pintarGuerra, null, 30000);
       return; }
     e.classList.remove('modoChat'); $('#onCorpo')?.classList.remove('comChat');
     comCache('clas', () => ON.clas(), l => { const e2 = $('#claCorpo'); if (!e2 || lerCache('meucla')?.d) return;
@@ -661,6 +664,19 @@ async function cliqueOnline(b) {
     b.disabled = true; try { await ON.claCriar(n, tg, Math.floor(Math.random() * 8)); esquecer('meucla', 'clas', 'chat'); S.moedas -= 200; salvar(); sfx('vitoria'); carregarOnline('cla'); } catch (e) { b.disabled = false; erro(e.message); } }
   if (a === 'claSair') { if (b.dataset.certeza !== '1') { b.dataset.certeza = '1'; b.textContent = 'Toque de novo para sair'; return; }
     try { await ON.claSair(); esquecer('meucla', 'clas', 'chat'); som('fechar'); carregarOnline('cla'); } catch (e) { erro(e.message); } }
+}
+// ---- guerra de clãs (sábado e domingo): o dano de todos nas batalhas conta ----
+const tempoTxt = seg => { seg = Math.max(0, seg); const d = Math.floor(seg / 86400), h = Math.floor(seg / 3600) % 24, m = Math.floor(seg / 60) % 60; return d ? `${d}d ${h}h` : h ? `${h}h ${m}min` : `${m}min`; };
+function pintarGuerra(g) {
+  const e = $('#guerraCard'); if (!e || !g) return;
+  if (!g.ativa) { e.innerHTML = `<div class="gcCard calma">${ico('poder')}<div><b>Guerra de clãs</b><small>Começa no sábado · em ${tempoTxt(g.comeca)}</small>
+    ${g.ultima ? `<small>Última: ${fmt(g.ultima.nos)} × ${fmt(g.ultima.eles)} · ${g.ultima.nos >= g.ultima.eles ? 'vitória!' : 'derrota'}</small>` : ''}</div></div>`; return; }
+  if (g.procurando) { e.innerHTML = `<div class="gcCard">${ico('poder')}<div><b>Guerra de clãs</b><small>Procurando um clã adversário...</small></div></div>`; return; }
+  const tot = Math.max(1, g.nos.dano + g.eles.dano), k = 100 * g.nos.dano / tot;
+  e.innerHTML = `<div class="gcCard ativa"><b>${ico('poder')} Guerra de clãs <small>termina em ${tempoTxt(g.termina)}</small></b>
+    <div class="gcVs"><span data-nt>${tagHtml(g.nos.tag, g.nos.cor)}${esc(g.nos.nome)}</span><em>VS</em><span data-nt>${tagHtml(g.eles.tag, g.eles.cor)}${esc(g.eles.nome)}</span></div>
+    <div class="gcBarra"><i style="width:${k}%"></i><span class="a">${fmt(g.nos.dano)}</span><span class="b">${fmt(g.eles.dano)}</span></div>
+    <small>Todo dano nas batalhas conta. Quem vencer ganha ${ico('ouro')} para cada membro!</small></div>`;
 }
 // ---- chat do clã: mensagens, pedidos de cartas e avisos (atualiza a cada 4 s com a aba aberta) ----
 let claModo = 'chat', chatTimer = null, chatAssin = '';
@@ -1151,7 +1167,7 @@ function terminarInf() {
 function danoNoCla() { const d = G.danoTotal || 0; if (d > 0 && S.online?.codigo) ON.claDano(d).then(r => { if (r?.caiu) setTimeout(coletarPremios, 500); }).catch(() => {}); }
 function terminar(venceu) {
   if (G.fim) return; danoNoCla(); fimDupla(venceu); if (G.inf) return terminarInf(); G.fim = venceu ? 'v' : 'd'; tela = 'fim';
-  const ganho = Math.round((venceu ? G.F.moedas + Math.floor(G.az.length / 4) : G.F.moedas * 0.25) * (G.dupla ? 1.5 : 1) * (1 + ((bonusEquipe().moedas || 0) + bonusRenasc(S.renasc || 0).moedas) / 100) * (G.multMoedas || 1));
+  const ganho = Math.round((venceu ? G.F.moedas + Math.floor(G.az.length / 4) : G.F.moedas * 0.25) * (G.dupla ? 1.5 : 1) * (1 + ((bonusEquipe().moedas || 0) + bonusRenasc(S.renasc || 0).moedas) / 100) * (G.multMoedas || 1) * (fimDeSemana() ? 2 : 1));
   S.moedas += ganho; evento('orcs', G.mortesVm); if (venceu) { evento('fases'); evento('chefes'); } let bau = null; if (venceu) { bau = ganharBau(G.n); if (!G.dupla || G.n === S.fase) S.fase++; S.melhor = Math.max(S.melhor, G.n); } salvar();
   setTimeout(() => {
     $('#jogo').hidden = true; const f = $('#fim'); f.hidden = false;

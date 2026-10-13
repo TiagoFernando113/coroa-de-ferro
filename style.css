@@ -708,3 +708,18 @@ input{font:inherit;user-select:text;-webkit-user-select:text}
 .lnTxt{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
 .lnTxt span{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;line-height:1.15;word-break:break-word}
 .lnTxt small{font-size:11px}
+.fdsFaixa{display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:6px 10px;border-radius:14px;color:#5a2e08;background:linear-gradient(90deg,#ffe27a,#ffc83a,#ffe27a);border:2px solid #fff;box-shadow:0 3px 0 #a8740a;animation:respira 2s infinite}
+.fdsFaixa > .ico{width:28px;height:28px;flex:none}
+.fdsFaixa span{display:flex;flex-direction:column}.fdsFaixa b{font-family:var(--fT);font-weight:400;font-size:16px}.fdsFaixa small{font-size:11px;font-weight:700}
+.gcCard{display:flex;align-items:center;gap:8px;margin:8px 0;padding:8px 10px;border-radius:14px;background:#fff;border:2px solid var(--creme2)}
+.gcCard > .ico{width:32px;height:32px;color:#b8201a;flex:none}
+.gcCard > div{display:flex;flex-direction:column}.gcCard b{font-family:var(--fT);font-weight:400;font-size:16px}.gcCard small{font-size:12px;color:var(--suave)}
+.gcCard.ativa{flex-direction:column;align-items:stretch;background:linear-gradient(#fff2f0,#fff);border-color:#e8503a}
+.gcCard.ativa > b{display:flex;align-items:center;gap:5px}.gcCard.ativa > b .ico{width:20px;height:20px;color:#b8201a}.gcCard.ativa > b small{margin-left:auto}
+.gcVs{display:grid;grid-template-columns:1fr auto 1fr;gap:6px;align-items:center;font-family:var(--fT);font-size:14px}
+.gcVs span:last-child{text-align:right}.gcVs em{font-style:normal;color:#b8201a;font-size:18px}
+.gcBarra{position:relative;height:22px;border-radius:11px;background:#e8503a;overflow:hidden;margin:4px 0;border:2px solid var(--madeira)}
+.gcBarra i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(#5ab8ff,#2466c8)}
+.gcBarra span{position:absolute;top:1px;font-family:var(--fT);font-size:13px;color:#fff;text-shadow:0 1px 2px #000}.gcBarra .a{left:8px}.gcBarra .b{right:8px}
+.gcCard small .ico{width:13px;height:13px;vertical-align:-2px}
+.gcCard.ativa > .gcVs{display:grid;flex-direction:row}.gcCard.ativa > .gcBarra{display:block}

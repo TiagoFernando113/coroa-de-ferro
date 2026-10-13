@@ -182,6 +182,13 @@ const T = {
   'Jogar junto': L('Play together', 'Jugar juntos'), 'Jogar junto (Dupla)': L('Play together (Duo)', 'Jugar juntos (Dúo)'), 'Convidando': L('Inviting', 'Invitando'), '... esperando aceitar': L('... waiting to accept', '... esperando que acepte'),
   'Convite recusado.': L('Invite declined.', 'Invitación rechazada.'), 'Ninguém respondeu.': L('No answer.', 'Nadie respondió.'), 'Convite!': L('Invite!', '¡Invitación!'),
   'chamou você para jogar em dupla (fase #).': L('invited you to play as a duo (stage #).', 'te invitó a jugar en dúo (fase #).'), 'Aceitar': L('Accept', 'Aceptar'), 'Recusar': L('Decline', 'Rechazar'), 'convite expirou': L('invite expired', 'la invitación expiró'),
+  // fim de semana e guerra
+  'Fim de semana dourado!': L('Golden weekend!', '¡Fin de semana dorado!'), 'ovos com sorte #': L('lucky eggs #', 'huevos con suerte #'), 'guerra de clãs': L('clan war', 'guerra de clanes'),
+  'Guerra de clãs': L('Clan war', 'Guerra de clanes'), 'Começa no sábado': L('Starts on Saturday', 'Empieza el sábado'), 'em #d #h': L('in #d #h', 'en #d #h'), 'em #h #min': L('in #h #min', 'en #h #min'), 'em #min': L('in #min', 'en #min'),
+  'Última: # × #': L('Last: # × #', 'Última: # × #'), 'vitória!': L('victory!', '¡victoria!'), 'derrota': L('defeat', 'derrota'), 'Procurando um clã adversário...': L('Looking for an enemy clan...', 'Buscando un clan rival...'),
+  'termina em #d #h': L('ends in #d #h', 'termina en #d #h'), 'termina em #h #min': L('ends in #h #min', 'termina en #h #min'), 'termina em #min': L('ends in #min', 'termina en #min'),
+  'Todo dano nas batalhas conta. Quem vencer ganha': L('All battle damage counts. The winner gets', 'Todo el daño en batallas cuenta. El ganador recibe'), 'para cada membro!': L('for each member!', '¡para cada miembro!'),
+  'Guerra de clãs vencida!': L('Clan war won!', '¡Guerra de clanes ganada!'), 'Guerra de clãs: participação': L('Clan war: participation', 'Guerra de clanes: participación'),
 };
 export const TEXTOS = { en: {}, es: {} };
 for (const [k, v] of Object.entries(T)) { TEXTOS.en[k] = v.en; TEXTOS.es[k] = v.es; }

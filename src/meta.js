@@ -2,6 +2,8 @@
 import { UPGRADES } from './dados.js';
 const CHAVE = 'ponte_v1';
 export let S = null;
+// fim de semana dourado (sábado e domingo): moedas x2 e ovos com mais sorte
+export const fimDeSemana = () => [0, 6].includes(new Date().getDay());
 export function carregar() {
   try { S = JSON.parse(localStorage.getItem(CHAVE)); } catch (e) { S = null; }
   if (!S || S.v !== 1) S = { v: 1, fase: 1, moedas: 0, up: {}, melhor: 0 };

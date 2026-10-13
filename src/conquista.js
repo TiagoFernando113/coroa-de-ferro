@@ -2,7 +2,7 @@
 // A cada 10 estágios vem um chefe dourado. O estágio alcançado define o lucro ocioso.
 import * as THREE from 'three';
 import * as C from './cena.js';
-import { S, salvar } from './meta.js';
+import { S, salvar, fimDeSemana } from './meta.js';
 import { PETS, RARIDADES, CLASSES, atributos, forca, modeloDe, tinta, base, est, ESTRELAS, lucroHora, lucroOcioso, tempoOcioso, MAX_OCIOSO, coletarOcioso, OVOS } from './pets.js';
 import { fmt } from './dados.js';
 import { sfx } from './musica.js';
@@ -144,7 +144,7 @@ function acabar(venceu) {
   Q.banner = { txt: venceu ? 'VITÓRIA!' : 'DERROTA!', cor: venceu ? '#ffd84a' : '#ff6a5a', t: 0 }; sfx(venceu ? 'vitoria' : 'derrota');
   for (const u of Q.us) if (!u.morto && u.v) u.v.tocar('Idle');
   const est = Q.est; let premio = 0, ovo = null;
-  if (venceu) { evento('conquista'); premio = 15 + 6 * est; if (est % 10 === 0) { ovo = 'magico'; premio *= 4; } else if (est % 5 === 0) ovo = 'comum';
+  if (venceu) { evento('conquista'); premio = (15 + 6 * est) * (fimDeSemana() ? 2 : 1); if (est % 10 === 0) { ovo = 'magico'; premio *= 4; } else if (est % 5 === 0) ovo = 'comum';
     S.moedas += premio; if (ovo) S.ovos[ovo]++; S.cq.est = Math.max(S.cq.est, est + 1); salvar(); if (S.online?.codigo) ON.cqEnviar(S.cq.est - 1, forcaEquipe()).catch(() => {}); }
   setTimeout(() => { if (!Q || !el) return; const j = $('#cqJanela'); j.hidden = false; el.querySelector('.cqLuta')?.remove();
     j.innerHTML = `<div class="cqFim ${venceu ? 'vit' : 'der'}"><h2>${venceu ? `Estágio ${est} conquistado!` : 'Seus pets caíram!'}</h2>

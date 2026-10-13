@@ -1,6 +1,6 @@
 // Pets: saem de ovos, seguem o herói (atiram junto) e lutam sozinhos no modo Conquista.
 // 3 iguais viram 1 com estrela (★1 a ★5, cada estrela 3x mais forte). Cada pet dá um bônus na ponte.
-import { S, salvar } from './meta.js';
+import { S, salvar, fimDeSemana } from './meta.js';
 
 export const RARIDADES = [
   { nome: 'Comum', cor: '#9aa3ad', mult: 1, moedas: 2, custo: 30 },
@@ -112,7 +112,7 @@ export function equiparMelhores() { S.equipe = variantes().sort((a, b) => forca(
 export function chocar(tipo) {
   const O = OVOS[tipo]; if (!O) return null;
   if (S.ovos[tipo] > 0) S.ovos[tipo]--; else if (S.moedas >= O.preco) S.moedas -= O.preco; else return null;
-  const sorte = 1 + (bonusEquipe().sorte || 0) / 100, ch = O.chances.map((c, i) => i >= 2 ? c * sorte : c), tot = ch.reduce((a, b) => a + b, 0);
+  const sorte = (1 + (bonusEquipe().sorte || 0) / 100) * (fimDeSemana() ? 2 : 1), ch = O.chances.map((c, i) => i >= 2 ? c * sorte : c), tot = ch.reduce((a, b) => a + b, 0);
   let r = Math.random() * tot, rar = 0; for (let i = 0; i < 4; i++) { if (r < ch[i]) { rar = i; break; } r -= ch[i]; }
   const lista = Object.keys(PETS).filter(k => PETS[k].r === rar), k = lista[Math.floor(Math.random() * lista.length)];
   const novo = !S.pets[k]; S.pets[k] = S.pets[k] || { e: [0, 0, 0, 0, 0, 0], nv: 1 }; S.pets[k].e[0]++;
