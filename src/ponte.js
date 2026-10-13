@@ -212,7 +212,7 @@ function redesenharBarreira(b) {
   g.strokeText(b.hp, 128, 52); g.fillStyle = '#fff'; g.fillText(b.hp, 128, 52); b.tex.needsUpdate = true;
 }
 
-export const ehCorrida = n => n >= 3 && n % 3 === 0;
+export const ehCorrida = () => false; // fase Corrida desligada (código guardado para uma versão futura)
 export function iniciarFase(n, inf = false, semCorrida = false) {
   limparFase(); montarCenario(biomaDe(n));
   const F = dadosFase(n), up = S.up, corrida = !inf && !semCorrida && ehCorrida(n);
