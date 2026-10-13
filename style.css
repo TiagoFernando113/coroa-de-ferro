@@ -412,7 +412,22 @@ input{font:inherit;user-select:text;-webkit-user-select:text}
 .ptCard em.pode{background:#a04ae8;animation:respira 1s infinite}
 .ptCard .eqM{position:absolute;bottom:22px;right:4px;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;background:var(--verde2);color:#fff}
 .ptCard .eqM .ico{width:13px;height:13px}
-.ptCard.ouro{background:linear-gradient(#ffe88a,#fff6c8 70%);border-color:#e8a810;box-shadow:0 3px 0 #9a6a08,0 0 10px rgba(255,200,40,.7)}
+.ptCard.est{background:linear-gradient(color-mix(in srgb,var(--e) 45%,#fff),#fff 75%);border-color:var(--e);box-shadow:0 3px 0 color-mix(in srgb,var(--e) 60%,#000),0 0 10px color-mix(in srgb,var(--e) 70%,transparent)}
+.ptCard.est5{animation:cosmico 2s linear infinite}
+@keyframes cosmico{50%{box-shadow:0 3px 0 #3a0a6a,0 0 18px #ff6aff}}
+.estr{font-size:12px;line-height:1;letter-spacing:-1px;text-shadow:0 1px 0 #000,0 0 3px #000}
+.jPet .estr{position:relative;font-size:26px}
+.ptCard .bns{display:flex;flex-wrap:wrap;justify-content:center;gap:2px;margin-top:2px}
+.bn{display:inline-flex;align-items:center;gap:2px;font-size:10px;font-weight:700;padding:1px 4px;border-radius:6px;background:#2f9a2a;color:#fff;white-space:nowrap}
+.bn .ico{width:11px;height:11px}
+.ptBonus{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+.ptBonus .bn{font-size:12px;padding:3px 7px;border-radius:8px}.ptBonus .bn .ico{width:14px;height:14px}
+.ptBonus small{color:var(--suave);font-size:12px}
+.ptBonus.grande{position:relative;justify-content:center;margin:2px 0 8px}
+.ptBonus.grande .bn{font-size:14px;padding:4px 9px}
+.ovoRes .ptBonus{justify-content:center}
+.ptEquipe h3{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.ptEquipe h3 .btn{margin:0 0 0 auto;font-size:13px;padding:5px 10px}
 .ptCard.eq{outline:3px solid var(--verde);outline-offset:1px}
 .ptCard.mini{padding:2px 1px 4px;border-width:2px}
 .ptCard.mini b{font-size:10px}.ptCard.mini i{font-size:10px}.ptCard.mini .cls{width:16px;height:16px}.ptCard.mini .cls .ico{width:11px;height:11px}

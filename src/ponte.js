@@ -11,7 +11,7 @@ import { tema, sfx, intensidade } from './musica.js';
 import * as ON from './online.js';
 import { HEROIS, heroiAtual } from './herois.js';
 import { criarTropas, desenharTropas, voar, passoVoo, limparTropas } from './tropas.js';
-import { PETS, RARIDADES, CLASSES, OVOS, MAX_EQUIPE, MAX_NV, base, ehOuro, temPet, modeloDe, tingido, atributos, forca, forcaEquipe, custoNivel, subirNivel, juntar, equipar, chocar, bonusMoedas, lucroOcioso } from './pets.js';
+import { PETS, RARIDADES, CLASSES, OVOS, BONUS as BONUS_PET, ESTRELAS, MAX_EQUIPE, MAX_NV, MAX_EST, base, est, qtd, temPet, modeloDe, tinta, atributos, forca, forcaEquipe, custoNivel, subirNivel, juntar, equipar, equiparMelhores, chocar, bonusPet, bonusEquipe, txtBonus, lucroOcioso } from './pets.js';
 import * as CQ from './conquista.js';
 
 // ---------------- medidas da ponte (frente = -z) ----------------
@@ -225,6 +225,7 @@ export function iniciarFase(n, inf = false, semCorrida = false) {
     pd: { chuva: { cd: 4, max: Math.max(6, 11 - 0.6 * (S.pd.chuva.nv - 1)), nv: S.pd.chuva.nv }, gigante: { cd: 12, max: Math.max(16, 30 - 1.8 * (S.pd.gigante.nv - 1)), nv: S.pd.gigante.nv } }, chuvas: [], gigante: null, puloT: 0,
     inf, chefesMortos: 0, tornados: [], medoT: 0, fogos: [], congelado: 0, multPilha: 1, velVm: 1, perfura: 0, autoChuva: false, escolhas: 0, proxEscolha: 14, pausa: false, pedras: [], pedraT: 9, tonto: 0, bonus: [], rotas: F.rotas, ouro: 25, deck: S.deck.filter(k => S.pd[k]?.nv > 0), vagas: [], tiros: [], menuVaga: null };
   if (corrida) { G.rotas = 1; F.vagas = 0; }
+  aplicarBonusPets();
   // duas rotas: um muro baixo divide a pista do meio
   if (G.rotas > 1) { G.forquilha = new THREE.Mesh(new THREE.BoxGeometry(1, 1.6, ZFORK0 - ZFORK1).translate(0, 0.8, (ZFORK0 + ZFORK1) / 2), MAT_MURO); G.forquilha.castShadow = G.forquilha.receiveShadow = true; cena.add(G.forquilha); }
   // vagas de torre em cima das divisórias
@@ -244,12 +245,21 @@ export function iniciarFase(n, inf = false, semCorrida = false) {
   G.heroiV.raiz.position.set(0, 0, ZH);
   criarPetsHeroi();
 }
+// bônus dos pets da equipe na ponte
+const assinaturaPets = () => S.equipe.map(k => k + S.pets[base(k)]?.nv).join();
+function aplicarBonusPets() {
+  const B = bonusEquipe(), f = t => (B[t] || 0) / 100; G.bonusPets = B; G.assinatura = assinaturaPets();
+  G.fila += Math.round((G.fila + 20) * f('soldados')); G.tiro *= 1 + f('tiro'); G.tiroMax *= 1 + f('tiro');
+  G.muroMax = G.muro = Math.round(G.muroMax * (1 + f('muralha'))); G.multPilha *= 1 + f('pilhas'); G.escudo = Math.min(0.8, G.escudo + f('escudo'));
+  for (const P of Object.values(G.pd)) P.max /= 1 + f('recarga'); G.velVm *= 1 - f('lento') * 0.5;
+  G.multChefe = 1 + f('chefe'); G.crit = f('critico'); G.reviver = f('reviver'); G.perfura += B.fogo || 0;
+}
 // pets da equipe (até 3) andam atrás do herói e atiram junto
 const POS_PET = [[-3.4, 2.6], [3.4, 2.6], [0, 4.6]];
 function criarPetsHeroi() {
-  G.petsV = S.equipe.slice(0, 3).map((k, i) => { const m = modeloDe(k), v = C.personagem(m, [], 1); if (tingido(k)) C.tingirOuro(v.corpo, false);
-    v.raiz.scale.setScalar((ehOuro(k) ? 3.2 : 2.7) / (C.alturaModelo(m) * C.ESC_PERS)); v.raiz.rotation.y = Math.PI; v.tocar('Idle'); v.mixer.update(Math.random());
-    const D = PETS[base(k)]; return { k, v, x: POS_PET[i][0], dz: POS_PET[i][1], cd: 1 + i * 0.4, cor: D.cor || 0xffe08a, dano: 1 + (D.r >= 2 ? 1 : 0) + (ehOuro(k) ? 1 : 0), cad: D.c === 'atirador' ? 1.1 : 1.6 }; });
+  G.petsV = S.equipe.slice(0, 3).map((k, i) => { const m = modeloDe(k), v = C.personagem(m, [], 1); if (tinta(k) != null) C.tingirOuro(v.corpo, false, tinta(k));
+    v.raiz.scale.setScalar(2.7 * (1 + 0.08 * est(k)) / (C.alturaModelo(m) * C.ESC_PERS)); v.raiz.rotation.y = Math.PI; v.tocar('Idle'); v.mixer.update(Math.random());
+    const D = PETS[base(k)]; return { k, v, x: POS_PET[i][0], dz: POS_PET[i][1], cd: 1 + i * 0.4, cor: D.cor || 0xffe08a, dano: 1 + (D.r >= 2 ? 1 : 0) + est(k), cad: D.c === 'atirador' ? 1.1 : 1.6 }; });
 }
 function passoPetsHeroi(dt, atira) {
   const h = G.heroi, anda = Math.abs(h.alvo - h.x) > 0.6;
@@ -413,40 +423,45 @@ function desenharLobby() {
   if (abaLobby === 'cla' || abaLobby === 'rank') carregarOnline(abaLobby);
 }
 // ---- pets ----
-const fotoPet = (k, tam = 160) => C.retrato(modeloDe(k), { ouro: tingido(k), tam });
+const fotoPet = (k, tam = 160) => C.retrato(modeloDe(k), { cor: tinta(k), tam });
+const estrelas = k => est(k) ? `<span class="estr" style="color:${ESTRELAS[est(k)].cor}">${'★'.repeat(est(k))}</span>` : '';
+const bonusHtml = (k, curto) => bonusPet(k).map(([t, v]) => `<span class="bn">${ico(BONUS_PET[t].icone)}${curto ? (BONUS_PET[t].un ? `+${v}` : `${t === 'recarga' || t === 'lento' ? '-' : '+'}${v}%`) : txtBonus(t, v)}</span>`).join('');
 function cardPet(k, cls = '') {
-  const D = PETS[base(k)], P = S.pets[base(k)], eq = S.equipe.includes(k), ouro = ehOuro(k);
-  return `<button class="ptCard r${D.r} ${ouro ? 'ouro' : ''} ${eq ? 'eq' : ''} ${cls}" data-pet="${k}" style="--r:${RARIDADES[D.r].cor}"><img src="${fotoPet(k)}" alt="">
-    <b>${ouro ? '★ ' : ''}${D.nome}</b><i>Nv ${P.nv}</i><small class="cls">${ico(CLASSES[D.c].icone)}</small>
-    ${cls === 'mini' ? '' : ouro ? `<em>x${P.o}</em>` : `<em class="${P.n >= 3 ? 'pode' : ''}">${P.n}/3</em>`}${eq && cls !== 'mini' ? `<span class="eqM">${ico('check')}</span>` : ''}</button>`;
+  const D = PETS[base(k)], P = S.pets[base(k)], eq = S.equipe.includes(k), e = est(k), n = qtd(k);
+  return `<button class="ptCard r${D.r} ${e ? 'est est' + e : ''} ${eq ? 'eq' : ''} ${cls}" data-pet="${k}" style="--r:${RARIDADES[D.r].cor}${e ? `;--e:${ESTRELAS[e].cor}` : ''}"><img src="${fotoPet(k)}" alt="">
+    ${estrelas(k)}<b>${D.nome}</b><i>Nv ${P.nv}</i><small class="cls">${ico(CLASSES[D.c].icone)}</small>
+    ${cls === 'mini' ? '' : `<em class="${n >= 3 && e < MAX_EST ? 'pode' : ''}">${e >= MAX_EST ? `x${n}` : `${n}/3`}</em><div class="bns">${bonusHtml(k, true)}</div>`}${eq && cls !== 'mini' ? `<span class="eqM">${ico('check')}</span>` : ''}</button>`;
 }
 function htmlPets() {
-  const eq = S.equipe, chances = O => O.chances.map((c, i) => `<i style="color:${RARIDADES[i].cor}">${c}%</i>`).join(' ');
+  const eq = S.equipe, chances = O => O.chances.map((c, i) => `<i style="color:${RARIDADES[i].cor}">${c}%</i>`).join(' '), B = bonusEquipe();
   const colecao = Object.keys(PETS).sort((a, b) => PETS[a].r - PETS[b].r).flatMap(k => { const P = S.pets[k];
     if (!P) return [`<div class="ptCard bloq r${PETS[k].r}" style="--r:${RARIDADES[PETS[k].r].cor}"><img src="${fotoPet(k)}" alt=""><b>???</b><i>${RARIDADES[PETS[k].r].nome}</i></div>`];
-    return [P.n > 0 || !P.o ? cardPet(k) : '', P.o > 0 ? cardPet(k + '*') : ''].filter(Boolean); });
-  return `<div class="ptEquipe"><h3>Equipe <small>${eq.length}/${MAX_EQUIPE} · ${ico('forca')} ${fmt(forcaEquipe())} · +${bonusMoedas()}% moedas na ponte</small></h3>
+    const l = P.e.map((n, e) => n > 0 ? cardPet(k + '*'.repeat(e)) : '').filter(Boolean); return l.length ? l : [cardPet(k)]; });
+  return `<div class="ptEquipe"><h3>Equipe <small>${eq.length}/${MAX_EQUIPE} · ${ico('forca')} ${fmt(forcaEquipe())}</small><button class="btn peq azul" data-pet-a="melhores">Equipar melhores</button></h3>
       <div class="ptSlots">${Array.from({ length: MAX_EQUIPE }, (_, i) => eq[i] ? cardPet(eq[i], 'mini') : '<div class="ptSlot">+</div>').join('')}</div>
+      <div class="ptBonus">${Object.keys(BONUS_PET).filter(t => B[t]).map(t => `<span class="bn">${ico(BONUS_PET[t].icone)}${txtBonus(t, B[t])}</span>`).join('') || '<small>Equipe pets para ganhar bônus na ponte</small>'}</div>
       <button class="btn verde cqBtn" data-a="conquista">${ico('bandeira')} Conquista · estágio ${S.cq.est}</button></div>
     <h3>Ovos</h3><div class="ptOvos">${Object.entries(OVOS).map(([k, O]) => `<button class="ptOvo ${S.ovos[k] || S.moedas >= O.preco ? 'pode' : ''}" data-ovo="${k}">${CQ.ovoHtml(k)}
       <b>${O.nome}</b><small>${chances(O)}</small><em>${S.ovos[k] ? `Chocar (${S.ovos[k]})` : `${ico('ouro')} ${fmt(O.preco)}`}</em></button>`).join('')}</div>
-    <h3>Coleção <small>toque para ver · 3 iguais = 1 dourado ★</small></h3><div class="ptGrade">${colecao.join('')}</div>
-    <p class="sub">Até 3 pets da equipe seguem o herói na ponte e atiram junto. Ovos também saem da Conquista.</p>`;
+    <h3>Coleção <small>3 iguais = 1 com estrela ★ (até ★5)</small></h3><div class="ptGrade">${colecao.join('')}</div>
+    <p class="sub">Os bônus da equipe valem na ponte e no ∞. Cada estrela deixa o pet 3x mais forte e aumenta o bônus. Até 3 pets seguem o herói e atiram junto.</p>`;
 }
 function mostrarPet(k) {
-  if (!temPet(k)) return; const D = PETS[base(k)], P = S.pets[base(k)], R = RARIDADES[D.r], A = atributos(k), eq = S.equipe.includes(k), c = custoNivel(k), max = P.nv >= MAX_NV;
+  if (!temPet(k)) return; const D = PETS[base(k)], P = S.pets[base(k)], R = RARIDADES[D.r], A = atributos(k), eq = S.equipe.includes(k), c = custoNivel(k), max = P.nv >= MAX_NV, e = est(k), n = qtd(k);
   const j = $('#janela'); j.hidden = false;
-  j.innerHTML = `<div class="jPet" style="--r:${R.cor}"><div class="raios liga"></div><img src="${fotoPet(k, 256)}" alt="">
-    <h2>${ehOuro(k) ? '★ ' : ''}${D.nome}</h2><p class="raridade">${R.nome}${ehOuro(k) ? ' Dourado' : ''} · ${ico(CLASSES[D.c].icone)} ${CLASSES[D.c].nome}</p>
+  j.innerHTML = `<div class="jPet" style="--r:${e ? ESTRELAS[e].cor : R.cor}"><div class="raios liga"></div><img src="${fotoPet(k, 256)}" alt="">
+    <h2>${D.nome}</h2>${estrelas(k)}<p class="raridade">${R.nome}${e ? ` ${ESTRELAS[e].nome}` : ''} · ${ico(CLASSES[D.c].icone)} ${CLASSES[D.c].nome}</p>
+    <div class="ptBonus grande">${bonusHtml(k)}</div>
     <div class="ptStats"><span>${ico('coracao')} ${fmt(A.hp)}</span><span>${ico('forca')} ${fmt(A.atk)}</span><span>Nv <b>${P.nv}</b></span><span>${ico('poder')} ${fmt(forca(A))}</span></div>
     <button class="btn amarelo" data-pet-a="nivel" data-k="${k}" ${max || S.moedas < c ? 'disabled' : ''}>${max ? 'Nível máximo' : `${ico('seta', 'up')} Nível ${P.nv + 1} · ${ico('ouro')} ${fmt(c)}`}</button>
-    ${!ehOuro(k) ? `<button class="btn roxo" data-pet-a="juntar" data-k="${k}" ${P.n >= 3 ? '' : 'disabled'}>★ Juntar 3 → Dourado (${P.n}/3)</button>` : ''}
+    ${e < MAX_EST ? `<button class="btn roxo" data-pet-a="juntar" data-k="${k}" ${n >= 3 ? '' : 'disabled'}>Juntar 3 → <span style="color:${ESTRELAS[e + 1].cor}">${'★'.repeat(e + 1)}</span> ${ESTRELAS[e + 1].nome} (${n}/3)</button>` : ''}
     <button class="btn ${eq ? 'azul' : 'verde'}" data-pet-a="equipar" data-k="${k}">${eq ? 'Tirar da equipe' : `Pôr na equipe${S.equipe.length >= MAX_EQUIPE ? ' (troca o 1º)' : ''}`}</button>
     <button class="fSo" data-a="fecharJanela">Fechar</button></div>`;
 }
 function acaoPet(a, k) {
+  if (a === 'melhores') { equiparMelhores(); som('confirma'); recriarPetsLobby(); desenharLobby(); return; }
   if (a === 'nivel') { if (subirNivel(k)) { som('compra'); sfx('brilho'); } else { som('erro'); return; } }
-  if (a === 'juntar') { if (!juntar(k)) { som('erro'); return; } sfx('vitoria'); k += '*'; }
+  if (a === 'juntar') { const novo = juntar(k); if (!novo) { som('erro'); return; } sfx('vitoria'); som('lendario'); k = novo; }
   if (a === 'equipar') { if (!equipar(k)) { som('erro'); return; } som('clique'); }
   recriarPetsLobby(); desenharLobby(); mostrarPet(k);
 }
@@ -460,7 +475,7 @@ function abrirOvo(tipo) {
   setTimeout(() => { if (!j.querySelector('.jOvo')) return; const D = PETS[r.k], R = RARIDADES[D.r], P = S.pets[r.k];
     j.querySelector('.ovoPalco').remove(); j.querySelector('.dicaBau').remove(); j.querySelector('.raios').classList.add('liga'); j.querySelector('.jOvo').style.setProperty('--r', R.cor);
     j.querySelector('.ovoRes').innerHTML = `<img src="${fotoPet(r.k, 256)}" alt=""><b>${D.nome}</b><small style="color:${R.cor}">${R.nome} · ${CLASSES[D.c].nome}</small>
-      <em>${r.novo ? 'NOVO!' : P.n >= 3 ? 'Já dá para juntar ★!' : `${P.n}/3 para o dourado ★`}</em>
+      <div class="ptBonus">${bonusHtml(r.k)}</div><em>${r.novo ? 'NOVO!' : P.e[0] >= 3 ? 'Já dá para juntar ★!' : `${P.e[0]}/3 para ★`}</em>
       <div class="ovoBotoes">${S.ovos[tipo] || S.moedas >= O.preco ? `<button class="btn amarelo" data-ovo="${tipo}">${S.ovos[tipo] ? `De novo (${S.ovos[tipo]})` : `De novo ${ico('ouro')}${fmt(O.preco)}`}</button>` : ''}
       <button class="btn verde" data-a="fecharJanela">Pegar</button></div>`;
     sfx(D.r >= 2 ? 'vitoria' : 'brilho'); if (D.r >= 3) som('lendario'); C.camera.tremor = 0.3; recriarPetsLobby(); }, 2100);
@@ -753,7 +768,7 @@ export function construir(i, tipo) { // nova torre ou sobe de nível
 }
 function comecarFase(inf = false, dupla = null) {
   roleta = null;
-  if (inf) iniciarFase(1, true); else if (dupla) iniciarFase(dupla.fase, false, true); else if (!G || G.inf || G.dupla || G.n !== S.fase || G.t > 0) iniciarFase(S.fase);
+  if (inf) iniciarFase(1, true); else if (dupla) iniciarFase(dupla.fase, false, true); else if (!G || G.inf || G.dupla || G.n !== S.fase || G.t > 0 || G.assinatura !== assinaturaPets()) iniciarFase(S.fase);
   if (dupla) { // chefe mais forte; o herói do parceiro aparece do outro lado
     const hr = dupla.hr || (dupla.bot ? Object.keys(HEROIS)[Math.floor(Math.random() * 6)] : 'selene');
     const v = C.heroi(HEROIS[hr].visual); v.raiz.scale.setScalar(2.4); v.raiz.rotation.y = Math.PI; v.raiz.position.set(6, 0, ZH + 0.5); v.tocar('Idle_A'); dupla = { ...dupla, hr };
@@ -798,7 +813,7 @@ function terminarInf() {
 function danoNoCla() { const d = G.danoTotal || 0; if (d > 0 && S.online?.codigo) ON.claDano(d).then(r => { if (r?.caiu) setTimeout(coletarPremios, 500); }).catch(() => {}); }
 function terminar(venceu) {
   if (G.fim) return; danoNoCla(); fimDupla(venceu); if (G.inf) return terminarInf(); G.fim = venceu ? 'v' : 'd'; tela = 'fim';
-  const ganho = Math.round((venceu ? G.F.moedas + Math.floor(G.az.length / 4) : G.F.moedas * 0.25) * (G.dupla ? 1.5 : 1) * (1 + bonusMoedas() / 100));
+  const ganho = Math.round((venceu ? G.F.moedas + Math.floor(G.az.length / 4) : G.F.moedas * 0.25) * (G.dupla ? 1.5 : 1) * (1 + (bonusEquipe().moedas || 0) / 100));
   S.moedas += ganho; let bau = null; if (venceu) { bau = ganharBau(G.n); if (!G.dupla || G.n === S.fase) S.fase++; S.melhor = Math.max(S.melhor, G.n); } salvar();
   setTimeout(() => {
     $('#jogo').hidden = true; const f = $('#fim'); f.hidden = false;
@@ -873,7 +888,8 @@ function posicionarVagas() {
   if (G.menuVaga != null) { const v = G.vagas[G.menuVaga], p = C.tela(v.x, 3, v.z), m = $('#jMenuT');
     if (p) { m.style.left = Math.max(92, Math.min(innerWidth - 92, p[0])) + 'px'; m.style.top = Math.max(200, p[1] - 26) + 'px'; } }
 }
-function limparVm() { let n = 0; G.vm = G.vm.filter(v => { if (!v.morto) return true; if (!v.muro) n++; return false; }); G.ouro += n; }
+function limparVm() { let n = 0; G.vm = G.vm.filter(v => { if (!v.morto) return true; if (!v.muro) { n++;
+    if (G.reviver && Math.random() < G.reviver && G.az.length < MAXU) { G.az.push(novoAzul(v.x, v.z, v.x)); if (Math.random() < 0.2) C.faiscas(v.x, 1.5, v.z, 0x9aff9a, 6, 3); } } return false; }); G.ouro += n; }
 function passoJogo(dt) {
   if (G.corrida) return passoCorrida(dt);
   G.t += dt; const h = G.heroi, ch = G.chefe;
@@ -1260,6 +1276,7 @@ function efeitoHabilidade(hab) {
 }
 function ferirChefe(d, x, z, forte) {
   const ch = G.chefe; if (ch.escudoT > 0) { if (Math.random() < 0.15) G.txt.push({ x, y: 9, z, txt: 'BLOQUEADO', cor: '#8ae0ff', t: 0 }); return; }
+  d = Math.round(d * (G.multChefe || 1)); if (G.crit && Math.random() < G.crit) { d *= 3; G.txt.push({ x, y: 11, z, txt: 'CRÍTICO!', cor: '#ff5a3a', t: 0 }); forte = true; }
   ch.hp -= d; G.danoTotal = (G.danoTotal || 0) + d; if (G.dupla) G.dupla.meuDano += d; ch.flash = forte ? 0.15 : 0.08; if (forte || Math.random() < 0.3) C.faiscas(x, 3, z, 0xffffff, 4, 4);
   if (forte || Math.random() < (G.corrida ? 0.04 : 0.25)) G.txt.push({ x, y: 9, z, txt: '-' + fmt(d), cor: forte ? '#ffd84a' : '#fff', t: 0, grande: forte });
 }

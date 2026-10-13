@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import * as C from './cena.js';
 import { S, salvar } from './meta.js';
-import { PETS, RARIDADES, CLASSES, atributos, forca, modeloDe, tingido, base, ehOuro, lucroHora, lucroOcioso, tempoOcioso, MAX_OCIOSO, coletarOcioso, OVOS } from './pets.js';
+import { PETS, RARIDADES, CLASSES, atributos, forca, modeloDe, tinta, base, est, ESTRELAS, lucroHora, lucroOcioso, tempoOcioso, MAX_OCIOSO, coletarOcioso, OVOS } from './pets.js';
 import { fmt } from './dados.js';
 import { sfx } from './musica.js';
 import { ico, som, $ } from './util.js';
@@ -33,8 +33,8 @@ function criar(k, lado, nv, extra, x, z, chefe, sem3d) {
   const a = atributos(k, nv, extra), u = { k, lado, nv, ...a, max: a.hp, x, z, cd: 0.4 + Math.random() * 0.6, alvo: null, morto: false, flash: 0, atkT: 0, tm: 0, chefe, raio: chefe ? 2.2 : 1.3,
     nvVis: lado ? Math.max(1, Math.round(1 + Math.log(Math.max(1, extra)) / Math.log(1.12))) : nv };
   if (sem3d) return u;
-  const m = modeloDe(k), v = C.personagem(m, [], 1); if (tingido(k)) C.tingirOuro(v.corpo, false);
-  const h = C.alturaModelo(m); u.alt = ALT * (chefe ? 1.7 : ehOuro(k) ? 1.15 : 1) * (h / 2.5) ** 0.5; u.esc = u.alt / (h * C.ESC_PERS); // maiores continuam maiores
+  const m = modeloDe(k), v = C.personagem(m, [], 1); if (tinta(k) != null) C.tingirOuro(v.corpo, false, tinta(k));
+  const h = C.alturaModelo(m); u.alt = ALT * (chefe ? 1.7 : 1 + 0.07 * est(k)) * (h / 2.5) ** 0.5; u.esc = u.alt / (h * C.ESC_PERS); // maiores continuam maiores
   v.raiz.scale.setScalar(u.esc); v.raiz.position.set(x, 0, z); v.raiz.rotation.y = lado ? 0 : Math.PI; v.tocar('Idle'); v.mixer.update(Math.random());
   u.anel = new THREE.Mesh(GEO_ANEL, MAT_ANEL[lado]); u.anel.scale.setScalar(u.raio * 1.1); u.anel.position.set(x, 0.08, z); C.obterCena().add(u.anel);
   u.v = v; return u;
@@ -188,8 +188,8 @@ export function desenharFx(g, dt) {
     const w = u.chefe ? 70 : 46, x = p[0] - w / 2, y = p[1];
     g.fillStyle = 'rgba(0,0,0,.6)'; g.beginPath(); g.roundRect(x - 2, y - 2, w + 4, 10, 4); g.fill();
     g.fillStyle = u.lado ? '#e8423a' : '#3ac85a'; g.fillRect(x, y, w * u.hp / u.max, 6);
-    const R = RARIDADES[PETS[base(u.k)].r], txt = `${ehOuro(u.k) ? '★' : ''}Nv.${u.nvVis}`;
-    g.font = '13px Titulo, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'bottom'; g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,.75)'; g.strokeText(txt, p[0], y - 3); g.fillStyle = R.cor === '#9aa3ad' ? '#fff' : R.cor; g.fillText(txt, p[0], y - 3); }
+    const R = RARIDADES[PETS[base(u.k)].r], e = est(u.k), txt = `${e ? `★${e} ` : ''}Nv.${u.nvVis}`;
+    g.font = '13px Titulo, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'bottom'; g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,.75)'; g.strokeText(txt, p[0], y - 3); g.fillStyle = e ? ESTRELAS[e].cor : R.cor === '#9aa3ad' ? '#fff' : R.cor; g.fillText(txt, p[0], y - 3); }
   for (const t of Q.txt) { t.t += dt; const p = C.tela(t.x, t.y + t.t * 3, t.z); if (!p) continue; g.globalAlpha = Math.max(0, 1 - Math.max(0, t.t - 0.4) / 0.4);
     g.font = `${t.grande ? 34 : 18}px Titulo, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineWidth = 4; g.strokeStyle = 'rgba(0,0,0,.7)'; g.strokeText(t.txt, p[0], p[1]); g.fillStyle = t.cor; g.fillText(t.txt, p[0], p[1]); g.globalAlpha = 1; }
   Q.txt = Q.txt.filter(t => t.t < 0.8);

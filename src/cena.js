@@ -779,15 +779,15 @@ export function alturaModelo(nome) {
     const b = caixaPose(c); alturas[nome] = Math.max(0.5, b.max.y - Math.max(0, b.min.y)); }
   return alturas[nome];
 }
-export function tingirOuro(raiz, clonar = true) { // versão dourada (★) de um pet sem forma evoluída
-  const ouro = new THREE.Color(0xffd23a);
-  raiz.traverse(o => { if (!o.isMesh) return; if (clonar) o.material = o.material.clone(); o.material.color?.lerp(ouro, 0.45); o.material.emissive?.setRGB(0.18, 0.12, 0); });
+export function tingirOuro(raiz, clonar = true, cor = 0xffd23a) { // pets com estrela: pintados com a cor do nível (ouro, diamante...)
+  const c = new THREE.Color(cor), em = c.clone().multiplyScalar(0.2);
+  raiz.traverse(o => { if (!o.isMesh) return; if (clonar) o.material = o.material.clone(); o.material.color?.lerp(c, 0.45); o.material.emissive?.copy(em); });
 }
-export function retrato(nome, { ouro = false, tam = 160 } = {}) {
-  const k = nome + (ouro ? '*' : '') + tam; if (retratos[k]) return retratos[k];
+export function retrato(nome, { cor = null, tam = 160 } = {}) {
+  const k = nome + (cor ?? '') + tam; if (retratos[k]) return retratos[k];
   const gltf = modelos[nome]; if (!gltf || !renderer) return '';
   const cn = new THREE.Scene(); cn.add(new THREE.HemisphereLight(0xffffff, 0x6a5a8a, 2.2)); const l = new THREE.DirectionalLight(0xffffff, 2.4); l.position.set(3, 6, 8); cn.add(l);
-  const corpo = SkeletonUtils.clone(gltf.scene); cn.add(corpo); if (ouro) tingirOuro(corpo);
+  const corpo = SkeletonUtils.clone(gltf.scene); cn.add(corpo); if (cor != null) tingirOuro(corpo, true, cor);
   const ida = gltf.animations.find(a => a.name === 'Idle'); if (ida) { const mx = new THREE.AnimationMixer(corpo); mx.clipAction(ida).play(); mx.update(0.4); }
   corpo.rotation.y = 0.45;
   const b = caixaPose(corpo), c = b.getCenter(new THREE.Vector3()), s = b.getSize(new THREE.Vector3()), r = Math.max(s.y, s.x * 0.9) * 0.62;
