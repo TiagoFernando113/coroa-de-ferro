@@ -563,3 +563,9 @@ input{font:inherit;user-select:text;-webkit-user-select:text}
 #claCorpo.modoChat{flex:1;display:flex;flex-direction:column;min-height:0;width:100%}
 .modoChat .chatLista{flex:1;height:auto;min-height:0}
 .modoChat .abas{margin:4px 0}
+/* equipe: o card do pet ocupa a vaga inteira */
+.ptSlots{gap:8px}
+.ptSlots > .ptCard,.ptSlots > .ptSlot{width:100%;aspect-ratio:3/4;min-height:0}
+.ptSlots > .ptCard{justify-content:flex-start;padding:4px 3px}
+.ptSlots > .ptCard img{width:92%;flex:1;min-height:0}
+.ptSlots > .ptCard b{font-size:12px}.ptSlots > .ptCard i{font-size:11px}
