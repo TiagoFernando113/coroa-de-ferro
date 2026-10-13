@@ -1,5 +1,5 @@
 // Batalha da Ponte: números das fases e das melhorias.
-export const VERSAO = 100;
+export const VERSAO = 101;
 
 const SUF = ['', 'K', 'M', 'B', 'T'];
 export function fmt(n) {

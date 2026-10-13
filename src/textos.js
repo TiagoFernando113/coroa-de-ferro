@@ -189,6 +189,11 @@ const T = {
   'termina em #d #h': L('ends in #d #h', 'termina en #d #h'), 'termina em #h #min': L('ends in #h #min', 'termina en #h #min'), 'termina em #min': L('ends in #min', 'termina en #min'),
   'Todo dano nas batalhas conta. Quem vencer ganha': L('All battle damage counts. The winner gets', 'Todo el daño en batallas cuenta. El ganador recibe'), 'para cada membro!': L('for each member!', '¡para cada miembro!'),
   'Guerra de clãs vencida!': L('Clan war won!', '¡Guerra de clanes ganada!'), 'Guerra de clãs: participação': L('Clan war: participation', 'Guerra de clanes: participación'),
+  // cargos do clã
+  'Líder': L('Leader', 'Líder'), 'Colíder': L('Co-leader', 'Colíder'), 'Ver perfil': L('View profile', 'Ver perfil'), 'Promover a colíder': L('Promote to co-leader', 'Ascender a colíder'),
+  'Rebaixar a membro': L('Demote to member', 'Degradar a miembro'), 'Passar a liderança': L('Transfer leadership', 'Pasar el liderazgo'), 'Expulsar do clã': L('Kick from clan', 'Expulsar del clan'),
+  'Editar clã': L('Edit clan', 'Editar clan'), 'Descrição do clã': L('Clan description', 'Descripción del clan'), 'sem permissão': L('no permission', 'sin permiso'), 'membro não encontrado': L('member not found', 'miembro no encontrado'),
+  'só o líder pode editar o clã': L('only the leader can edit the clan', 'solo el líder puede editar el clan'),
 };
 export const TEXTOS = { en: {}, es: {} };
 for (const [k, v] of Object.entries(T)) { TEXTOS.en[k] = v.en; TEXTOS.es[k] = v.es; }

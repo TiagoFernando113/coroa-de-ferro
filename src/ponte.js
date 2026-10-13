@@ -624,12 +624,16 @@ function carregarOnline(aba) {
       if (claModo === 'chat') { if (e.classList.contains('modoChat') && $('#chatLista')) return; // o chat já está aberto: não redesenha
         e.innerHTML = abas + htmlChat(); e.classList.add('modoChat'); $('#onCorpo')?.classList.add('comChat'); abrirChat(); return; }
       e.classList.remove('modoChat');
-      e.innerHTML = abas + `<div class="claTopo">${escudoCla(c.cor, c.tag || c.nome)}<div><b data-nt>${tagHtml(c.tag, c.cor)}${esc(c.nome)}</b><small>Nível ${c.nivel} · ${c.membros.length}/30 membros</small></div></div>
+      claAtual = c;
+      e.innerHTML = abas + `<div class="claTopo">${escudoCla(c.cor, c.tag || c.nome)}<div><b data-nt>${tagHtml(c.tag, c.cor)}${esc(c.nome)}</b><small>Nível ${c.nivel} · ${c.membros.length}/30 membros</small>
+          ${c.descricao ? `<p class="claDesc" data-nt>${esc(c.descricao)}</p>` : ''}</div>${c.meuCargo === 'lider' ? `<button class="btn peq azul" data-a="claEditarAbrir">${ico('pincel')}</button>` : ''}</div>
         <div class="claChefe"><small>${ico('chefe')} Chefe do clã (semana) — todo dano que vocês dão nas batalhas conta</small>
           <div class="barra vm"><i style="width:${100 - 100 * k}%"></i><span>${fmt(c.vida - c.dano)} / ${fmt(c.vida)}</span></div>
           <small>Derrotar dá ${ico('ouro')} ${150 + 50 * c.nivel} para cada membro</small></div>
         <div id="guerraCard"></div>
-        <div class="lista">${c.membros.map(m => `<div class="linha ${m.eu ? 'eu' : ''}"><i class="pontoOn ${m.online ? 'on' : ''}"></i><button class="nomeBtn" data-perfil="${m.codigo}" data-nt>${esc(m.apelido)}</button><small>fase ${m.fase}</small><em>${fmt(m.dano)}</em></div>`).join('')}</div>
+        <div class="lista">${c.membros.map(m => `<div class="linha ${m.eu ? 'eu' : ''}"><i class="pontoOn ${m.online ? 'on' : ''}"></i><button class="nomeBtn" data-perfil="${m.codigo}" data-nt>${esc(m.apelido)}</button>
+          ${m.cargo === 'lider' ? `<span class="cargo lider">${ico('coroa')}Líder</span>` : m.cargo === 'colider' ? `<span class="cargo colider">${ico('estrela')}Colíder</span>` : ''}<small>fase ${m.fase}</small><em>${fmt(m.dano)}</em>
+          ${!m.eu && podeGerir(c.meuCargo, m.cargo) ? `<button class="gerirBtn" data-gerir="${m.codigo}">⋯</button>` : ''}</div>`).join('')}</div>
         <button class="fSo" data-a="claSair">Sair do clã</button>`;
       comCache('guerra', () => ON.guerra(), pintarGuerra, null, 30000);
       return; }
@@ -664,6 +668,39 @@ async function cliqueOnline(b) {
     b.disabled = true; try { await ON.claCriar(n, tg, Math.floor(Math.random() * 8)); esquecer('meucla', 'clas', 'chat'); S.moedas -= 200; salvar(); sfx('vitoria'); carregarOnline('cla'); } catch (e) { b.disabled = false; erro(e.message); } }
   if (a === 'claSair') { if (b.dataset.certeza !== '1') { b.dataset.certeza = '1'; b.textContent = 'Toque de novo para sair'; return; }
     try { await ON.claSair(); esquecer('meucla', 'clas', 'chat'); som('fechar'); carregarOnline('cla'); } catch (e) { erro(e.message); } }
+}
+// ---- cargos do clã: líder edita e gerencia; colíder pode expulsar membros ----
+let claAtual = null;
+const podeGerir = (eu, alvo) => eu === 'lider' || (eu === 'colider' && alvo === 'membro');
+function menuMembro(codigo) {
+  const c = claAtual, m = c?.membros.find(x => x.codigo === codigo); if (!m) return; const j = $('#janela'); j.hidden = false; const lider = c.meuCargo === 'lider';
+  j.innerHTML = `<div class="jOnline"><h2 data-nt>${esc(m.apelido)}</h2>
+    <button class="btn azul" data-perfil="${codigo}">${ico('herois')} Ver perfil</button>
+    ${lider && m.cargo === 'membro' ? `<button class="btn verde" data-cla-acao="promover" data-k="${codigo}">${ico('estrela')} Promover a colíder</button>` : ''}
+    ${lider && m.cargo === 'colider' ? `<button class="btn cinza" data-cla-acao="rebaixar" data-k="${codigo}">Rebaixar a membro</button>` : ''}
+    ${lider ? `<button class="btn amarelo" data-cla-acao="lider" data-k="${codigo}">${ico('coroa')} Passar a liderança</button>` : ''}
+    <button class="btn vermelho" data-cla-acao="expulsar" data-k="${codigo}">${ico('sair')} Expulsar do clã</button>
+    <p class="erro" id="gerErro"></p><button class="fSo" data-a="fecharJanela">Fechar</button></div>`;
+}
+async function acaoCla(b) {
+  const acao = b.dataset.claAcao, perigosa = acao === 'expulsar' || acao === 'lider';
+  if (perigosa && b.dataset.certeza !== '1') { b.dataset.certeza = '1'; b.textContent = tr('Toque de novo para confirmar'); som('clique'); return; }
+  b.disabled = true;
+  try { await ON.claGerir(b.dataset.k, acao); som('confirma'); esquecer('meucla'); $('#janela').hidden = true; carregarOnline('cla'); }
+  catch (e) { b.disabled = false; const x = $('#gerErro'); if (x) x.textContent = e.message; som('erro'); }
+}
+function editarCla() {
+  const c = claAtual; if (!c) return; const j = $('#janela'); j.hidden = false; let cor = c.cor % 8;
+  j.innerHTML = `<div class="jOnline editarCla"><h2>${ico('pincel')} Editar clã</h2>
+    <input id="edNome" maxlength="18" value="${esc(c.nome)}" placeholder="Nome do novo clã"><input id="edTag" maxlength="4" value="${esc(c.tag || '')}" placeholder="SIGLA">
+    <div class="cores">${CORES_CLA.map((k, i) => `<button class="${i === cor ? 'sel' : ''}" data-cor-cla="${i}" style="background:${k}"></button>`).join('')}</div>
+    <textarea id="edDesc" maxlength="120" rows="3" placeholder="Descrição do clã">${esc(c.descricao || '')}</textarea>
+    <button class="btn verde" data-a="claEditarSalvar">Salvar</button><p class="erro" id="gerErro"></p><button class="fSo" data-a="fecharJanela">Fechar</button></div>`;
+}
+async function salvarEdicaoCla(b) {
+  const cor = +(document.querySelector('.cores .sel')?.dataset.corCla || 0); b.disabled = true;
+  try { await ON.claEditar($('#edNome').value.trim(), $('#edTag').value.trim().toUpperCase(), cor, $('#edDesc').value.trim()); som('confirma'); esquecer('meucla', 'clas', 'rank_cla'); $('#janela').hidden = true; carregarOnline('cla'); }
+  catch (e) { b.disabled = false; const x = $('#gerErro'); if (x) x.textContent = e.message; som('erro'); }
 }
 // ---- guerra de clãs (sábado e domingo): o dano de todos nas batalhas conta ----
 const tempoTxt = seg => { seg = Math.max(0, seg); const d = Math.floor(seg / 86400), h = Math.floor(seg / 3600) % 24, m = Math.floor(seg / 60) % 60; return d ? `${d}d ${h}h` : h ? `${h}h ${m}min` : `${m}min`; };
@@ -779,7 +816,7 @@ async function convidarDupla(codigo, nome) {
 }
 // quem está no lobby recebe os convites (consulta a cada 6 s)
 setInterval(() => {
-  if (tela !== 'lobby' || !S.online?.codigo || busca || convite || !$('#janela').hidden) return;
+  if (!S || tela !== 'lobby' || !S.online?.codigo || busca || convite || !$('#janela').hidden) return;
   ON.convites().then(l => { const c = (l || []).find(x => !convitesVistos.has(x.id)); if (!c || tela !== 'lobby' || !$('#janela').hidden) return; convitesVistos.add(c.id);
     const j = $('#janela'); j.hidden = false; sfx('brilho'); som('confirma');
     j.innerHTML = `<div class="jOnline convite"><h2>${ico('herois')} Convite!</h2><p><b data-nt>${esc(c.apelido)}</b> chamou você para jogar em dupla (fase ${c.fase}).</p>
@@ -889,7 +926,7 @@ function backupNuvem(forcar) {
   const { online, ...dados } = S; enviandoNuvem = true;
   return ON.saveEnviar(dados).then(() => { backupFeito(); nuvemT = Date.now(); try { localStorage.setItem('ponte_nuvem', nuvemT); } catch (e) {} }).catch(() => {}).finally(() => { enviandoNuvem = false; });
 }
-setInterval(() => { if (tela !== 'jogo') backupNuvem(); }, 60000);
+setInterval(() => { if (S && tela !== 'jogo') backupNuvem(); }, 60000);
 const haQuanto = t => { const m = Math.floor((Date.now() - t) / 60000); return m < 1 ? 'agora' : m < 60 ? `há ${m} min` : m < 1440 ? `há ${Math.floor(m / 60)} h` : `há ${Math.floor(m / 1440)} dias`; };
 function htmlConta() {
   const O = ON.conta();
@@ -1030,6 +1067,11 @@ function clique(e) {
   if (a?.startsWith('ct')) { acaoConta(a, b); return; }
   if (b.dataset.perfil) { som('clique'); verPerfil(b.dataset.perfil); return; }
   if (b.dataset.amigo) { marcarAmigo(b); return; }
+  if (b.dataset.gerir) { som('clique'); menuMembro(b.dataset.gerir); return; }
+  if (b.dataset.claAcao) { acaoCla(b); return; }
+  if (a === 'claEditarAbrir') { som('clique'); editarCla(); return; }
+  if (a === 'claEditarSalvar') { salvarEdicaoCla(b); return; }
+  if (b.dataset.corCla) { document.querySelectorAll('.cores button').forEach(x => x.classList.toggle('sel', x === b)); som('clique'); return; }
   if (b.dataset.convidar) { som('confirma'); convidarDupla(b.dataset.convidar, b.dataset.nome); return; }
   if (a === 'cancelarConvite') { som('fechar'); if (convite) { convite.ativo = false; ON.conviteCancelar(convite.id); convite = null; } $('#janela').hidden = true; return; }
   if (b.dataset.responder) { responderConvite(+b.dataset.responder, b.dataset.aceita === '1'); return; }

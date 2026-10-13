@@ -723,3 +723,16 @@ input{font:inherit;user-select:text;-webkit-user-select:text}
 .gcBarra span{position:absolute;top:1px;font-family:var(--fT);font-size:13px;color:#fff;text-shadow:0 1px 2px #000}.gcBarra .a{left:8px}.gcBarra .b{right:8px}
 .gcCard small .ico{width:13px;height:13px;vertical-align:-2px}
 .gcCard.ativa > .gcVs{display:grid;flex-direction:row}.gcCard.ativa > .gcBarra{display:block}
+/* ---- cargos do clã ---- */
+.claTopo{position:relative}
+.claTopo > .btn{margin:0 0 0 auto;flex:none;padding:6px 8px}.claTopo > .btn .ico{width:18px;height:18px}
+.claDesc{margin:4px 0 0;font-size:12px;color:var(--tinta);white-space:normal}
+.cargo{display:inline-flex;align-items:center;gap:2px;font-size:10px;font-weight:800;padding:1px 5px;border-radius:8px;flex:none}
+.cargo .ico{width:11px;height:11px}
+.cargo.lider{background:#ffe27a;color:#7a4a08}.cargo.colider{background:#d8e8ff;color:#2466c8}
+.gerirBtn{width:30px;height:30px;border-radius:10px;background:var(--creme2);font-family:var(--fT);font-size:18px;line-height:1;flex:none}
+.editarCla input,.editarCla textarea{width:100%;margin:4px 0;padding:9px 12px;border-radius:12px;border:2px solid var(--creme2);font:inherit;font-size:15px;user-select:text;-webkit-user-select:text;resize:none}
+.cores{display:flex;gap:6px;justify-content:center;margin:6px 0}
+.cores button{width:30px;height:30px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 2px var(--creme2)}
+.cores button.sel{box-shadow:0 0 0 3px var(--tinta)}
+.linha .cargo{flex:none;font-family:var(--fX)}

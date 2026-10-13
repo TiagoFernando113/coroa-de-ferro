@@ -49,6 +49,8 @@ export const conviteCancelar = conv => S.online?.codigo ? rpc('ponte_convite_can
 export const convites = comConta(() => rpc('ponte_convites', id()));
 export const conviteResponder = comConta((conv, aceita) => rpc('ponte_convite_responder', { ...id(), p_conv: conv, p_aceita: aceita }));
 export const guerra = comConta(() => rpc('ponte_guerra_info', id()));
+export const claGerir = comConta((codigo, acao) => rpc('ponte_cla_gerir', { ...id(), p_codigo: codigo, p_acao: acao }));
+export const claEditar = comConta((nome, tag, cor, desc) => rpc('ponte_cla_editar', { ...id(), p_nome: nome, p_tag: tag, p_cor: cor, p_desc: desc }));
 export const ranking = () => rpc('ponte_top3', { p_limite: 50, p_id: S.online?.id || null });
 export const ajudaAuto = comConta(fase => rpc('ponte_ajuda_auto', { ...id(), p_fase: fase }));
 export const premios = comConta(() => rpc('ponte_premios', id()));
