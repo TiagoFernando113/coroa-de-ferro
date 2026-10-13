@@ -214,7 +214,7 @@ export function iniciarFase(n, inf = false) {
   limparFase(); montarCenario(biomaDe(n));
   const F = dadosFase(n), up = S.up;
   G = { F, n, t: 0, az: [], vm: [], flechas: [], txt: [], fila: 8 * up.exercito, acum: 0, cd: 0.5, pistas: [[], []], spawnVm: 0, golpePend: 0,
-    muro: vidaMuralha(up.vida), muroMax: vidaMuralha(up.vida), tiro: tiros(up.fogo), nFlechas: 1 + up.flechas, escudo: escudo(up.escudos),
+    muro: vidaMuralha(up.vida), muroMax: vidaMuralha(up.vida), tiro: tiros(up.fogo), tiroMax: tiros(up.fogo) * 2.2, nFlechas: 1 + up.flechas, flechasMax: up.flechas + 5, escudo: escudo(up.escudos),
     heroi: { x: 0, alvo: 0 }, golpeT: 4, fim: null, mortesVm: 0, portoes: [], ondaT: 16, banner: null, punch: 0, lento: 0, brilhoH: 0,
     pd: { chuva: { cd: 4, max: Math.max(6, 11 - 0.6 * (S.pd.chuva.nv - 1)), nv: S.pd.chuva.nv }, gigante: { cd: 12, max: Math.max(16, 30 - 1.8 * (S.pd.gigante.nv - 1)), nv: S.pd.gigante.nv } }, chuvas: [], gigante: null, puloT: 0,
     inf, chefesMortos: 0, multPilha: 1, velVm: 1, perfura: 0, autoChuva: false, escolhas: 0, proxEscolha: 14, pausa: false, pedras: [], pedraT: 9, tonto: 0, bonus: [], rotas: F.rotas, ouro: 25, deck: S.deck.filter(k => S.pd[k]?.nv > 0), vagas: [], tiros: [], menuVaga: null };
@@ -256,8 +256,8 @@ function proximoChefe() {
 }
 // ---- bônus no meio da fase: escolha 1 de 3 ----
 const BONUS = {
-  flechas: { nome: 'Tiro triplo', icone: 'h_triplo', desc: '+2 flechas por tiro', usar: () => { G.nFlechas = Math.min(10, G.nFlechas + 2); } },
-  furia: { nome: 'Fúria', icone: 'raio', desc: 'Atira 40% mais rápido', usar: () => { G.tiro *= 1.4; } },
+  flechas: { nome: 'Tiro triplo', icone: 'h_triplo', desc: '+2 flechas por tiro', usar: () => { G.nFlechas = Math.min(G.flechasMax, G.nFlechas + 2); } },
+  furia: { nome: 'Fúria', icone: 'raio', desc: 'Atira 40% mais rápido', usar: () => { G.tiro = Math.min(G.tiroMax, G.tiro * 1.4); } },
   recrutas: { nome: 'Reforços', icone: 'herois', desc: () => `+${40 + 10 * G.n} soldados agora`, usar: () => { G.fila = Math.min(MAX_FILA, G.fila + 40 + 10 * G.n); } },
   escudos: { nome: 'Escudos de ferro', icone: 'escudo', desc: '+20% dos soldados sobrevivem', usar: () => { G.escudo = Math.min(0.8, G.escudo + 0.2); } },
   muralha: { nome: 'Muralha reforçada', icone: 'forja', desc: 'Muralha +50% e curada', usar: () => { G.muroMax = Math.round(G.muroMax * 1.5); G.muro = G.muroMax; } },
@@ -689,7 +689,7 @@ function passoJogo(dt) {
   passoDupla(dt);
   // ponte sem fim: as pistas se renovam
   if (G.inf) G.pistas.forEach((p, k) => { if (p.length >= 6) return; const F = dadosFase(G.n + Math.floor(Math.random() * 3)), l = k ? F.dir : F.esq;
-      for (let i = 0; i < 10; i++) novoBloco(l[i], k, (p.length ? p[p.length - 1].z : ZLANE) - PASSO - 6, F.duro + G.chefesMortos); });
+      for (let i = 0; i < 10; i++) novoBloco(l[i].tipo === 'poder' ? { tipo: 'mais', valor: k ? 5 : 3 } : l[i], k, (p.length ? p[p.length - 1].z : ZLANE) - PASSO - 6, F.duro + G.chefesMortos); });
   // hora de escolher um bônus
   if (G.t >= G.proxEscolha && !ch.pulo) { G.proxEscolha = G.t + 22 + 4 * G.escolhas; abrirEscolha(); }
   // o chefe joga pedras no herói: um círculo avisa onde cai, arraste para desviar
@@ -705,7 +705,7 @@ function passoJogo(dt) {
   if (G.autoChuva && G.pd.chuva.cd <= 0 && G.vm.length > 8) usarPoder('chuva');
   // vermelhos saem do portão do chefe
   G.ondaT -= dt;
-  const ritmo = G.F.ritmo * (1 + G.t / 45) * (G.inf ? 1 + 0.15 * G.chefesMortos : 1);
+  const ritmo = G.F.ritmo * (1 + G.t / (G.inf ? 65 : 45)) * (G.inf ? 1 + 0.15 * G.chefesMortos : 1);
   const novoVm = r => G.vm.push({ x: xRota(r) * 0.6, z: ch.z + 5 + Math.random() * 2, ph: Math.random() * 6, ax: xRota(r) });
   if (G.ondaT <= 0) { G.ondaT = 17; const lado = Math.random() < 0.5 ? -1 : 1;
     for (let k = Math.round(ritmo * 5); k > 0 && G.vm.length < MAXU; k--) novoVm(G.rotas > 1 ? lado : 0);
@@ -908,8 +908,8 @@ function acertarBloco(b, pista, lado) {
   } else if (b.hp > 1) { // pilha resistente: encolhe a cada flechada
     b.hp--; b.mesh.scale.y = 0.45 + 0.55 * b.hp / b.hpMax; b.mesh.position.y = 1.2 * b.mesh.scale.y; C.faiscas(b.mesh.position.x + (Math.random() - 0.5) * 6, 2, b.z + 1.5, 0xffffff, 3, 2); return;
   } else if (b.tipo === 'poder') {
-    if (b.p === 'flecha') { G.nFlechas = Math.min(8, G.nFlechas + 1); faixa('FLECHA EXTRA!', '#c88aff'); }
-    else { G.tiro *= 1.35; faixa('TIRO RÁPIDO!', '#c88aff'); }
+    if (b.p === 'flecha') { const m = G.nFlechas >= G.flechasMax; G.nFlechas = Math.min(G.flechasMax, G.nFlechas + 1); faixa(m ? 'FLECHAS NO MÁXIMO' : 'FLECHA EXTRA!', '#c88aff'); }
+    else { const m = G.tiro >= G.tiroMax; G.tiro = Math.min(G.tiroMax, G.tiro * 1.35); faixa(m ? 'TIRO NO MÁXIMO' : 'TIRO RÁPIDO!', '#c88aff'); }
     G.brilhoH = 1; G.punch = 1; C.faiscas(b.mesh.position.x, 2, b.z + 1, 0xc88aff, 40, 7); C.faiscas(G.heroi.x, 3, ZH, 0xc88aff, 30, 5); sfx('magia'); sfx('brilho');
   } else {
     const n = Math.round((b.tipo === 'vezes' ? Math.min(150, G.az.length) : b.valor) * G.multPilha);
