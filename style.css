@@ -236,3 +236,30 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;paddin
 .opcao b{font-family:var(--fT);font-weight:400;font-size:15px;line-height:1.1}
 .opcao small{font-size:12px;color:var(--suave);line-height:1.2}
 .opcao:active{transform:translateY(4px);box-shadow:0 1px 0 var(--madeira)}
+
+/* ---------- online ---------- */
+input{font:inherit;user-select:text;-webkit-user-select:text}
+.online{background:linear-gradient(#6ab8ff,#2466c8);border-color:#0f3a7a;box-shadow:0 3px 0 #0f3a7a}
+.jOnline{width:min(360px,92vw);max-height:86vh;display:flex;flex-direction:column;padding:16px;border-radius:22px;background:var(--creme);border:3px solid var(--madeira);box-shadow:0 6px 0 var(--madeira);color:var(--tinta);text-align:center}
+.jOnline h2{margin:0;font-family:var(--fT);font-weight:400;font-size:28px;color:#ffd23a;-webkit-text-stroke:2px #6b3f1d;paint-order:stroke fill;display:flex;align-items:center;justify-content:center;gap:8px}
+.jOnline p{margin:6px 0;font-size:14px;color:var(--suave)}
+.jOnline .erro{color:var(--vermelho2);min-height:1em;margin:2px 0}
+.jOnline input{width:100%;padding:12px;border-radius:12px;border:2px solid var(--creme2);font-size:18px;text-align:center;background:#fff;color:var(--tinta)}
+.abas{display:flex;gap:6px;margin:10px 0 6px}
+.abas button{flex:1;padding:8px;border-radius:12px;background:#efe3c8;font-family:var(--fT);font-size:16px;color:var(--suave)}
+.abas button.on{background:linear-gradient(var(--azul),var(--azul2));color:#fff}
+.lista{overflow:auto;flex:1;min-height:120px;margin:6px 0;text-align:left}
+.linha{display:flex;align-items:center;gap:8px;padding:8px 10px;margin-bottom:5px;border-radius:12px;background:#fff;border:2px solid var(--creme2)}
+.linha.eu{border-color:var(--verde);background:#effbe8}
+.linha b{font-family:var(--fT);font-weight:400;min-width:34px;font-size:16px}
+.linha span{flex:1;font-family:var(--fT);font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.linha small{color:var(--suave);font-size:11px}
+.linha em{font-style:normal;font-family:var(--fT);font-size:16px;color:var(--amarelo2)}
+.linha em.feito{color:var(--verde2);font-size:13px}
+.linha .btn{margin:0}
+.meuCod{display:flex;flex-direction:column;align-items:center;padding:8px;border-radius:14px;background:#fff;border:2px dashed var(--madeira2);margin:6px 0}
+.meuCod b{font-family:var(--fT);font-weight:400;font-size:34px;letter-spacing:4px;user-select:text;-webkit-user-select:text}
+.meuCod small{color:var(--suave);font-size:12px}
+.addAmigo{display:flex;gap:6px;align-items:center}
+.addAmigo input{flex:1;font-size:16px;padding:10px}
+.pos{font-family:var(--fT);color:var(--azul2)!important}

@@ -8,6 +8,7 @@ import { S, salvar, comprar, BAUS, MAX_BAUS, ganharBau, abrirBau, cartasPara, CA
 import { visualPadrao } from './aparencia.js';
 import { ico, som, $, alternarSom, estaMudo } from './util.js';
 import { tema, sfx, intensidade } from './musica.js';
+import * as ON from './online.js';
 import { criarTropas, desenharTropas, voar, passoVoo, limparTropas } from './tropas.js';
 
 // ---------------- medidas da ponte (frente = -z) ----------------
@@ -21,7 +22,7 @@ const ZSPAWN = -9;          // onde surgem os soldados azuis
 const ZLANE = -12;          // começo das pistas
 const PASSO = 3.4, NB = 20;
 const ZBOSS = ZLANE - NB * PASSO - 10;
-const MAXU = 900, VEL_AZ = 8, VEL_VM = 4.4;
+const MAXU = 900, VEL_AZ = 8, VEL_VM = 4.4, MAX_FILA = 400;
 const ZFRENTE = ZBOSS - 35, ZTRAS = 40;
 const ZFORK0 = ZLANE - 5, ZFORK1 = ZBOSS + 15; // trecho com duas rotas
 // torres que o jogador constrói durante a batalha com o ouro ⚔ dos orcs derrotados
@@ -246,7 +247,7 @@ function proximoChefe() {
   C.faiscas(0, 6, ch.z, 0xffd84a, 120, 12); C.camera.tremor = 1; G.lento = 1; G.punch = 1; sfx('vitoria');
   for (const v of G.vm) arremessar('vm', v, 0, ch.z, 14); G.vm = []; G.chuvas.length = 0;
   ch.v.remover(); G.F = F; G.t = 0; G.proxEscolha = 14; G.ondaT = 16; G.puloT = 0; G.golpePend = 0; intensidade(1);
-  criarChefe(F); $('#jChefeN').textContent = G.chefe.nome; $('#jN').textContent = `∞ · ${G.chefesMortos + 1}`;
+  criarChefe(F); G.chefe.hp = G.chefe.max = Math.round(F.chefe.hp * (1 + 0.25 * G.chefesMortos)); $('#jChefeN').textContent = G.chefe.nome; $('#jN').textContent = `∞ · ${G.chefesMortos + 1}`;
   for (const p of G.portoes) cena.remove(p.o); G.portoes = [];
   for (const p0 of F.portoes) { const p = { ...p0, z: ZLANE - 2 - p0.i * PASSO }; criarPortao(p); G.portoes.push(p); }
   G.ouro += 30; G.muro = Math.min(G.muroMax, G.muro + Math.ceil(G.muroMax * 0.25));
@@ -257,7 +258,7 @@ function proximoChefe() {
 const BONUS = {
   flechas: { nome: 'Tiro triplo', icone: 'h_triplo', desc: '+2 flechas por tiro', usar: () => { G.nFlechas = Math.min(10, G.nFlechas + 2); } },
   furia: { nome: 'Fúria', icone: 'raio', desc: 'Atira 40% mais rápido', usar: () => { G.tiro *= 1.4; } },
-  recrutas: { nome: 'Reforços', icone: 'herois', desc: () => `+${40 + 10 * G.n} soldados agora`, usar: () => { G.fila += 40 + 10 * G.n; } },
+  recrutas: { nome: 'Reforços', icone: 'herois', desc: () => `+${40 + 10 * G.n} soldados agora`, usar: () => { G.fila = Math.min(MAX_FILA, G.fila + 40 + 10 * G.n); } },
   escudos: { nome: 'Escudos de ferro', icone: 'escudo', desc: '+20% dos soldados sobrevivem', usar: () => { G.escudo = Math.min(0.8, G.escudo + 0.2); } },
   muralha: { nome: 'Muralha reforçada', icone: 'forja', desc: 'Muralha +50% e curada', usar: () => { G.muroMax = Math.round(G.muroMax * 1.5); G.muro = G.muroMax; } },
   ouro: { nome: 'Ouro de guerra', icone: 'forca', desc: '+80 de ouro para torres', usar: () => { G.ouro += 80; } },
@@ -326,7 +327,7 @@ export function abrirLobby() {
 let diarioVisto = false;
 function desenharLobby() {
   const F = dadosFase(S.fase);
-  $('#lobby').innerHTML = `<div class="lbTopo"><div class="pilula ouro">${ico('ouro')}<b>${fmt(S.moedas)}</b></div><button class="redondo presente" data-a="diario">${ico('presente')}${diarioPronto() ? '<i class="ponto"></i>' : ''}</button><button class="redondo" data-a="som">${ico(estaMudo() ? 'mudo' : 'som')}</button></div>
+  $('#lobby').innerHTML = `<div class="lbTopo"><div class="pilula ouro">${ico('ouro')}<b>${fmt(S.moedas)}</b></div><button class="redondo online" data-a="online">${ico('rank')}</button><button class="redondo presente" data-a="diario">${ico('presente')}${diarioPronto() ? '<i class="ponto"></i>' : ''}</button><button class="redondo" data-a="som">${ico(estaMudo() ? 'mudo' : 'som')}</button></div>
     <div class="lbTitulo"><small>Batalha da</small><h1>Ponte</h1></div>
     <div class="lbPainel"><div class="lbFase"><span>FASE</span><b>${S.fase}</b><small>${ico('chefe')} ${F.chefe.nome} · vida ${fmt(F.chefe.hp)} · ${BIOMAS[biomaDe(S.fase)].nome}</small></div>
       <div class="ups">${Object.entries(UPGRADES).map(([k, U]) => { const n = S.up[k], max = n >= U.max, c = U.custo(n);
@@ -385,6 +386,49 @@ function mostrarBau(tipo, titulo, aoAbrir) {
     setTimeout(() => box.insertAdjacentHTML('afterend', `<button class="btn verde grande" data-a="fecharJanela">Pegar</button>`), 600 + itens.length * 380);
   };
 }
+// ---- online: ranking e amigos ----
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const hojeTxt = () => new Date().toLocaleDateString('sv');
+let abaOnline = 'rank';
+function mostrarOnline(aba = abaOnline) {
+  abaOnline = aba; const j = $('#janela'); j.hidden = false; const O = ON.conta();
+  const topo = `<h2>${ico('rank')} Online</h2><div class="abas"><button class="${aba === 'rank' ? 'on' : ''}" data-aba="rank">Ranking</button><button class="${aba === 'amigos' ? 'on' : ''}" data-aba="amigos">Amigos</button></div>`;
+  if (!O?.codigo) {
+    j.innerHTML = `<div class="jOnline">${topo}<p>Escolha um apelido para aparecer no ranking e trocar reforços com amigos.</p>
+      <input id="apelido" maxlength="16" placeholder="Seu apelido" value="${esc(O?.apelido || '')}"><p class="erro" id="onErro"></p>
+      <button class="btn verde grande" data-a="criarConta">Entrar no online</button><button class="btn azul" data-a="fecharJanela">Fechar</button></div>`;
+    return;
+  }
+  if (aba === 'rank') {
+    j.innerHTML = `<div class="jOnline">${topo}<p class="sub">Ponte sem fim · melhores do mundo</p><div class="lista" id="lista"><p>Carregando...</p></div>
+      <button class="btn azul" data-a="fecharJanela">Fechar</button></div>`;
+    ON.ranking().then(l => { const el = $('#lista'); if (!el) return;
+      el.innerHTML = l.length ? l.map(r => `<div class="linha ${r.eu ? 'eu' : ''}"><b>${r.posicao <= 3 ? ['🥇', '🥈', '🥉'][r.posicao - 1] : '#' + r.posicao}</b><span>${esc(r.apelido)}</span><small>${r.chefes} chefes</small><em>${fmt(r.pontos)}</em></div>`).join('')
+        : '<p>Ninguém no ranking ainda. Jogue a Ponte sem fim e seja o primeiro!</p>'; })
+      .catch(e => { const el = $('#lista'); if (el) el.innerHTML = `<p class="erro">${esc(e.message)}</p>`; });
+  } else {
+    const amigos = S.amigos || [];
+    j.innerHTML = `<div class="jOnline">${topo}<div class="meuCod"><small>Seu código</small><b>${esc(O.codigo)}</b><small>${esc(O.apelido)}</small></div>
+      <div class="addAmigo"><input id="codAmigo" inputmode="numeric" maxlength="6" placeholder="Código do amigo"><button class="btn verde peq" data-a="addAmigo">Adicionar</button></div><p class="erro" id="onErro"></p>
+      <p class="sub">Mande reforços 1 vez por dia para cada amigo: entram na próxima batalha dele e você ganha ${ico('ouro')} 20.</p>
+      <div class="lista">${amigos.length ? amigos.map(a => `<div class="linha"><span>${esc(a.apelido)}</span><small>${esc(a.codigo)}</small>
+        ${a.ajudado === hojeTxt() ? '<em class="feito">Enviado ✓</em>' : `<button class="btn amarelo peq" data-amigo="${esc(a.codigo)}">${ico('herois')} Reforço</button>`}</div>`).join('') : '<p>Adicione amigos pelo código deles.</p>'}</div>
+      <button class="btn azul" data-a="fecharJanela">Fechar</button></div>`;
+  }
+}
+const soldadosAjuda = () => Math.min(60, 20 + 2 * S.up.exercito);
+async function cliqueOnline(b) {
+  const a = b.dataset.a, erro = m => { const e = $('#onErro'); if (e) e.textContent = m; som('erro'); };
+  if (b.dataset.aba) { som('clique'); mostrarOnline(b.dataset.aba); return; }
+  if (a === 'criarConta') { const ap = $('#apelido').value.trim(); if (ap.length < 2) return erro('Apelido com pelo menos 2 letras');
+    b.disabled = true; try { await ON.registrar(ap); if (S.recInf) ON.enviarRecorde(S.recInf, Math.floor(S.recInf / 1000)).catch(() => {}); som('confirma'); mostrarOnline('amigos'); } catch (e) { b.disabled = false; erro(e.message); } }
+  if (a === 'addAmigo') { const c = $('#codAmigo').value.trim(); if (!/^\d{6}$/.test(c)) return erro('O código tem 6 números');
+    if (c === ON.conta().codigo) return erro('Esse é o seu código');
+    try { const ap = await ON.quem(c); if (!ap) return erro('Código não encontrado'); S.amigos = [...(S.amigos || []).filter(x => x.codigo !== c), { codigo: c, apelido: ap, ajudado: '' }]; salvar(); som('compra'); mostrarOnline('amigos'); } catch (e) { erro(e.message); } }
+  if (b.dataset.amigo) { const c = b.dataset.amigo, A = (S.amigos || []).find(x => x.codigo === c); b.disabled = true;
+    try { await ON.ajudar(c, soldadosAjuda()); A.ajudado = hojeTxt(); S.moedas += 20; salvar(); sfx('vitoria'); mostrarOnline('amigos'); }
+    catch (e) { if (/hoje/.test(e.message) && A) { A.ajudado = hojeTxt(); salvar(); } b.disabled = false; erro(e.message); } }
+}
 function mostrarDiario() {
   const j = $('#janela'); j.hidden = false; const pronto = diarioPronto(), dia = diaDoPresente(), hojeI = pronto ? dia : (dia + 6) % 7;
   j.innerHTML = `<div class="jDiario"><h2>${ico('presente')} Presente diário</h2><p>Entre todo dia: o presente cresce. Se faltar um dia, volta ao começo.</p>
@@ -406,6 +450,8 @@ function clique(e) {
   if (b.dataset.pd) usarPoder(b.dataset.pd);
   if (a === 'roleta') pararRoleta();
   if (a === 'diario') { som('clique'); mostrarDiario(); }
+  if (a === 'online') { som('clique'); mostrarOnline(); }
+  if (b.dataset.aba || a === 'criarConta' || a === 'addAmigo' || b.dataset.amigo) cliqueOnline(b);
   if (a === 'fecharJanela') { som('fechar'); $('#janela').hidden = true; if (tela === 'lobby') desenharLobby(); }
   if (a === 'pegarDiario') { const D = DIARIO[diaDoPresente()];
     if (D.bau) mostrarBau(D.bau, 'Presente do dia!', () => pegarDiario());
@@ -448,6 +494,8 @@ function comecarFase(inf = false) {
   tela = 'jogo'; $('#lobby').hidden = true; $('#fim').hidden = true; $('#jogo').hidden = false; $('#jDica').hidden = false;
   $('#jN').textContent = G.inf ? '∞ · 1' : G.n; $('#jChefeN').textContent = G.chefe.nome; tema((G.n - 1) % 8);
   if (G.inf) faixa('PONTE SEM FIM!', '#c88aff');
+  const g0 = G; ON.receber().then(l => { if (G !== g0 || !l?.length) return; let n = 0; for (const r of l) n += r.soldados;
+    G.fila += n; setTimeout(() => { if (G === g0) faixa(l.length > 1 ? `REFORÇOS DE ${l.length} AMIGOS! +${n}` : `REFORÇO DE ${l[0].apelido.toUpperCase()}! +${n}`, '#8ae0ff'); }, 1500); }).catch(() => {});
   $('#jDica').textContent = G.rotas > 1 ? 'Duas rotas! Seus soldados vão pelo lado do herói' : 'Arraste para mover · toque nas vagas para construir torres';
   if (G.rotas > 1) faixa('DUAS ROTAS!', '#ffd84a');
 }
@@ -465,11 +513,13 @@ function terminarInf() {
     $('#jogo').hidden = true; const f = $('#fim'); f.hidden = false;
     f.innerHTML = `<div class="fimCaixa ${novo ? 'vit' : 'der'}"><h2>${novo ? 'NOVO RECORDE!' : 'Fim da linha!'}</h2>
       <p>${G.chefesMortos} chefe${G.chefesMortos === 1 ? '' : 's'} · ${fmt(G.mortesVm)} orcs derrotados</p>
-      <div class="ganho">${ico('estrela')}<b>${fmt(pts)}</b></div><p>Recorde: ${fmt(S.recInf || 0)}</p>
+      <div class="ganho">${ico('estrela')}<b>${fmt(pts)}</b></div><p>Recorde: ${fmt(S.recInf || 0)}</p><p id="fPos" class="pos">${ON.conta()?.codigo ? 'Enviando para o ranking...' : '<button class="fSo" data-a="online">Entre no online para aparecer no ranking</button>'}</p>
       <div class="ganho">${ico('ouro')}<b>+${fmt(ganho)}</b></div>
       ${bau ? `<div class="fBau">${bauHtml(bau, 'mini')}<b>${BAUS[bau].nome}!</b></div>` : ''}
       <button class="btn roxo grande" data-a="denovoInf">∞ Jogar de novo</button><button class="btn azul" data-a="lobby">${ico('raio')} Melhorias</button></div>`;
     sfx(novo ? 'vitoria' : 'derrota');
+    if (ON.conta()?.codigo) ON.enviarRecorde(S.recInf || pts, G.chefesMortos).then(pos => { const e = $('#fPos'); if (e) e.textContent = `Você está em #${pos} no ranking mundial!`; })
+      .catch(() => { const e = $('#fPos'); if (e) e.textContent = 'Sem conexão: o recorde vai na próxima.'; });
   }, 1200);
 }
 function terminar(venceu) {
@@ -510,8 +560,6 @@ export function passo(dt0) {
     // desenha os exércitos
     desenharTropas('az', G.az, Math.PI, t); desenharTropas('vm', G.vm, 0, t); passoVoo(dt);
     // pilhas deslizam para a frente da pista
-    if (G.inf && tela === 'jogo') G.pistas.forEach((p, k) => { if (p.length >= 8) return; const F = dadosFase(G.n + Math.floor(Math.random() * 3)), l = k ? F.dir : F.esq;
-      for (let i = 0; i < 12; i++) novoBloco(l[8 + i], k, (p.length ? p[p.length - 1].z : ZLANE) - PASSO - 6, F.duro); });
     for (const p of G.pistas) p.forEach((b, i) => { const zAlvo = ZLANE - 2 - i * PASSO; b.z += (zAlvo - b.z) * Math.min(1, dt * 5); b.mesh.position.z = b.z; });
     const ch = G.chefe; ch.flash = Math.max(0, ch.flash - dt);
     { const f = ch.flash > 0 ? 0.45 : 0, r = ch.furia ? 0.28 + 0.12 * Math.sin(t * 9) : 0; for (const m of ch.mats) m.emissive.setRGB(f + r, f, f); }
@@ -551,6 +599,9 @@ function passoJogo(dt) {
     for (let k = 0; k < G.nFlechas; k++) { const x = h.x + (k - (G.nFlechas - 1) / 2) * 1.1, o = new THREE.Mesh(GEO_FLECHA, MAT_FLECHA); o.position.set(x, 2.6, ZH - 1); cena.add(o); G.flechas.push({ x, z: ZH - 1, o }); }
     if (Math.random() < 0.5) sfx('arco');
   }
+  // ponte sem fim: as pistas se renovam
+  if (G.inf) G.pistas.forEach((p, k) => { if (p.length >= 6) return; const F = dadosFase(G.n + Math.floor(Math.random() * 3)), l = k ? F.dir : F.esq;
+      for (let i = 0; i < 10; i++) novoBloco(l[i], k, (p.length ? p[p.length - 1].z : ZLANE) - PASSO - 6, F.duro + G.chefesMortos); });
   // hora de escolher um bônus
   if (G.t >= G.proxEscolha && !ch.pulo) { G.proxEscolha = G.t + 22 + 4 * G.escolhas; abrirEscolha(); }
   // o chefe joga pedras no herói: um círculo avisa onde cai, arraste para desviar
@@ -566,7 +617,7 @@ function passoJogo(dt) {
   if (G.autoChuva && G.pd.chuva.cd <= 0 && G.vm.length > 8) usarPoder('chuva');
   // vermelhos saem do portão do chefe
   G.ondaT -= dt;
-  const ritmo = G.F.ritmo * (1 + G.t / 45);
+  const ritmo = G.F.ritmo * (1 + G.t / 45) * (G.inf ? 1 + 0.15 * G.chefesMortos : 1);
   const novoVm = r => G.vm.push({ x: xRota(r) * 0.6, z: ch.z + 5 + Math.random() * 2, ph: Math.random() * 6, ax: xRota(r) });
   if (G.ondaT <= 0) { G.ondaT = 17; const lado = Math.random() < 0.5 ? -1 : 1;
     for (let k = Math.round(ritmo * 5); k > 0 && G.vm.length < MAXU; k--) novoVm(G.rotas > 1 ? lado : 0);
@@ -772,8 +823,8 @@ function acertarBloco(b, pista, lado) {
     else { G.tiro *= 1.35; faixa('TIRO RÁPIDO!', '#c88aff'); }
     G.brilhoH = 1; G.punch = 1; C.faiscas(b.mesh.position.x, 2, b.z + 1, 0xc88aff, 40, 7); C.faiscas(G.heroi.x, 3, ZH, 0xc88aff, 30, 5); sfx('magia'); sfx('brilho');
   } else {
-    const n = Math.round((b.tipo === 'vezes' ? Math.min(250, G.az.length + G.fila) : b.valor) * G.multPilha);
-    G.fila += n; G.txt.push({ x: lado * XL, y: 4, z: b.z, txt: b.tipo === 'vezes' ? `x${b.valor}!` : `+${b.valor}`, cor: b.tipo === 'vezes' ? '#7aff8a' : n >= 10 ? '#ffd84a' : '#8ac8ff', t: 0, grande: n >= 10 });
+    const n = Math.round((b.tipo === 'vezes' ? Math.min(150, G.az.length) : b.valor) * G.multPilha);
+    G.fila = Math.min(MAX_FILA, G.fila + n); G.txt.push({ x: lado * XL, y: 4, z: b.z, txt: b.tipo === 'vezes' ? `x${b.valor}!` : `+${b.valor}`, cor: b.tipo === 'vezes' ? '#7aff8a' : n >= 10 ? '#ffd84a' : '#8ac8ff', t: 0, grande: n >= 10 });
     C.faiscas(b.mesh.position.x, 2, b.z + 1, b.tipo === 'vezes' ? 0x4aff6a : n >= 10 ? 0xffd84a : 0x5aa8ff, n >= 10 ? 26 : 12, 5);
     G.combo = (G.combo || 0) + 1; G.comboT = 1.2; sfx('nota', G.combo - 1); if (n >= 10) sfx('brilho');
     if (b.tipo === 'vezes') { faixa('EXÉRCITO DOBRADO!', '#7aff8a'); G.punch = 1; }
