@@ -648,3 +648,32 @@ input{font:inherit;user-select:text;-webkit-user-select:text}
 .tutMao.arrasta{animation:tutArrasta 1.8s ease-in-out infinite}
 @keyframes tutToca{50%{transform:translate(6px,10px) scale(.9)}}
 @keyframes tutArrasta{0%,100%{transform:translateX(-90px)}50%{transform:translateX(90px)}}
+/* ---- perfil ---- */
+.avatarBtn{position:relative;width:44px;height:44px;border-radius:50%;background:radial-gradient(#fff6e3,#d8b880);border:3px solid #ffd23a;box-shadow:0 3px 0 #7a4a08;flex:none;padding:0;overflow:visible}
+.avatarBtn img{width:100%;height:100%;object-fit:contain;border-radius:50%}
+.pfTopo{display:flex;align-items:center;gap:10px;padding:6px;border-radius:16px;background:linear-gradient(#ffe8a8,#f2c860);margin-bottom:6px}
+.pfTopo img{width:76px;height:76px;object-fit:contain;border-radius:50%;background:#fff6;border:3px solid #fff}
+.pfTopo b{font-family:var(--fT);font-weight:400;font-size:24px;display:block}
+.pfTopo small{display:flex;align-items:center;gap:3px;color:var(--suave)}.pfTopo small .ico{width:14px;height:14px}
+.pfAvatares{display:flex;gap:5px;overflow-x:auto;padding:2px 0 6px;flex:none}
+.pfAvatares button{width:44px;height:44px;border-radius:50%;background:#fff;border:2px solid var(--creme2);flex:none;padding:2px}
+.pfAvatares button.sel{border-color:var(--verde);box-shadow:0 0 0 2px var(--verde)}
+.pfAvatares img{width:100%;height:100%;object-fit:contain}
+.pfLista{overflow-y:auto;flex:1;min-height:0}
+.pfStats{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+.pfStat{display:flex;flex-direction:column;align-items:center;padding:6px 2px;border-radius:12px;background:#fff;border:2px solid var(--creme2);text-align:center}
+.pfStat .ico{width:20px;height:20px;color:var(--azul2)}.pfStat b{font-family:var(--fT);font-weight:400;font-size:16px}.pfStat small{font-size:10px;color:var(--suave);line-height:1.1}
+.pfMed{display:flex;align-items:center;gap:8px;padding:6px 8px;margin-bottom:5px;border-radius:12px;background:#fff;border:2px solid var(--creme2)}
+.pfMed.tem{border-color:var(--m)}
+.pfMedIco{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(#fff,var(--m));color:#4a2c12;border:3px solid var(--m);box-shadow:0 2px 0 rgba(0,0,0,.25);flex:none}
+.pfMed:not(.tem) .pfMedIco{filter:grayscale(1);opacity:.6}
+.pfMedIco .ico{width:22px;height:22px}
+.pfMed > div{flex:1;min-width:0}.pfMed b{font-size:13px;display:block}.pfMed small{font-size:11px;color:var(--suave)}
+.pfMed .barra{height:14px;border-color:var(--madeira);margin-top:2px}.pfMed .barra i{background:linear-gradient(#ffd23a,#d8901a)}.pfMed .barra span{font-size:10px}
+.pfMed .btn{margin:0;flex:none;font-size:13px;padding:6px 8px;animation:respira 1.2s infinite}.pfMed .btn .ico{width:16px;height:16px}
+.lbTopo{gap:4px}
+.lbTopo .pilula{flex:1;min-width:0}
+.lbTopo .redondo{position:relative;width:36px;height:40px;flex:none;display:grid;place-items:center;padding:0}
+.lbTopo .redondo .ico{width:26px;height:26px}
+.lbTopo .redondo .flag{font-size:22px}
+.lbTopo .redondo:not(.presente){border-radius:12px;background:rgba(40,24,10,.6);color:#ffe8b0}

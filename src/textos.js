@@ -155,6 +155,12 @@ const T = {
   'Orcs derrotados dão ouro: toque no + para construir uma torre': L('Defeated orcs give gold: tap + to build a tower', 'Los orcos derrotados dan oro: toca + para construir una torre'),
   'Use o poder do herói quando estiver pronto!': L("Use the hero's power when it's ready!", '¡Usa el poder del héroe cuando esté listo!'),
   'Derrote o chefe no fim da ponte antes que ele derrube sua muralha!': L('Defeat the boss at the end of the bridge before it breaks your wall!', '¡Derrota al jefe al final del puente antes de que derribe tu muralla!'),
+  // perfil
+  'Estatísticas': L('Stats', 'Estadísticas'), 'Fase máxima': L('Best stage', 'Fase máxima'), 'Orcs derrotados': L('Orcs defeated', 'Orcos derrotados'), 'Chefes': L('Bosses', 'Jefes'),
+  'Ovos chocados': L('Eggs hatched', 'Huevos eclosionados'), 'Recorde ∞': L('Record ∞', 'Récord ∞'), 'Medalhas': L('Medals', 'Medallas'), 'cada nível dá um prêmio': L('each level gives a reward', 'cada nivel da un premio'),
+  'Matador de orcs': L('Orc slayer', 'Matador de orcos'), 'Caçador de chefes': L('Boss hunter', 'Cazador de jefes'), 'Defensor da ponte': L('Bridge defender', 'Defensor del puente'), 'Colecionador': L('Collector', 'Coleccionista'),
+  'Chocador': L('Hatcher', 'Incubador'), 'Estrelado': L('Starry', 'Estrellado'), 'Conquistador': L('Conqueror', 'Conquistador'), 'Renascido': L('Reborn', 'Renacido'), 'Bronze': L('Bronze', 'Bronce'), 'Prata': L('Silver', 'Plata'), 'Ouro': L('Gold', 'Oro'),
+  'Bronze★': L('Bronze★', 'Bronce★'), 'Prata★★': L('Silver★★', 'Plata★★'), 'Ouro★★★': L('Gold★★★', 'Oro★★★'),
 };
 export const TEXTOS = { en: {}, es: {} };
 for (const [k, v] of Object.entries(T)) { TEXTOS.en[k] = v.en; TEXTOS.es[k] = v.es; }

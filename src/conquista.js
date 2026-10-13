@@ -104,7 +104,7 @@ function luta(dt) {
     const dx = a.x - u.x, dz = a.z - u.z, d = Math.hypot(dx, dz) || 1;
     if (u.v) u.v.raiz.rotation.y = Math.atan2(dx, dz);
     if (d > u.alc + a.raio + u.raio * 0.5) { const p = Math.min(d, u.vel * dt); u.x += dx / d * p; u.z += dz / d * p; if (u.v && u.atkT <= 0) u.v.tocar('Gallop', { vel: 1.3 }); }
-    else if (u.cd <= 0) { u.cd = u.cad; u.atkT = 0.55; golpear(u); if (u.v) { u.v.tocar(Math.random() < 0.3 && u.v.tem('Attack2') ? 'Attack2' : 'Attack', { loop: false, reinicia: true, vel: 1.4 }); if (Math.random() < 0.5) sfx(u.classe === 'atirador' ? 'magia' : 'arco'); } }
+    else if (u.cd <= 0) { u.cd = u.cad; u.atkT = 0.55; golpear(u); if (u.v) { u.v.tocar(Math.random() < 0.3 && u.v.tem('Attack2') ? 'Attack2' : 'Attack', { loop: false, reinicia: true, vel: 1.4 }); sfx(u.classe === 'atirador' ? 'magia' : 'pet'); } }
     else if (u.v && u.atkT <= 0) u.v.tocar('Idle');
   }
   // não se amontoam
@@ -138,7 +138,7 @@ function desenhar() {
     : Q.estado === 'luta' ? `<div class="cqLuta"><button class="cqVel" data-cq="vel">x${Q.vel}</button></div>` : ''}
     <div class="cqJanela" id="cqJanela" hidden></div>`;
 }
-function lutar() { if (Q.estado !== 'prep') return; Q.estado = 'luta'; Q.banner = { txt: 'LUTEM!', cor: '#ffd84a', t: 0 }; sfx('brilho'); som('espada'); desenhar(); }
+function lutar() { if (Q.estado !== 'prep') return; Q.estado = 'luta'; Q.banner = { txt: 'LUTEM!', cor: '#ffd84a', t: 0 }; sfx('trombeta'); som('espada'); desenhar(); }
 function acabar(venceu) {
   Q.estado = 'fim'; Q.venceu = venceu; if (Q.sem3d) return;
   Q.banner = { txt: venceu ? 'VITÓRIA!' : 'DERROTA!', cor: venceu ? '#ffd84a' : '#ff6a5a', t: 0 }; sfx(venceu ? 'vitoria' : 'derrota');

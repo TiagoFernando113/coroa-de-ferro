@@ -13,6 +13,7 @@ import { HEROIS, heroiAtual } from './herois.js';
 import { criarTropas, desenharTropas, voar, passoVoo, limparTropas } from './tropas.js';
 import { PETS, RARIDADES, CLASSES, OVOS, BONUS as BONUS_PET, ESTRELAS, MAX_EQUIPE, MAX_NV, MAX_EST, base, est, qtd, temPet, modeloDe, tinta, atributos, forca, forcaEquipe, custoNivel, subirNivel, juntar, equipar, equiparMelhores, chocar, bonusPet, bonusEquipe, txtBonus, lucroOcioso } from './pets.js';
 import * as CQ from './conquista.js';
+import { MEDALHAS, NIVEIS_MEDALHA, nivelMedalha, pegas, medalhasProntas, premioMedalha, pegarMedalha } from './perfil.js';
 import { ofertas, lojaDia, comprarOferta, temOferta } from './loja.js';
 import { TIPOS as TIPOS_MISSAO, PTS_NIVEL, NIVEIS_PASSE, atualizarMissoes, evento, prontas, pegarMissao, premioNivel, nivelPasse, pegarNivel, fimTemporada } from './missoes.js';
 import { traduzir, nomeIdioma, idioma, precisa } from './traduzir.js';
@@ -443,7 +444,7 @@ function htmlCartas() {
 function desenharLobby() {
   const F = dadosFase(S.fase), O = S.online, upPode = Object.entries(UPGRADES).some(([k, U]) => S.up[k] < U.max && S.moedas >= U.custo(S.up[k]));
   const nav = `<nav class="lbNav">${ABAS.map(([k, nome, icone]) => `<button class="${abaLobby === k ? 'on' : ''}" data-aba-lobby="${k}">${ico(icone)}<small>${nome}</small>${(k === 'up' && upPode) || (k === 'pets' && (S.ovos.comum || S.ovos.magico)) ? '<i class="ponto"></i>' : ''}</button>`).join('')}</nav>`;
-  const topo = `<div class="lbTopo"><div class="pilula ouro">${ico('ouro')}<b>${fmt(S.moedas)}</b></div>
+  const topo = `<div class="lbTopo"><button class="avatarBtn" data-a="perfil"><img src="${fotoPet(avatarAtual())}" alt="">${medalhasProntas() ? '<i class="ponto"></i>' : ''}</button><div class="pilula ouro">${ico('ouro')}<b>${fmt(S.moedas)}</b></div>
     <button class="redondo loja" data-a="loja">${ico('mercado')}${temOferta() ? '<i class="ponto"></i>' : ''}</button><button class="redondo missoes" data-a="missoes">${ico('missoes')}${prontas() ? '<i class="ponto"></i>' : ''}</button><button class="redondo presente" data-a="diario">${ico('presente')}${diarioPronto() ? '<i class="ponto"></i>' : ''}</button><button class="redondo lingua" data-a="idioma"><span class="flag">${IDIOMAS.find(i => i[0] === idiomaJogo())?.[2] || '🌐'}</span></button><button class="redondo" data-a="som">${ico(estaMudo() ? 'mudo' : 'som')}</button></div>`;
   let meio;
   if (abaLobby === 'home') meio = `
@@ -501,7 +502,7 @@ function mostrarPet(k) {
 function acaoPet(a, k) {
   if (a === 'melhores') { equiparMelhores(); som('confirma'); recriarPetsLobby(); desenharLobby(); return; }
   if (a === 'nivel') { if (subirNivel(k)) { som('compra'); sfx('brilho'); evento('nivelPet'); } else { som('erro'); return; } }
-  if (a === 'juntar') { const novo = juntar(k); if (!novo) { som('erro'); return; } sfx('vitoria'); som('lendario'); k = novo;
+  if (a === 'juntar') { const novo = juntar(k); if (!novo) { som('erro'); return; } sfx('estrela'); setTimeout(() => sfx('vitoria'), 450); k = novo;
     if (est(k) >= 2) avisarCla(`juntou ${PETS[base(k)].nome} ${'★'.repeat(est(k))} ${ESTRELAS[est(k)].nome}!`); }
   if (a === 'equipar') { if (!equipar(k)) { som('erro'); return; } som('clique'); }
   recriarPetsLobby(); desenharLobby(); mostrarPet(k);
@@ -512,7 +513,8 @@ function abrirOvo(tipo) {
   const r = chocar(tipo); if (!r) { som('erro'); return; } evento('ovos');
   const j = $('#janela'); j.hidden = false; som('compra');
   j.innerHTML = `<div class="jOvo"><h2>${O.nome}</h2><div class="raios"></div><div class="ovoPalco">${CQ.ovoHtml(tipo, 'treme')}</div><p class="dicaBau">Chocando...</p><div class="ovoRes"></div></div>`;
-  setTimeout(() => { const e = j.querySelector('.ovoG'); if (!e) return; e.classList.remove('treme'); e.classList.add('quebra'); sfx('magia'); }, 1500);
+  [250, 650, 1000, 1300].forEach((d, i) => setTimeout(() => { if (j.querySelector('.ovoG.treme')) sfx('ovo', i); }, d));
+  setTimeout(() => { const e = j.querySelector('.ovoG'); if (!e) return; e.classList.remove('treme'); e.classList.add('quebra'); sfx('quebra'); }, 1500);
   setTimeout(() => { if (!j.querySelector('.jOvo')) return; const D = PETS[r.k], R = RARIDADES[D.r], P = S.pets[r.k];
     j.querySelector('.ovoPalco').remove(); j.querySelector('.dicaBau').remove(); j.querySelector('.raios').classList.add('liga'); j.querySelector('.jOvo').style.setProperty('--r', R.cor);
     j.querySelector('.ovoRes').innerHTML = `<img src="${fotoPet(r.k, 256)}" alt=""><b>${D.nome}</b><small style="color:${R.cor}">${R.nome} · ${CLASSES[D.c].nome}</small>
@@ -794,6 +796,26 @@ function atualizarRevanche() {
   else if (!D.fim) el.innerHTML = `<b>${nome}</b> ainda está jogando...`;
   else el.textContent = '';
 }
+// ---- perfil e medalhas ----
+const avatarAtual = () => (S.avatar && temPet(S.avatar) ? S.avatar : S.equipe[0] || 'cao');
+function mostrarPerfil() {
+  const j = $('#janela'), re = !j.hidden && !!j.querySelector('.jPerfil'); j.hidden = false; const E = S.est || {}, O = ON.conta();
+  const stat = (icone, nome, v) => `<div class="pfStat">${ico(icone)}<b>${v}</b><small>${nome}</small></div>`;
+  const med = k => { const M = MEDALHAS[k], nv = nivelMedalha(k), pg = pegas(k), v = M.valor(), prox = M.metas[Math.min(nv, 2)], cor = nv ? NIVEIS_MEDALHA[nv - 1][1] : '#b8b0a4';
+    const p = pg < nv ? premioMedalha(pg + 1) : null;
+    return `<div class="pfMed ${nv ? 'tem' : ''}" style="--m:${cor}"><span class="pfMedIco">${ico(M.icone)}</span><div><b>${M.nome}</b><small>${nv ? NIVEIS_MEDALHA[nv - 1][0] : '—'}${'★'.repeat(nv)}</small>
+      ${nv < 3 ? `<div class="barra"><i style="width:${Math.min(100, 100 * v / prox)}%"></i><span>${fmt(v)}/${fmt(prox)}</span></div>` : ''}</div>
+      ${p ? `<button class="btn verde peq" data-medalha="${k}">${p.ovo ? ico('ovo') : ico('ouro')}${p.moedas ? fmt(p.moedas) : ''}</button>` : ''}</div>`; };
+  const vars = Object.keys(S.pets).flatMap(b => S.pets[b].e.map((n, e) => n > 0 ? b + '*'.repeat(e) : null).filter(Boolean));
+  j.innerHTML = `<div class="jMissoes jPerfil ${re ? 'semAnim' : ''}"><div class="pfTopo"><img src="${fotoPet(avatarAtual(), 256)}" alt=""><div><b data-nt>${esc(O?.apelido || 'Herói')}</b>
+      <small>${S.renasc ? `${ico('girar')} ×${S.renasc} · ` : ''}Fase ${S.fase}</small></div></div>
+    <div class="pfAvatares">${vars.map(k => `<button class="${k === avatarAtual() ? 'sel' : ''}" data-avatar="${k}"><img src="${fotoPet(k)}" alt=""></button>`).join('')}</div>
+    <div class="pfLista"><h3>Estatísticas</h3><div class="pfStats">${stat('escudo', 'Fase máxima', Math.max(S.melhor || 0, S.fase - 1))}${stat('caveira', 'Orcs derrotados', fmt(E.orcs || 0))}
+      ${stat('chefe', 'Chefes', fmt(E.chefes || 0))}${stat('ovo', 'Ovos chocados', fmt(E.ovos || 0))}${stat('pata', 'Pets', `${Object.keys(S.pets).length}/${Object.keys(PETS).length}`)}
+      ${stat('bandeira', 'Conquista', S.cq.est - 1)}${stat('h_triplo', 'Recorde ∞', fmt(S.recInf || 0))}${stat('girar', 'Renascer', S.renasc || 0)}</div>
+    <h3>Medalhas <small>cada nível dá um prêmio</small></h3>${Object.keys(MEDALHAS).map(med).join('')}</div>
+    <button class="btn azul" data-a="fecharJanela">Fechar</button></div>`;
+}
 // ---- loja diária ----
 function mostrarLoja() {
   const L = lojaDia(), j = $('#janela'); j.hidden = false; const ag = new Date(), meia = new Date(ag.getFullYear(), ag.getMonth(), ag.getDate() + 1), h = Math.floor((meia - ag) / 36e5), m = Math.floor((meia - ag) / 6e4) % 60;
@@ -860,6 +882,9 @@ function clique(e) {
   if (a === 'renascer') renascer(b);
   if (a === 'resgatar') resgatarCodigo(b);
   if (a === 'missoes') { som('clique'); mostrarMissoes(); }
+  if (a === 'perfil') { som('clique'); mostrarPerfil(); }
+  if (b.dataset.avatar) { S.avatar = b.dataset.avatar; salvar(); som('clique'); mostrarPerfil(); desenharLobby(); }
+  if (b.dataset.medalha) { const r = pegarMedalha(b.dataset.medalha); if (!r) { som('erro'); return; } sfx('medalha'); som('moedas'); mostrarPerfil(); desenharLobby(); }
   if (a === 'loja') { som('clique'); mostrarLoja(); }
   if (b.dataset.oferta) { const r = comprarOferta(+b.dataset.oferta); if (!r) { som('erro'); return; } if (r.cheio) { som('erro'); b.textContent = tr('Baús cheios'); return; }
     som('compra'); sfx('vitoria'); mostrarLoja(); if (tela === 'lobby') { recriarPetsLobby(); desenharLobby(); } }

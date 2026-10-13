@@ -103,5 +103,11 @@ export function sfx(n, k = 0) {
   if (n === 'magia') { for (const [f0, f1] of [[300, 1200], [450, 1800]]) { const o = osc('sine', f0, a, 0.3, 0.08, mestre, 0.01); o.frequency.exponentialRampToValueAtTime(f1, a + 0.25); } }
   if (n === 'impacto') { bumbo(a, 0.7); barulho(a, 0.25, 0.25, 'lowpass', 900); }
   if (n === 'vitoria') { [[69, 0], [73, 0.12], [76, 0.24], [81, 0.36]].forEach(([m, d]) => lider(a + d, hz(m + transp), d === 0.36 ? 1.2 : 0.2, 0.1)); acorde(a + 0.36, [57, 61, 64, 69], 1.4, 0.03); }
+  if (n === 'ovo') { osc('triangle', hz(76 + transp + (k % 3) * 2), a, 0.12, 0.08, mestre, 0.002); barulho(a, 0.06, 0.12, 'bandpass', 3200, 3, mestre); } // toc-toc no ovo
+  if (n === 'quebra') { barulho(a, 0.3, 0.3, 'highpass', 2500, 1, mestre); [0, 4, 7, 12, 16].forEach((s, i) => osc('triangle', hz(76 + transp + s), a + 0.08 + i * 0.06, 0.4, 0.08, eco, 0.002)); }
+  if (n === 'estrela') { [0, 4, 7, 12, 16, 19, 24].forEach((s, i) => { osc('square', hz(72 + transp + s), a + i * 0.07, 0.25, 0.05, mestre, 0.002); osc('sine', hz(84 + transp + s), a + i * 0.07, 0.4, 0.04, eco, 0.002); }); }
+  if (n === 'pet') { const o = osc('square', 520 + Math.random() * 200, a, 0.08, 0.05, mestre, 0.002); o.frequency.exponentialRampToValueAtTime(260, a + 0.08); barulho(a, 0.05, 0.08, 'bandpass', 1400, 2, mestre); }
+  if (n === 'trombeta') { [[60, 0], [64, 0.14], [67, 0.28], [72, 0.42]].forEach(([m, d]) => { const f = hz(m + transp); osc('sawtooth', f, a + d, d === 0.42 ? 0.7 : 0.16, 0.06, mestre, 0.01); osc('square', f * 2, a + d, d === 0.42 ? 0.7 : 0.16, 0.025, mestre, 0.01); }); }
+  if (n === 'medalha') { [[72, 0], [79, 0.1], [84, 0.2], [88, 0.3]].forEach(([m, d]) => osc('triangle', hz(m + transp), a + d, 0.5, 0.09, eco, 0.002)); osc('sine', hz(96 + transp), a + 0.3, 0.8, 0.05, eco, 0.002); }
   if (n === 'derrota') { [[64, 0], [63, 0.25], [62, 0.5], [57, 0.75]].forEach(([m, d]) => osc('triangle', hz(m), a + d, 0.6, 0.1, mestre, 0.01)); }
 }

@@ -1,6 +1,7 @@
 // Missões diárias (3), semanais (3) e o passe da temporada (30 níveis por mês, só prêmios grátis).
 // O jogo avisa o que aconteceu com evento('orcs', 120) e as missões contam sozinhas.
 import { S, salvar, ganharBau } from './meta.js';
+import { contar } from './perfil.js';
 
 export const TIPOS = {
   orcs: { txt: 'Derrote # orcs', icone: 'caveira', dia: [300, 600, 1000], sem: [5000] },
@@ -30,7 +31,7 @@ export function atualizarMissoes() {
   if (mudou) salvar();
 }
 export function evento(tipo, n = 1) {
-  if (!n) return; atualizarMissoes();
+  if (!n) return; atualizarMissoes(); contar(tipo, n);
   for (const m of [...S.missoes.diarias, ...S.missoes.semanais]) if (m.t === tipo && !m.pego) m.prog = Math.min(m.meta, m.prog + n);
   salvar();
 }
