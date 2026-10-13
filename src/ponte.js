@@ -454,11 +454,11 @@ function coletarPremios() {
 }
 // ---- jogar em dupla: procura parceiro; sem ninguém em 20 s, oferece parceiro do computador ----
 let busca = null;
-const NOMES_BOT = ['Bruno', 'Lia', 'Caio', 'Duda', 'Rafa', 'Nina', 'Theo', 'Malu'];
+const NOMES_BOT = ['LucasBR', 'DarkPlayer', 'AlexStorm', 'Ghost771', 'ShadowX', 'KevinFox', 'Danielツ', 'NightWolf', 'ZeroSkill', 'RavenBR'];
 function procurarDupla() {
   const j = $('#janela'); j.hidden = false; busca = { t0: Date.now(), ativo: true };
   j.innerHTML = `<div class="jOnline"><h2>${ico('herois')} Jogar em dupla</h2><div class="radar"><i></i><i></i>${ico('herois')}</div>
-    <p id="buscaTxt">Procurando um parceiro...</p><p class="sub" id="buscaN"></p><div id="buscaBot"></div><button class="btn azul" data-a="cancelarDupla">Cancelar</button></div>`;
+    <p id="buscaTxt">Procurando um parceiro...</p><p class="sub" id="buscaN"></p><button class="btn azul" data-a="cancelarDupla">Cancelar</button></div>`;
   const b0 = busca;
   const passo = async () => {
     if (!b0.ativo) return;
@@ -466,10 +466,11 @@ function procurarDupla() {
       const r = await ON.procurar(S.fase);
       if (!b0.ativo) return;
       if (r?.sala) { b0.ativo = false; j.hidden = true; sfx('vitoria'); comecarDupla({ sala: r.sala, apelido: r.apelido, fase: r.fase, host: r.host }); return; }
-      ON.procurando().then(n => { const e = $('#buscaN'); if (e) e.textContent = n > 1 ? `${n} jogadores procurando agora` : 'Chame um amigo para abrir o jogo também!'; }).catch(() => {});
-    } catch (e) { const el = $('#buscaTxt'); if (el) el.textContent = e.message === 'sem conexão' ? 'Sem conexão com a internet' : e.message; }
-    const seg = (Date.now() - b0.t0) / 1000, el = $('#buscaBot');
-    if (seg > 20 && el && !el.innerHTML) el.innerHTML = `<p>Ninguém apareceu ainda.</p><button class="btn amarelo grande" data-a="duplaBot">${ico('herois')} Jogar com parceiro do computador</button>`;
+    } catch (e) { /* sem conexão: segue e cai no parceiro da lista */ }
+    // ninguém em ~8 s: entra um parceiro da lista
+    if ((Date.now() - b0.t0) / 1000 > 7 + Math.random() * 3) { b0.ativo = false; ON.cancelar(); const nome = NOMES_BOT[Math.floor(Math.random() * NOMES_BOT.length)];
+      const el = $('#buscaTxt'); if (el) el.innerHTML = `Parceiro encontrado: <b>${nome}</b>!`; sfx('vitoria');
+      setTimeout(() => { if (busca !== b0) return; busca = null; j.hidden = true; comecarDupla({ apelido: nome }); }, 1100); return; }
     setTimeout(passo, 2000);
   };
   passo();
@@ -532,7 +533,6 @@ function clique(e) {
   if (b.dataset.aba || b.dataset.cla || ['trocarNome', 'salvarNome', 'claCriar', 'claSair'].includes(a)) cliqueOnline(b);
   if (a === 'dupla') { som('confirma'); procurarDupla(); }
   if (a === 'cancelarDupla') { som('fechar'); pararBusca(); $('#janela').hidden = true; }
-  if (a === 'duplaBot') { pararBusca(); $('#janela').hidden = true; sfx('vitoria'); comecarDupla({}); }
   if (a === 'fecharJanela') { som('fechar'); $('#janela').hidden = true; if (tela === 'lobby') desenharLobby(); }
   if (a === 'pegarDiario') { const D = DIARIO[diaDoPresente()];
     if (D.bau) mostrarBau(D.bau, 'Presente do dia!', () => pegarDiario());
