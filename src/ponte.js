@@ -584,9 +584,21 @@ const escudoCla = (cor, txt = '') => `<span class="escCla" style="--c:${CORES_CL
 const tagHtml = (tag, cor) => tag ? `<em class="tagCla" style="--c:${CORES_CLA[(cor || 0) % 8]}">[${esc(tag)}]</em>` : '';
 let rankModo = 'jog';
 // conteúdo das abas Clã e Ranking (dentro da folha do lobby)
+// ---- cache das telas online: mostra na hora o último resultado e atualiza em segundo plano ----
+const CACHE = {};
+function lerCache(k) { if (CACHE[k]) return CACHE[k]; try { const v = JSON.parse(localStorage.getItem('pc_' + k)); if (v) CACHE[k] = v; return v; } catch (e) { return null; } }
+function gravarCache(k, d) { const v = { t: Date.now(), d }; CACHE[k] = v; try { localStorage.setItem('pc_' + k, JSON.stringify(v)); } catch (e) {} }
+const esquecer = (...ks) => { for (const k of ks) { delete CACHE[k]; try { localStorage.removeItem('pc_' + k); } catch (e) {} } };
+// render(dados) roda já com o cache; a busca só acontece se o cache tiver mais de ttl ms, e só redesenha se mudou
+function comCache(k, buscar, render, erro, ttl = 20000) {
+  const c = lerCache(k); if (c) render(c.d);
+  if (c && Date.now() - c.t < ttl) return;
+  buscar().then(d => { const mudou = !c || JSON.stringify(c.d) !== JSON.stringify(d); gravarCache(k, d); if (mudou) render(d); }).catch(e => { if (!c) erro?.(e); });
+}
 function carregarOnline(aba) {
   const el = $('#onCorpo'); if (!el) return; const O = ON.conta(); el.classList.remove('comChat'); ON.garantir().then(enviarPerfil).catch(() => {});
   const nome = `<div class="nomeEu">Seu nome: <b data-nt>${esc(O?.apelido || '...')}</b> <button class="fSo" data-a="trocarNome">trocar</button></div>`;
+  const mostrarNomeEu = () => { const b = document.querySelector('.nomeEu b'); if (b) b.textContent = ON.conta()?.apelido || ''; };
   if (aba === 'nome') {
     el.innerHTML = `<p class="sub">Esse nome aparece no ranking, no clã e na dupla.</p><input id="apelido" maxlength="16" placeholder="Seu apelido" value="${esc(O?.apelido || '')}"><p class="erro" id="onErro"></p>
       <button class="btn verde grande" data-a="salvarNome">Salvar</button><button class="btn azul" data-a="voltarOnline">Voltar</button>`; return;
@@ -594,20 +606,22 @@ function carregarOnline(aba) {
   if (aba === 'rank') {
     el.innerHTML = `${nome}<div class="abas"><button class="${rankModo === 'jog' ? 'on' : ''}" data-rk="jog">Jogadores</button><button class="${rankModo === 'cq' ? 'on' : ''}" data-rk="cq">Conquista</button><button class="${rankModo === 'cla' ? 'on' : ''}" data-rk="cla">Clãs</button></div>
       <p class="sub">${rankModo === 'jog' ? 'Ponte sem fim · melhores do mundo' : rankModo === 'cq' ? 'Maior estágio da Conquista' : 'Clãs com mais chefes semanais derrotados'}</p><div class="lista" id="lista"><p>Carregando...</p></div>`;
-    const med = p => p <= 3 ? ['🥇', '🥈', '🥉'][p - 1] : '#' + p;
-    (rankModo === 'jog' ? ON.garantir().then(ON.ranking).then(l => l.length ? l.map(r => `<div class="linha ${r.eu ? 'eu' : ''}"><b>${med(r.posicao)}</b><button class="nomeBtn" data-perfil="${r.codigo}" data-nt>${tagHtml(r.tag, 0)}${esc(r.apelido)}</button><small>${r.chefes} chefes</small><em>${fmt(r.pontos)}</em></div>`).join('')
-        : '<p>Ninguém no ranking ainda. Jogue a Ponte sem fim e seja o primeiro!</p>')
-      : rankModo === 'cq' ? ON.garantir().then(ON.cqTop).then(l => l.length ? l.map(r => `<div class="linha ${r.eu ? 'eu' : ''}"><b>${med(r.posicao)}</b><button class="nomeBtn" data-perfil="${r.codigo}" data-nt>${tagHtml(r.tag, 0)}${esc(r.apelido)}</button><small>${ico('forca')} ${fmt(r.forca)}</small><em>${ico('bandeira')} ${r.estagio}</em></div>`).join('')
-        : '<p>Ninguém ainda. Vença estágios na Conquista!</p>')
-      : ON.clas().then(l => l.length ? l.map((c, i) => `<div class="linha"><b>${med(i + 1)}</b>${escudoCla(c.cor, c.tag || c.nome)}<span data-nt>${tagHtml(c.tag, c.cor)}${esc(c.nome)}</span><small>${c.membros} membros</small><em>Nv ${c.nivel}</em></div>`).join('') : '<p>Nenhum clã ainda.</p>'))
-      .then(h => { const e = $('#lista'); if (e) e.innerHTML = h; const b = document.querySelector('.nomeEu b'); if (b) b.textContent = ON.conta()?.apelido || ''; })
-      .catch(e => { const x = $('#lista'); if (x) x.innerHTML = `<p class="erro">${esc(e.message)}</p>`; });
+    const med = p => p <= 3 ? ['🥇', '🥈', '🥉'][p - 1] : '#' + p, modo = rankModo;
+    const html = {
+      jog: l => l.length ? l.map(r => `<div class="linha ${r.eu ? 'eu' : ''}"><b>${med(r.posicao)}</b><button class="nomeBtn" data-perfil="${r.codigo}" data-nt>${tagHtml(r.tag, 0)}${esc(r.apelido)}</button><small>${r.chefes} chefes</small><em>${fmt(r.pontos)}</em></div>`).join('') : '<p>Ninguém no ranking ainda. Jogue a Ponte sem fim e seja o primeiro!</p>',
+      cq: l => l.length ? l.map(r => `<div class="linha ${r.eu ? 'eu' : ''}"><b>${med(r.posicao)}</b><button class="nomeBtn" data-perfil="${r.codigo}" data-nt>${tagHtml(r.tag, 0)}${esc(r.apelido)}</button><small>${ico('forca')} ${fmt(r.forca)}</small><em>${ico('bandeira')} ${r.estagio}</em></div>`).join('') : '<p>Ninguém ainda. Vença estágios na Conquista!</p>',
+      cla: l => l.length ? l.map((c, i) => `<div class="linha"><b>${med(i + 1)}</b>${escudoCla(c.cor, c.tag || c.nome)}<span data-nt>${tagHtml(c.tag, c.cor)}${esc(c.nome)}</span><small>${c.membros} membros</small><em>Nv ${c.nivel}</em></div>`).join('') : '<p>Nenhum clã ainda.</p>',
+    }[modo];
+    const buscar = modo === 'jog' ? () => ON.garantir().then(ON.ranking) : modo === 'cq' ? () => ON.garantir().then(ON.cqTop) : () => ON.clas();
+    comCache('rank_' + modo, buscar, l => { const e = $('#lista'); if (e && rankModo === modo) e.innerHTML = html(l); mostrarNomeEu(); },
+      e => { const x = $('#lista'); if (x) x.innerHTML = `<p class="erro">${esc(e.message)}</p>`; });
     return;
   }
   el.innerHTML = `${nome}<div id="claCorpo"><p>Carregando...</p></div>`;
-  ON.meuCla().then(c => { const e = $('#claCorpo'); if (!e) return; const b = document.querySelector('.nomeEu b'); if (b) b.textContent = ON.conta()?.apelido || '';
+  comCache('meucla', () => ON.meuCla(), c => { const e = $('#claCorpo'); if (!e) return; mostrarNomeEu();
     if (c) { const k = Math.min(1, c.dano / c.vida), abas = `<div class="abas"><button class="${claModo === 'chat' ? 'on' : ''}" data-cm="chat">${ico('pergaminho')} Chat</button><button class="${claModo === 'info' ? 'on' : ''}" data-cm="info">${ico('escudo')} Clã</button></div>`;
-      if (claModo === 'chat') { e.innerHTML = abas + htmlChat(); e.classList.add('modoChat'); $('#onCorpo')?.classList.add('comChat'); abrirChat(); return; }
+      if (claModo === 'chat') { if (e.classList.contains('modoChat') && $('#chatLista')) return; // o chat já está aberto: não redesenha
+        e.innerHTML = abas + htmlChat(); e.classList.add('modoChat'); $('#onCorpo')?.classList.add('comChat'); abrirChat(); return; }
       e.classList.remove('modoChat');
       e.innerHTML = abas + `<div class="claTopo">${escudoCla(c.cor, c.tag || c.nome)}<div><b data-nt>${tagHtml(c.tag, c.cor)}${esc(c.nome)}</b><small>Nível ${c.nivel} · ${c.membros.length}/30 membros</small></div></div>
         <div class="claChefe"><small>${ico('chefe')} Chefe do clã (semana) — todo dano que vocês dão nas batalhas conta</small>
@@ -616,19 +630,20 @@ function carregarOnline(aba) {
         <div class="lista">${c.membros.map(m => `<div class="linha ${m.eu ? 'eu' : ''}"><i class="pontoOn ${m.online ? 'on' : ''}"></i><button class="nomeBtn" data-perfil="${m.codigo}" data-nt>${esc(m.apelido)}</button><small>fase ${m.fase}</small><em>${fmt(m.dano)}</em></div>`).join('')}</div>
         <button class="fSo" data-a="claSair">Sair do clã</button>`;
       return; }
-    ON.clas().then(l => { const e2 = $('#claCorpo'); if (!e2) return;
+    e.classList.remove('modoChat'); $('#onCorpo')?.classList.remove('comChat');
+    comCache('clas', () => ON.clas(), l => { const e2 = $('#claCorpo'); if (!e2 || lerCache('meucla')?.d) return;
       e2.innerHTML = `<p class="sub">Entre num clã: membros se ajudam sozinhos nas batalhas e derrotam juntos o chefe da semana. A sigla aparece antes do seu nome.</p>
         <div class="lista">${l.length ? l.map(c => `<div class="linha">${escudoCla(c.cor, c.tag || c.nome)}<span data-nt>${tagHtml(c.tag, c.cor)}${esc(c.nome)}</span><small>Nv ${c.nivel} · ${c.membros}/30</small><button class="btn verde peq" data-cla="${c.id}">Entrar</button></div>`).join('') : '<p>Nenhum clã ainda. Crie o primeiro!</p>'}</div>
         <div class="criarCla"><input id="tagCla" maxlength="4" placeholder="SIGLA"><input id="nomeCla" maxlength="18" placeholder="Nome do novo clã"></div>
         <button class="btn amarelo" data-a="claCriar">Criar clã ${ico('ouro')}200</button><p class="erro" id="onErro"></p>`; });
-  }).catch(e => { const x = $('#claCorpo'); if (x) x.innerHTML = `<p class="erro">${esc(e.message)}</p>`; });
+  }, e => { const x = $('#claCorpo'); if (x) x.innerHTML = `<p class="erro">${esc(e.message)}</p>`; });
 }
 function mostrarOnline(aba) { if (tela !== 'lobby') abrirLobby(); abaLobby = aba === 'cla' ? 'cla' : 'rank'; $('#janela').hidden = true; desenharLobby(); }
 function mostrarNome() { const b = document.querySelector('.nomeEu b'); if (b) b.textContent = ON.conta()?.apelido || ''; }
 async function cliqueOnline(b) {
   const a = b.dataset.a, erro = m => { const e = $('#onErro'); if (e) e.textContent = m; som('erro'); };
   if (b.dataset.rk) { som('clique'); rankModo = b.dataset.rk; carregarOnline('rank'); return; }
-  if (b.dataset.cm) { som('clique'); claModo = b.dataset.cm; carregarOnline('cla'); return; }
+  if (b.dataset.cm) { som('clique'); claModo = b.dataset.cm; const e = $('#claCorpo'); if (e) e.classList.remove('modoChat'); carregarOnline('cla'); return; }
   if (a === 'chatEnviar') { const i = $('#chatTxt'), t = i.value.trim(); if (!t) return; b.disabled = true;
     try { await ON.chatEnviar(t); i.value = ''; som('clique'); lerChat(); } catch (e) { erro(e.message); } b.disabled = false; }
   if (b.dataset.trad) { traduzirMsg(b); return; }
@@ -640,12 +655,12 @@ async function cliqueOnline(b) {
   if (a === 'voltarOnline') { som('clique'); carregarOnline(abaLobby); }
   if (a === 'salvarNome') { const ap = $('#apelido').value.trim(); if (ap.length < 2) return erro('Pelo menos 2 letras');
     b.disabled = true; try { await ON.registrar(ap); som('confirma'); carregarOnline(abaLobby); } catch (e) { b.disabled = false; erro(e.message); } }
-  if (b.dataset.cla) { b.disabled = true; try { await ON.claEntrar(+b.dataset.cla); sfx('vitoria'); carregarOnline('cla'); } catch (e) { b.disabled = false; erro(e.message); } }
+  if (b.dataset.cla) { b.disabled = true; try { await ON.claEntrar(+b.dataset.cla); esquecer('meucla', 'clas', 'chat'); sfx('vitoria'); carregarOnline('cla'); } catch (e) { b.disabled = false; erro(e.message); } }
   if (a === 'claCriar') { const n = $('#nomeCla').value.trim(), tg = $('#tagCla').value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
     if (tg.length < 2) return erro('Sigla com 2 a 4 letras'); if (n.length < 3) return erro('Nome com pelo menos 3 letras'); if (S.moedas < 200) return erro('Precisa de 200 moedas');
-    b.disabled = true; try { await ON.claCriar(n, tg, Math.floor(Math.random() * 8)); S.moedas -= 200; salvar(); sfx('vitoria'); carregarOnline('cla'); } catch (e) { b.disabled = false; erro(e.message); } }
+    b.disabled = true; try { await ON.claCriar(n, tg, Math.floor(Math.random() * 8)); esquecer('meucla', 'clas', 'chat'); S.moedas -= 200; salvar(); sfx('vitoria'); carregarOnline('cla'); } catch (e) { b.disabled = false; erro(e.message); } }
   if (a === 'claSair') { if (b.dataset.certeza !== '1') { b.dataset.certeza = '1'; b.textContent = 'Toque de novo para sair'; return; }
-    try { await ON.claSair(); som('fechar'); carregarOnline('cla'); } catch (e) { erro(e.message); } }
+    try { await ON.claSair(); esquecer('meucla', 'clas', 'chat'); som('fechar'); carregarOnline('cla'); } catch (e) { erro(e.message); } }
 }
 // ---- chat do clã: mensagens, pedidos de cartas e avisos (atualiza a cada 4 s com a aba aberta) ----
 let claModo = 'chat', chatTimer = null, chatAssin = '';
@@ -663,7 +678,7 @@ function abrirChat() {
   $('#chatTxt').addEventListener('keydown', e => { if (e.key === 'Enter') document.querySelector('[data-a=chatEnviar]')?.click(); });
 }
 function lerChat() {
-  ON.chatLer(idioma().slice(0, 5)).then(l => { const el = $('#chatLista'); if (!el) return; l = l || [];
+  const pinta = l => { const el = $('#chatLista'); if (!el) return; l = l || [];
     const assin = l.map(m => m.id + ':' + m.doado + (m.doei ? 'd' : '')).join(); if (assin === chatAssin) return; const noFim = el.scrollTop + el.clientHeight >= el.scrollHeight - 30; chatAssin = assin;
     el.innerHTML = l.length ? l.map(m => {
       if (m.tipo === 'aviso') return `<div class="chM aviso">${ico('estrela')}<span data-nt><b>${esc(m.apelido)}</b> ${esc(m.texto)}</span></div>`;
@@ -675,7 +690,10 @@ function lerChat() {
       : '<p class="sub">Nenhuma mensagem ainda. Diga oi para o clã!</p>';
     if (noFim || !el.dataset.foi) { el.scrollTop = el.scrollHeight; el.dataset.foi = '1'; }
     chatMsgs = l;
-  }).catch(e => { const el = $('#chatLista'); if (el && !chatAssin) el.innerHTML = `<p class="erro">${esc(e.message)}</p>`; });
+  };
+  // na primeira leitura mostra as mensagens guardadas; o resto vem a cada 4 s
+  if (!chatAssin) { const c = lerCache('chat'); if (c) pinta(c.d); }
+  ON.chatLer(idioma().slice(0, 5)).then(l => { gravarCache('chat', l); pinta(l); }).catch(e => { const el = $('#chatLista'); if (el && !chatAssin) el.innerHTML = `<p class="erro">${esc(e.message)}</p>`; });
 }
 // tradução no toque: usa a que já está salva no servidor; se não houver, traduz e salva para os próximos
 let chatMsgs = [];
@@ -828,11 +846,16 @@ function htmlStats(d) { const st = (icone, nome, v) => `<div class="pfStat">${ic
     ${st('pata', 'Pets', `${d.pets || 0}/${Object.keys(PETS).length}`)}${st('bandeira', 'Conquista', d.cq || 0)}${st('h_triplo', 'Recorde ∞', fmt(d.recInf || 0))}${st('girar', 'Renascer', d.renasc || 0)}</div>`; }
 async function verPerfil(codigo) {
   if (codigo === S.online?.codigo) return mostrarPerfil();
-  const j = $('#janela'); j.hidden = false; j.innerHTML = `<div class="jMissoes jPerfil"><p class="sub">Carregando...</p></div>`;
-  let P; try { P = await ON.perfilVer(codigo); } catch (e) { j.innerHTML = `<div class="jMissoes jPerfil"><p class="erro">${esc(e.message)}</p><button class="btn azul" data-a="fecharJanela">Fechar</button></div>`; return; }
-  if (!P) { j.hidden = true; return; } const d = P.dados || {};
+  const j = $('#janela'); j.hidden = false; const ck = 'perfil_' + codigo, c = CACHE[ck];
+  if (c) { pintarPerfil(codigo, c.d); if (Date.now() - c.t < 60000) return; } else j.innerHTML = `<div class="jMissoes jPerfil"><p class="sub">Carregando...</p></div>`;
+  let P; try { P = await ON.perfilVer(codigo); } catch (e) { if (!c) j.innerHTML = `<div class="jMissoes jPerfil"><p class="erro">${esc(e.message)}</p><button class="btn azul" data-a="fecharJanela">Fechar</button></div>`; return; }
+  if (!P) { if (!c) j.hidden = true; return; }
+  const mudou = !c || JSON.stringify(c.d) !== JSON.stringify(P); CACHE[ck] = { t: Date.now(), d: P }; if (mudou && !j.hidden) pintarPerfil(codigo, P);
+}
+function pintarPerfil(codigo, P) {
+  const j = $('#janela'), re = !!j.querySelector('.jPerfil .pfTopo'); const d = P.dados || {};
   const meds = Object.keys(MEDALHAS).map(k => { const nv = d.medalhas?.[k] || 0; return nv ? `<span class="pfMedP" style="--m:${NIVEIS_MEDALHA[nv - 1][1]}" title="${MEDALHAS[k].nome}">${ico(MEDALHAS[k].icone)}</span>` : ''; }).join('');
-  j.innerHTML = `<div class="jMissoes jPerfil"><div class="pfTopo"><img src="${fotoPet(petValido(P.avatar), 256)}" alt=""><div><b data-nt>${tagHtml(P.tag, P.cor)}${esc(P.apelido)}</b>
+  j.innerHTML = `<div class="jMissoes jPerfil ${re ? 'semAnim' : ''}"><div class="pfTopo"><img src="${fotoPet(petValido(P.avatar), 256)}" alt=""><div><b data-nt>${tagHtml(P.tag, P.cor)}${esc(P.apelido)}</b>
       <small><i class="pontoOn ${P.online ? 'on' : ''}"></i>${P.online ? 'online' : 'offline'}${P.cla ? ` · <span data-nt>${esc(P.cla)}</span>` : ''}${d.renasc ? ` · ${ico('girar')} ×${d.renasc}` : ''}</small></div></div>
     <div class="pfLista">${(d.equipe || []).length ? `<h3>Equipe <small>${ico('forca')} ${fmt(d.forca || 0)}</small></h3><div class="pfEquipe">${d.equipe.filter(k => PETS[base(k)]).map(k => `<span class="r${PETS[base(k)].r}" style="--r:${RARIDADES[PETS[base(k)].r].cor}"><img src="${fotoPet(k)}" alt="">${est(k) ? `<i style="color:${ESTRELAS[est(k)].cor}">${'★'.repeat(est(k))}</i>` : ''}</span>`).join('')}</div>` : ''}
       <h3>Estatísticas</h3>${htmlStats(d)}${meds ? `<h3>Medalhas</h3><div class="pfMeds">${meds}</div>` : ''}</div>
@@ -841,7 +864,7 @@ async function verPerfil(codigo) {
 }
 async function marcarAmigo(b) {
   const c = b.dataset.amigo, at = b.dataset.ativo === '1', e = $('#amErro'); b.disabled = true;
-  try { await ON.amigoMarcar(c, at); S.amigosC = at ? [...new Set([...(S.amigosC || []), c])] : (S.amigosC || []).filter(x => x !== c); salvar(); som(at ? 'confirma' : 'clique'); if (at) sfx('brilho');
+  try { await ON.amigoMarcar(c, at); esquecer('amigos'); S.amigosC = at ? [...new Set([...(S.amigosC || []), c])] : (S.amigosC || []).filter(x => x !== c); salvar(); som(at ? 'confirma' : 'clique'); if (at) sfx('brilho');
     b.disabled = false; if (j_perfilProprio()) carregarAmigos(); else verPerfil(c); }
   catch (er) { b.disabled = false; if (e) e.textContent = er.message; som('erro'); }
 }
@@ -849,10 +872,10 @@ const j_perfilProprio = () => !!document.querySelector('#janela .jPerfil #amList
 // lista de amigos no seu perfil
 function carregarAmigos() {
   const el = $('#amLista'); if (!el) return; if (!S.online?.codigo) { el.innerHTML = '<p class="sub">Entre no Clã ou no Ranking uma vez para ter amigos.</p>'; return; }
-  ON.amigos().then(l => { const e = $('#amLista'); if (!e) return; l = l || []; S.amigosC = l.map(a => a.codigo); salvar();
+  comCache('amigos', () => ON.amigos(), l => { const e = $('#amLista'); if (!e) return; l = l || []; S.amigosC = l.map(a => a.codigo); salvar();
     e.innerHTML = l.length ? l.map(a => `<div class="linha amigo"><img src="${fotoPet(petValido(a.avatar))}" alt=""><i class="pontoOn ${a.online ? 'on' : ''}"></i><button class="nomeBtn" data-perfil="${a.codigo}" data-nt>${tagHtml(a.tag, a.cor)}${esc(a.apelido)}</button><small>fase ${a.fase}</small>${a.mutuo ? `<em>${ico('herois')}</em>` : ''}</div>`).join('')
-      : '<p class="sub">Nenhum amigo ainda. Toque no nome de alguém no clã, chat ou ranking, ou adicione pelo código.</p>'; })
-    .catch(er => { const e = $('#amLista'); if (e) e.innerHTML = `<p class="erro">${esc(er.message)}</p>`; });
+      : '<p class="sub">Nenhum amigo ainda. Toque no nome de alguém no clã, chat ou ranking, ou adicione pelo código.</p>'; },
+    er => { const e = $('#amLista'); if (e) e.innerHTML = `<p class="erro">${esc(er.message)}</p>`; });
 }
 // ---- loja diária ----
 function mostrarLoja() {
