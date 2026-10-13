@@ -69,70 +69,80 @@ function texPedra() {
   const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
 }
 
-// ---------------- cenário em volta: a ponte cruza um cânion ----------------
+// ---------------- cenário em volta: a ponte cruza um cânion (o bioma muda a cada 2 fases) ----------------
 const Y_RIO = -30;
-let texAgua = null;
-function texturaAgua() {
+const BIOMAS = [
+  { nome: 'Floresta', ceu: 0x7fb6e0, nevoa: [240, 560], rio: ['#1f6a8a', '180,235,255', 0xbfe8ff], chao: ['#5fa848', 95, 20, 40, 36], rocha: [0x9a7a5a, 0x86684c], mont: [0x6a8a7a, 0xf2f6ff], ponte: [0xffffff, 0x8f8a84],
+    enfeites: [[['Q:CommonTree_1', 3], ['Q:CommonTree_2', 3], ['Q:CommonTree_3', 3], ['Q:CommonTree_4', 3], ['Q:Pine_1', 3], ['Q:Pine_2', 3]], [['Q:Bush_Common', 2.4], ['Q:Bush_Common_Flowers', 2.4], ['Q:Plant_1_Big', 2.4], ['Q:Flower_3_Group', 2.4]], [['Q:Rock_Medium_1', 2], ['Q:Rock_Medium_2', 2]]] },
+  { nome: 'Deserto', ceu: 0x9fd0f0, nevoa: [240, 560], rio: ['#2a8aa8', '200,245,255', 0xd8f4ff], chao: ['#e2c27a', 38, 15, 50, 62], rocha: [0xc88a5a, 0xb07448], mont: [0xc8955a, 0xd8a868], ponte: [0xffe2b8, 0xc8a478],
+    enfeites: [[['N:tree_palmTall', 17], ['N:cactus_tall', 28], ['N:cactus_short', 30]], [['N:cactus_short', 26], ['N:rock_tallA', 9]], [['N:rock_largeA', 12], ['Q:Rock_Medium_3', 2.2]]] },
+  { nome: 'Gelo', ceu: 0xcfe2f2, nevoa: [200, 520], rio: ['#5ab0d8', '235,250,255', 0xe8faff], chao: ['#eef4fa', 210, 25, 10, 88], rocha: [0x8a9aac, 0x76869a], mont: [0x9aaabf, 0xffffff], ponte: [0xe2eeff, 0xa8bcd4],
+    enfeites: [[['Q:Pine_1', 3], ['Q:Pine_2', 3], ['Q:Pine_3', 3.2], ['N:tree_pineSmallA', 22]], [['N:rock_tallA', 10], ['Q:Rock_Medium_1', 2.2]], [['Q:Pine_4', 2.6]]] },
+  { nome: 'Vulcão', ceu: 0x5a3a36, nevoa: [180, 460], rio: ['#d8401a', '255,220,90', 0xffffff], chao: ['#4a403c', 20, 10, 10, 22], rocha: [0x3a302c, 0x2a2422], mont: [0x3a2c2a, 0xff6a2a], ponte: [0x9a8a86, 0x5a4a46],
+    lava: true, enfeites: [[['Q:DeadTree_1', 2.6], ['Q:DeadTree_3', 2.6], ['F:Tree_Bare_1_A_Color1', 7]], [['Q:Rock_Medium_1', 2.4], ['Q:Rock_Medium_2', 2.4], ['F:Rock_1_A_Color1', 10]], [['Q:Rock_Medium_3', 3]]] },
+];
+export const biomaDe = n => Math.floor((n - 1) / 2) % BIOMAS.length;
+let texAgua = null, cenGrupo = null, cenEstat = null, biomaAtual = -1;
+function texturaAgua(B) {
   const cv = document.createElement('canvas'); cv.width = cv.height = 256; const g = cv.getContext('2d');
-  g.fillStyle = '#1f6a8a'; g.fillRect(0, 0, 256, 256);
+  g.fillStyle = B.rio[0]; g.fillRect(0, 0, 256, 256);
   for (let i = 0; i < 70; i++) { const x = Math.random() * 256, y = Math.random() * 256, w = 20 + Math.random() * 50;
-    g.strokeStyle = `rgba(180,235,255,${0.15 + Math.random() * 0.25})`; g.lineWidth = 2 + Math.random() * 2; g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + w / 2, y - 5, x + w, y); g.stroke(); }
+    g.strokeStyle = `rgba(${B.rio[1]},${0.15 + Math.random() * 0.3})`; g.lineWidth = 2 + Math.random() * 2; g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + w / 2, y - 5, x + w, y); g.stroke(); }
   const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(10, 60); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
-function texturaGrama() {
-  const cv = document.createElement('canvas'); cv.width = cv.height = 128; const g = cv.getContext('2d'); g.fillStyle = '#5fa848'; g.fillRect(0, 0, 128, 128);
-  for (let i = 0; i < 600; i++) { g.fillStyle = `hsl(${95 + Math.random() * 20},${40 + Math.random() * 20}%,${36 + Math.random() * 16}%)`; g.fillRect(Math.random() * 128, Math.random() * 128, 3, 3); }
+function texturaChao(B) {
+  const [base, h, dh, s, l] = B.chao, cv = document.createElement('canvas'); cv.width = cv.height = 128; const g = cv.getContext('2d'); g.fillStyle = base; g.fillRect(0, 0, 128, 128);
+  for (let i = 0; i < 600; i++) { g.fillStyle = `hsl(${h + Math.random() * dh},${s + Math.random() * 15}%,${l + Math.random() * 12}%)`; g.fillRect(Math.random() * 128, Math.random() * 128, 3, 3); }
   const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; return t;
 }
-function montarCenario() {
-  let sd = 7; const r = () => ((sd = (sd * 16807) % 2147483647) / 2147483647);
-  // rio lá embaixo
-  texAgua = texturaAgua();
-  const agua = new THREE.Mesh(new THREE.PlaneGeometry(400, 1200), new THREE.MeshLambertMaterial({ map: texAgua, color: 0xbfe8ff }));
-  agua.rotation.x = -Math.PI / 2; agua.position.set(0, Y_RIO, -150); cena.add(agua);
-  // paredões do cânion: blocos de rocha com grama em cima, borda irregular
-  const tg = texturaGrama(); tg.repeat.set(6, 2);
-  const grama = new THREE.MeshLambertMaterial({ map: tg }), rocha = new THREE.MeshLambertMaterial({ color: 0x9a7a5a }), rocha2 = new THREE.MeshLambertMaterial({ color: 0x86684c });
+function montarCenario(bi) {
+  if (bi === biomaAtual) return; biomaAtual = bi; const B = BIOMAS[bi];
+  if (cenGrupo) cena.remove(cenGrupo); if (cenEstat) C.removerGrupo(cenEstat);
+  cenGrupo = new THREE.Group(); cena.add(cenGrupo); const add = m => { cenGrupo.add(m); return m; };
+  C.ceu(B.ceu); C.neblina(...B.nevoa); MAT_PEDRA.color.set(B.ponte[0]); MAT_MURO.color.set(B.ponte[1]);
+  let sd = 7; const r = () => ((sd = (sd * 16807) % 2147483647) / 2147483647), sorteio = l => l[Math.floor(r() * l.length)];
+  // rio (ou lava) lá embaixo
+  texAgua = texturaAgua(B);
+  const agua = add(new THREE.Mesh(new THREE.PlaneGeometry(400, 1200), B.lava ? new THREE.MeshBasicMaterial({ map: texAgua }) : new THREE.MeshLambertMaterial({ map: texAgua, color: B.rio[2] })));
+  agua.rotation.x = -Math.PI / 2; agua.position.set(0, Y_RIO, -150);
+  // paredões do cânion com o chão do bioma em cima, borda irregular
+  const tg = texturaChao(B); tg.repeat.set(6, 2);
+  const topo = new THREE.MeshLambertMaterial({ map: tg }), rocha = new THREE.MeshLambertMaterial({ color: B.rocha[0] }), rocha2 = new THREE.MeshLambertMaterial({ color: B.rocha[1] });
   const enfeites = [];
   for (const lado of [-1, 1]) for (let z = ZTRAS + 30; z > ZFRENTE - 260; z -= 9) {
     const borda = 25 + r() * 5 + Math.max(0, (-z - 100) * 0.05), larg = 140, alt = -Y_RIO + 2 + r() * 2;
-    const m = new THREE.Mesh(new THREE.BoxGeometry(larg, alt, 9.4), [r() < 0.5 ? rocha : rocha2, r() < 0.5 ? rocha : rocha2, grama, rocha, rocha, rocha]);
-    m.position.set(lado * (borda + larg / 2), Y_RIO + alt / 2 - 1.2, z); m.receiveShadow = true; cena.add(m);
-    // degraus de rocha na encosta
-    if (r() < 0.6) { const d = new THREE.Mesh(new THREE.BoxGeometry(4 + r() * 4, 6 + r() * 10, 6 + r() * 4), rocha2); d.position.set(lado * (borda - 1), Y_RIO + 6 + r() * 12, z + r() * 4); d.rotation.y = r(); cena.add(d); }
-    // árvores, arbustos e pedras em cima
-    for (let k = 0; k < 3; k++) { const x = lado * (borda + 3 + r() * 55), zz = z + r() * 9, q = r();
-      const m2 = q < 0.45 ? ['Q:CommonTree_1', 'Q:CommonTree_2', 'Q:CommonTree_3', 'Q:CommonTree_4', 'Q:Pine_1', 'Q:Pine_2', 'Q:Pine_3'][Math.floor(r() * 7)]
-        : q < 0.7 ? ['Q:Bush_Common', 'Q:Bush_Common_Flowers', 'Q:Plant_1_Big'][Math.floor(r() * 3)] : q < 0.85 ? ['Q:Rock_Medium_1', 'Q:Rock_Medium_2', 'Q:Rock_Medium_3'][Math.floor(r() * 3)] : 'Q:Flower_3_Group';
-      enfeites.push({ m: m2, x, y: 0.8, z: zz, ry: r() * 6.28, s: q < 0.45 ? 2.6 + r() * 1.6 : 2 + r() * 1.5 }); }
+    const m = add(new THREE.Mesh(new THREE.BoxGeometry(larg, alt, 9.4), [r() < 0.5 ? rocha : rocha2, r() < 0.5 ? rocha : rocha2, topo, rocha, rocha, rocha]));
+    m.position.set(lado * (borda + larg / 2), Y_RIO + alt / 2 - 1.2, z); m.receiveShadow = true;
+    if (r() < 0.6) { const d = add(new THREE.Mesh(new THREE.BoxGeometry(4 + r() * 4, 6 + r() * 10, 6 + r() * 4), rocha2)); d.position.set(lado * (borda - 1), Y_RIO + 6 + r() * 12, z + r() * 4); d.rotation.y = r(); }
+    for (let k = 0; k < 3; k++) { const q = r(), grupo = B.enfeites[q < 0.5 ? 0 : q < 0.8 ? 1 : 2], [m2, s] = sorteio(grupo);
+      enfeites.push({ m: m2, x: lado * (borda + 3 + r() * 55), y: 0.8, z: z + r() * 9, ry: r() * 6.28, s: s * (0.8 + r() * 0.5) }); }
   }
-  // pedras no rio
   for (let i = 0; i < 26; i++) { const lado = r() < 0.5 ? -1 : 1; enfeites.push({ m: ['Q:Rock_Medium_1', 'Q:Rock_Medium_2', 'Q:Rock_Medium_3'][i % 3], x: lado * (19 + r() * 9), y: Y_RIO - 0.5, z: ZTRAS - r() * 260, ry: r() * 6, s: 3 + r() * 4 }); }
-  C.montarEstatico(enfeites);
+  cenEstat = C.montarEstatico(enfeites);
   // pilares da ponte descendo até o rio
   const pil = new THREE.MeshLambertMaterial({ color: 0x8f8a84 });
   for (let z = ZTRAS - 12; z > ZFRENTE + 10; z -= 26) for (const lado of [-1, 1]) {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(5, -Y_RIO - 4, 6), pil); m.position.set(lado * (MEIA - 3), (Y_RIO - 4) / 2, z); m.castShadow = true; cena.add(m);
-    const b = new THREE.Mesh(new THREE.BoxGeometry(7, 3, 8), pil); b.position.set(lado * (MEIA - 3), Y_RIO + 1, z); cena.add(b);
+    const m = add(new THREE.Mesh(new THREE.BoxGeometry(5, -Y_RIO - 4, 6), pil)); m.position.set(lado * (MEIA - 3), (Y_RIO - 4) / 2, z); m.castShadow = true;
+    const b = add(new THREE.Mesh(new THREE.BoxGeometry(7, 3, 8), pil)); b.position.set(lado * (MEIA - 3), Y_RIO + 1, z);
   }
-  // montanhas no horizonte
-  const mont = new THREE.MeshLambertMaterial({ color: 0x6a8a7a, flatShading: true }), neve = new THREE.MeshLambertMaterial({ color: 0xf2f6ff, flatShading: true });
+  // montanhas (ou vulcões) no horizonte
+  const mont = new THREE.MeshLambertMaterial({ color: B.mont[0], flatShading: true }), pico = B.lava ? new THREE.MeshBasicMaterial({ color: B.mont[1] }) : new THREE.MeshLambertMaterial({ color: B.mont[1], flatShading: true });
   for (let i = 0; i < 14; i++) { const x = (r() - 0.5) * 520, z = ZFRENTE - 120 - r() * 160, h = 60 + r() * 90, rr = 40 + r() * 50;
-    const m = new THREE.Mesh(new THREE.ConeGeometry(rr, h, 6 + Math.floor(r() * 3)), mont); m.position.set(x, h / 2 - 10, z); m.rotation.y = r(); cena.add(m);
-    const c = new THREE.Mesh(new THREE.ConeGeometry(rr * 0.32, h * 0.32, m.geometry.parameters.radialSegments), neve); c.position.set(x, h - 10 - h * 0.16 + 0.5, z); c.rotation.y = m.rotation.y; cena.add(c); }
+    const m = add(new THREE.Mesh(new THREE.ConeGeometry(rr, h, 6 + Math.floor(r() * 3)), mont)); m.position.set(x, h / 2 - 10, z); m.rotation.y = r();
+    const c = add(new THREE.Mesh(new THREE.ConeGeometry(rr * 0.32, h * 0.32, m.geometry.parameters.radialSegments), pico)); c.position.set(x, h - 10 - h * 0.16 + 0.5, z); c.rotation.y = m.rotation.y; }
 }
 
 // ---------------- ponte fixa ----------------
 let cena, MAT_PEDRA, MAT_MURO, GEO_FLECHA, MAT_FLECHA;
 export function montarPonte() {
-  cena = C.obterCena(); C.ceu(0x7fb6e0); C.neblina(240, 560);
+  cena = C.obterCena();
   const tp = texPedra(), len = ZTRAS - ZFRENTE;
   const chao = tp.clone(); chao.needsUpdate = true; chao.repeat.set(MEIA * 2 / 8, len / 8);
   MAT_PEDRA = new THREE.MeshLambertMaterial({ map: chao });
   MAT_MURO = new THREE.MeshLambertMaterial({ color: 0x8f8a84 });
   const add = (geo, mat, x, y, z, sombra = true) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.receiveShadow = true; m.castShadow = sombra; cena.add(m); return m; };
   // água
-  montarCenario();
+  montarCenario(0);
   // piso e laterais da ponte
   add(new THREE.BoxGeometry(MEIA * 2, 4, len), MAT_PEDRA, 0, -2, (ZTRAS + ZFRENTE) / 2, false);
   // muros com ameias: laterais, divisórias e a muralha do herói
@@ -196,7 +206,7 @@ function redesenharBarreira(b) {
 }
 
 export function iniciarFase(n) {
-  limparFase();
+  limparFase(); montarCenario(biomaDe(n));
   const F = dadosFase(n), up = S.up;
   G = { F, n, t: 0, az: [], vm: [], flechas: [], txt: [], fila: 8 * up.exercito, acum: 0, cd: 0.5, pistas: [[], []], spawnVm: 0, golpePend: 0,
     muro: vidaMuralha(up.vida), muroMax: vidaMuralha(up.vida), tiro: tiros(up.fogo), nFlechas: 1 + up.flechas, escudo: escudo(up.escudos),
@@ -269,7 +279,7 @@ function desenharLobby() {
   const F = dadosFase(S.fase);
   $('#lobby').innerHTML = `<div class="lbTopo"><div class="pilula ouro">${ico('ouro')}<b>${fmt(S.moedas)}</b></div><button class="redondo presente" data-a="diario">${ico('presente')}${diarioPronto() ? '<i class="ponto"></i>' : ''}</button><button class="redondo" data-a="som">${ico(estaMudo() ? 'mudo' : 'som')}</button></div>
     <div class="lbTitulo"><small>Batalha da</small><h1>Ponte</h1></div>
-    <div class="lbPainel"><div class="lbFase"><span>FASE</span><b>${S.fase}</b><small>${ico('chefe')} ${F.chefe.nome} · vida ${fmt(F.chefe.hp)}</small></div>
+    <div class="lbPainel"><div class="lbFase"><span>FASE</span><b>${S.fase}</b><small>${ico('chefe')} ${F.chefe.nome} · vida ${fmt(F.chefe.hp)} · ${BIOMAS[biomaDe(S.fase)].nome}</small></div>
       <div class="ups">${Object.entries(UPGRADES).map(([k, U]) => { const n = S.up[k], max = n >= U.max, c = U.custo(n);
         return `<button class="up ${!max && S.moedas >= c ? 'pode' : ''}" data-up="${k}"><span class="upIco">${ico(U.icone)}</span><b>${U.nome}</b><small>${U.desc(n)}</small><em>${max ? 'MÁX' : `${ico('ouro')}${fmt(c)}`}</em><i>Nv ${n}</i></button>`; }).join('')}</div>
       <div class="lbCartas"><small class="lbRot">Poderes</small><small class="lbRot">Tropas · escolha 2</small>${CARTAS_INFO.map(([k, nome, icone]) => { const P = S.pd[k], need = cartasPara(P.nv), tropa = !!TROPAS[k], sel = S.deck.includes(k);
@@ -443,7 +453,7 @@ export function passo(dt0) {
     G.punch = Math.max(0, G.punch - dt * 3);
     if (G.comboT > 0 && (G.comboT -= dt) <= 0) G.combo = 0;
   }
-  if (texAgua) texAgua.offset.y += dt0 * 0.05;
+  if (texAgua) texAgua.offset.y += dt0 * (biomaAtual === 3 ? 0.015 : biomaAtual === 2 ? 0.02 : 0.05);
   const final = G && G.fim === 'v';
   foco.x = final ? 0 : (G ? G.heroi.x : 0) * 0.25; foco.z = final ? G.chefe.z + 14 : -42;
   if (tela === 'lobby') foco.z = -42 + Math.sin(t * 0.3) * 2;
