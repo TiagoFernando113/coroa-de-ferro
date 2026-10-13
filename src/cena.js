@@ -765,3 +765,44 @@ export const Cor = THREE.Color;
 export const obterCena = () => scene;
 export function ceu(cor) { scene.background = new THREE.Color(cor); scene.fog.color.set(cor); }
 export const Caixa = THREE.Box3;
+// ---------------- retratos (cards dos pets) ----------------
+// renderiza um modelo animado num alvo pequeno fora da tela e devolve um dataURL (cacheado)
+const retratos = {}, alturas = {};
+// caixa da pose atual (malhas com esqueleto: aplica os ossos)
+function caixaPose(o) {
+  o.updateMatrixWorld(true); o.traverse(m => { if (m.isSkinnedMesh) { m.skeleton.update(); m.computeBoundingBox(); } });
+  return new THREE.Box3().setFromObject(o);
+}
+export function alturaModelo(nome) {
+  if (alturas[nome] == null) { const g = modelos[nome], c = SkeletonUtils.clone(g.scene), ida = g.animations.find(a => a.name === 'Idle');
+    if (ida) { const mx = new THREE.AnimationMixer(c); mx.clipAction(ida).play(); mx.update(0.4); }
+    const b = caixaPose(c); alturas[nome] = Math.max(0.5, b.max.y - Math.max(0, b.min.y)); }
+  return alturas[nome];
+}
+export function tingirOuro(raiz, clonar = true) { // versão dourada (★) de um pet sem forma evoluída
+  const ouro = new THREE.Color(0xffd23a);
+  raiz.traverse(o => { if (!o.isMesh) return; if (clonar) o.material = o.material.clone(); o.material.color?.lerp(ouro, 0.45); o.material.emissive?.setRGB(0.18, 0.12, 0); });
+}
+export function retrato(nome, { ouro = false, tam = 160 } = {}) {
+  const k = nome + (ouro ? '*' : '') + tam; if (retratos[k]) return retratos[k];
+  const gltf = modelos[nome]; if (!gltf || !renderer) return '';
+  const cn = new THREE.Scene(); cn.add(new THREE.HemisphereLight(0xffffff, 0x6a5a8a, 2.2)); const l = new THREE.DirectionalLight(0xffffff, 2.4); l.position.set(3, 6, 8); cn.add(l);
+  const corpo = SkeletonUtils.clone(gltf.scene); cn.add(corpo); if (ouro) tingirOuro(corpo);
+  const ida = gltf.animations.find(a => a.name === 'Idle'); if (ida) { const mx = new THREE.AnimationMixer(corpo); mx.clipAction(ida).play(); mx.update(0.4); }
+  corpo.rotation.y = 0.45;
+  const b = caixaPose(corpo), c = b.getCenter(new THREE.Vector3()), s = b.getSize(new THREE.Vector3()), r = Math.max(s.y, s.x * 0.9) * 0.62;
+  const cm = new THREE.PerspectiveCamera(30, 1, 0.1, 100), d = r / Math.tan(Math.PI / 12);
+  cm.position.set(c.x, c.y + r * 0.25, c.z + d); cm.lookAt(c.x, c.y, c.z);
+  const rt = new THREE.WebGLRenderTarget(tam, tam, { samples: 4 }); rt.texture.colorSpace = THREE.SRGBColorSpace;
+  const fundoAntes = renderer.getClearColor(new THREE.Color()), alfaAntes = renderer.getClearAlpha();
+  renderer.setRenderTarget(rt); renderer.setClearColor(0x000000, 0); renderer.clear(); renderer.render(cn, cm);
+  const px = new Uint8Array(tam * tam * 4); renderer.readRenderTargetPixels(rt, 0, 0, tam, tam, px);
+  renderer.setRenderTarget(null); renderer.setClearColor(fundoAntes, alfaAntes); rt.dispose();
+  const cv = document.createElement('canvas'); cv.width = cv.height = tam; const g = cv.getContext('2d'), im = g.createImageData(tam, tam);
+  // o alvo guarda cor linear e pré-multiplicada; WebGL lê de baixo para cima
+  const srgb = v => Math.round(255 * (v <= 0.0031308 ? 12.92 * v : 1.055 * v ** (1 / 2.4) - 0.055));
+  for (let y = 0; y < tam; y++) for (let x = 0; x < tam; x++) { const i = ((tam - 1 - y) * tam + x) * 4, o = (y * tam + x) * 4, a = px[i + 3];
+    if (!a) continue; for (let c = 0; c < 3; c++) im.data[o + c] = srgb(Math.min(1, px[i + c] / a)); im.data[o + 3] = a; }
+  g.putImageData(im, 0, 0);
+  return (retratos[k] = cv.toDataURL('image/png'));
+}

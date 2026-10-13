@@ -2,6 +2,7 @@
 import * as C from './cena.js';
 import { VERSAO } from './dados.js';
 import { carregar } from './meta.js';
+import { iniciarPets } from './pets.js';
 import { $, carregarRecursos, som } from './util.js';
 import { montarPonte, abrirLobby, passo, _G, _sim, _construir } from './ponte.js';
 
@@ -28,7 +29,7 @@ async function comecar() {
     await carregarRecursos(rec);
   } catch (e) { $('.tMenu').innerHTML = `<p>Não foi possível carregar 😢<br><small>${e.message}</small></p>`; return; }
   $('#carga').hidden = true;
-  carregar(); montarPonte(); abrirLobby();
+  carregar(); iniciarPets(); montarPonte(); abrirLobby();
   let ultimo = performance.now();
   const laco = agora => { const dt = Math.min(0.1, (agora - ultimo) / 1000); ultimo = agora; passo(dt); requestAnimationFrame(laco); };
   requestAnimationFrame(laco);

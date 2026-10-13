@@ -20,7 +20,7 @@ const USADOS = {
   h_adagas: 'thrown-daggers', h_sombra: 'ninja-star', h_soco: 'high-punch', h_onda: 'punch-blast', h_perfura: 'barbed-arrow', h_raio: 'lightning-arc',
   c_raca: 'elf-ear', r_humano: 'person', r_bebe: 'baby-face', r_elfo: 'woman-elf-face', r_anao: 'dwarf-face', r_orc: 'orc-head', r_demonio: 'devil-mask',
   r_fera: 'cat', r_anjo: 'angel-wings', r_gigante: 'troll', monstro: 'slime', capa: 'wing-cloak', botas: 'boots', luvas: 'gauntlet',
-  dado: 'perspective-dice-six-faces-random', girar: 'clockwise-rotation', pincel: 'paint-brush', andar: 'walk', festa: 'party-popper', mao2: 'hand',
+  pata: 'paw-print', ovo: 'big-egg', bandeira: 'flying-flag', dado: 'perspective-dice-six-faces-random', girar: 'clockwise-rotation', pincel: 'paint-brush', andar: 'walk', festa: 'party-popper', mao2: 'hand',
 };
 const out = {}, faltam = [];
 for (const [k, n] of Object.entries(USADOS)) { const i = set.icons[n] || set.icons[set.aliases?.[n]?.parent]; if (!i) { faltam.push(n); continue; } out[k] = i.body; }

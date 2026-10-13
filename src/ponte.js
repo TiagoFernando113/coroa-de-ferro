@@ -11,6 +11,8 @@ import { tema, sfx, intensidade } from './musica.js';
 import * as ON from './online.js';
 import { HEROIS, heroiAtual } from './herois.js';
 import { criarTropas, desenharTropas, voar, passoVoo, limparTropas } from './tropas.js';
+import { PETS, RARIDADES, CLASSES, OVOS, MAX_EQUIPE, MAX_NV, base, ehOuro, temPet, modeloDe, tingido, atributos, forca, forcaEquipe, custoNivel, subirNivel, juntar, equipar, chocar, bonusMoedas, lucroOcioso } from './pets.js';
+import * as CQ from './conquista.js';
 
 // ---------------- medidas da ponte (frente = -z) ----------------
 const MEIA = 17;            // meia largura da ponte
@@ -240,6 +242,24 @@ export function iniciarFase(n, inf = false, semCorrida = false) {
   G.heroiDef = heroiAtual(S); G.tiro *= G.heroiDef.ataque.cad; G.tiroMax *= G.heroiDef.ataque.cad;
   if (!G.heroiV) { const v = C.heroi(G.heroiDef.visual); v.raiz.scale.setScalar(2.4); v.raiz.rotation.y = Math.PI; v.tocar(v.tem(G.heroiDef.pose) ? G.heroiDef.pose : 'Idle_A'); G.heroiV = v; }
   G.heroiV.raiz.position.set(0, 0, ZH);
+  criarPetsHeroi();
+}
+// pets da equipe (até 3) andam atrás do herói e atiram junto
+const POS_PET = [[-3.4, 2.6], [3.4, 2.6], [0, 4.6]];
+function criarPetsHeroi() {
+  G.petsV = S.equipe.slice(0, 3).map((k, i) => { const m = modeloDe(k), v = C.personagem(m, [], 1); if (tingido(k)) C.tingirOuro(v.corpo, false);
+    v.raiz.scale.setScalar((ehOuro(k) ? 3.2 : 2.7) / (C.alturaModelo(m) * C.ESC_PERS)); v.raiz.rotation.y = Math.PI; v.tocar('Idle'); v.mixer.update(Math.random());
+    const D = PETS[base(k)]; return { k, v, x: POS_PET[i][0], dz: POS_PET[i][1], cd: 1 + i * 0.4, cor: D.cor || 0xffe08a, dano: 1 + (D.r >= 2 ? 1 : 0) + (ehOuro(k) ? 1 : 0), cad: D.c === 'atirador' ? 1.1 : 1.6 }; });
+}
+function passoPetsHeroi(dt, atira) {
+  const h = G.heroi, anda = Math.abs(h.alvo - h.x) > 0.6;
+  for (const p of G.petsV || []) {
+    const ax = h.x + POS_PET[G.petsV.indexOf(p)][0]; p.x += (ax - p.x) * Math.min(1, dt * 6);
+    p.v.raiz.position.set(p.x, Math.abs(Math.sin(C.tempo() * 9 + p.dz)) * (anda ? 0.5 : 0), ZH + p.dz); p.v.mixer.update(dt);
+    if (atira && (p.cd -= dt) <= 0) { p.cd = p.cad; const o = projetilHeroi('orbe', p.cor); o.scale.setScalar(0.7); o.position.set(p.x, 2.2, ZH + p.dz - 1); cena.add(o);
+      G.flechas.push({ x: p.x, z: ZH + p.dz - 1, o, dano: p.dano, perf: 0, area: 0, proj: 'orbe' }); p.v.tocar('Attack', { loop: false, reinicia: true }); p.atk = 0.5; }
+    if ((p.atk = (p.atk || 0) - dt) <= 0) p.v.tocar(anda ? 'Gallop' : 'Idle');
+  }
 }
 const REDONDOS = [1, 2, 3, 5, 10, 15, 20, 25, 50, 75, 99, 150, 200, 250, 300, 400, 500, 750, 1000];
 function blocoInf(b, k) { // ponte sem fim: cada chefe derrotado deixa as pilhas maiores (e mais duras)
@@ -303,7 +323,7 @@ function limparFase() {
   for (const p of G.pistas) for (const b of p) cena.remove(b.mesh);
   for (const f of G.flechas) cena.remove(f.o);
   for (const p of G.portoes) cena.remove(p.o);
-  G.chefe?.v.remover(); G.heroiV?.remover(); G.gigante?.v.remover();
+  G.chefe?.v.remover(); G.heroiV?.remover(); G.gigante?.v.remover(); for (const p of G.petsV || []) p.v.remover();
   if (G.dupla) { G.dupla.v.remover(); if (!G.dupla.manter) G.dupla.canal?.fechar(); }
   for (const c of G.chuvas) for (const f of c.fl) cena.remove(f.o);
   for (const p of G.pedras) cena.remove(p.o);
@@ -326,7 +346,7 @@ function montarHud() {
       <div class="jPoderes"><button class="poder" data-pd="chuva">${ico('h_chuva')}<small>Chuva</small></button><button class="poder" data-pd="gigante">${ico('cav')}<small>Gigante</small></button></div>
       <div class="jMuro">${ico('escudo')}<div class="barra muro"><i id="jMuroB"></i><span id="jMuroT"></span></div></div>
       <p class="jDica" id="jDica">Arraste para mover · as flechas saem sozinhas</p></div>
-    <div id="fim" hidden></div><div id="janela" hidden></div>`;
+    <div id="fim" hidden></div><div id="conq" hidden></div><div id="janela" hidden></div>`;
   fx = document.createElement('canvas'); fx.id = 'fx'; document.body.append(fx); gfx = fx.getContext('2d');
   const medir = () => { fx.width = innerWidth * devicePixelRatio; fx.height = innerHeight * devicePixelRatio; gfx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0); };
   medir(); addEventListener('resize', medir);
@@ -349,7 +369,7 @@ export function abrirLobby() {
 let diarioVisto = false;
 // ---- lobby: cena 3D atrás do herói, card da fase, JOGAR, baús e abas embaixo ----
 let abaLobby = 'home';
-const ABAS = [['home', 'Batalha', 'h_triplo'], ['up', 'Melhorias', 'raio'], ['cartas', 'Heróis', 'herois'], ['cla', 'Clã', 'escudo'], ['rank', 'Ranking', 'rank']];
+const ABAS = [['home', 'Batalha', 'h_triplo'], ['up', 'Melhorias', 'raio'], ['cartas', 'Heróis', 'herois'], ['pets', 'Pets', 'pata'], ['cla', 'Clã', 'escudo'], ['rank', 'Ranking', 'rank']];
 function htmlMelhorias() {
   return `<div class="ups">${Object.entries(UPGRADES).map(([k, U]) => { const n = S.up[k], max = n >= U.max, c = U.custo(n);
     return `<button class="up ${!max && S.moedas >= c ? 'pode' : ''}" data-up="${k}"><span class="upIco">${ico(U.icone)}</span><b>${U.nome}</b><small>${U.desc(n)}</small><em>${max ? 'MÁX' : `${ico('ouro')}${fmt(c)}`}</em><i>Nv ${n}</i></button>`; }).join('')}</div>`;
@@ -373,7 +393,7 @@ function htmlCartas() {
 }
 function desenharLobby() {
   const F = dadosFase(S.fase), O = S.online, upPode = Object.entries(UPGRADES).some(([k, U]) => S.up[k] < U.max && S.moedas >= U.custo(S.up[k]));
-  const nav = `<nav class="lbNav">${ABAS.map(([k, nome, icone]) => `<button class="${abaLobby === k ? 'on' : ''}" data-aba-lobby="${k}">${ico(icone)}<small>${nome}</small>${k === 'up' && upPode ? '<i class="ponto"></i>' : ''}</button>`).join('')}</nav>`;
+  const nav = `<nav class="lbNav">${ABAS.map(([k, nome, icone]) => `<button class="${abaLobby === k ? 'on' : ''}" data-aba-lobby="${k}">${ico(icone)}<small>${nome}</small>${(k === 'up' && upPode) || (k === 'pets' && (S.ovos.comum || S.ovos.magico)) ? '<i class="ponto"></i>' : ''}</button>`).join('')}</nav>`;
   const topo = `<div class="lbTopo"><div class="pilula ouro">${ico('ouro')}<b>${fmt(S.moedas)}</b></div>
     <button class="redondo presente" data-a="diario">${ico('presente')}${diarioPronto() ? '<i class="ponto"></i>' : ''}</button><button class="redondo" data-a="som">${ico(estaMudo() ? 'mudo' : 'som')}</button></div>`;
   let meio;
@@ -381,15 +401,74 @@ function desenharLobby() {
     <div class="lbLogo"><small>Batalha da</small><h1>Ponte</h1></div>
     <div class="lbFaseCard"><span class="fN ${ehCorrida(S.fase) ? 'corrida' : ''}"><small>${ehCorrida(S.fase) ? 'CORRIDA' : 'FASE'}</small><b>${S.fase}</b></span><span class="fInfo"><b>${ico('chefe')} ${F.chefe.nome}</b><small>${HABILIDADES[F.chefe.modelo]?.desc || ''} · ${BIOMAS[biomaDe(S.fase)].nome} · vida ${fmt(F.chefe.hp)}${O?.apelido ? ` · ${esc(O.apelido)}` : ''}</small></span></div>
     <div class="lbBase">
+      <button class="cqEntrar" data-a="conquista">${ico('bandeira')}<span><b>Conquista</b><small>Estágio ${S.cq.est} · seus pets lutam sozinhos</small></span>${lucroOcioso() > 0 ? `<em>${ico('ouro')}${fmt(lucroOcioso())}</em>` : ''}</button>
       <div class="baus">${Array.from({ length: MAX_BAUS }, (_, i) => { const b = S.baus[i];
         return b ? `<button class="slotBau" data-bau="${i}">${bauHtml(b.tipo, 'mini')}<small>Abrir!</small></button>` : `<div class="slotBau vazio">${ico('bau')}</div>`; }).join('')}</div>
       <div class="lbJogar"><button class="modo azul" data-a="dupla">${ico('herois')}<small>Dupla</small></button>
         <button class="btn verde grande jogar" data-a="jogar">JOGAR<small>Fase ${S.fase}</small></button>
         <button class="modo roxo ${S.melhor < 3 ? 'sem' : ''}" data-a="infinito"><b>∞</b><small>${S.melhor < 3 ? 'Fase 3' : fmt(S.recInf || 0)}</small></button></div></div>`;
   else if (abaLobby === 'cla' || abaLobby === 'rank') meio = `<div class="lbFolha"><h2>${ABAS.find(a => a[0] === abaLobby)[1]}</h2><div class="lbFolhaCorpo jOnline2" id="onCorpo"></div></div>`;
-  else meio = `<div class="lbFolha"><h2>${ABAS.find(a => a[0] === abaLobby)[1]}</h2><div class="lbFolhaCorpo">${abaLobby === 'up' ? htmlMelhorias() : htmlCartas()}</div></div>`;
+  else meio = `<div class="lbFolha"><h2>${ABAS.find(a => a[0] === abaLobby)[1]}</h2><div class="lbFolhaCorpo">${abaLobby === 'up' ? htmlMelhorias() : abaLobby === 'pets' ? htmlPets() : htmlCartas()}</div></div>`;
   $('#lobby').innerHTML = topo + meio + nav;
   if (abaLobby === 'cla' || abaLobby === 'rank') carregarOnline(abaLobby);
+}
+// ---- pets ----
+const fotoPet = (k, tam = 160) => C.retrato(modeloDe(k), { ouro: tingido(k), tam });
+function cardPet(k, cls = '') {
+  const D = PETS[base(k)], P = S.pets[base(k)], eq = S.equipe.includes(k), ouro = ehOuro(k);
+  return `<button class="ptCard r${D.r} ${ouro ? 'ouro' : ''} ${eq ? 'eq' : ''} ${cls}" data-pet="${k}" style="--r:${RARIDADES[D.r].cor}"><img src="${fotoPet(k)}" alt="">
+    <b>${ouro ? '★ ' : ''}${D.nome}</b><i>Nv ${P.nv}</i><small class="cls">${ico(CLASSES[D.c].icone)}</small>
+    ${cls === 'mini' ? '' : ouro ? `<em>x${P.o}</em>` : `<em class="${P.n >= 3 ? 'pode' : ''}">${P.n}/3</em>`}${eq && cls !== 'mini' ? `<span class="eqM">${ico('check')}</span>` : ''}</button>`;
+}
+function htmlPets() {
+  const eq = S.equipe, chances = O => O.chances.map((c, i) => `<i style="color:${RARIDADES[i].cor}">${c}%</i>`).join(' ');
+  const colecao = Object.keys(PETS).sort((a, b) => PETS[a].r - PETS[b].r).flatMap(k => { const P = S.pets[k];
+    if (!P) return [`<div class="ptCard bloq r${PETS[k].r}" style="--r:${RARIDADES[PETS[k].r].cor}"><img src="${fotoPet(k)}" alt=""><b>???</b><i>${RARIDADES[PETS[k].r].nome}</i></div>`];
+    return [P.n > 0 || !P.o ? cardPet(k) : '', P.o > 0 ? cardPet(k + '*') : ''].filter(Boolean); });
+  return `<div class="ptEquipe"><h3>Equipe <small>${eq.length}/${MAX_EQUIPE} · ${ico('forca')} ${fmt(forcaEquipe())} · +${bonusMoedas()}% moedas na ponte</small></h3>
+      <div class="ptSlots">${Array.from({ length: MAX_EQUIPE }, (_, i) => eq[i] ? cardPet(eq[i], 'mini') : '<div class="ptSlot">+</div>').join('')}</div>
+      <button class="btn verde cqBtn" data-a="conquista">${ico('bandeira')} Conquista · estágio ${S.cq.est}</button></div>
+    <h3>Ovos</h3><div class="ptOvos">${Object.entries(OVOS).map(([k, O]) => `<button class="ptOvo ${S.ovos[k] || S.moedas >= O.preco ? 'pode' : ''}" data-ovo="${k}">${CQ.ovoHtml(k)}
+      <b>${O.nome}</b><small>${chances(O)}</small><em>${S.ovos[k] ? `Chocar (${S.ovos[k]})` : `${ico('ouro')} ${fmt(O.preco)}`}</em></button>`).join('')}</div>
+    <h3>Coleção <small>toque para ver · 3 iguais = 1 dourado ★</small></h3><div class="ptGrade">${colecao.join('')}</div>
+    <p class="sub">Até 3 pets da equipe seguem o herói na ponte e atiram junto. Ovos também saem da Conquista.</p>`;
+}
+function mostrarPet(k) {
+  if (!temPet(k)) return; const D = PETS[base(k)], P = S.pets[base(k)], R = RARIDADES[D.r], A = atributos(k), eq = S.equipe.includes(k), c = custoNivel(k), max = P.nv >= MAX_NV;
+  const j = $('#janela'); j.hidden = false;
+  j.innerHTML = `<div class="jPet" style="--r:${R.cor}"><div class="raios liga"></div><img src="${fotoPet(k, 256)}" alt="">
+    <h2>${ehOuro(k) ? '★ ' : ''}${D.nome}</h2><p class="raridade">${R.nome}${ehOuro(k) ? ' Dourado' : ''} · ${ico(CLASSES[D.c].icone)} ${CLASSES[D.c].nome}</p>
+    <div class="ptStats"><span>${ico('coracao')} ${fmt(A.hp)}</span><span>${ico('forca')} ${fmt(A.atk)}</span><span>Nv <b>${P.nv}</b></span><span>${ico('poder')} ${fmt(forca(A))}</span></div>
+    <button class="btn amarelo" data-pet-a="nivel" data-k="${k}" ${max || S.moedas < c ? 'disabled' : ''}>${max ? 'Nível máximo' : `${ico('seta', 'up')} Nível ${P.nv + 1} · ${ico('ouro')} ${fmt(c)}`}</button>
+    ${!ehOuro(k) ? `<button class="btn roxo" data-pet-a="juntar" data-k="${k}" ${P.n >= 3 ? '' : 'disabled'}>★ Juntar 3 → Dourado (${P.n}/3)</button>` : ''}
+    <button class="btn ${eq ? 'azul' : 'verde'}" data-pet-a="equipar" data-k="${k}">${eq ? 'Tirar da equipe' : `Pôr na equipe${S.equipe.length >= MAX_EQUIPE ? ' (troca o 1º)' : ''}`}</button>
+    <button class="fSo" data-a="fecharJanela">Fechar</button></div>`;
+}
+function acaoPet(a, k) {
+  if (a === 'nivel') { if (subirNivel(k)) { som('compra'); sfx('brilho'); } else { som('erro'); return; } }
+  if (a === 'juntar') { if (!juntar(k)) { som('erro'); return; } sfx('vitoria'); k += '*'; }
+  if (a === 'equipar') { if (!equipar(k)) { som('erro'); return; } som('clique'); }
+  recriarPetsLobby(); desenharLobby(); mostrarPet(k);
+}
+function recriarPetsLobby() { if (G && tela === 'lobby') { for (const p of G.petsV || []) p.v.remover(); criarPetsHeroi(); } }
+function abrirOvo(tipo) {
+  const O = OVOS[tipo]; if (!S.ovos[tipo] && S.moedas < O.preco) { som('erro'); return; }
+  const r = chocar(tipo); if (!r) { som('erro'); return; }
+  const j = $('#janela'); j.hidden = false; som('compra');
+  j.innerHTML = `<div class="jOvo"><h2>${O.nome}</h2><div class="raios"></div><div class="ovoPalco">${CQ.ovoHtml(tipo, 'treme')}</div><p class="dicaBau">Chocando...</p><div class="ovoRes"></div></div>`;
+  setTimeout(() => { const e = j.querySelector('.ovoG'); if (!e) return; e.classList.remove('treme'); e.classList.add('quebra'); sfx('magia'); }, 1500);
+  setTimeout(() => { if (!j.querySelector('.jOvo')) return; const D = PETS[r.k], R = RARIDADES[D.r], P = S.pets[r.k];
+    j.querySelector('.ovoPalco').remove(); j.querySelector('.dicaBau').remove(); j.querySelector('.raios').classList.add('liga'); j.querySelector('.jOvo').style.setProperty('--r', R.cor);
+    j.querySelector('.ovoRes').innerHTML = `<img src="${fotoPet(r.k, 256)}" alt=""><b>${D.nome}</b><small style="color:${R.cor}">${R.nome} · ${CLASSES[D.c].nome}</small>
+      <em>${r.novo ? 'NOVO!' : P.n >= 3 ? 'Já dá para juntar ★!' : `${P.n}/3 para o dourado ★`}</em>
+      <div class="ovoBotoes">${S.ovos[tipo] || S.moedas >= O.preco ? `<button class="btn amarelo" data-ovo="${tipo}">${S.ovos[tipo] ? `De novo (${S.ovos[tipo]})` : `De novo ${ico('ouro')}${fmt(O.preco)}`}</button>` : ''}
+      <button class="btn verde" data-a="fecharJanela">Pegar</button></div>`;
+    sfx(D.r >= 2 ? 'vitoria' : 'brilho'); if (D.r >= 3) som('lendario'); C.camera.tremor = 0.3; recriarPetsLobby(); }, 2100);
+}
+function abrirConquista() {
+  limparFase(); for (const m of MUROS_PISTA) m.visible = false; $('#janela').hidden = true;
+  tela = 'conq'; $('#lobby').hidden = true; $('#jogo').hidden = true; $('#fim').hidden = true; tema(4);
+  CQ.abrir($('#conq'), destino => { CQ.fechar(); abrirLobby(); abaLobby = destino; desenharLobby(); });
 }
 const PODERES = [['chuva', 'Especial', 'estrela'], ['gigante', 'Gigante', 'cav']];
 // tropas especiais: misturam-se aos espadachins; o nível melhora cada uma
@@ -640,6 +719,11 @@ function clique(e) {
     S.deck = S.deck.includes(k) ? S.deck.filter(x => x !== k) : [...S.deck, k].slice(-2); salvar(); som('clique'); desenharLobby(); }
   if (b.dataset.bau) { const i = +b.dataset.bau, tipo = S.baus[i]?.tipo; if (tipo) { som('clique'); mostrarBau(tipo, BAUS[tipo].nome, () => abrirBau(i)); } }
   if (b.dataset.vaga) tocarVaga(+b.dataset.vaga);
+  if (b.dataset.cq) CQ.clique(b);
+  if (a === 'conquista') { som('confirma'); abrirConquista(); }
+  if (b.dataset.ovo) abrirOvo(b.dataset.ovo);
+  if (b.dataset.pet) { som('clique'); mostrarPet(b.dataset.pet); }
+  if (b.dataset.petA) acaoPet(b.dataset.petA, b.dataset.k);
   if (b.dataset.tor) construir(G.menuVaga, b.dataset.tor);
 }
 function montarVagas() {
@@ -714,7 +798,7 @@ function terminarInf() {
 function danoNoCla() { const d = G.danoTotal || 0; if (d > 0 && S.online?.codigo) ON.claDano(d).then(r => { if (r?.caiu) setTimeout(coletarPremios, 500); }).catch(() => {}); }
 function terminar(venceu) {
   if (G.fim) return; danoNoCla(); fimDupla(venceu); if (G.inf) return terminarInf(); G.fim = venceu ? 'v' : 'd'; tela = 'fim';
-  const ganho = Math.round((venceu ? G.F.moedas + Math.floor(G.az.length / 4) : G.F.moedas * 0.25) * (G.dupla ? 1.5 : 1));
+  const ganho = Math.round((venceu ? G.F.moedas + Math.floor(G.az.length / 4) : G.F.moedas * 0.25) * (G.dupla ? 1.5 : 1) * (1 + bonusMoedas() / 100));
   S.moedas += ganho; let bau = null; if (venceu) { bau = ganharBau(G.n); if (!G.dupla || G.n === S.fase) S.fase++; S.melhor = Math.max(S.melhor, G.n); } salvar();
   setTimeout(() => {
     $('#jogo').hidden = true; const f = $('#fim'); f.hidden = false;
@@ -744,8 +828,15 @@ let distCam = 106;
 export function passo(dt0) {
   let dt = dt0; if (G && G.lento > 0) { G.lento -= dt0; dt = dt0 * 0.25; }
   const t = C.tempo();
+  if (tela === 'conq') { // modo Conquista: os pets lutam sozinhos
+    CQ.passo(dt0); passoVoo(dt0); const V = CQ.vista(); foco.x = V.foco.x; foco.z = V.foco.z;
+    C.camera.yaw = V.yaw; C.camera.pitch = V.pitch; C.camera.dist = V.dist; C.camera.altura = 0; C.camera.suave = 2.5;
+    if (texAgua) texAgua.offset.y += dt0 * 0.03;
+    if (window.__ov) { Object.assign(C.camera, window.__ov.cam); Object.assign(foco, window.__ov.foco); }
+    C.quadro(dt0, foco); gfx.clearRect(0, 0, innerWidth, innerHeight); CQ.desenharFx(gfx, dt0); return;
+  }
   if (G) {
-    G.heroiV.mixer.update(dt);
+    G.heroiV.mixer.update(dt); passoPetsHeroi(dt, tela === 'jogo' && !G.fim && !G.pausa && !G.corrida);
     if (tela === 'jogo' && !G.fim && !G.pausa) passoJogo(dt);
     else if (G.fim === 'v') { G.chefe.v.mixer.update(dt); }
     else G.chefe.v.mixer.update(dt);
