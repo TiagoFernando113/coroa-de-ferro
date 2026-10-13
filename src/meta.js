@@ -7,7 +7,8 @@ export function carregar() {
   if (!S || S.v !== 1) S = { v: 1, fase: 1, moedas: 0, up: {}, melhor: 0 };
   for (const k of Object.keys(UPGRADES)) S.up[k] = S.up[k] || 0;
   S.baus = S.baus || []; S.diario = S.diario || { ultimo: '', seq: 0 };
-  S.pd = S.pd || {}; for (const k of ['chuva', 'gigante']) S.pd[k] = S.pd[k] || { nv: 1, c: 0 };
+  S.pd = S.pd || {}; for (const k of CARTAS) S.pd[k] = S.pd[k] || { nv: k === 'lanca' || k === 'mago' ? 0 : 1, c: 0 };
+  S.deck = S.deck || ['arco'];
   return S;
 }
 export function salvar() { try { localStorage.setItem(CHAVE, JSON.stringify(S)); } catch (e) {} }
@@ -17,9 +18,13 @@ export function comprar(k) {
   S.moedas -= c; S.up[k]++; salvar(); return true;
 }
 // ---- cartas de poder: juntar cartas sobe o nível ----
+// poderes (chuva, gigante) e tropas (arco, lanca, mago); tropa com nível 0 está bloqueada até a primeira carta
+export const CARTAS = ['chuva', 'gigante', 'arco', 'lanca', 'mago'];
 export const cartasPara = nv => 3 + nv * 2;
 function darCartas(k, n) {
-  const P = S.pd[k], antes = P.nv; P.c += n;
+  const P = S.pd[k], antes = P.nv; if (!n) return false;
+  if (P.nv === 0) { P.nv = 1; n--; }
+  P.c += n;
   while (P.nv < 10 && P.c >= cartasPara(P.nv)) { P.c -= cartasPara(P.nv); P.nv++; }
   return P.nv > antes;
 }
@@ -38,8 +43,10 @@ export function ganharBau(n) {
 // abre o baú i e devolve o que veio
 function premio(tipo, fase) {
   const B = BAUS[tipo], moedas = Math.round((25 + 10 * fase) * B.moedas * (0.85 + Math.random() * 0.3));
-  const total = B.cartas, a = Math.round(total * (0.3 + Math.random() * 0.4)), cartas = { chuva: a, gigante: total - a };
-  S.moedas += moedas; const sobe = { chuva: darCartas('chuva', a), gigante: darCartas('gigante', total - a) };
+  // as cartas se dividem entre 2 ou 3 tipos sorteados
+  const tipos = [...CARTAS].sort(() => Math.random() - 0.5).slice(0, total >= 6 ? 3 : 2), cartas = {}, sobe = {};
+  let resto = total; tipos.forEach((k, i) => { const n = i === tipos.length - 1 ? resto : Math.max(1, Math.round(resto * (0.35 + Math.random() * 0.3))); cartas[k] = n; resto -= n; });
+  S.moedas += moedas; for (const k of tipos) sobe[k] = darCartas(k, cartas[k]);
   return { tipo, moedas, cartas, sobe };
 }
 export function abrirBau(i) {
@@ -57,6 +64,6 @@ export function pegarDiario() {
   const dia = diaDoPresente(), D = DIARIO[dia]; S.diario = { ultimo: hoje(), seq: dia + 1 };
   let p;
   if (D.bau) p = premio(D.bau, Math.max(1, S.fase));
-  else { const m = Math.round((40 + 12 * S.fase) * D.moedas); S.moedas += m; p = { moedas: m, cartas: { chuva: 0, gigante: 0 }, sobe: {} }; }
+  else { const m = Math.round((40 + 12 * S.fase) * D.moedas); S.moedas += m; p = { moedas: m, cartas: {}, sobe: {} }; }
   salvar(); return { dia, ...p };
 }

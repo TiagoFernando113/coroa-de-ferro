@@ -148,12 +148,24 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;paddin
 #janela{position:absolute;inset:0;z-index:20;display:grid;place-items:center;background:rgba(8,16,32,.72);pointer-events:auto}
 .presente{position:relative;background:linear-gradient(#ff8a6a,#d8303a);border-color:#6a1010;box-shadow:0 3px 0 #6a1010}
 .ponto{position:absolute;top:-2px;right:-2px;width:14px;height:14px;border-radius:50%;background:#ffd23a;border:2px solid #fff;animation:pisca 1s infinite}
-.lbPd{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
-.pdCarta{display:grid;grid-template-columns:34px 1fr;column-gap:6px;align-items:center;padding:6px;border-radius:12px;background:#fff;border:2px solid var(--creme2)}
-.pdCarta span{grid-row:1/3;width:34px;height:34px;border-radius:9px;display:grid;place-items:center;color:#fff;background:linear-gradient(#6ab8ff,#2466c8)}
-.pdCarta.gigante span{background:linear-gradient(#ffc85a,#d8701a)}
-.pdCarta b{font-family:var(--fT);font-weight:400;font-size:13px}
-.pdCarta b i{font-style:normal;color:var(--suave);font-size:11px}
+.lbCartas{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-bottom:8px}
+.lbRot{grid-column:span 2;font-family:var(--fT);font-size:12px;color:var(--suave);margin:0 2px -2px}
+.lbRot + .lbRot{grid-column:span 3}
+.cartaM{position:relative;display:flex;flex-direction:column;align-items:center;gap:1px;padding:5px 3px;border-radius:12px;background:#fff;border:2px solid var(--creme2);min-width:0}
+.cartaM > span{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;color:#fff;background:linear-gradient(#6ab8ff,#2466c8)}
+.cartaM.gigante > span{background:linear-gradient(#ffc85a,#d8701a)}
+.cartaM.arco > span{background:linear-gradient(#6ad86a,#2a8a3a)}
+.cartaM.lanca > span{background:linear-gradient(#c8d0dc,#6a7484)}
+.cartaM.mago > span{background:linear-gradient(#c08aff,#6a2ac8)}
+.cartaM > span .ico{width:22px;height:22px}
+.cartaM b{font-family:var(--fT);font-weight:400;font-size:11px;white-space:nowrap}
+.cartaM > i{font-style:normal;font-size:10px;color:var(--suave);display:flex;align-items:center;gap:2px}
+.cartaM > i .ico{width:10px;height:10px}
+.cartaM .pdBarra{width:100%;height:12px}
+.cartaM.tropa.sel{border-color:var(--verde);box-shadow:0 0 0 2px rgba(95,216,74,.4)}
+.cartaM em{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;background:var(--verde2);color:#fff;border:2px solid #fff}
+.cartaM em .ico{width:12px;height:12px}
+.cartaM.bloq{filter:grayscale(1);opacity:.6}
 .pdBarra{position:relative;height:14px;border-radius:7px;background:#e8dcc4;overflow:hidden}
 .pdBarra i{display:block;height:100%;background:linear-gradient(#a07aff,#6a3ad8)}
 .pdBarra small{position:absolute;inset:0;display:grid;place-items:center;font-size:10px;color:#fff;text-shadow:0 1px 1px rgba(0,0,0,.5)}
@@ -188,6 +200,7 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;paddin
 .premio .ico{width:34px;height:34px;color:var(--amarelo2)}
 .premio.carta .ico{color:var(--azul2)}
 .premio.gigante .ico{color:#d8701a}
+.premio.arco .ico{color:#2a8a3a}.premio.lanca .ico{color:#6a7484}.premio.mago .ico{color:#6a2ac8}
 .premio b{font-family:var(--fT);font-weight:400;font-size:22px}
 .premio small{font-size:12px;color:var(--suave)}
 .premio small em{font-style:normal;color:var(--verde2);font-family:var(--fT)}
