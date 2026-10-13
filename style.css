@@ -689,3 +689,9 @@ input{font:inherit;user-select:text;-webkit-user-select:text}
 .pfTopo small .pontoOn{margin-right:3px}
 .pfTopo small .pontoOn{display:inline-block}
 .lbFaseCard .fEvento{white-space:normal}
+.linha.amigo{padding:4px 8px}
+.linha.amigo img{width:36px;height:36px;object-fit:contain;border-radius:50%;background:#f3e2bf;flex:none}
+.linha.amigo em .ico{width:16px;height:16px;color:var(--verde2)}
+.jPerfil .codigo{margin:0 0 4px}.jPerfil .codigo input{text-transform:none}
+.jPerfil > .btn{margin:6px 0 0}
+#amErro{min-height:0;margin:2px 0;font-size:13px;color:var(--vermelho2)}

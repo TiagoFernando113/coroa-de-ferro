@@ -162,6 +162,10 @@ const T = {
   'Chocador': L('Hatcher', 'Incubador'), 'Estrelado': L('Starry', 'Estrellado'), 'Conquistador': L('Conqueror', 'Conquistador'), 'Renascido': L('Reborn', 'Renacido'), 'Bronze': L('Bronze', 'Bronce'), 'Prata': L('Silver', 'Plata'), 'Ouro': L('Gold', 'Oro'),
   'Bronze★': L('Bronze★', 'Bronce★'), 'Prata★★': L('Silver★★', 'Plata★★'), 'Ouro★★★': L('Gold★★★', 'Oro★★★'),
   'online': L('online', 'en línea'), 'offline': L('offline', 'desconectado'),
+  'Amigos': L('Friends', 'Amigos'), 'seu código:': L('your code:', 'tu código:'), 'Código do amigo': L("Friend's code", 'Código del amigo'), 'Adicionar amigo': L('Add friend', 'Agregar amigo'),
+  'Amigo · remover': L('Friend · remove', 'Amigo · quitar'), 'Entre no Clã ou no Ranking uma vez para ter amigos.': L('Open Clan or Ranking once to have friends.', 'Abre el Clan o el Ranking una vez para tener amigos.'),
+  'Nenhum amigo ainda. Toque no nome de alguém no clã, chat ou ranking, ou adicione pelo código.': L("No friends yet. Tap someone's name in the clan, chat or ranking, or add by code.", 'Aún no tienes amigos. Toca el nombre de alguien en el clan, chat o ranking, o agrega por código.'),
+  'código não encontrado': L('code not found', 'código no encontrado'), 'esse é o seu código': L("that's your code", 'ese es tu código'), 'limite de # amigos': L('limit of # friends', 'límite de # amigos'),
 };
 export const TEXTOS = { en: {}, es: {} };
 for (const [k, v] of Object.entries(T)) { TEXTOS.en[k] = v.en; TEXTOS.es[k] = v.es; }

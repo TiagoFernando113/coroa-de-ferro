@@ -35,6 +35,8 @@ export const cqEnviar = comConta((est, forca) => rpc('ponte_cq_enviar', { ...id(
 export const cqTop = () => rpc('ponte_cq_top2', { p_limite: 50, p_id: S.online?.id || null });
 export const perfilSalvar = comConta((avatar, dados) => rpc('ponte_perfil_salvar', { ...id(), p_avatar: avatar, p_dados: dados }));
 export const perfilVer = codigo => rpc('ponte_perfil_ver', { p_codigo: codigo });
+export const amigoMarcar = comConta((codigo, ativo) => rpc('ponte_amigo_marcar', { ...id(), p_codigo: codigo, p_ativo: ativo }));
+export const amigos = comConta(() => rpc('ponte_amigos', id()));
 export const ranking = () => rpc('ponte_top3', { p_limite: 50, p_id: S.online?.id || null });
 export const ajudaAuto = comConta(fase => rpc('ponte_ajuda_auto', { ...id(), p_fase: fase }));
 export const premios = comConta(() => rpc('ponte_premios', id()));

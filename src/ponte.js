@@ -807,10 +807,13 @@ function mostrarPerfil() {
       ${nv < 3 ? `<div class="barra"><i style="width:${Math.min(100, 100 * v / prox)}%"></i><span>${fmt(v)}/${fmt(prox)}</span></div>` : ''}</div>
       ${p ? `<button class="btn verde peq" data-medalha="${k}">${p.ovo ? ico('ovo') : ico('ouro')}${p.moedas ? fmt(p.moedas) : ''}</button>` : ''}</div>`; };
   const vars = Object.keys(S.pets).flatMap(b => S.pets[b].e.map((n, e) => n > 0 ? b + '*'.repeat(e) : null).filter(Boolean));
-  j.innerHTML = `<div class="jMissoes jPerfil ${re ? 'semAnim' : ''}"><div class="pfTopo"><img src="${fotoPet(avatarAtual(), 256)}" alt=""><div><b data-nt>${esc(O?.apelido || 'Herói')}</b>
+  setTimeout(carregarAmigos, 0); j.innerHTML = `<div class="jMissoes jPerfil ${re ? 'semAnim' : ''}"><div class="pfTopo"><img src="${fotoPet(avatarAtual(), 256)}" alt=""><div><b data-nt>${esc(O?.apelido || 'Herói')}</b>
       <small>${S.renasc ? `${ico('girar')} ×${S.renasc} · ` : ''}Fase ${S.fase}</small></div></div>
     <div class="pfAvatares">${vars.map(k => `<button class="${k === avatarAtual() ? 'sel' : ''}" data-avatar="${k}"><img src="${fotoPet(k)}" alt=""></button>`).join('')}</div>
     <div class="pfLista"><h3>Estatísticas</h3>${htmlStats(dadosPerfil())}
+    <h3>Amigos ${O?.codigo ? `<small>seu código: <b data-nt>${O.codigo}</b></small>` : ''}</h3>
+    <div class="codigo"><input id="amCod" maxlength="6" inputmode="numeric" placeholder="Código do amigo"><button class="btn verde peq" data-a="amigoCod">${ico('herois')}</button></div><p class="erro" id="amErro"></p>
+    <div id="amLista"><p class="sub">Carregando...</p></div>
     <h3>Medalhas <small>cada nível dá um prêmio</small></h3>${Object.keys(MEDALHAS).map(med).join('')}</div>
     <button class="btn azul" data-a="fecharJanela">Fechar</button></div>`;
 }
@@ -833,7 +836,23 @@ async function verPerfil(codigo) {
       <small><i class="pontoOn ${P.online ? 'on' : ''}"></i>${P.online ? 'online' : 'offline'}${P.cla ? ` · <span data-nt>${esc(P.cla)}</span>` : ''}${d.renasc ? ` · ${ico('girar')} ×${d.renasc}` : ''}</small></div></div>
     <div class="pfLista">${(d.equipe || []).length ? `<h3>Equipe <small>${ico('forca')} ${fmt(d.forca || 0)}</small></h3><div class="pfEquipe">${d.equipe.filter(k => PETS[base(k)]).map(k => `<span class="r${PETS[base(k)].r}" style="--r:${RARIDADES[PETS[base(k)].r].cor}"><img src="${fotoPet(k)}" alt="">${est(k) ? `<i style="color:${ESTRELAS[est(k)].cor}">${'★'.repeat(est(k))}</i>` : ''}</span>`).join('')}</div>` : ''}
       <h3>Estatísticas</h3>${htmlStats(d)}${meds ? `<h3>Medalhas</h3><div class="pfMeds">${meds}</div>` : ''}</div>
-    <button class="btn azul" data-a="fecharJanela">Fechar</button></div>`;
+    ${(S.amigosC || []).includes(codigo) ? `<button class="btn cinza" data-amigo="${codigo}" data-ativo="0">${ico('check')} Amigo · remover</button>` : `<button class="btn verde" data-amigo="${codigo}" data-ativo="1">${ico('herois')} Adicionar amigo</button>`}
+    <p class="erro" id="amErro"></p><button class="btn azul" data-a="fecharJanela">Fechar</button></div>`;
+}
+async function marcarAmigo(b) {
+  const c = b.dataset.amigo, at = b.dataset.ativo === '1', e = $('#amErro'); b.disabled = true;
+  try { await ON.amigoMarcar(c, at); S.amigosC = at ? [...new Set([...(S.amigosC || []), c])] : (S.amigosC || []).filter(x => x !== c); salvar(); som(at ? 'confirma' : 'clique'); if (at) sfx('brilho');
+    b.disabled = false; if (j_perfilProprio()) carregarAmigos(); else verPerfil(c); }
+  catch (er) { b.disabled = false; if (e) e.textContent = er.message; som('erro'); }
+}
+const j_perfilProprio = () => !!document.querySelector('#janela .jPerfil #amLista');
+// lista de amigos no seu perfil
+function carregarAmigos() {
+  const el = $('#amLista'); if (!el) return; if (!S.online?.codigo) { el.innerHTML = '<p class="sub">Entre no Clã ou no Ranking uma vez para ter amigos.</p>'; return; }
+  ON.amigos().then(l => { const e = $('#amLista'); if (!e) return; l = l || []; S.amigosC = l.map(a => a.codigo); salvar();
+    e.innerHTML = l.length ? l.map(a => `<div class="linha amigo"><img src="${fotoPet(petValido(a.avatar))}" alt=""><i class="pontoOn ${a.online ? 'on' : ''}"></i><button class="nomeBtn" data-perfil="${a.codigo}" data-nt>${tagHtml(a.tag, a.cor)}${esc(a.apelido)}</button><small>fase ${a.fase}</small>${a.mutuo ? `<em>${ico('herois')}</em>` : ''}</div>`).join('')
+      : '<p class="sub">Nenhum amigo ainda. Toque no nome de alguém no clã, chat ou ranking, ou adicione pelo código.</p>'; })
+    .catch(er => { const e = $('#amLista'); if (e) e.innerHTML = `<p class="erro">${esc(er.message)}</p>`; });
 }
 // ---- loja diária ----
 function mostrarLoja() {
@@ -903,6 +922,8 @@ function clique(e) {
   if (a === 'missoes') { som('clique'); mostrarMissoes(); }
   if (a === 'perfil') { som('clique'); mostrarPerfil(); }
   if (b.dataset.perfil) { som('clique'); verPerfil(b.dataset.perfil); return; }
+  if (b.dataset.amigo) { marcarAmigo(b); return; }
+  if (a === 'amigoCod') { const c = $('#amCod').value.trim(); if (c.length < 4) { som('erro'); return; } b.dataset.amigo = c; b.dataset.ativo = '1'; marcarAmigo(b).then(() => { const i = $('#amCod'); if (i && !$('#amErro')?.textContent) i.value = ''; }); return; }
   if (b.dataset.avatar) { S.avatar = b.dataset.avatar; salvar(); som('clique'); mostrarPerfil(); desenharLobby(); }
   if (b.dataset.medalha) { const r = pegarMedalha(b.dataset.medalha); if (!r) { som('erro'); return; } sfx('medalha'); som('moedas'); mostrarPerfil(); desenharLobby(); }
   if (a === 'loja') { som('clique'); mostrarLoja(); }
