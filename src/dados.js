@@ -1,5 +1,5 @@
 // Batalha da Ponte: números das fases e das melhorias.
-export const VERSAO = 82;
+export const VERSAO = 83;
 
 const SUF = ['', 'K', 'M', 'B', 'T'];
 export function fmt(n) {
@@ -24,6 +24,13 @@ export const UPGRADES = {
 // chefes (monstros Quaternius): [modelo, nome]
 export const CHEFES = [['mg:Orc', 'Grom, o Brutal'], ['mg:Demon', 'Demônio da Ponte'], ['mg:Yeti', 'Yeti Furioso'], ['mg:Orc_Skull', 'Orc Caveira'],
   ['mg:MushroomKing', 'Rei Cogumelo'], ['mg:BlueDemon', 'Demônio Azul'], ['mg:Dino', 'Raptor Rei'], ['mg:Tribal', 'Xamã Tribal']];
+// habilidade de cada chefe (usada a cada ~11 s, sempre com aviso antes)
+export const HABILIDADES = {
+  'mg:Orc': { id: 'investida', desc: 'Investida que atropela' }, 'mg:Demon': { id: 'chamas', desc: 'Chamas no chão' },
+  'mg:Yeti': { id: 'gelo', desc: 'Congela o herói' }, 'mg:Orc_Skull': { id: 'reviver', desc: 'Levanta os mortos' },
+  'mg:MushroomKing': { id: 'esporos', desc: 'Cogumelinhos rápidos' }, 'mg:BlueDemon': { id: 'escudo', desc: 'Escudo mágico' },
+  'mg:Dino': { id: 'salto', desc: 'Salta no exército' }, 'mg:Tribal': { id: 'cura', desc: 'Se cura' },
+};
 
 // configuração de cada fase (n = 1, 2, 3...)
 export function fase(n) {
