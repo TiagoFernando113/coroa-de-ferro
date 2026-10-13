@@ -356,3 +356,13 @@ input{font:inherit;user-select:text;-webkit-user-select:text}
 
 #fDupla .btn.pulsa{animation:pronto 1s infinite}
 #fDupla .btn:disabled{filter:none;opacity:.85}
+
+.tagCla{font-style:normal;font-family:var(--fT);color:var(--c,#2466c8);margin-right:4px}
+.jOnline2{display:flex;flex-direction:column;text-align:center;color:var(--tinta)}
+.jOnline2 p{margin:6px 0;font-size:14px;color:var(--suave)}
+.jOnline2 .erro{color:var(--vermelho2);min-height:1em}
+.jOnline2 input{width:100%;padding:12px;border-radius:12px;border:2px solid var(--creme2);font-size:18px;text-align:center;background:#fff;color:var(--tinta)}
+.jOnline2 .lista{flex:none;min-height:0;max-height:none}
+.criarCla{display:grid;grid-template-columns:90px 1fr;gap:6px;margin-top:8px}
+.criarCla input{font-size:15px;padding:10px;text-transform:none}
+.criarCla #tagCla{text-transform:uppercase}

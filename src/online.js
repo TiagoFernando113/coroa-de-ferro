@@ -31,13 +31,13 @@ const id = () => ({ p_id: S.online.id, p_segredo: S.online.segredo });
 const comConta = fn => async (...a) => { await garantir(); return fn(...a); };
 
 export const enviarRecorde = comConta((pontos, chefes) => rpc('ponte_enviar_recorde', { ...id(), p_pontos: pontos, p_chefes: chefes }));
-export const ranking = () => rpc('ponte_top', { p_limite: 50, p_id: S.online?.id || null });
+export const ranking = () => rpc('ponte_top2', { p_limite: 50, p_id: S.online?.id || null });
 export const ajudaAuto = comConta(fase => rpc('ponte_ajuda_auto', { ...id(), p_fase: fase }));
 export const premios = comConta(() => rpc('ponte_premios', id()));
 // clãs
-export const clas = (busca = '') => rpc('ponte_clas', { p_busca: busca });
+export const clas = (busca = '') => rpc('ponte_clas2', { p_busca: busca });
 export const meuCla = comConta(() => rpc('ponte_meu_cla', id()));
-export const claCriar = comConta((nome, cor) => rpc('ponte_cla_criar', { ...id(), p_nome: nome, p_cor: cor }));
+export const claCriar = comConta((nome, tag, cor) => rpc('ponte_cla_criar2', { ...id(), p_nome: nome, p_tag: tag, p_cor: cor }));
 export const claEntrar = comConta(cla => rpc('ponte_cla_entrar', { ...id(), p_cla: cla }));
 export const claSair = comConta(() => rpc('ponte_cla_sair', id()));
 export const claDano = comConta(dano => rpc('ponte_cla_dano', { ...id(), p_dano: Math.round(dano) }));

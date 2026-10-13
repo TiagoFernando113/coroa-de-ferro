@@ -368,8 +368,10 @@ function desenharLobby() {
       <div class="lbJogar"><button class="modo azul" data-a="dupla">${ico('herois')}<small>Dupla</small></button>
         <button class="btn verde grande jogar" data-a="jogar">JOGAR<small>Fase ${S.fase}</small></button>
         <button class="modo roxo ${S.melhor < 3 ? 'sem' : ''}" data-a="infinito"><b>∞</b><small>${S.melhor < 3 ? 'Fase 3' : fmt(S.recInf || 0)}</small></button></div></div>`;
+  else if (abaLobby === 'cla' || abaLobby === 'rank') meio = `<div class="lbFolha"><h2>${ABAS.find(a => a[0] === abaLobby)[1]}</h2><div class="lbFolhaCorpo jOnline2" id="onCorpo"></div></div>`;
   else meio = `<div class="lbFolha"><h2>${ABAS.find(a => a[0] === abaLobby)[1]}</h2><div class="lbFolhaCorpo">${abaLobby === 'up' ? htmlMelhorias() : htmlCartas()}</div></div>`;
   $('#lobby').innerHTML = topo + meio + nav;
+  if (abaLobby === 'cla' || abaLobby === 'rank') carregarOnline(abaLobby);
 }
 const PODERES = [['chuva', 'Chuva', 'h_chuva'], ['gigante', 'Gigante', 'cav']];
 // tropas especiais: misturam-se aos espadachins; o nível melhora cada uma
@@ -423,52 +425,59 @@ const hojeTxt = () => new Date().toLocaleDateString('sv');
 let abaOnline = 'rank';
 const CORES_CLA = ['#e8503a', '#2f7ae8', '#2bb84a', '#a24ae8', '#f2b51a', '#1fb8b8', '#e85aa8', '#6a6a7a'];
 const escudoCla = (cor, txt = '') => `<span class="escCla" style="--c:${CORES_CLA[cor % 8]}">${ico('escudo')}<i>${esc(txt.slice(0, 2).toUpperCase())}</i></span>`;
-function mostrarOnline(aba = abaOnline) {
-  abaOnline = aba; const j = $('#janela'); j.hidden = false; const O = ON.conta();
-  const topo = `<h2>${ico('rank')} Online</h2><div class="nomeEu">Seu nome: <b>${esc(O?.apelido || '...')}</b> <button class="fSo" data-a="trocarNome">trocar</button></div>
-    <div class="abas"><button class="${aba === 'rank' ? 'on' : ''}" data-aba="rank">Ranking</button><button class="${aba === 'cla' ? 'on' : ''}" data-aba="cla">Clã</button></div>`;
-  const fechar = '<button class="btn azul" data-a="fecharJanela">Fechar</button>';
+const tagHtml = (tag, cor) => tag ? `<em class="tagCla" style="--c:${CORES_CLA[(cor || 0) % 8]}">[${esc(tag)}]</em>` : '';
+let rankModo = 'jog';
+// conteúdo das abas Clã e Ranking (dentro da folha do lobby)
+function carregarOnline(aba) {
+  const el = $('#onCorpo'); if (!el) return; const O = ON.conta();
+  const nome = `<div class="nomeEu">Seu nome: <b>${esc(O?.apelido || '...')}</b> <button class="fSo" data-a="trocarNome">trocar</button></div>`;
   if (aba === 'nome') {
-    j.innerHTML = `<div class="jOnline"><h2>Seu nome</h2><input id="apelido" maxlength="16" placeholder="Seu apelido" value="${esc(O?.apelido || '')}"><p class="erro" id="onErro"></p>
-      <button class="btn verde grande" data-a="salvarNome">Salvar</button><button class="btn azul" data-aba="rank">Voltar</button></div>`; return;
+    el.innerHTML = `<p class="sub">Esse nome aparece no ranking, no clã e na dupla.</p><input id="apelido" maxlength="16" placeholder="Seu apelido" value="${esc(O?.apelido || '')}"><p class="erro" id="onErro"></p>
+      <button class="btn verde grande" data-a="salvarNome">Salvar</button><button class="btn azul" data-a="voltarOnline">Voltar</button>`; return;
   }
   if (aba === 'rank') {
-    j.innerHTML = `<div class="jOnline">${topo}<p class="sub">Ponte sem fim · melhores do mundo</p><div class="lista" id="lista"><p>Carregando...</p></div>${fechar}</div>`;
-    ON.garantir().then(ON.ranking).then(l => { const el = $('#lista'); if (!el) return; mostrarNome();
-      el.innerHTML = l.length ? l.map(r => `<div class="linha ${r.eu ? 'eu' : ''}"><b>${r.posicao <= 3 ? ['🥇', '🥈', '🥉'][r.posicao - 1] : '#' + r.posicao}</b><span>${esc(r.apelido)}</span><small>${r.chefes} chefes</small><em>${fmt(r.pontos)}</em></div>`).join('')
-        : '<p>Ninguém no ranking ainda. Jogue a Ponte sem fim e seja o primeiro!</p>'; })
-      .catch(e => { const el = $('#lista'); if (el) el.innerHTML = `<p class="erro">${esc(e.message)}</p>`; });
+    el.innerHTML = `${nome}<div class="abas"><button class="${rankModo === 'jog' ? 'on' : ''}" data-rk="jog">Jogadores</button><button class="${rankModo === 'cla' ? 'on' : ''}" data-rk="cla">Clãs</button></div>
+      <p class="sub">${rankModo === 'jog' ? 'Ponte sem fim · melhores do mundo' : 'Clãs com mais chefes semanais derrotados'}</p><div class="lista" id="lista"><p>Carregando...</p></div>`;
+    const med = p => p <= 3 ? ['🥇', '🥈', '🥉'][p - 1] : '#' + p;
+    (rankModo === 'jog' ? ON.garantir().then(ON.ranking).then(l => l.length ? l.map(r => `<div class="linha ${r.eu ? 'eu' : ''}"><b>${med(r.posicao)}</b><span>${tagHtml(r.tag, 0)}${esc(r.apelido)}</span><small>${r.chefes} chefes</small><em>${fmt(r.pontos)}</em></div>`).join('')
+        : '<p>Ninguém no ranking ainda. Jogue a Ponte sem fim e seja o primeiro!</p>')
+      : ON.clas().then(l => l.length ? l.map((c, i) => `<div class="linha"><b>${med(i + 1)}</b>${escudoCla(c.cor, c.tag || c.nome)}<span>${tagHtml(c.tag, c.cor)}${esc(c.nome)}</span><small>${c.membros} membros</small><em>Nv ${c.nivel}</em></div>`).join('') : '<p>Nenhum clã ainda.</p>'))
+      .then(h => { const e = $('#lista'); if (e) e.innerHTML = h; const b = document.querySelector('.nomeEu b'); if (b) b.textContent = ON.conta()?.apelido || ''; })
+      .catch(e => { const x = $('#lista'); if (x) x.innerHTML = `<p class="erro">${esc(e.message)}</p>`; });
     return;
   }
-  // clã
-  j.innerHTML = `<div class="jOnline">${topo}<div id="claCorpo" class="lista"><p>Carregando...</p></div>${fechar}</div>`;
-  ON.meuCla().then(c => { const el = $('#claCorpo'); if (!el) return; mostrarNome();
+  el.innerHTML = `${nome}<div id="claCorpo"><p>Carregando...</p></div>`;
+  ON.meuCla().then(c => { const e = $('#claCorpo'); if (!e) return; const b = document.querySelector('.nomeEu b'); if (b) b.textContent = ON.conta()?.apelido || '';
     if (c) { const k = Math.min(1, c.dano / c.vida);
-      el.innerHTML = `<div class="claTopo">${escudoCla(c.cor, c.nome)}<div><b>${esc(c.nome)}</b><small>Nível ${c.nivel} · ${c.membros.length}/30 membros</small></div></div>
+      e.innerHTML = `<div class="claTopo">${escudoCla(c.cor, c.tag || c.nome)}<div><b>${tagHtml(c.tag, c.cor)}${esc(c.nome)}</b><small>Nível ${c.nivel} · ${c.membros.length}/30 membros</small></div></div>
         <div class="claChefe"><small>${ico('chefe')} Chefe do clã (semana) — todo dano que vocês dão nas batalhas conta</small>
           <div class="barra vm"><i style="width:${100 - 100 * k}%"></i><span>${fmt(c.vida - c.dano)} / ${fmt(c.vida)}</span></div>
           <small>Derrotar dá ${ico('ouro')} ${150 + 50 * c.nivel} para cada membro</small></div>
-        ${c.membros.map(m => `<div class="linha ${m.eu ? 'eu' : ''}"><i class="pontoOn ${m.online ? 'on' : ''}"></i><span>${esc(m.apelido)}</span><small>fase ${m.fase}</small><em>${fmt(m.dano)}</em></div>`).join('')}
+        <div class="lista">${c.membros.map(m => `<div class="linha ${m.eu ? 'eu' : ''}"><i class="pontoOn ${m.online ? 'on' : ''}"></i><span>${esc(m.apelido)}</span><small>fase ${m.fase}</small><em>${fmt(m.dano)}</em></div>`).join('')}</div>
         <button class="fSo" data-a="claSair">Sair do clã</button>`;
       return; }
     ON.clas().then(l => { const e2 = $('#claCorpo'); if (!e2) return;
-      e2.innerHTML = `<p class="sub">Entre num clã: membros se ajudam sozinhos nas batalhas e derrotam juntos o chefe da semana.</p>
-        ${l.length ? l.map(c => `<div class="linha">${escudoCla(c.cor, c.nome)}<span>${esc(c.nome)}</span><small>Nv ${c.nivel} · ${c.membros}/30</small><button class="btn verde peq" data-cla="${c.id}">Entrar</button></div>`).join('') : '<p>Nenhum clã ainda. Crie o primeiro!</p>'}
-        <div class="addAmigo"><input id="nomeCla" maxlength="18" placeholder="Nome do novo clã"><button class="btn amarelo peq" data-a="claCriar">Criar ${ico('ouro')}200</button></div><p class="erro" id="onErro"></p>`; });
-  }).catch(e => { const el = $('#claCorpo'); if (el) el.innerHTML = `<p class="erro">${esc(e.message)}</p>`; });
+      e2.innerHTML = `<p class="sub">Entre num clã: membros se ajudam sozinhos nas batalhas e derrotam juntos o chefe da semana. A sigla aparece antes do seu nome.</p>
+        <div class="lista">${l.length ? l.map(c => `<div class="linha">${escudoCla(c.cor, c.tag || c.nome)}<span>${tagHtml(c.tag, c.cor)}${esc(c.nome)}</span><small>Nv ${c.nivel} · ${c.membros}/30</small><button class="btn verde peq" data-cla="${c.id}">Entrar</button></div>`).join('') : '<p>Nenhum clã ainda. Crie o primeiro!</p>'}</div>
+        <div class="criarCla"><input id="tagCla" maxlength="4" placeholder="SIGLA"><input id="nomeCla" maxlength="18" placeholder="Nome do novo clã"></div>
+        <button class="btn amarelo" data-a="claCriar">Criar clã ${ico('ouro')}200</button><p class="erro" id="onErro"></p>`; });
+  }).catch(e => { const x = $('#claCorpo'); if (x) x.innerHTML = `<p class="erro">${esc(e.message)}</p>`; });
 }
+function mostrarOnline(aba) { if (tela !== 'lobby') abrirLobby(); abaLobby = aba === 'cla' ? 'cla' : 'rank'; $('#janela').hidden = true; desenharLobby(); }
 function mostrarNome() { const b = document.querySelector('.nomeEu b'); if (b) b.textContent = ON.conta()?.apelido || ''; }
 async function cliqueOnline(b) {
   const a = b.dataset.a, erro = m => { const e = $('#onErro'); if (e) e.textContent = m; som('erro'); };
-  if (b.dataset.aba) { som('clique'); mostrarOnline(b.dataset.aba); return; }
-  if (a === 'trocarNome') { som('clique'); mostrarOnline('nome'); }
+  if (b.dataset.rk) { som('clique'); rankModo = b.dataset.rk; carregarOnline('rank'); return; }
+  if (a === 'trocarNome') { som('clique'); carregarOnline('nome'); }
+  if (a === 'voltarOnline') { som('clique'); carregarOnline(abaLobby); }
   if (a === 'salvarNome') { const ap = $('#apelido').value.trim(); if (ap.length < 2) return erro('Pelo menos 2 letras');
-    b.disabled = true; try { await ON.registrar(ap); som('confirma'); mostrarOnline('rank'); } catch (e) { b.disabled = false; erro(e.message); } }
-  if (b.dataset.cla) { b.disabled = true; try { await ON.claEntrar(+b.dataset.cla); sfx('vitoria'); mostrarOnline('cla'); } catch (e) { b.disabled = false; erro(e.message); } }
-  if (a === 'claCriar') { const n = $('#nomeCla').value.trim(); if (n.length < 3) return erro('Nome com pelo menos 3 letras'); if (S.moedas < 200) return erro('Precisa de 200 moedas');
-    b.disabled = true; try { await ON.claCriar(n, Math.floor(Math.random() * 8)); S.moedas -= 200; salvar(); sfx('vitoria'); mostrarOnline('cla'); } catch (e) { b.disabled = false; erro(e.message); } }
+    b.disabled = true; try { await ON.registrar(ap); som('confirma'); carregarOnline(abaLobby); } catch (e) { b.disabled = false; erro(e.message); } }
+  if (b.dataset.cla) { b.disabled = true; try { await ON.claEntrar(+b.dataset.cla); sfx('vitoria'); carregarOnline('cla'); } catch (e) { b.disabled = false; erro(e.message); } }
+  if (a === 'claCriar') { const n = $('#nomeCla').value.trim(), tg = $('#tagCla').value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (tg.length < 2) return erro('Sigla com 2 a 4 letras'); if (n.length < 3) return erro('Nome com pelo menos 3 letras'); if (S.moedas < 200) return erro('Precisa de 200 moedas');
+    b.disabled = true; try { await ON.claCriar(n, tg, Math.floor(Math.random() * 8)); S.moedas -= 200; salvar(); sfx('vitoria'); carregarOnline('cla'); } catch (e) { b.disabled = false; erro(e.message); } }
   if (a === 'claSair') { if (b.dataset.certeza !== '1') { b.dataset.certeza = '1'; b.textContent = 'Toque de novo para sair'; return; }
-    try { await ON.claSair(); som('fechar'); mostrarOnline('cla'); } catch (e) { erro(e.message); } }
+    try { await ON.claSair(); som('fechar'); carregarOnline('cla'); } catch (e) { erro(e.message); } }
 }
 // prêmios que chegaram (ajudas dadas, chefe do clã)
 function coletarPremios() {
@@ -575,7 +584,7 @@ function mostrarDiario() {
 function clique(e) {
   const b = e.target.closest('button'); if (!b) return; const a = b.dataset.a;
   if (a === 'som') { alternarSom(); som('clique'); desenharLobby(); }
-  if (b.dataset.abaLobby) { const k = b.dataset.abaLobby; som('clique'); if (k === 'cla' || k === 'rank') { mostrarOnline(k); return; } abaLobby = k; desenharLobby(); }
+  if (b.dataset.abaLobby) { som('clique'); abaLobby = b.dataset.abaLobby; desenharLobby(); }
   if (b.dataset.up) { if (comprar(b.dataset.up)) { som('compra'); desenharLobby(); } else som('erro'); }
   if (a === 'jogar') { som('confirma'); comecarFase(); }
   if (a === 'infinito') { if (S.melhor < 3) { som('erro'); return; } som('confirma'); comecarFase(true); }
@@ -586,8 +595,8 @@ function clique(e) {
   if (b.dataset.pd) usarPoder(b.dataset.pd);
   if (a === 'roleta') pararRoleta();
   if (a === 'diario') { som('clique'); mostrarDiario(); }
-  if (a === 'online') { som('clique'); mostrarOnline(); }
-  if (b.dataset.aba || b.dataset.cla || ['trocarNome', 'salvarNome', 'claCriar', 'claSair'].includes(a)) cliqueOnline(b);
+  if (a === 'online') { som('clique'); mostrarOnline('rank'); }
+  if (b.dataset.rk || b.dataset.cla || ['trocarNome', 'salvarNome', 'voltarOnline', 'claCriar', 'claSair'].includes(a)) cliqueOnline(b);
   if (a === 'dupla') { som('confirma'); procurarDupla(); }
   if (a === 'revanche') pedirRevanche();
   if (a === 'sairDupla') { som('fechar'); G?.dupla?.canal?.enviar('sair', {}); abrirLobby(); }
