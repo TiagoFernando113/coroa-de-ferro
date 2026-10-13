@@ -286,6 +286,7 @@ function limparFase() {
   for (const f of G.flechas) cena.remove(f.o);
   for (const p of G.portoes) cena.remove(p.o);
   G.chefe?.v.remover(); G.heroiV?.remover(); G.gigante?.v.remover();
+  if (G.dupla) { G.dupla.v.remover(); G.dupla.canal?.fechar(); }
   for (const c of G.chuvas) for (const f of c.fl) cena.remove(f.o);
   for (const p of G.pedras) cena.remove(p.o);
   for (const v of G.vagas) { cena.remove(v.base); if (v.o) cena.remove(v.o); }
@@ -323,6 +324,7 @@ export function abrirLobby() {
   tela = 'lobby'; $('#jogo').hidden = true; $('#fim').hidden = true; $('#lobby').hidden = false; tema('guilda');
   iniciarFase(S.fase); desenharLobby();
   if (!diarioVisto && diarioPronto()) { diarioVisto = true; setTimeout(mostrarDiario, 900); }
+  else setTimeout(coletarPremios, 1200);
 }
 let diarioVisto = false;
 function desenharLobby() {
@@ -339,7 +341,8 @@ function desenharLobby() {
       <div class="baus">${Array.from({ length: MAX_BAUS }, (_, i) => { const b = S.baus[i];
         return b ? `<button class="slotBau" data-bau="${i}">${bauHtml(b.tipo, 'mini')}<small>Abrir!</small></button>` : `<div class="slotBau vazio"><small>Vença para ganhar baú</small></div>`; }).join('')}</div>
       <button class="btn verde grande" data-a="jogar">${ico('h_triplo')} JOGAR</button>
-      <button class="btn roxo infBtn ${S.melhor < 3 ? 'sem' : ''}" data-a="infinito"><span>∞ Ponte sem fim</span><em>${S.melhor < 3 ? `${ico('cadeado')} vença a fase 3` : `${ico('estrela')} ${fmt(S.recInf || 0)}`}</em></button></div>`;
+      <div class="lbModos"><button class="btn azul infBtn" data-a="dupla"><span>${ico('herois')} Jogar em dupla</span></button>
+      <button class="btn roxo infBtn ${S.melhor < 3 ? 'sem' : ''}" data-a="infinito"><span>∞ Ponte sem fim</span><em>${S.melhor < 3 ? `${ico('cadeado')} fase 3` : `${ico('estrela')} ${fmt(S.recInf || 0)}`}</em></button></div></div>`;
 }
 const PODERES = [['chuva', 'Chuva', 'h_chuva'], ['gigante', 'Gigante', 'cav']];
 // tropas especiais: misturam-se aos espadachins; o nível melhora cada uma
@@ -377,7 +380,8 @@ function mostrarBau(tipo, titulo, aoAbrir) {
   j.innerHTML = `<div class="jBau"><h2>${titulo}</h2><div class="raios"></div>${bauHtml(tipo, 'grande treme')}<p class="dicaBau">Toque para abrir</p><div class="premios"></div></div>`;
   let aberto = false;
   j.querySelector('.jBau').onclick = () => {
-    if (aberto) return; aberto = true; const p = aoAbrir(); const b = j.querySelector('.bauG'); b.classList.remove('treme'); b.classList.add('aberto'); j.querySelector('.raios').classList.add('liga');
+    if (aberto) return; aberto = true; let p = null; try { p = aoAbrir(); } catch (e) { console.error(e); }
+    if (!p) { j.hidden = true; if (tela === 'lobby') desenharLobby(); return; } const b = j.querySelector('.bauG'); b.classList.remove('treme'); b.classList.add('aberto'); j.querySelector('.raios').classList.add('liga');
     j.querySelector('.dicaBau').remove(); sfx('brilho'); setTimeout(() => sfx('vitoria'), 250);
     const itens = [`<div class="premio">${ico('ouro')}<b>+${fmt(p.moedas)}</b><small>moedas</small></div>`];
     for (const [k, nome, icone] of CARTAS_INFO) if (p.cartas[k]) { const P = S.pd[k], need = cartasPara(P.nv);
@@ -390,45 +394,119 @@ function mostrarBau(tipo, titulo, aoAbrir) {
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const hojeTxt = () => new Date().toLocaleDateString('sv');
 let abaOnline = 'rank';
+const CORES_CLA = ['#e8503a', '#2f7ae8', '#2bb84a', '#a24ae8', '#f2b51a', '#1fb8b8', '#e85aa8', '#6a6a7a'];
+const escudoCla = (cor, txt = '') => `<span class="escCla" style="--c:${CORES_CLA[cor % 8]}">${ico('escudo')}<i>${esc(txt.slice(0, 2).toUpperCase())}</i></span>`;
 function mostrarOnline(aba = abaOnline) {
   abaOnline = aba; const j = $('#janela'); j.hidden = false; const O = ON.conta();
-  const topo = `<h2>${ico('rank')} Online</h2><div class="abas"><button class="${aba === 'rank' ? 'on' : ''}" data-aba="rank">Ranking</button><button class="${aba === 'amigos' ? 'on' : ''}" data-aba="amigos">Amigos</button></div>`;
-  if (!O?.codigo) {
-    j.innerHTML = `<div class="jOnline">${topo}<p>Escolha um apelido para aparecer no ranking e trocar reforços com amigos.</p>
-      <input id="apelido" maxlength="16" placeholder="Seu apelido" value="${esc(O?.apelido || '')}"><p class="erro" id="onErro"></p>
-      <button class="btn verde grande" data-a="criarConta">Entrar no online</button><button class="btn azul" data-a="fecharJanela">Fechar</button></div>`;
-    return;
+  const topo = `<h2>${ico('rank')} Online</h2><div class="nomeEu">Seu nome: <b>${esc(O?.apelido || '...')}</b> <button class="fSo" data-a="trocarNome">trocar</button></div>
+    <div class="abas"><button class="${aba === 'rank' ? 'on' : ''}" data-aba="rank">Ranking</button><button class="${aba === 'cla' ? 'on' : ''}" data-aba="cla">Clã</button></div>`;
+  const fechar = '<button class="btn azul" data-a="fecharJanela">Fechar</button>';
+  if (aba === 'nome') {
+    j.innerHTML = `<div class="jOnline"><h2>Seu nome</h2><input id="apelido" maxlength="16" placeholder="Seu apelido" value="${esc(O?.apelido || '')}"><p class="erro" id="onErro"></p>
+      <button class="btn verde grande" data-a="salvarNome">Salvar</button><button class="btn azul" data-aba="rank">Voltar</button></div>`; return;
   }
   if (aba === 'rank') {
-    j.innerHTML = `<div class="jOnline">${topo}<p class="sub">Ponte sem fim · melhores do mundo</p><div class="lista" id="lista"><p>Carregando...</p></div>
-      <button class="btn azul" data-a="fecharJanela">Fechar</button></div>`;
-    ON.ranking().then(l => { const el = $('#lista'); if (!el) return;
+    j.innerHTML = `<div class="jOnline">${topo}<p class="sub">Ponte sem fim · melhores do mundo</p><div class="lista" id="lista"><p>Carregando...</p></div>${fechar}</div>`;
+    ON.garantir().then(ON.ranking).then(l => { const el = $('#lista'); if (!el) return; mostrarNome();
       el.innerHTML = l.length ? l.map(r => `<div class="linha ${r.eu ? 'eu' : ''}"><b>${r.posicao <= 3 ? ['🥇', '🥈', '🥉'][r.posicao - 1] : '#' + r.posicao}</b><span>${esc(r.apelido)}</span><small>${r.chefes} chefes</small><em>${fmt(r.pontos)}</em></div>`).join('')
         : '<p>Ninguém no ranking ainda. Jogue a Ponte sem fim e seja o primeiro!</p>'; })
       .catch(e => { const el = $('#lista'); if (el) el.innerHTML = `<p class="erro">${esc(e.message)}</p>`; });
-  } else {
-    const amigos = S.amigos || [];
-    j.innerHTML = `<div class="jOnline">${topo}<div class="meuCod"><small>Seu código</small><b>${esc(O.codigo)}</b><small>${esc(O.apelido)}</small></div>
-      <div class="addAmigo"><input id="codAmigo" inputmode="numeric" maxlength="6" placeholder="Código do amigo"><button class="btn verde peq" data-a="addAmigo">Adicionar</button></div><p class="erro" id="onErro"></p>
-      <p class="sub">Mande reforços 1 vez por dia para cada amigo: entram na próxima batalha dele e você ganha ${ico('ouro')} 20.</p>
-      <div class="lista">${amigos.length ? amigos.map(a => `<div class="linha"><span>${esc(a.apelido)}</span><small>${esc(a.codigo)}</small>
-        ${a.ajudado === hojeTxt() ? '<em class="feito">Enviado ✓</em>' : `<button class="btn amarelo peq" data-amigo="${esc(a.codigo)}">${ico('herois')} Reforço</button>`}</div>`).join('') : '<p>Adicione amigos pelo código deles.</p>'}</div>
-      <button class="btn azul" data-a="fecharJanela">Fechar</button></div>`;
+    return;
   }
+  // clã
+  j.innerHTML = `<div class="jOnline">${topo}<div id="claCorpo" class="lista"><p>Carregando...</p></div>${fechar}</div>`;
+  ON.meuCla().then(c => { const el = $('#claCorpo'); if (!el) return; mostrarNome();
+    if (c) { const k = Math.min(1, c.dano / c.vida);
+      el.innerHTML = `<div class="claTopo">${escudoCla(c.cor, c.nome)}<div><b>${esc(c.nome)}</b><small>Nível ${c.nivel} · ${c.membros.length}/30 membros</small></div></div>
+        <div class="claChefe"><small>${ico('chefe')} Chefe do clã (semana) — todo dano que vocês dão nas batalhas conta</small>
+          <div class="barra vm"><i style="width:${100 - 100 * k}%"></i><span>${fmt(c.vida - c.dano)} / ${fmt(c.vida)}</span></div>
+          <small>Derrotar dá ${ico('ouro')} ${150 + 50 * c.nivel} para cada membro</small></div>
+        ${c.membros.map(m => `<div class="linha ${m.eu ? 'eu' : ''}"><i class="pontoOn ${m.online ? 'on' : ''}"></i><span>${esc(m.apelido)}</span><small>fase ${m.fase}</small><em>${fmt(m.dano)}</em></div>`).join('')}
+        <button class="fSo" data-a="claSair">Sair do clã</button>`;
+      return; }
+    ON.clas().then(l => { const e2 = $('#claCorpo'); if (!e2) return;
+      e2.innerHTML = `<p class="sub">Entre num clã: membros se ajudam sozinhos nas batalhas e derrotam juntos o chefe da semana.</p>
+        ${l.length ? l.map(c => `<div class="linha">${escudoCla(c.cor, c.nome)}<span>${esc(c.nome)}</span><small>Nv ${c.nivel} · ${c.membros}/30</small><button class="btn verde peq" data-cla="${c.id}">Entrar</button></div>`).join('') : '<p>Nenhum clã ainda. Crie o primeiro!</p>'}
+        <div class="addAmigo"><input id="nomeCla" maxlength="18" placeholder="Nome do novo clã"><button class="btn amarelo peq" data-a="claCriar">Criar ${ico('ouro')}200</button></div><p class="erro" id="onErro"></p>`; });
+  }).catch(e => { const el = $('#claCorpo'); if (el) el.innerHTML = `<p class="erro">${esc(e.message)}</p>`; });
 }
-const soldadosAjuda = () => Math.min(60, 20 + 2 * S.up.exercito);
+function mostrarNome() { const b = document.querySelector('.nomeEu b'); if (b) b.textContent = ON.conta()?.apelido || ''; }
 async function cliqueOnline(b) {
   const a = b.dataset.a, erro = m => { const e = $('#onErro'); if (e) e.textContent = m; som('erro'); };
   if (b.dataset.aba) { som('clique'); mostrarOnline(b.dataset.aba); return; }
-  if (a === 'criarConta') { const ap = $('#apelido').value.trim(); if (ap.length < 2) return erro('Apelido com pelo menos 2 letras');
-    b.disabled = true; try { await ON.registrar(ap); if (S.recInf) ON.enviarRecorde(S.recInf, Math.floor(S.recInf / 1000)).catch(() => {}); som('confirma'); mostrarOnline('amigos'); } catch (e) { b.disabled = false; erro(e.message); } }
-  if (a === 'addAmigo') { const c = $('#codAmigo').value.trim(); if (!/^\d{6}$/.test(c)) return erro('O código tem 6 números');
-    if (c === ON.conta().codigo) return erro('Esse é o seu código');
-    try { const ap = await ON.quem(c); if (!ap) return erro('Código não encontrado'); S.amigos = [...(S.amigos || []).filter(x => x.codigo !== c), { codigo: c, apelido: ap, ajudado: '' }]; salvar(); som('compra'); mostrarOnline('amigos'); } catch (e) { erro(e.message); } }
-  if (b.dataset.amigo) { const c = b.dataset.amigo, A = (S.amigos || []).find(x => x.codigo === c); b.disabled = true;
-    try { await ON.ajudar(c, soldadosAjuda()); A.ajudado = hojeTxt(); S.moedas += 20; salvar(); sfx('vitoria'); mostrarOnline('amigos'); }
-    catch (e) { if (/hoje/.test(e.message) && A) { A.ajudado = hojeTxt(); salvar(); } b.disabled = false; erro(e.message); } }
+  if (a === 'trocarNome') { som('clique'); mostrarOnline('nome'); }
+  if (a === 'salvarNome') { const ap = $('#apelido').value.trim(); if (ap.length < 2) return erro('Pelo menos 2 letras');
+    b.disabled = true; try { await ON.registrar(ap); som('confirma'); mostrarOnline('rank'); } catch (e) { b.disabled = false; erro(e.message); } }
+  if (b.dataset.cla) { b.disabled = true; try { await ON.claEntrar(+b.dataset.cla); sfx('vitoria'); mostrarOnline('cla'); } catch (e) { b.disabled = false; erro(e.message); } }
+  if (a === 'claCriar') { const n = $('#nomeCla').value.trim(); if (n.length < 3) return erro('Nome com pelo menos 3 letras'); if (S.moedas < 200) return erro('Precisa de 200 moedas');
+    b.disabled = true; try { await ON.claCriar(n, Math.floor(Math.random() * 8)); S.moedas -= 200; salvar(); sfx('vitoria'); mostrarOnline('cla'); } catch (e) { b.disabled = false; erro(e.message); } }
+  if (a === 'claSair') { if (b.dataset.certeza !== '1') { b.dataset.certeza = '1'; b.textContent = 'Toque de novo para sair'; return; }
+    try { await ON.claSair(); som('fechar'); mostrarOnline('cla'); } catch (e) { erro(e.message); } }
 }
+// prêmios que chegaram (ajudas dadas, chefe do clã)
+function coletarPremios() {
+  if (!S.online?.codigo) return; ON.premios().then(l => { if (!l?.length) return; let m = 0; const motivos = {};
+    for (const p of l) { m += p.moedas; const k = p.motivo.startsWith('Ajudou') ? 'Você ajudou outros jogadores' : p.motivo; motivos[k] = (motivos[k] || 0) + 1; }
+    S.moedas += m; salvar(); if (tela === 'lobby') desenharLobby();
+    const j = $('#janela'); if (!j.hidden) return; j.hidden = false; sfx('vitoria');
+    j.innerHTML = `<div class="jOnline"><h2>${ico('presente')} Recompensas</h2><div class="premio grande">${ico('ouro')}<b>+${fmt(m)}</b></div>
+      ${Object.entries(motivos).map(([k, n]) => `<p>${esc(k)}${n > 1 ? ` ×${n}` : ''}</p>`).join('')}<button class="btn verde grande" data-a="fecharJanela">Pegar</button></div>`; }).catch(() => {});
+}
+// ---- jogar em dupla: procura parceiro; sem ninguém em 20 s, oferece parceiro do computador ----
+let busca = null;
+const NOMES_BOT = ['Bruno', 'Lia', 'Caio', 'Duda', 'Rafa', 'Nina', 'Theo', 'Malu'];
+function procurarDupla() {
+  const j = $('#janela'); j.hidden = false; busca = { t0: Date.now(), ativo: true };
+  j.innerHTML = `<div class="jOnline"><h2>${ico('herois')} Jogar em dupla</h2><div class="radar"><i></i><i></i>${ico('herois')}</div>
+    <p id="buscaTxt">Procurando um parceiro...</p><p class="sub" id="buscaN"></p><div id="buscaBot"></div><button class="btn azul" data-a="cancelarDupla">Cancelar</button></div>`;
+  const b0 = busca;
+  const passo = async () => {
+    if (!b0.ativo) return;
+    try {
+      const r = await ON.procurar(S.fase);
+      if (!b0.ativo) return;
+      if (r?.sala) { b0.ativo = false; j.hidden = true; sfx('vitoria'); comecarDupla({ sala: r.sala, apelido: r.apelido, fase: r.fase, host: r.host }); return; }
+      ON.procurando().then(n => { const e = $('#buscaN'); if (e) e.textContent = n > 1 ? `${n} jogadores procurando agora` : 'Chame um amigo para abrir o jogo também!'; }).catch(() => {});
+    } catch (e) { const el = $('#buscaTxt'); if (el) el.textContent = e.message === 'sem conexão' ? 'Sem conexão com a internet' : e.message; }
+    const seg = (Date.now() - b0.t0) / 1000, el = $('#buscaBot');
+    if (seg > 20 && el && !el.innerHTML) el.innerHTML = `<p>Ninguém apareceu ainda.</p><button class="btn amarelo grande" data-a="duplaBot">${ico('herois')} Jogar com parceiro do computador</button>`;
+    setTimeout(passo, 2000);
+  };
+  passo();
+}
+function pararBusca() { if (busca) busca.ativo = false; busca = null; ON.cancelar(); }
+function comecarDupla(d) {
+  const bot = !d.sala; comecarFase(false, { apelido: d.apelido || NOMES_BOT[Math.floor(Math.random() * NOMES_BOT.length)], bot, host: d.host, fase: d.fase || S.fase });
+  if (!bot) G.dupla.canal = ON.conectarSala(d.sala, (ev, p) => receberDupla(ev, p));
+}
+function receberDupla(ev, p) {
+  const D = G?.dupla; if (!D) return;
+  if (ev === '_caiu') { if (!D.saiu && !G.fim) { D.saiu = true; faixa(`${D.apelido.toUpperCase()} SAIU`, '#ff9a3a'); } return; }
+  D.visto = performance.now();
+  if (ev === 'h') D.alvo = Math.max(-MEIA + 2.5, Math.min(MEIA - 2.5, -p.x)); // o parceiro aparece espelhado (do outro lado)
+  if (ev === 'd' && p.t > D.dano) { const k = p.t - D.dano; D.dano = p.t; if (!G.fim) { G.chefe.hp -= k; G.chefe.flash = 0.06; } }
+  if (ev === 'r' && p.n > 0 && !G.fim) { G.fila = Math.min(MAX_FILA, G.fila + p.n); G.txt.push({ x: D.x, y: 5, z: ZSPAWN, txt: `+${p.n} ${D.apelido}`, cor: '#8ae0ff', t: 0, grande: p.n >= 10 }); }
+  if (ev === 'f') { D.fim = p.v ? 'v' : 'd'; if (p.v && !G.fim) G.chefe.hp = 0; else if (!p.v && !G.fim) faixa(`${D.apelido.toUpperCase()} CAIU! AGUENTE!`, '#ff5a4a'); }
+}
+function passoDupla(dt) {
+  const D = G.dupla; if (!D) return; D.tEnvio -= dt; D.tTiro -= dt;
+  if (D.bot) { // parceiro do computador: anda, atira, causa dano e manda reforços
+    D.tBot -= dt; if (D.tBot <= 0) { D.tBot = 2 + Math.random() * 3; D.alvo = (Math.random() - 0.5) * 2 * (MEIA - 3); }
+    D.danoBot += dt * G.chefe.max * 0.004 * (G.t > 4 ? 1 : 0); if (D.danoBot >= 1) { const k = Math.floor(D.danoBot); D.danoBot -= k; G.chefe.hp -= k; }
+    if (Math.random() < dt * 0.25) receberDupla('r', { n: 3 + Math.floor(Math.random() * (6 + G.n)) });
+  } else if (D.canal) {
+    if (D.tEnvio <= 0) { D.tEnvio = 0.16; D.canal.enviar('h', { x: +G.heroi.x.toFixed(2) });
+      if (D.meuDano !== D.danoEnviado && (D.tDano -= 0.16) <= 0) { D.tDano = 0.5; D.danoEnviado = D.meuDano; D.canal.enviar('d', { t: D.meuDano }); }
+      if (D.reforco >= 1 && (D.tRef -= 0.16) <= 0) { D.tRef = 1; D.canal.enviar('r', { n: Math.floor(D.reforco) }); D.reforco -= Math.floor(D.reforco); } }
+    if (!D.saiu && D.visto && performance.now() - D.visto > 8000) { D.saiu = true; faixa(`${D.apelido.toUpperCase()} DESCONECTOU`, '#ff9a3a'); }
+  }
+  // herói do parceiro e as flechas dele (derrubam orcs da pista do meio)
+  D.x += (D.alvo - D.x) * Math.min(1, dt * 8); D.v.raiz.position.x = D.x; D.v.mixer.update(dt);
+  if (!D.saiu && D.fim !== 'd' && D.tTiro <= 0) { D.tTiro = 0.4; D.v.tocar('Ranged_Magic_Shoot', { loop: false, reinicia: true });
+    const o = new THREE.Mesh(GEO_FLECHA, MAT_FLECHA_P); o.position.set(D.x, 2.6, ZH - 1); cena.add(o); G.flechas.push({ x: D.x, z: ZH - 1, o, parc: true }); }
+}
+const MAT_FLECHA_P = new THREE.MeshBasicMaterial({ color: 0x8ae0ff });
+function fimDupla(venceu) { const D = G.dupla; if (!D) return; if (D.canal) { D.canal.enviar('f', { v: venceu }); setTimeout(() => D.canal.fechar(), 1500); } }
 function mostrarDiario() {
   const j = $('#janela'); j.hidden = false; const pronto = diarioPronto(), dia = diaDoPresente(), hojeI = pronto ? dia : (dia + 6) % 7;
   j.innerHTML = `<div class="jDiario"><h2>${ico('presente')} Presente diário</h2><p>Entre todo dia: o presente cresce. Se faltar um dia, volta ao começo.</p>
@@ -451,7 +529,10 @@ function clique(e) {
   if (a === 'roleta') pararRoleta();
   if (a === 'diario') { som('clique'); mostrarDiario(); }
   if (a === 'online') { som('clique'); mostrarOnline(); }
-  if (b.dataset.aba || a === 'criarConta' || a === 'addAmigo' || b.dataset.amigo) cliqueOnline(b);
+  if (b.dataset.aba || b.dataset.cla || ['trocarNome', 'salvarNome', 'claCriar', 'claSair'].includes(a)) cliqueOnline(b);
+  if (a === 'dupla') { som('confirma'); procurarDupla(); }
+  if (a === 'cancelarDupla') { som('fechar'); pararBusca(); $('#janela').hidden = true; }
+  if (a === 'duplaBot') { pararBusca(); $('#janela').hidden = true; sfx('vitoria'); comecarDupla({}); }
   if (a === 'fecharJanela') { som('fechar'); $('#janela').hidden = true; if (tela === 'lobby') desenharLobby(); }
   if (a === 'pegarDiario') { const D = DIARIO[diaDoPresente()];
     if (D.bau) mostrarBau(D.bau, 'Presente do dia!', () => pegarDiario());
@@ -488,14 +569,19 @@ export function construir(i, tipo) { // nova torre ou sobe de nível
   C.faiscas(v.x, 3, v.z, 0xffd84a, 30, 6); som('compra'); G.txt.push({ x: v.x, y: 6, z: v.z, txt: v.nv > 1 ? `Nível ${v.nv}!` : T.nome + '!', cor: '#ffd84a', t: 0, grande: true });
   atualizarVagas(); return true;
 }
-function comecarFase(inf = false) {
+function comecarFase(inf = false, dupla = null) {
   roleta = null;
-  if (inf) iniciarFase(1, true); else if (!G || G.inf || G.n !== S.fase || G.t > 0) iniciarFase(S.fase);
+  if (inf) iniciarFase(1, true); else if (dupla) iniciarFase(dupla.fase); else if (!G || G.inf || G.dupla || G.n !== S.fase || G.t > 0) iniciarFase(S.fase);
+  if (dupla) { // chefe mais forte; o herói do parceiro aparece do outro lado
+    const v = C.heroi(visualPadrao('mag')); v.raiz.scale.setScalar(2.4); v.raiz.rotation.y = Math.PI; v.raiz.position.set(6, 0, ZH + 0.5); v.tocar('Idle_A');
+    G.dupla = { ...dupla, v, x: 6, alvo: 6, dano: 0, meuDano: 0, danoEnviado: 0, reforco: 0, tEnvio: 0, tDano: 0, tRef: 0, tTiro: 1, tBot: 0, danoBot: 0, visto: 0 };
+    G.chefe.hp = G.chefe.max = Math.round(G.chefe.max * 1.7); }
   tela = 'jogo'; $('#lobby').hidden = true; $('#fim').hidden = true; $('#jogo').hidden = false; $('#jDica').hidden = false;
   $('#jN').textContent = G.inf ? '∞ · 1' : G.n; $('#jChefeN').textContent = G.chefe.nome; tema((G.n - 1) % 8);
   if (G.inf) faixa('PONTE SEM FIM!', '#c88aff');
-  const g0 = G; ON.receber().then(l => { if (G !== g0 || !l?.length) return; let n = 0; for (const r of l) n += r.soldados;
-    G.fila += n; setTimeout(() => { if (G === g0) faixa(l.length > 1 ? `REFORÇOS DE ${l.length} AMIGOS! +${n}` : `REFORÇO DE ${l[0].apelido.toUpperCase()}! +${n}`, '#8ae0ff'); }, 1500); }).catch(() => {});
+  if (G.dupla) faixa(`EM DUPLA COM ${G.dupla.apelido.toUpperCase()}!`, '#8ae0ff');
+  else { const g0 = G; ON.ajudaAuto(G.n).then(r => { if (G !== g0 || !r) return; setTimeout(() => { if (G !== g0 || G.fim) return; G.fila = Math.min(MAX_FILA, G.fila + r.soldados);
+      faixa(`${r.apelido.toUpperCase()}${r.cla ? ' (CLÃ)' : ''} VEIO AJUDAR! +${r.soldados}`, '#8ae0ff'); sfx('brilho'); }, 5000); }).catch(() => {}); }
   $('#jDica').textContent = G.rotas > 1 ? 'Duas rotas! Seus soldados vão pelo lado do herói' : 'Arraste para mover · toque nas vagas para construir torres';
   if (G.rotas > 1) faixa('DUAS ROTAS!', '#ffd84a');
 }
@@ -522,14 +608,15 @@ function terminarInf() {
       .catch(() => { const e = $('#fPos'); if (e) e.textContent = 'Sem conexão: o recorde vai na próxima.'; });
   }, 1200);
 }
+function danoNoCla() { const d = G.danoTotal || 0; if (d > 0 && S.online?.codigo) ON.claDano(d).then(r => { if (r?.caiu) setTimeout(coletarPremios, 500); }).catch(() => {}); }
 function terminar(venceu) {
-  if (G.fim) return; if (G.inf) return terminarInf(); G.fim = venceu ? 'v' : 'd'; tela = 'fim';
-  const ganho = venceu ? G.F.moedas + Math.floor(G.az.length / 4) : Math.round(G.F.moedas * 0.25);
-  S.moedas += ganho; let bau = null; if (venceu) { bau = ganharBau(G.n); S.fase++; S.melhor = Math.max(S.melhor, G.n); } salvar();
+  if (G.fim) return; danoNoCla(); fimDupla(venceu); if (G.inf) return terminarInf(); G.fim = venceu ? 'v' : 'd'; tela = 'fim';
+  const ganho = Math.round((venceu ? G.F.moedas + Math.floor(G.az.length / 4) : G.F.moedas * 0.25) * (G.dupla ? 1.5 : 1));
+  S.moedas += ganho; let bau = null; if (venceu) { bau = ganharBau(G.n); if (!G.dupla || G.n === S.fase) S.fase++; S.melhor = Math.max(S.melhor, G.n); } salvar();
   setTimeout(() => {
     $('#jogo').hidden = true; const f = $('#fim'); f.hidden = false;
     f.innerHTML = `<div class="fimCaixa ${venceu ? 'vit' : 'der'}"><h2>${venceu ? 'VITÓRIA!' : 'A muralha caiu!'}</h2>
-      <p>${venceu ? `${G.chefe.nome} foi derrotado!` : 'Melhore o exército e tente de novo.'}</p>
+      <p>${venceu ? `${G.chefe.nome} foi derrotado!` : 'Melhore o exército e tente de novo.'}${G.dupla ? ` <b>Em dupla com ${esc(G.dupla.apelido)}: +50% moedas</b>` : ''}</p>
       <div class="ganho">${ico('ouro')}<b id="fGanho">+${fmt(ganho)}</b></div>
       ${venceu ? `<div class="fBau">${bau ? `${bauHtml(bau, 'mini')}<b>${BAUS[bau].nome}!</b>` : `<small>Espaços de baú cheios: abra seus baús!</small>`}</div>` : ''}
       ${venceu ? `<div class="roleta">${ROLETA.map(m => `<span class="m${m}">x${m}</span>`).join('')}<i id="rAgulha"></i></div>
@@ -599,6 +686,7 @@ function passoJogo(dt) {
     for (let k = 0; k < G.nFlechas; k++) { const x = h.x + (k - (G.nFlechas - 1) / 2) * 1.1, o = new THREE.Mesh(GEO_FLECHA, MAT_FLECHA); o.position.set(x, 2.6, ZH - 1); cena.add(o); G.flechas.push({ x, z: ZH - 1, o }); }
     if (Math.random() < 0.5) sfx('arco');
   }
+  passoDupla(dt);
   // ponte sem fim: as pistas se renovam
   if (G.inf) G.pistas.forEach((p, k) => { if (p.length >= 6) return; const F = dadosFase(G.n + Math.floor(Math.random() * 3)), l = k ? F.dir : F.esq;
       for (let i = 0; i < 10; i++) novoBloco(l[i], k, (p.length ? p[p.length - 1].z : ZLANE) - PASSO - 6, F.duro + G.chefesMortos); });
@@ -715,6 +803,7 @@ function passoJogo(dt) {
     if (f.morta) continue; f.z -= 95 * dt; f.o.position.z = f.z;
     const ax = Math.abs(f.x);
     if (f.z < ZLANE && ax > DIV - 0.9 && ax < DIV + 0.9) { f.morta = true; continue; } // bateu na divisória
+    if (f.parc && (ax >= DIV + 0.9 || f.z <= ch.z + 3)) { if (f.z < ZLANE || f.z <= ch.z + 3) f.morta = true; continue; }
     if (ax >= DIV + 0.9) { // pista lateral: acerta a primeira pilha
       const p = G.pistas[f.x < 0 ? 0 : 1], b = p[0];
       if (b && f.z <= b.z + 2) { f.morta = true; acertarBloco(b, p, f.x < 0 ? -1 : 1); }
@@ -792,7 +881,7 @@ function passoJogo(dt) {
 // joga o soldado para longe do ponto (x0, z0)
 function arremessar(t, u, x0, z0, f) { const dx = u.x - x0, dz = u.z - z0, d = Math.hypot(dx, dz) || 1; voar(t, u.x, u.z, dx / d * f * 0.8, f * (0.9 + Math.random() * 0.5), dz / d * f * 0.8); }
 function ferirChefe(d, x, z, forte) {
-  const ch = G.chefe; ch.hp -= d; ch.flash = forte ? 0.15 : 0.08; if (forte || Math.random() < 0.3) C.faiscas(x, 3, z, 0xffffff, 4, 4);
+  const ch = G.chefe; ch.hp -= d; G.danoTotal = (G.danoTotal || 0) + d; if (G.dupla) G.dupla.meuDano += d; ch.flash = forte ? 0.15 : 0.08; if (forte || Math.random() < 0.3) C.faiscas(x, 3, z, 0xffffff, 4, 4);
   if (forte || Math.random() < 0.25) G.txt.push({ x, y: 9, z, txt: '-' + fmt(d), cor: forte ? '#ffd84a' : '#fff', t: 0, grande: forte });
 }
 function usarPoder(k) {
@@ -824,7 +913,7 @@ function acertarBloco(b, pista, lado) {
     G.brilhoH = 1; G.punch = 1; C.faiscas(b.mesh.position.x, 2, b.z + 1, 0xc88aff, 40, 7); C.faiscas(G.heroi.x, 3, ZH, 0xc88aff, 30, 5); sfx('magia'); sfx('brilho');
   } else {
     const n = Math.round((b.tipo === 'vezes' ? Math.min(150, G.az.length) : b.valor) * G.multPilha);
-    G.fila = Math.min(MAX_FILA, G.fila + n); G.txt.push({ x: lado * XL, y: 4, z: b.z, txt: b.tipo === 'vezes' ? `x${b.valor}!` : `+${b.valor}`, cor: b.tipo === 'vezes' ? '#7aff8a' : n >= 10 ? '#ffd84a' : '#8ac8ff', t: 0, grande: n >= 10 });
+    G.fila = Math.min(MAX_FILA, G.fila + n); if (G.dupla) G.dupla.reforco += n * 0.25; G.txt.push({ x: lado * XL, y: 4, z: b.z, txt: b.tipo === 'vezes' ? `x${b.valor}!` : `+${b.valor}`, cor: b.tipo === 'vezes' ? '#7aff8a' : n >= 10 ? '#ffd84a' : '#8ac8ff', t: 0, grande: n >= 10 });
     C.faiscas(b.mesh.position.x, 2, b.z + 1, b.tipo === 'vezes' ? 0x4aff6a : n >= 10 ? 0xffd84a : 0x5aa8ff, n >= 10 ? 26 : 12, 5);
     G.combo = (G.combo || 0) + 1; G.comboT = 1.2; sfx('nota', G.combo - 1); if (n >= 10) sfx('brilho');
     if (b.tipo === 'vezes') { faixa('EXÉRCITO DOBRADO!', '#7aff8a'); G.punch = 1; }
@@ -834,6 +923,11 @@ function acertarBloco(b, pista, lado) {
 }
 function faixa(txt, cor) { G.banner = { txt, cor, t: 0 }; }
 // textos flutuantes e contadores dos exércitos
+function nomeParceiro() {
+  const D = G.dupla; if (!D || tela !== 'jogo') return; const p = C.tela(D.x, 7.5, ZH); if (!p) return;
+  gfx.font = '16px Titulo, sans-serif'; gfx.textAlign = 'center'; gfx.textBaseline = 'middle'; gfx.lineWidth = 4; gfx.strokeStyle = '#0f2f6a';
+  const t = D.saiu ? `${D.apelido} (saiu)` : D.apelido; gfx.strokeText(t, p[0], p[1]); gfx.fillStyle = D.saiu ? '#aab' : '#8ae0ff'; gfx.fillText(t, p[0], p[1]);
+}
 function desenharFx(dt) {
   gfx.clearRect(0, 0, innerWidth, innerHeight); if (!G) return;
   const selo = (lista, cor, borda) => { if (!lista.length) return; let sx = 0, sz = 0; const n = Math.min(lista.length, 60); for (let i = 0; i < n; i++) { sx += lista[i].x; sz += lista[i].z; }
@@ -845,6 +939,7 @@ function desenharFx(dt) {
   if (tela === 'jogo') {
     if (G.rotas > 1) for (const s of [-1, 1]) { selo(G.az.filter(u => u.z < ZFORK0 && (u.x < 0) === (s < 0)), '#2f74e0', '#0f2f6a'); selo(G.vm.filter(u => (u.x < 0) === (s < 0)), '#d8342a', '#5a0e0a'); }
     else { selo(G.az, '#2f74e0', '#0f2f6a'); selo(G.vm, '#d8342a', '#5a0e0a'); }
+    nomeParceiro();
     if (G.fila > 0) { const p = C.tela(0, 3, ZSPAWN); if (p) { gfx.font = '20px Titulo, sans-serif'; gfx.textAlign = 'center'; gfx.lineWidth = 4; gfx.strokeStyle = '#0f2f6a'; gfx.strokeText(`+${fmt(G.fila)}`, p[0], p[1]); gfx.fillStyle = '#8ac8ff'; gfx.fillText(`+${fmt(G.fila)}`, p[0], p[1]); } }
   }
   for (const t of G.txt) { t.t += dt; const p = C.tela(t.x, t.y + t.t * 3, t.z); if (!p) continue; gfx.globalAlpha = Math.max(0, 1 - Math.max(0, t.t - 0.5) / 0.5);

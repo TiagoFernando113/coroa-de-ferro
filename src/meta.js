@@ -42,7 +42,7 @@ export function ganharBau(n) {
 }
 // abre o baú i e devolve o que veio
 function premio(tipo, fase) {
-  const B = BAUS[tipo], moedas = Math.round((25 + 10 * fase) * B.moedas * (0.85 + Math.random() * 0.3));
+  const B = BAUS[tipo], total = B.cartas, moedas = Math.round((25 + 10 * fase) * B.moedas * (0.85 + Math.random() * 0.3));
   // as cartas se dividem entre 2 ou 3 tipos sorteados
   const tipos = [...CARTAS].sort(() => Math.random() - 0.5).slice(0, total >= 6 ? 3 : 2), cartas = {}, sobe = {};
   let resto = total; tipos.forEach((k, i) => { const n = i === tipos.length - 1 ? resto : Math.max(1, Math.round(resto * (0.35 + Math.random() * 0.3))); cartas[k] = n; resto -= n; });
@@ -50,8 +50,8 @@ function premio(tipo, fase) {
   return { tipo, moedas, cartas, sobe };
 }
 export function abrirBau(i) {
-  const b = S.baus[i]; if (!b) return null; S.baus.splice(i, 1);
-  const p = premio(b.tipo, b.fase); salvar(); return p;
+  const b = S.baus[i]; if (!b) return null;
+  const p = premio(b.tipo, b.fase); S.baus.splice(i, 1); salvar(); return p;
 }
 // ---- presente diário (7 dias; perder um dia volta ao começo) ----
 export const DIARIO = [{ moedas: 1 }, { moedas: 1.5 }, { bau: 'madeira' }, { moedas: 2.5 }, { bau: 'prata' }, { moedas: 4 }, { bau: 'ouro' }];
