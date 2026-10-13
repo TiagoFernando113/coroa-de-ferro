@@ -22,7 +22,8 @@ const ZSPAWN = -9;          // onde surgem os soldados azuis
 const ZLANE = -12;          // começo das pistas
 const PASSO = 3.4, NB = 20;
 const ZBOSS = ZLANE - NB * PASSO - 10;
-const MAXU = 900, VEL_AZ = 8, VEL_VM = 4.4, MAX_FILA = 400;
+const MAXU = 900, VEL_AZ = 8, VEL_VM = 4.4;
+const maxFila = () => G?.inf ? Math.min(1500, 400 + 150 * G.chefesMortos) : 400;
 const ZFRENTE = ZBOSS - 35, ZTRAS = 40;
 const ZFORK0 = ZLANE - 5, ZFORK1 = ZBOSS + 15; // trecho com duas rotas
 // torres que o jogador constrói durante a batalha com o ouro ⚔ dos orcs derrotados
@@ -232,6 +233,14 @@ export function iniciarFase(n, inf = false) {
   if (!G.heroiV) { const v = C.heroi(S.visual || visualPadrao('arq')); v.raiz.scale.setScalar(2.4); v.raiz.rotation.y = Math.PI; v.tocar('Ranged_Bow_Aiming_Idle'); G.heroiV = v; }
   G.heroiV.raiz.position.set(0, 0, ZH);
 }
+const REDONDOS = [1, 2, 3, 5, 10, 15, 20, 25, 50, 75, 99, 150, 200, 250, 300, 400, 500, 750, 1000];
+function blocoInf(b, k) { // ponte sem fim: cada chefe derrotado deixa as pilhas maiores (e mais duras)
+  if (b.tipo === 'poder') return { tipo: 'mais', valor: k ? 5 : 3 };
+  if (b.tipo === 'vezes') return { tipo: 'vezes', valor: G.chefesMortos >= 3 && Math.random() < 0.35 ? 3 : 2 };
+  if (b.tipo !== 'mais') return b;
+  const alvo = b.valor * (1 + 0.7 * G.chefesMortos), valor = REDONDOS.reduce((m, v) => Math.abs(v - alvo) < Math.abs(m - alvo) ? v : m, 1);
+  return { tipo: 'mais', valor };
+}
 function novoBloco(b0, k, z, duro) {
   const b = { ...b0, z }; if (b.tipo !== 'barreira') b.hp = b.hpMax = (b.tipo === 'mais' ? Math.max(1, Math.round(1.3 * Math.log(b.valor))) : 3) + duro;
   criarBloco(b, k ? 1 : -1); G.pistas[k].push(b);
@@ -258,7 +267,7 @@ function proximoChefe() {
 const BONUS = {
   flechas: { nome: 'Tiro triplo', icone: 'h_triplo', desc: '+2 flechas por tiro', usar: () => { G.nFlechas = Math.min(G.flechasMax, G.nFlechas + 2); } },
   furia: { nome: 'Fúria', icone: 'raio', desc: 'Atira 40% mais rápido', usar: () => { G.tiro = Math.min(G.tiroMax, G.tiro * 1.4); } },
-  recrutas: { nome: 'Reforços', icone: 'herois', desc: () => `+${40 + 10 * G.n} soldados agora`, usar: () => { G.fila = Math.min(MAX_FILA, G.fila + 40 + 10 * G.n); } },
+  recrutas: { nome: 'Reforços', icone: 'herois', desc: () => `+${40 + 10 * G.n} soldados agora`, usar: () => { G.fila = Math.min(maxFila(), G.fila + 40 + 10 * G.n); } },
   escudos: { nome: 'Escudos de ferro', icone: 'escudo', desc: '+20% dos soldados sobrevivem', usar: () => { G.escudo = Math.min(0.8, G.escudo + 0.2); } },
   muralha: { nome: 'Muralha reforçada', icone: 'forja', desc: 'Muralha +50% e curada', usar: () => { G.muroMax = Math.round(G.muroMax * 1.5); G.muro = G.muroMax; } },
   ouro: { nome: 'Ouro de guerra', icone: 'forca', desc: '+80 de ouro para torres', usar: () => { G.ouro += 80; } },
@@ -486,7 +495,7 @@ function receberDupla(ev, p) {
   D.visto = performance.now();
   if (ev === 'h') D.alvo = Math.max(-MEIA + 2.5, Math.min(MEIA - 2.5, -p.x)); // o parceiro aparece espelhado (do outro lado)
   if (ev === 'd' && p.t > D.dano) { const k = p.t - D.dano; D.dano = p.t; if (!G.fim) { G.chefe.hp -= k; G.chefe.flash = 0.06; } }
-  if (ev === 'r' && p.n > 0 && !G.fim) { G.fila = Math.min(MAX_FILA, G.fila + p.n); G.txt.push({ x: D.x, y: 5, z: ZSPAWN, txt: `+${p.n} ${D.apelido}`, cor: '#8ae0ff', t: 0, grande: p.n >= 10 }); }
+  if (ev === 'r' && p.n > 0 && !G.fim) { G.fila = Math.min(maxFila(), G.fila + p.n); G.txt.push({ x: D.x, y: 5, z: ZSPAWN, txt: `+${p.n} ${D.apelido}`, cor: '#8ae0ff', t: 0, grande: p.n >= 10 }); }
   if (ev === 'f') { D.fim = p.v ? 'v' : 'd'; if (p.v && !G.fim) G.chefe.hp = 0; else if (!p.v && !G.fim) faixa(`${D.apelido.toUpperCase()} CAIU! AGUENTE!`, '#ff5a4a'); }
 }
 function passoDupla(dt) {
@@ -580,7 +589,7 @@ function comecarFase(inf = false, dupla = null) {
   $('#jN').textContent = G.inf ? '∞ · 1' : G.n; $('#jChefeN').textContent = G.chefe.nome; tema((G.n - 1) % 8);
   if (G.inf) faixa('PONTE SEM FIM!', '#c88aff');
   if (G.dupla) faixa(`EM DUPLA COM ${G.dupla.apelido.toUpperCase()}!`, '#8ae0ff');
-  else { const g0 = G; ON.ajudaAuto(G.n).then(r => { if (G !== g0 || !r) return; setTimeout(() => { if (G !== g0 || G.fim) return; G.fila = Math.min(MAX_FILA, G.fila + r.soldados);
+  else { const g0 = G; ON.ajudaAuto(G.n).then(r => { if (G !== g0 || !r) return; setTimeout(() => { if (G !== g0 || G.fim) return; G.fila = Math.min(maxFila(), G.fila + r.soldados);
       faixa(`${r.apelido.toUpperCase()}${r.cla ? ' (CLÃ)' : ''} VEIO AJUDAR! +${r.soldados}`, '#8ae0ff'); sfx('brilho'); }, 5000); }).catch(() => {}); }
   $('#jDica').textContent = G.rotas > 1 ? 'Duas rotas! Seus soldados vão pelo lado do herói' : 'Arraste para mover · toque nas vagas para construir torres';
   if (G.rotas > 1) faixa('DUAS ROTAS!', '#ffd84a');
@@ -689,7 +698,7 @@ function passoJogo(dt) {
   passoDupla(dt);
   // ponte sem fim: as pistas se renovam
   if (G.inf) G.pistas.forEach((p, k) => { if (p.length >= 6) return; const F = dadosFase(G.n + Math.floor(Math.random() * 3)), l = k ? F.dir : F.esq;
-      for (let i = 0; i < 10; i++) novoBloco(l[i].tipo === 'poder' ? { tipo: 'mais', valor: k ? 5 : 3 } : l[i], k, (p.length ? p[p.length - 1].z : ZLANE) - PASSO - 6, F.duro + G.chefesMortos); });
+      for (let i = 0; i < 10; i++) novoBloco(blocoInf(l[i + 8], k), k, (p.length ? p[p.length - 1].z : ZLANE) - PASSO - 6, F.duro + G.chefesMortos); });
   // hora de escolher um bônus
   if (G.t >= G.proxEscolha && !ch.pulo) { G.proxEscolha = G.t + 22 + 4 * G.escolhas; abrirEscolha(); }
   // o chefe joga pedras no herói: um círculo avisa onde cai, arraste para desviar
@@ -913,7 +922,7 @@ function acertarBloco(b, pista, lado) {
     G.brilhoH = 1; G.punch = 1; C.faiscas(b.mesh.position.x, 2, b.z + 1, 0xc88aff, 40, 7); C.faiscas(G.heroi.x, 3, ZH, 0xc88aff, 30, 5); sfx('magia'); sfx('brilho');
   } else {
     const n = Math.round((b.tipo === 'vezes' ? Math.min(150, G.az.length) : b.valor) * G.multPilha);
-    G.fila = Math.min(MAX_FILA, G.fila + n); if (G.dupla) G.dupla.reforco += n * 0.25; G.txt.push({ x: lado * XL, y: 4, z: b.z, txt: b.tipo === 'vezes' ? `x${b.valor}!` : `+${b.valor}`, cor: b.tipo === 'vezes' ? '#7aff8a' : n >= 10 ? '#ffd84a' : '#8ac8ff', t: 0, grande: n >= 10 });
+    G.fila = Math.min(maxFila(), G.fila + n); if (G.dupla) G.dupla.reforco += n * 0.25; G.txt.push({ x: lado * XL, y: 4, z: b.z, txt: b.tipo === 'vezes' ? `x${b.valor}!` : `+${b.valor}`, cor: b.tipo === 'vezes' ? '#7aff8a' : n >= 10 ? '#ffd84a' : '#8ac8ff', t: 0, grande: n >= 10 });
     C.faiscas(b.mesh.position.x, 2, b.z + 1, b.tipo === 'vezes' ? 0x4aff6a : n >= 10 ? 0xffd84a : 0x5aa8ff, n >= 10 ? 26 : 12, 5);
     G.combo = (G.combo || 0) + 1; G.comboT = 1.2; sfx('nota', G.combo - 1); if (n >= 10) sfx('brilho');
     if (b.tipo === 'vezes') { faixa('EXÉRCITO DOBRADO!', '#7aff8a'); G.punch = 1; }
