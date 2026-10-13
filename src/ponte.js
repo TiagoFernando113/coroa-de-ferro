@@ -329,29 +329,47 @@ function montarHud() {
   $('#hud').addEventListener('click', clique);
 }
 export function abrirLobby() {
-  roleta = null;
+  roleta = null; abaLobby = 'home';
   tela = 'lobby'; $('#jogo').hidden = true; $('#fim').hidden = true; $('#lobby').hidden = false; tema('guilda');
   iniciarFase(S.fase); desenharLobby();
   if (!diarioVisto && diarioPronto()) { diarioVisto = true; setTimeout(mostrarDiario, 900); }
   else setTimeout(coletarPremios, 1200);
 }
 let diarioVisto = false;
+// ---- lobby: cena 3D atrás do herói, card da fase, JOGAR, baús e abas embaixo ----
+let abaLobby = 'home';
+const ABAS = [['home', 'Batalha', 'h_triplo'], ['up', 'Melhorias', 'raio'], ['cartas', 'Cartas', 'herois'], ['cla', 'Clã', 'escudo'], ['rank', 'Ranking', 'rank']];
+function htmlMelhorias() {
+  return `<div class="ups">${Object.entries(UPGRADES).map(([k, U]) => { const n = S.up[k], max = n >= U.max, c = U.custo(n);
+    return `<button class="up ${!max && S.moedas >= c ? 'pode' : ''}" data-up="${k}"><span class="upIco">${ico(U.icone)}</span><b>${U.nome}</b><small>${U.desc(n)}</small><em>${max ? 'MÁX' : `${ico('ouro')}${fmt(c)}`}</em><i>Nv ${n}</i></button>`; }).join('')}</div>`;
+}
+const DESC_CARTA = { chuva: 'Flechas caem em área', gigante: 'Cavaleiro enorme aliado', arco: 'Atiram de longe', lanca: 'Aguentam mais duelos', mago: 'Explosão em área' };
+function htmlCartas() {
+  const carta = ([k, nome, icone]) => { const P = S.pd[k], need = cartasPara(P.nv), tropa = !!TROPAS[k], sel = S.deck.includes(k);
+    return `<${tropa ? `button data-tropa="${k}"` : 'div'} class="cartaG ${k} ${sel ? 'sel' : ''} ${P.nv ? '' : 'bloq'}"><span>${ico(icone)}</span><b>${nome}</b><small>${DESC_CARTA[k]}</small>
+      ${P.nv ? `<i>Nível ${P.nv}</i><div class="pdBarra"><i style="width:${P.nv >= 10 ? 100 : 100 * P.c / need}%"></i><small>${P.nv >= 10 ? 'MÁX' : `${P.c}/${need} cartas`}</small></div>` : `<i>${ico('cadeado')} nos baús</i>`}
+      ${sel ? `<em>${ico('check')}</em>` : ''}</${tropa ? 'button' : 'div'}>`; };
+  return `<h3>Poderes <small>botões na batalha</small></h3><div class="cartasG">${CARTAS_INFO.filter(c => !TROPAS[c[0]]).map(carta).join('')}</div>
+    <h3>Tropas <small>toque para escolher 2</small></h3><div class="cartasG">${CARTAS_INFO.filter(c => TROPAS[c[0]]).map(carta).join('')}</div>
+    <p class="sub">Cartas saem dos baús. Junte cartas para subir o nível.</p>`;
+}
 function desenharLobby() {
-  const F = dadosFase(S.fase);
-  $('#lobby').innerHTML = `<div class="lbTopo"><div class="pilula ouro">${ico('ouro')}<b>${fmt(S.moedas)}</b></div><button class="redondo online" data-a="online">${ico('rank')}</button><button class="redondo presente" data-a="diario">${ico('presente')}${diarioPronto() ? '<i class="ponto"></i>' : ''}</button><button class="redondo" data-a="som">${ico(estaMudo() ? 'mudo' : 'som')}</button></div>
-    <div class="lbTitulo"><small>Batalha da</small><h1>Ponte</h1></div>
-    <div class="lbPainel"><div class="lbFase"><span>FASE</span><b>${S.fase}</b><small>${ico('chefe')} ${F.chefe.nome} · vida ${fmt(F.chefe.hp)} · ${BIOMAS[biomaDe(S.fase)].nome}</small></div>
-      <div class="ups">${Object.entries(UPGRADES).map(([k, U]) => { const n = S.up[k], max = n >= U.max, c = U.custo(n);
-        return `<button class="up ${!max && S.moedas >= c ? 'pode' : ''}" data-up="${k}"><span class="upIco">${ico(U.icone)}</span><b>${U.nome}</b><small>${U.desc(n)}</small><em>${max ? 'MÁX' : `${ico('ouro')}${fmt(c)}`}</em><i>Nv ${n}</i></button>`; }).join('')}</div>
-      <div class="lbCartas"><small class="lbRot">Poderes</small><small class="lbRot">Tropas · escolha 2</small>${CARTAS_INFO.map(([k, nome, icone]) => { const P = S.pd[k], need = cartasPara(P.nv), tropa = !!TROPAS[k], sel = S.deck.includes(k);
-        return `<${tropa ? `button data-tropa="${k}"` : 'div'} class="cartaM ${k} ${tropa ? 'tropa' : ''} ${sel ? 'sel' : ''} ${P.nv ? '' : 'bloq'}"><span>${ico(icone)}</span><b>${nome}</b>
-          ${P.nv ? `<i>Nv ${P.nv}</i><div class="pdBarra"><i style="width:${P.nv >= 10 ? 100 : 100 * P.c / need}%"></i><small>${P.nv >= 10 ? 'MÁX' : `${P.c}/${need}`}</small></div>` : `<i>${ico('cadeado')} nos baús</i>`}
-          ${sel ? `<em>${ico('check')}</em>` : ''}</${tropa ? 'button' : 'div'}>`; }).join('')}</div>
+  const F = dadosFase(S.fase), O = S.online, upPode = Object.entries(UPGRADES).some(([k, U]) => S.up[k] < U.max && S.moedas >= U.custo(S.up[k]));
+  const nav = `<nav class="lbNav">${ABAS.map(([k, nome, icone]) => `<button class="${abaLobby === k ? 'on' : ''}" data-aba-lobby="${k}">${ico(icone)}<small>${nome}</small>${k === 'up' && upPode ? '<i class="ponto"></i>' : ''}</button>`).join('')}</nav>`;
+  const topo = `<div class="lbTopo"><div class="pilula ouro">${ico('ouro')}<b>${fmt(S.moedas)}</b></div>
+    <button class="redondo presente" data-a="diario">${ico('presente')}${diarioPronto() ? '<i class="ponto"></i>' : ''}</button><button class="redondo" data-a="som">${ico(estaMudo() ? 'mudo' : 'som')}</button></div>`;
+  let meio;
+  if (abaLobby === 'home') meio = `
+    <div class="lbLogo"><small>Batalha da</small><h1>Ponte</h1></div>
+    <div class="lbFaseCard"><span class="fN"><small>FASE</small><b>${S.fase}</b></span><span class="fInfo"><b>${ico('chefe')} ${F.chefe.nome}</b><small>${BIOMAS[biomaDe(S.fase)].nome} · vida ${fmt(F.chefe.hp)}${O?.apelido ? ` · ${esc(O.apelido)}` : ''}</small></span></div>
+    <div class="lbBase">
       <div class="baus">${Array.from({ length: MAX_BAUS }, (_, i) => { const b = S.baus[i];
-        return b ? `<button class="slotBau" data-bau="${i}">${bauHtml(b.tipo, 'mini')}<small>Abrir!</small></button>` : `<div class="slotBau vazio"><small>Vença para ganhar baú</small></div>`; }).join('')}</div>
-      <button class="btn verde grande" data-a="jogar">${ico('h_triplo')} JOGAR</button>
-      <div class="lbModos"><button class="btn azul infBtn" data-a="dupla"><span>${ico('herois')} Jogar em dupla</span></button>
-      <button class="btn roxo infBtn ${S.melhor < 3 ? 'sem' : ''}" data-a="infinito"><span>∞ Ponte sem fim</span><em>${S.melhor < 3 ? `${ico('cadeado')} fase 3` : `${ico('estrela')} ${fmt(S.recInf || 0)}`}</em></button></div></div>`;
+        return b ? `<button class="slotBau" data-bau="${i}">${bauHtml(b.tipo, 'mini')}<small>Abrir!</small></button>` : `<div class="slotBau vazio">${ico('bau')}</div>`; }).join('')}</div>
+      <div class="lbJogar"><button class="modo azul" data-a="dupla">${ico('herois')}<small>Dupla</small></button>
+        <button class="btn verde grande jogar" data-a="jogar">JOGAR<small>Fase ${S.fase}</small></button>
+        <button class="modo roxo ${S.melhor < 3 ? 'sem' : ''}" data-a="infinito"><b>∞</b><small>${S.melhor < 3 ? 'Fase 3' : fmt(S.recInf || 0)}</small></button></div></div>`;
+  else meio = `<div class="lbFolha"><h2>${ABAS.find(a => a[0] === abaLobby)[1]}</h2><div class="lbFolhaCorpo">${abaLobby === 'up' ? htmlMelhorias() : htmlCartas()}</div></div>`;
+  $('#lobby').innerHTML = topo + meio + nav;
 }
 const PODERES = [['chuva', 'Chuva', 'h_chuva'], ['gigante', 'Gigante', 'cav']];
 // tropas especiais: misturam-se aos espadachins; o nível melhora cada uma
@@ -528,6 +546,7 @@ function mostrarDiario() {
 function clique(e) {
   const b = e.target.closest('button'); if (!b) return; const a = b.dataset.a;
   if (a === 'som') { alternarSom(); som('clique'); desenharLobby(); }
+  if (b.dataset.abaLobby) { const k = b.dataset.abaLobby; som('clique'); if (k === 'cla' || k === 'rank') { mostrarOnline(k); return; } abaLobby = k; desenharLobby(); }
   if (b.dataset.up) { if (comprar(b.dataset.up)) { som('compra'); desenharLobby(); } else som('erro'); }
   if (a === 'jogar') { som('confirma'); comecarFase(); }
   if (a === 'infinito') { if (S.melhor < 3) { som('erro'); return; } som('confirma'); comecarFase(true); }
@@ -670,9 +689,10 @@ export function passo(dt0) {
   if (texAgua) texAgua.offset.y += dt0 * (biomaAtual === 3 ? 0.015 : biomaAtual === 2 ? 0.02 : 0.05);
   const final = G && G.fim === 'v';
   foco.x = final ? 0 : (G ? G.heroi.x : 0) * 0.25; foco.z = final ? G.chefe.z + 14 : -42;
-  if (tela === 'lobby') foco.z = -42 + Math.sin(t * 0.3) * 2;
+  const lobby = tela === 'lobby';
+  if (lobby) { foco.x = Math.sin(t * 0.25) * 2; foco.z = -34; }
   distCam += ((final ? 62 : 106) - distCam) * Math.min(1, dt0 * 2);
-  C.camera.yaw = Math.PI; C.camera.pitch = 0.9; C.camera.dist = distCam - (G ? G.punch * 7 : 0); C.camera.altura = 0; C.camera.suave = final ? 2.5 : 4;
+  C.camera.yaw = Math.PI; C.camera.pitch = lobby ? 0.5 : 0.9; C.camera.dist = lobby ? 52 : distCam - (G ? G.punch * 7 : 0); C.camera.altura = lobby ? 2 : 0; C.camera.suave = final ? 2.5 : 4;
   if (G && tela === 'jogo') posicionarVagas();
   if (window.__ov) { Object.assign(C.camera, window.__ov.cam); Object.assign(foco, window.__ov.foco); } // para testes
   C.quadro(dt, foco);
