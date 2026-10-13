@@ -124,6 +124,20 @@ const T = {
   'você já doou neste pedido': L('you already donated to this request', 'ya donaste en este pedido'), 'calma, espere um pouco': L('easy, wait a moment', 'calma, espera un poco'), 'não dá para doar para você mesmo': L("you can't donate to yourself", 'no puedes donarte a ti mismo'),
   'clã não existe': L("clan doesn't exist", 'el clan no existe'), 'limite de # doações por dia': L('limit of # donations per day', 'límite de # donaciones por día'), 'pedido não encontrado': L('request not found', 'pedido no encontrado'),
   'OK': L('OK', 'OK'), 'Sim': L('Yes', 'Sí'), 'Não': L('No', 'No'),
+  // missões e passe
+  'Missões': L('Missions', 'Misiones'), 'Passe': L('Pass', 'Pase'), 'Diárias': L('Daily', 'Diarias'), 'renovam todo dia': L('reset every day', 'se renuevan cada día'), 'Semanais': L('Weekly', 'Semanales'),
+  'dão um Ovo Comum': L('give a Common Egg', 'dan un Huevo Común'), 'Derrote # orcs': L('Defeat # orcs', 'Derrota # orcos'), 'Vença # fases': L('Win # stages', 'Gana # fases'), 'Derrote # chefes': L('Defeat # bosses', 'Derrota # jefes'),
+  'Choque # ovos': L('Hatch # eggs', 'Eclosiona # huevos'), 'Vença # estágios na Conquista': L('Win # Conquest stages', 'Gana # etapas en Conquista'), 'Abra # baús': L('Open # chests', 'Abre # cofres'),
+  'Suba de nível # vezes um pet': L('Level up a pet # times', 'Sube de nivel una mascota # veces'), 'Jogue # vezes a Ponte sem fim': L('Play the Endless bridge # times', 'Juega # veces el Puente sin fin'), 'Doe # cartas no clã': L('Donate # cards in the clan', 'Dona # cartas en el clan'),
+  'Nível #/#': L('Level #/#', 'Nivel #/#'), 'Temporada acaba em # dias': L('Season ends in # days', 'La temporada termina en # días'), 'Missões dão': L('Missions give', 'Las misiones dan'), 'para subir': L('to level up', 'para subir'), 'Baús cheios': L('Chests full', 'Cofres llenos'),
+  // renascer
+  'Renascer': L('Rebirth', 'Renacer'), 'Volte para a fase 1 e fique mais forte para sempre': L('Go back to stage 1 and get stronger forever', 'Vuelve a la fase 1 y sé más fuerte para siempre'),
+  'Agora:': L('Now:', 'Ahora:'), 'Próximo:': L('Next:', 'Siguiente:'), 'Ovo Mágico': L('Magic Egg', 'Huevo Mágico'), 'Chegue na fase #': L('Reach stage #', 'Llega a la fase #'),
+  'Perde: fase, moedas e melhorias. Fica: pets, heróis, cartas, baús e Conquista.': L('You lose: stage, coins and upgrades. You keep: pets, heroes, cards, chests and Conquest.', 'Pierdes: fase, monedas y mejoras. Mantienes: mascotas, héroes, cartas, cofres y Conquista.'),
+  'Toque de novo para confirmar': L('Tap again to confirm', 'Toca de nuevo para confirmar'), 'RENASCEU! #': L('REBORN! #', '¡RENACISTE! #'),
+  // códigos
+  'Tem um código?': L('Have a code?', '¿Tienes un código?'), 'Usar': L('Use', 'Usar'), 'código inválido ou expirado': L('invalid or expired code', 'código inválido o expirado'),
+  'código esgotado': L('code sold out', 'código agotado'), 'você já usou esse código': L('you already used this code', 'ya usaste este código'),
 };
 export const TEXTOS = { en: {}, es: {} };
 for (const [k, v] of Object.entries(T)) { TEXTOS.en[k] = v.en; TEXTOS.es[k] = v.es; }

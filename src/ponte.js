@@ -13,6 +13,7 @@ import { HEROIS, heroiAtual } from './herois.js';
 import { criarTropas, desenharTropas, voar, passoVoo, limparTropas } from './tropas.js';
 import { PETS, RARIDADES, CLASSES, OVOS, BONUS as BONUS_PET, ESTRELAS, MAX_EQUIPE, MAX_NV, MAX_EST, base, est, qtd, temPet, modeloDe, tinta, atributos, forca, forcaEquipe, custoNivel, subirNivel, juntar, equipar, equiparMelhores, chocar, bonusPet, bonusEquipe, txtBonus, lucroOcioso } from './pets.js';
 import * as CQ from './conquista.js';
+import { TIPOS as TIPOS_MISSAO, PTS_NIVEL, NIVEIS_PASSE, atualizarMissoes, evento, prontas, pegarMissao, premioNivel, nivelPasse, pegarNivel, fimTemporada } from './missoes.js';
 import { traduzir, nomeIdioma, idioma, precisa } from './traduzir.js';
 import { t as tr, IDIOMAS, idiomaJogo, mudarIdioma } from './i18n.js';
 
@@ -250,7 +251,8 @@ export function iniciarFase(n, inf = false, semCorrida = false) {
 // bônus dos pets da equipe na ponte
 const assinaturaPets = () => S.equipe.map(k => k + S.pets[base(k)]?.nv).join();
 function aplicarBonusPets() {
-  const B = bonusEquipe(), f = t => (B[t] || 0) / 100; G.bonusPets = B; G.assinatura = assinaturaPets();
+  const B = { ...bonusEquipe() }, R = bonusRenasc(S.renasc || 0); for (const k in R) B[k] = (B[k] || 0) + R[k];
+  const f = t => (B[t] || 0) / 100; G.bonusPets = B; G.assinatura = assinaturaPets();
   G.fila += Math.round((G.fila + 20) * f('soldados')); G.tiro *= 1 + f('tiro'); G.tiroMax *= 1 + f('tiro');
   G.muroMax = G.muro = Math.round(G.muroMax * (1 + f('muralha'))); G.multPilha *= 1 + f('pilhas'); G.escudo = Math.min(0.8, G.escudo + f('escudo'));
   for (const P of Object.values(G.pd)) P.max /= 1 + f('recarga'); G.velVm *= 1 - f('lento') * 0.5;
@@ -382,8 +384,26 @@ let diarioVisto = false;
 // ---- lobby: cena 3D atrás do herói, card da fase, JOGAR, baús e abas embaixo ----
 let abaLobby = 'home';
 const ABAS = [['home', 'Batalha', 'h_triplo'], ['up', 'Melhorias', 'raio'], ['cartas', 'Heróis', 'herois'], ['pets', 'Pets', 'pata'], ['cla', 'Clã', 'escudo'], ['rank', 'Ranking', 'rank']];
+// ---- renascer: volta para a fase 1 com bônus permanentes ----
+const reqRenascer = () => 20 + 10 * (S.renasc || 0);
+const bonusRenasc = r => ({ moedas: 50 * r, tiro: 10 * r, chefe: 25 * r, soldados: 20 * r });
+function htmlRenascer() {
+  const r = S.renasc || 0, B = bonusRenasc(r), N = bonusRenasc(r + 1), pode = S.fase >= reqRenascer();
+  return `<div class="rnCard ${pode ? 'pode' : ''}"><div class="rnTopo">${ico('girar')}<div><b>Renascer${r ? ` <small>×${r}</small>` : ''}</b>
+      <small>Volte para a fase 1 e fique mais forte para sempre</small></div></div>
+    ${r ? `<p class="rnAgora">Agora: ${ico('ouro')} +${B.moedas}% · ${ico('raio')} +${B.tiro}% · ${ico('chefe')} +${B.chefe}% · ${ico('herois')} +${B.soldados}%</p>` : ''}
+    <p class="rnProx">Próximo: ${ico('ouro')} +${N.moedas}% · ${ico('raio')} +${N.tiro}% · ${ico('chefe')} +${N.chefe}% · ${ico('herois')} +${N.soldados}% · ${ico('ovo')} Ovo Mágico</p>
+    <small class="rnPerde">Perde: fase, moedas e melhorias. Fica: pets, heróis, cartas, baús e Conquista.</small>
+    <button class="btn ${pode ? 'roxo' : 'cinza'}" data-a="renascer" ${pode ? '' : 'disabled'}>${pode ? 'Renascer' : `Chegue na fase ${reqRenascer()}`}</button></div>`;
+}
+function renascer(b) {
+  if (S.fase < reqRenascer()) { som('erro'); return; }
+  if (b.dataset.certeza !== '1') { b.dataset.certeza = '1'; b.textContent = tr('Toque de novo para confirmar'); som('clique'); return; }
+  S.renasc = (S.renasc || 0) + 1; S.fase = 1; S.moedas = 0; for (const k of Object.keys(S.up)) S.up[k] = 0; S.ovos.magico++; salvar();
+  sfx('vitoria'); som('lendario'); C.camera.tremor = 0.6; iniciarFase(1); desenharLobby(); if (G) faixa(`RENASCEU! ×${S.renasc}`, '#c88aff');
+}
 function htmlMelhorias() {
-  return `<div class="ups">${Object.entries(UPGRADES).map(([k, U]) => { const n = S.up[k], max = n >= U.max, c = U.custo(n);
+  return `${htmlRenascer()}<div class="ups">${Object.entries(UPGRADES).map(([k, U]) => { const n = S.up[k], max = n >= U.max, c = U.custo(n);
     return `<button class="up ${!max && S.moedas >= c ? 'pode' : ''}" data-up="${k}"><span class="upIco">${ico(U.icone)}</span><b>${U.nome}</b><small>${U.desc(n)}</small><em>${max ? 'MÁX' : `${ico('ouro')}${fmt(c)}`}</em><i>Nv ${n}</i></button>`; }).join('')}</div>`;
 }
 const DESC_CARTA = { chuva: 'Sobe o poder especial do herói', gigante: 'Cavaleiro enorme aliado', arco: 'Atiram de longe', lanca: 'Aguentam mais duelos', mago: 'Explosão em área' };
@@ -407,7 +427,7 @@ function desenharLobby() {
   const F = dadosFase(S.fase), O = S.online, upPode = Object.entries(UPGRADES).some(([k, U]) => S.up[k] < U.max && S.moedas >= U.custo(S.up[k]));
   const nav = `<nav class="lbNav">${ABAS.map(([k, nome, icone]) => `<button class="${abaLobby === k ? 'on' : ''}" data-aba-lobby="${k}">${ico(icone)}<small>${nome}</small>${(k === 'up' && upPode) || (k === 'pets' && (S.ovos.comum || S.ovos.magico)) ? '<i class="ponto"></i>' : ''}</button>`).join('')}</nav>`;
   const topo = `<div class="lbTopo"><div class="pilula ouro">${ico('ouro')}<b>${fmt(S.moedas)}</b></div>
-    <button class="redondo presente" data-a="diario">${ico('presente')}${diarioPronto() ? '<i class="ponto"></i>' : ''}</button><button class="redondo lingua" data-a="idioma"><span class="flag">${IDIOMAS.find(i => i[0] === idiomaJogo())?.[2] || '🌐'}</span></button><button class="redondo" data-a="som">${ico(estaMudo() ? 'mudo' : 'som')}</button></div>`;
+    <button class="redondo missoes" data-a="missoes">${ico('missoes')}${prontas() ? '<i class="ponto"></i>' : ''}</button><button class="redondo presente" data-a="diario">${ico('presente')}${diarioPronto() ? '<i class="ponto"></i>' : ''}</button><button class="redondo lingua" data-a="idioma"><span class="flag">${IDIOMAS.find(i => i[0] === idiomaJogo())?.[2] || '🌐'}</span></button><button class="redondo" data-a="som">${ico(estaMudo() ? 'mudo' : 'som')}</button></div>`;
   let meio;
   if (abaLobby === 'home') meio = `
     <div class="lbLogo"><small>Batalha da</small><h1>Ponte</h1></div>
@@ -462,7 +482,7 @@ function mostrarPet(k) {
 }
 function acaoPet(a, k) {
   if (a === 'melhores') { equiparMelhores(); som('confirma'); recriarPetsLobby(); desenharLobby(); return; }
-  if (a === 'nivel') { if (subirNivel(k)) { som('compra'); sfx('brilho'); } else { som('erro'); return; } }
+  if (a === 'nivel') { if (subirNivel(k)) { som('compra'); sfx('brilho'); evento('nivelPet'); } else { som('erro'); return; } }
   if (a === 'juntar') { const novo = juntar(k); if (!novo) { som('erro'); return; } sfx('vitoria'); som('lendario'); k = novo;
     if (est(k) >= 2) avisarCla(`juntou ${PETS[base(k)].nome} ${'★'.repeat(est(k))} ${ESTRELAS[est(k)].nome}!`); }
   if (a === 'equipar') { if (!equipar(k)) { som('erro'); return; } som('clique'); }
@@ -471,7 +491,7 @@ function acaoPet(a, k) {
 function recriarPetsLobby() { if (G && tela === 'lobby') { for (const p of G.petsV || []) p.v.remover(); criarPetsHeroi(); } }
 function abrirOvo(tipo) {
   const O = OVOS[tipo]; if (!S.ovos[tipo] && S.moedas < O.preco) { som('erro'); return; }
-  const r = chocar(tipo); if (!r) { som('erro'); return; }
+  const r = chocar(tipo); if (!r) { som('erro'); return; } evento('ovos');
   const j = $('#janela'); j.hidden = false; som('compra');
   j.innerHTML = `<div class="jOvo"><h2>${O.nome}</h2><div class="raios"></div><div class="ovoPalco">${CQ.ovoHtml(tipo, 'treme')}</div><p class="dicaBau">Chocando...</p><div class="ovoRes"></div></div>`;
   setTimeout(() => { const e = j.querySelector('.ovoG'); if (!e) return; e.classList.remove('treme'); e.classList.add('quebra'); sfx('magia'); }, 1500);
@@ -592,7 +612,7 @@ async function cliqueOnline(b) {
   if (b.dataset.trVer) { b.closest('.chM').classList.toggle('orig'); return; }
   if (a === 'chatPedirAbrir') { som('clique'); const p = $('#chatPedir'); p.hidden = !p.hidden; }
   if (b.dataset.pedir) { b.disabled = true; try { const min = await ON.chatPedir(b.dataset.pedir); if (min > 0) erro(`Próximo pedido em ${Math.floor(min / 60)}h${String(min % 60).padStart(2, '0')}`); else { sfx('brilho'); $('#chatPedir').hidden = true; lerChat(); } } catch (e) { erro(e.message); } b.disabled = false; }
-  if (b.dataset.doar) { b.disabled = true; try { await ON.chatDoar(+b.dataset.doar); sfx('brilho'); som('moedas'); lerChat(); setTimeout(coletarPremios, 400); } catch (e) { b.disabled = false; erro(e.message); } }
+  if (b.dataset.doar) { b.disabled = true; try { await ON.chatDoar(+b.dataset.doar); evento('doar'); sfx('brilho'); som('moedas'); lerChat(); setTimeout(coletarPremios, 400); } catch (e) { b.disabled = false; erro(e.message); } }
   if (a === 'trocarNome') { som('clique'); carregarOnline('nome'); }
   if (a === 'voltarOnline') { som('clique'); carregarOnline(abaLobby); }
   if (a === 'salvarNome') { const ap = $('#apelido').value.trim(); if (ap.length < 2) return erro('Pelo menos 2 letras');
@@ -754,13 +774,42 @@ function atualizarRevanche() {
   else if (!D.fim) el.innerHTML = `<b>${nome}</b> ainda está jogando...`;
   else el.textContent = '';
 }
+// ---- missões e passe ----
+let modoMissao = 'missoes';
+function mostrarMissoes() {
+  atualizarMissoes(); const j = $('#janela'), M = S.missoes, P = S.passe, nv = nivelPasse(); j.hidden = false;
+  const linha = (m, i, sem) => { const T = TIPOS_MISSAO[m.t], ok = m.prog >= m.meta;
+    return `<div class="msLinha ${m.pego ? 'pego' : ok ? 'ok' : ''}"><span class="msIco">${ico(T.icone)}</span><div><b>${T.txt.replace('#', fmt(m.meta))}</b>
+      <div class="barra"><i style="width:${100 * m.prog / m.meta}%"></i><span>${fmt(m.prog)}/${fmt(m.meta)}</span></div></div>
+      ${m.pego ? `<em>${ico('check')}</em>` : `<button class="btn ${ok ? 'verde' : 'cinza'} peq" data-missao="${sem ? 's' : 'd'}:${i}" ${ok ? '' : 'disabled'}>${ico('estrela')}+${sem ? 150 : 40}</button>`}</div>`; };
+  const premioHtml = n => { const p = premioNivel(n); return p.ovo ? CQ.ovoHtml(p.ovo, 'mini') : p.bau ? bauHtml(p.bau, 'mini') : `${ico('ouro')}<small>${fmt(p.moedas)}</small>`; };
+  j.innerHTML = `<div class="jMissoes"><div class="abas"><button class="${modoMissao === 'missoes' ? 'on' : ''}" data-mm="missoes">${ico('missoes')} Missões</button><button class="${modoMissao === 'passe' ? 'on' : ''}" data-mm="passe">${ico('coroa')} Passe</button></div>
+    ${modoMissao === 'missoes' ? `<h3>Diárias <small>renovam todo dia</small></h3>${M.diarias.map((m, i) => linha(m, i, false)).join('')}
+      <h3>Semanais <small>dão um Ovo Comum</small></h3>${M.semanais.map((m, i) => linha(m, i, true)).join('')}`
+    : `<div class="psTopo"><b>Nível ${nv}/${NIVEIS_PASSE}</b><small>Temporada acaba em ${fimTemporada()} dias</small>
+        <div class="barra"><i style="width:${nv >= NIVEIS_PASSE ? 100 : (P.pts % PTS_NIVEL)}%"></i><span>${nv >= NIVEIS_PASSE ? 'MÁX' : `${P.pts % PTS_NIVEL}/${PTS_NIVEL}`}</span></div><small>Missões dão ${ico('estrela')} para subir</small></div>
+      <div class="psLista">${Array.from({ length: NIVEIS_PASSE }, (_, k) => { const n = k + 1, pego = P.pegos.includes(n), pode = n <= nv && !pego;
+        return `<div class="psNivel ${pego ? 'pego' : pode ? 'pode' : n > nv ? 'bloq' : ''}"><span class="psN">${n}</span><div class="psPremio">${premioHtml(n)}</div>
+          ${pego ? `<em>${ico('check')}</em>` : pode ? `<button class="btn verde peq" data-passe="${n}">Pegar</button>` : `<em>${ico('cadeado')}</em>`}</div>`; }).join('')}</div>`}
+    <button class="btn azul" data-a="fecharJanela">Fechar</button></div>`;
+  if (modoMissao === 'passe') { const alvo = j.querySelector('.psNivel.pode') || j.querySelectorAll('.psNivel')[Math.max(0, nv - 1)]; alvo?.scrollIntoView({ block: 'center' }); }
+}
 function mostrarDiario() {
   const j = $('#janela'); j.hidden = false; const pronto = diarioPronto(), dia = diaDoPresente(), hojeI = pronto ? dia : (dia + 6) % 7;
   j.innerHTML = `<div class="jDiario"><h2>${ico('presente')} Presente diário</h2><p>Entre todo dia: o presente cresce. Se faltar um dia, volta ao começo.</p>
     <div class="dias">${DIARIO.map((D, i) => `<div class="dia ${i < hojeI || (!pronto && i === hojeI) ? 'pego' : i === hojeI ? 'hoje' : ''}"><small>Dia ${i + 1}</small>
       ${D.bau ? bauHtml(D.bau, 'mini') : `${ico('ouro')}<b>${fmt(Math.round((40 + 12 * S.fase) * D.moedas))}</b>`}${i < hojeI || (!pronto && i === hojeI) ? `<i>${ico('check')}</i>` : ''}</div>`).join('')}</div>
     ${pronto ? `<button class="btn amarelo grande" data-a="pegarDiario">${ico('presente')} Pegar presente</button>` : '<p class="volte">Volte amanhã para o próximo!</p>'}
+    <div class="codigo"><input id="codTxt" maxlength="20" placeholder="Tem um código?"><button class="btn amarelo peq" data-a="resgatar">Usar</button></div><p class="erro" id="codErro"></p>
     <button class="btn azul" data-a="fecharJanela">Fechar</button></div>`;
+}
+async function resgatarCodigo(b) {
+  const i = $('#codTxt'), e = $('#codErro'), c = i.value.trim(); if (!c) return; b.disabled = true; e.textContent = '';
+  try { const r = await ON.resgatar(c); S.moedas += r.moedas || 0; S.ovos.comum += r.comum || 0; S.ovos.magico += r.magico || 0; salvar(); sfx('vitoria'); som('moedas');
+    e.className = 'ok'; e.textContent = [r.moedas && `+${fmt(r.moedas)} ${tr('moedas')}`, r.comum && `+${r.comum} ${tr('Ovo Comum')}`, r.magico && `+${r.magico} ${tr('Ovo Mágico')}`].filter(Boolean).join(' · '); i.value = '';
+    if (tela === 'lobby') desenharLobby(); }
+  catch (er) { e.className = 'erro'; e.textContent = er.message; som('erro'); }
+  b.disabled = false;
 }
 function clique(e) {
   const b = e.target.closest('button'); if (!b) return; const a = b.dataset.a;
@@ -776,6 +825,12 @@ function clique(e) {
   if (b.dataset.pd) usarPoder(b.dataset.pd);
   if (a === 'roleta') pararRoleta();
   if (a === 'diario') { som('clique'); mostrarDiario(); }
+  if (a === 'renascer') renascer(b);
+  if (a === 'resgatar') resgatarCodigo(b);
+  if (a === 'missoes') { som('clique'); mostrarMissoes(); }
+  if (b.dataset.mm) { som('clique'); modoMissao = b.dataset.mm; mostrarMissoes(); }
+  if (b.dataset.missao) { const [sem, i] = b.dataset.missao.split(':'), r = pegarMissao(sem === 's', +i); if (!r) { som('erro'); return; } sfx('vitoria'); som('moedas'); mostrarMissoes(); if (tela === 'lobby') desenharLobby(); }
+  if (b.dataset.passe) { const r = pegarNivel(+b.dataset.passe); if (!r) { som('erro'); return; } if (r.cheio) { som('erro'); b.textContent = tr('Baús cheios'); return; } sfx('vitoria'); mostrarMissoes(); if (tela === 'lobby') desenharLobby(); }
   if (a === 'idioma') { som('clique'); const j = $('#janela'); j.hidden = false;
     j.innerHTML = `<div class="fimCaixa"><h2>${ico('pergaminho')}</h2><div class="idiomas" data-nt>${IDIOMAS.map(([k, n, f]) => `<button class="btn ${k === idiomaJogo() ? 'verde' : 'azul'}" data-idioma="${k}"><span class="flag">${f}</span>${n}</button>`).join('')}</div>
       <button class="fSo" data-a="fecharJanela">OK</button></div>`; }
@@ -797,7 +852,7 @@ function clique(e) {
     S.heroi = k; salvar(); if (G && tela === 'lobby') { G.heroiV?.remover(); G.heroiV = null; iniciarFase(S.fase); } desenharLobby(); return; }
   if (b.dataset.tropa) { const k = b.dataset.tropa; if (!S.pd[k].nv) { som('erro'); return; }
     S.deck = S.deck.includes(k) ? S.deck.filter(x => x !== k) : [...S.deck, k].slice(-2); salvar(); som('clique'); desenharLobby(); }
-  if (b.dataset.bau) { const i = +b.dataset.bau, tipo = S.baus[i]?.tipo; if (tipo) { som('clique'); mostrarBau(tipo, BAUS[tipo].nome, () => abrirBau(i)); } }
+  if (b.dataset.bau) { const i = +b.dataset.bau, tipo = S.baus[i]?.tipo; if (tipo) { som('clique'); mostrarBau(tipo, BAUS[tipo].nome, () => { const p = abrirBau(i); if (p) evento('baus'); return p; }); } }
   if (b.dataset.vaga) tocarVaga(+b.dataset.vaga);
   if (b.dataset.cq) CQ.clique(b);
   if (a === 'conquista') { som('confirma'); abrirConquista(); }
@@ -862,6 +917,7 @@ function pararRoleta() {
 function terminarInf() {
   G.fim = 'd'; tela = 'fim'; const pts = pontosInf(), novo = pts > (S.recInf || 0), ganho = Math.floor(pts / 40);
   if (novo) S.recInf = pts; S.moedas += ganho; const bau = G.chefesMortos > 0 ? ganharBau(G.n) : null; salvar();
+  evento('orcs', G.mortesVm); evento('chefes', G.chefesMortos); evento('infinito');
   setTimeout(() => {
     $('#jogo').hidden = true; const f = $('#fim'); f.hidden = false;
     f.innerHTML = `<div class="fimCaixa ${novo ? 'vit' : 'der'}"><h2>${novo ? 'NOVO RECORDE!' : 'Fim da linha!'}</h2>
@@ -878,8 +934,8 @@ function terminarInf() {
 function danoNoCla() { const d = G.danoTotal || 0; if (d > 0 && S.online?.codigo) ON.claDano(d).then(r => { if (r?.caiu) setTimeout(coletarPremios, 500); }).catch(() => {}); }
 function terminar(venceu) {
   if (G.fim) return; danoNoCla(); fimDupla(venceu); if (G.inf) return terminarInf(); G.fim = venceu ? 'v' : 'd'; tela = 'fim';
-  const ganho = Math.round((venceu ? G.F.moedas + Math.floor(G.az.length / 4) : G.F.moedas * 0.25) * (G.dupla ? 1.5 : 1) * (1 + (bonusEquipe().moedas || 0) / 100));
-  S.moedas += ganho; let bau = null; if (venceu) { bau = ganharBau(G.n); if (!G.dupla || G.n === S.fase) S.fase++; S.melhor = Math.max(S.melhor, G.n); } salvar();
+  const ganho = Math.round((venceu ? G.F.moedas + Math.floor(G.az.length / 4) : G.F.moedas * 0.25) * (G.dupla ? 1.5 : 1) * (1 + ((bonusEquipe().moedas || 0) + bonusRenasc(S.renasc || 0).moedas) / 100));
+  S.moedas += ganho; evento('orcs', G.mortesVm); if (venceu) { evento('fases'); evento('chefes'); } let bau = null; if (venceu) { bau = ganharBau(G.n); if (!G.dupla || G.n === S.fase) S.fase++; S.melhor = Math.max(S.melhor, G.n); } salvar();
   setTimeout(() => {
     $('#jogo').hidden = true; const f = $('#fim'); f.hidden = false;
     f.innerHTML = `<div class="fimCaixa ${venceu ? 'vit' : 'der'}"><h2>${venceu ? 'VITÓRIA!' : 'A muralha caiu!'}</h2>

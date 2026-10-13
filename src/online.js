@@ -48,6 +48,7 @@ export const chatEnviar = comConta((texto, tipo = 'msg') => rpc('ponte_chat_envi
 export const chatPedir = comConta(item => rpc('ponte_chat_pedir', { ...id(), p_item: item }));
 export const chatDoar = comConta(msg => rpc('ponte_chat_doar', { ...id(), p_msg: msg }));
 export const doacoesReceber = comConta(() => rpc('ponte_doacoes_receber', id()));
+export const resgatar = comConta(codigo => rpc('ponte_resgatar', { ...id(), p_codigo: codigo }));
 // pareamento
 export const procurar = comConta(fase => rpc('ponte_procurar', { ...id(), p_fase: fase }));
 export const cancelar = () => S.online?.codigo ? rpc('ponte_cancelar', id()).catch(() => {}) : Promise.resolve();

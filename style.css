@@ -569,3 +569,53 @@ input{font:inherit;user-select:text;-webkit-user-select:text}
 .ptSlots > .ptCard{justify-content:flex-start;padding:4px 3px}
 .ptSlots > .ptCard img{width:92%;flex:1;min-height:0}
 .ptSlots > .ptCard b{font-size:12px}.ptSlots > .ptCard i{font-size:11px}
+/* ---- missões e passe ---- */
+.jMissoes{width:min(420px,94vw);max-height:88vh;display:flex;flex-direction:column;padding:12px;border-radius:22px;background:var(--creme);border:3px solid var(--madeira);box-shadow:0 6px 0 var(--madeira);animation:entra .3s}
+.jMissoes > .abas{margin:0 0 6px}
+.jMissoes h3{margin:8px 2px 4px;font-family:var(--fT);font-weight:400;font-size:17px}
+.jMissoes h3 small{font-family:var(--fX);font-size:12px;color:var(--suave)}
+.jMissoes > .btn{margin:8px 0 0}
+.msLinha{display:flex;align-items:center;gap:8px;padding:7px 8px;margin-bottom:5px;border-radius:12px;background:#fff;border:2px solid var(--creme2)}
+.msLinha.ok{border-color:var(--verde);background:#effbe8}
+.msLinha.pego{opacity:.55}
+.msLinha > div{flex:1;min-width:0}
+.msLinha b{font-size:13px;font-weight:600;display:block}
+.msLinha .barra{height:16px;border-color:var(--madeira);margin-top:3px}
+.msLinha .barra i{background:linear-gradient(#ffd23a,#d8901a)}
+.msIco{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:linear-gradient(#6ab8ff,#2466c8);color:#fff;flex:none}
+.msIco .ico{width:22px;height:22px}
+.msLinha .btn{margin:0;flex:none;font-size:13px;padding:6px 8px}
+.msLinha .btn .ico{width:14px;height:14px}
+.msLinha em,.psNivel em{color:var(--verde2);flex:none}.msLinha em .ico,.psNivel em .ico{width:22px;height:22px}
+.psTopo{text-align:center;padding:8px;border-radius:14px;background:linear-gradient(#7a3ab0,#3a1a6a);color:#fff;margin-bottom:6px}
+.psTopo b{font-family:var(--fT);font-weight:400;font-size:22px;display:block}
+.psTopo small{font-size:12px;opacity:.85;display:flex;justify-content:center;align-items:center;gap:3px}
+.psTopo small .ico{width:13px;height:13px;color:#ffd23a}
+.psTopo .barra{margin:6px 0 4px}.psTopo .barra i{background:linear-gradient(#ffd23a,#d8901a)}
+.psLista{overflow-y:auto;flex:1;min-height:0;display:flex;flex-direction:column;gap:5px}
+.psNivel{display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:12px;background:#fff;border:2px solid var(--creme2)}
+.psNivel.pode{border-color:var(--verde);background:#effbe8;animation:respira 1.4s infinite}
+.psNivel.bloq{opacity:.6}.psNivel.pego{opacity:.5}
+.psN{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:#7a3ab0;color:#fff;font-family:var(--fT);flex:none}
+.psPremio{flex:1;display:flex;align-items:center;gap:4px;font-family:var(--fT)}
+.psPremio > .ico{width:26px;height:26px;color:var(--amarelo2)}
+.psPremio small{font-size:16px}
+.psPremio .ovoG.mini{width:30px;height:36px}
+.psNivel .btn{margin:0;width:auto;font-size:14px;padding:6px 12px}
+.redondo.missoes{position:relative}
+.rnCard{padding:10px;margin-bottom:8px;border-radius:16px;background:linear-gradient(#efe0ff,#fff);border:3px solid #b37bff;box-shadow:0 3px 0 #6a2ac8}
+.rnCard.pode{animation:respira 1.6s infinite}
+.rnTopo{display:flex;align-items:center;gap:8px}
+.rnTopo > .ico{width:40px;height:40px;color:#7a3ab0;flex:none}
+.rnTopo b{font-family:var(--fT);font-weight:400;font-size:20px;display:block}.rnTopo b small{font-size:14px;color:#7a3ab0}
+.rnTopo small{font-size:12px;color:var(--suave)}
+.rnCard p{margin:6px 0 2px;font-size:13px;display:flex;flex-wrap:wrap;align-items:center;gap:3px}
+.rnCard p .ico{width:15px;height:15px;color:#7a3ab0}
+.rnCard p .ovoG.mini{width:16px;height:20px}
+.rnAgora{color:#2f6a1a}
+.rnPerde{display:block;font-size:11px;color:var(--vermelho2);margin:2px 0}
+.rnCard .btn{margin:6px 0 0}
+.codigo{display:flex;gap:6px;margin-top:10px}
+.codigo input{flex:1;min-width:0;padding:9px 12px;border-radius:12px;border:2px solid var(--creme2);font:inherit;text-transform:uppercase;user-select:text;-webkit-user-select:text}
+.codigo .btn{margin:0}
+#codErro{margin:4px 0 0;font-size:13px;min-height:1em}#codErro.erro{color:var(--vermelho)}#codErro.ok{color:#8aff8a;font-family:var(--fT)}
