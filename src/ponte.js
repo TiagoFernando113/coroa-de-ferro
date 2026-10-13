@@ -13,7 +13,8 @@ import { HEROIS, heroiAtual } from './herois.js';
 import { criarTropas, desenharTropas, voar, passoVoo, limparTropas } from './tropas.js';
 import { PETS, RARIDADES, CLASSES, OVOS, BONUS as BONUS_PET, ESTRELAS, MAX_EQUIPE, MAX_NV, MAX_EST, base, est, qtd, temPet, modeloDe, tinta, atributos, forca, forcaEquipe, custoNivel, subirNivel, juntar, equipar, equiparMelhores, chocar, bonusPet, bonusEquipe, txtBonus, lucroOcioso } from './pets.js';
 import * as CQ from './conquista.js';
-import { traduzir, nomeIdioma } from './traduzir.js';
+import { traduzir, nomeIdioma, idioma, precisa } from './traduzir.js';
+import { t as tr, IDIOMAS, idiomaJogo, mudarIdioma } from './i18n.js';
 
 // ---------------- medidas da ponte (frente = -z) ----------------
 const MEIA = 17;            // meia largura da ponte
@@ -406,7 +407,7 @@ function desenharLobby() {
   const F = dadosFase(S.fase), O = S.online, upPode = Object.entries(UPGRADES).some(([k, U]) => S.up[k] < U.max && S.moedas >= U.custo(S.up[k]));
   const nav = `<nav class="lbNav">${ABAS.map(([k, nome, icone]) => `<button class="${abaLobby === k ? 'on' : ''}" data-aba-lobby="${k}">${ico(icone)}<small>${nome}</small>${(k === 'up' && upPode) || (k === 'pets' && (S.ovos.comum || S.ovos.magico)) ? '<i class="ponto"></i>' : ''}</button>`).join('')}</nav>`;
   const topo = `<div class="lbTopo"><div class="pilula ouro">${ico('ouro')}<b>${fmt(S.moedas)}</b></div>
-    <button class="redondo presente" data-a="diario">${ico('presente')}${diarioPronto() ? '<i class="ponto"></i>' : ''}</button><button class="redondo" data-a="som">${ico(estaMudo() ? 'mudo' : 'som')}</button></div>`;
+    <button class="redondo presente" data-a="diario">${ico('presente')}${diarioPronto() ? '<i class="ponto"></i>' : ''}</button><button class="redondo lingua" data-a="idioma"><span class="flag">${IDIOMAS.find(i => i[0] === idiomaJogo())?.[2] || '🌐'}</span></button><button class="redondo" data-a="som">${ico(estaMudo() ? 'mudo' : 'som')}</button></div>`;
   let meio;
   if (abaLobby === 'home') meio = `
     <div class="lbLogo"><small>Batalha da</small><h1>Ponte</h1></div>
@@ -544,7 +545,7 @@ let rankModo = 'jog';
 // conteúdo das abas Clã e Ranking (dentro da folha do lobby)
 function carregarOnline(aba) {
   const el = $('#onCorpo'); if (!el) return; const O = ON.conta();
-  const nome = `<div class="nomeEu">Seu nome: <b>${esc(O?.apelido || '...')}</b> <button class="fSo" data-a="trocarNome">trocar</button></div>`;
+  const nome = `<div class="nomeEu">Seu nome: <b data-nt>${esc(O?.apelido || '...')}</b> <button class="fSo" data-a="trocarNome">trocar</button></div>`;
   if (aba === 'nome') {
     el.innerHTML = `<p class="sub">Esse nome aparece no ranking, no clã e na dupla.</p><input id="apelido" maxlength="16" placeholder="Seu apelido" value="${esc(O?.apelido || '')}"><p class="erro" id="onErro"></p>
       <button class="btn verde grande" data-a="salvarNome">Salvar</button><button class="btn azul" data-a="voltarOnline">Voltar</button>`; return;
@@ -553,9 +554,9 @@ function carregarOnline(aba) {
     el.innerHTML = `${nome}<div class="abas"><button class="${rankModo === 'jog' ? 'on' : ''}" data-rk="jog">Jogadores</button><button class="${rankModo === 'cla' ? 'on' : ''}" data-rk="cla">Clãs</button></div>
       <p class="sub">${rankModo === 'jog' ? 'Ponte sem fim · melhores do mundo' : 'Clãs com mais chefes semanais derrotados'}</p><div class="lista" id="lista"><p>Carregando...</p></div>`;
     const med = p => p <= 3 ? ['🥇', '🥈', '🥉'][p - 1] : '#' + p;
-    (rankModo === 'jog' ? ON.garantir().then(ON.ranking).then(l => l.length ? l.map(r => `<div class="linha ${r.eu ? 'eu' : ''}"><b>${med(r.posicao)}</b><span>${tagHtml(r.tag, 0)}${esc(r.apelido)}</span><small>${r.chefes} chefes</small><em>${fmt(r.pontos)}</em></div>`).join('')
+    (rankModo === 'jog' ? ON.garantir().then(ON.ranking).then(l => l.length ? l.map(r => `<div class="linha ${r.eu ? 'eu' : ''}"><b>${med(r.posicao)}</b><span data-nt>${tagHtml(r.tag, 0)}${esc(r.apelido)}</span><small>${r.chefes} chefes</small><em>${fmt(r.pontos)}</em></div>`).join('')
         : '<p>Ninguém no ranking ainda. Jogue a Ponte sem fim e seja o primeiro!</p>')
-      : ON.clas().then(l => l.length ? l.map((c, i) => `<div class="linha"><b>${med(i + 1)}</b>${escudoCla(c.cor, c.tag || c.nome)}<span>${tagHtml(c.tag, c.cor)}${esc(c.nome)}</span><small>${c.membros} membros</small><em>Nv ${c.nivel}</em></div>`).join('') : '<p>Nenhum clã ainda.</p>'))
+      : ON.clas().then(l => l.length ? l.map((c, i) => `<div class="linha"><b>${med(i + 1)}</b>${escudoCla(c.cor, c.tag || c.nome)}<span data-nt>${tagHtml(c.tag, c.cor)}${esc(c.nome)}</span><small>${c.membros} membros</small><em>Nv ${c.nivel}</em></div>`).join('') : '<p>Nenhum clã ainda.</p>'))
       .then(h => { const e = $('#lista'); if (e) e.innerHTML = h; const b = document.querySelector('.nomeEu b'); if (b) b.textContent = ON.conta()?.apelido || ''; })
       .catch(e => { const x = $('#lista'); if (x) x.innerHTML = `<p class="erro">${esc(e.message)}</p>`; });
     return;
@@ -564,16 +565,16 @@ function carregarOnline(aba) {
   ON.meuCla().then(c => { const e = $('#claCorpo'); if (!e) return; const b = document.querySelector('.nomeEu b'); if (b) b.textContent = ON.conta()?.apelido || '';
     if (c) { const k = Math.min(1, c.dano / c.vida), abas = `<div class="abas"><button class="${claModo === 'chat' ? 'on' : ''}" data-cm="chat">${ico('pergaminho')} Chat</button><button class="${claModo === 'info' ? 'on' : ''}" data-cm="info">${ico('escudo')} Clã</button></div>`;
       if (claModo === 'chat') { e.innerHTML = abas + htmlChat(); abrirChat(); return; }
-      e.innerHTML = abas + `<div class="claTopo">${escudoCla(c.cor, c.tag || c.nome)}<div><b>${tagHtml(c.tag, c.cor)}${esc(c.nome)}</b><small>Nível ${c.nivel} · ${c.membros.length}/30 membros</small></div></div>
+      e.innerHTML = abas + `<div class="claTopo">${escudoCla(c.cor, c.tag || c.nome)}<div><b data-nt>${tagHtml(c.tag, c.cor)}${esc(c.nome)}</b><small>Nível ${c.nivel} · ${c.membros.length}/30 membros</small></div></div>
         <div class="claChefe"><small>${ico('chefe')} Chefe do clã (semana) — todo dano que vocês dão nas batalhas conta</small>
           <div class="barra vm"><i style="width:${100 - 100 * k}%"></i><span>${fmt(c.vida - c.dano)} / ${fmt(c.vida)}</span></div>
           <small>Derrotar dá ${ico('ouro')} ${150 + 50 * c.nivel} para cada membro</small></div>
-        <div class="lista">${c.membros.map(m => `<div class="linha ${m.eu ? 'eu' : ''}"><i class="pontoOn ${m.online ? 'on' : ''}"></i><span>${esc(m.apelido)}</span><small>fase ${m.fase}</small><em>${fmt(m.dano)}</em></div>`).join('')}</div>
+        <div class="lista">${c.membros.map(m => `<div class="linha ${m.eu ? 'eu' : ''}"><i class="pontoOn ${m.online ? 'on' : ''}"></i><span data-nt>${esc(m.apelido)}</span><small>fase ${m.fase}</small><em>${fmt(m.dano)}</em></div>`).join('')}</div>
         <button class="fSo" data-a="claSair">Sair do clã</button>`;
       return; }
     ON.clas().then(l => { const e2 = $('#claCorpo'); if (!e2) return;
       e2.innerHTML = `<p class="sub">Entre num clã: membros se ajudam sozinhos nas batalhas e derrotam juntos o chefe da semana. A sigla aparece antes do seu nome.</p>
-        <div class="lista">${l.length ? l.map(c => `<div class="linha">${escudoCla(c.cor, c.tag || c.nome)}<span>${tagHtml(c.tag, c.cor)}${esc(c.nome)}</span><small>Nv ${c.nivel} · ${c.membros}/30</small><button class="btn verde peq" data-cla="${c.id}">Entrar</button></div>`).join('') : '<p>Nenhum clã ainda. Crie o primeiro!</p>'}</div>
+        <div class="lista">${l.length ? l.map(c => `<div class="linha">${escudoCla(c.cor, c.tag || c.nome)}<span data-nt>${tagHtml(c.tag, c.cor)}${esc(c.nome)}</span><small>Nv ${c.nivel} · ${c.membros}/30</small><button class="btn verde peq" data-cla="${c.id}">Entrar</button></div>`).join('') : '<p>Nenhum clã ainda. Crie o primeiro!</p>'}</div>
         <div class="criarCla"><input id="tagCla" maxlength="4" placeholder="SIGLA"><input id="nomeCla" maxlength="18" placeholder="Nome do novo clã"></div>
         <button class="btn amarelo" data-a="claCriar">Criar clã ${ico('ouro')}200</button><p class="erro" id="onErro"></p>`; });
   }).catch(e => { const x = $('#claCorpo'); if (x) x.innerHTML = `<p class="erro">${esc(e.message)}</p>`; });
@@ -586,7 +587,7 @@ async function cliqueOnline(b) {
   if (b.dataset.cm) { som('clique'); claModo = b.dataset.cm; carregarOnline('cla'); return; }
   if (a === 'chatEnviar') { const i = $('#chatTxt'), t = i.value.trim(); if (!t) return; b.disabled = true;
     try { await ON.chatEnviar(t); i.value = ''; som('clique'); lerChat(); } catch (e) { erro(e.message); } b.disabled = false; }
-  if (a === 'chatTrad') { S.traduzir = S.traduzir === false; salvar(); som('clique'); carregarOnline('cla'); return; }
+  if (b.dataset.trad) { traduzirMsg(b); return; }
   if (b.dataset.trVer) { b.closest('.chM').classList.toggle('orig'); return; }
   if (a === 'chatPedirAbrir') { som('clique'); const p = $('#chatPedir'); p.hidden = !p.hidden; }
   if (b.dataset.pedir) { b.disabled = true; try { const min = await ON.chatPedir(b.dataset.pedir); if (min > 0) erro(`Próximo pedido em ${Math.floor(min / 60)}h${String(min % 60).padStart(2, '0')}`); else { sfx('brilho'); $('#chatPedir').hidden = true; lerChat(); } } catch (e) { erro(e.message); } b.disabled = false; }
@@ -606,7 +607,7 @@ async function cliqueOnline(b) {
 let claModo = 'chat', chatTimer = null, chatAssin = '';
 const NOME_CARTA = { chuva: ['Especial', 'estrela'], gigante: ['Gigante', 'cav'], arco: ['Arqueiros', 'arq'], lanca: ['Lanceiros', 'bar'], mago: ['Magos', 'mag'] };
 function htmlChat() {
-  return `<button class="chatTrad ${S.traduzir === false ? '' : 'on'}" data-a="chatTrad">${ico('pergaminho')} Tradução automática: <b>${S.traduzir === false ? 'desligada' : 'ligada'}</b></button><div class="chatLista" id="chatLista"><p class="sub">Carregando...</p></div>
+  return `<div class="chatLista" id="chatLista"><p class="sub">Carregando...</p></div>
     <div class="chatPedir" id="chatPedir" hidden><small>Peça uma carta (1 pedido a cada 4h, até 8 doações):</small><div>${Object.entries(NOME_CARTA).filter(([k]) => S.pd[k]?.nv > 0)
       .map(([k, [n, i]]) => `<button class="cartaMini ${k}" data-pedir="${k}">${ico(i)}<small>${n}</small></button>`).join('')}</div></div>
     <p class="erro" id="onErro"></p>
@@ -618,27 +619,29 @@ function abrirChat() {
   $('#chatTxt').addEventListener('keydown', e => { if (e.key === 'Enter') document.querySelector('[data-a=chatEnviar]')?.click(); });
 }
 function lerChat() {
-  ON.chatLer().then(l => { const el = $('#chatLista'); if (!el) return; l = l || [];
+  ON.chatLer(idioma().slice(0, 5)).then(l => { const el = $('#chatLista'); if (!el) return; l = l || [];
     const assin = l.map(m => m.id + ':' + m.doado + (m.doei ? 'd' : '')).join(); if (assin === chatAssin) return; const noFim = el.scrollTop + el.clientHeight >= el.scrollHeight - 30; chatAssin = assin;
     el.innerHTML = l.length ? l.map(m => {
-      if (m.tipo === 'aviso') return `<div class="chM aviso">${ico('estrela')}<span><b>${esc(m.apelido)}</b> ${esc(m.texto)}</span></div>`;
+      if (m.tipo === 'aviso') return `<div class="chM aviso">${ico('estrela')}<span data-nt><b>${esc(m.apelido)}</b> ${esc(m.texto)}</span></div>`;
       if (m.tipo === 'pedido') { const [n, i] = NOME_CARTA[m.item] || ['Carta', 'bau'], cheio = m.doado >= m.maximo;
-        return `<div class="chM pedido ${m.eu ? 'eu' : ''}"><b>${esc(m.apelido)}</b><div class="pedCorpo"><span class="cartaMini ${m.item}">${ico(i)}</span><div><small>pede ${n}</small>
+        return `<div class="chM pedido ${m.eu ? 'eu' : ''}"><b data-nt>${esc(m.apelido)}</b><div class="pedCorpo"><span class="cartaMini ${m.item}">${ico(i)}</span><div><small>pede ${n}</small>
           <div class="barra"><i style="width:${100 * m.doado / m.maximo}%"></i><span>${m.doado}/${m.maximo}</span></div></div>
           ${m.eu ? '' : cheio ? `<em>Completo</em>` : m.doei ? `<em>${ico('check')} Doado</em>` : `<button class="btn amarelo peq" data-doar="${m.id}">Doar<small>${ico('ouro')}20</small></button>`}</div></div>`; }
-      return `<div class="chM ${m.eu ? 'eu' : ''}" ${m.eu ? '' : `data-tr="${m.id}"`}>${m.eu ? '' : `<b>${esc(m.apelido)}</b>`}<span class="tOrig">${esc(m.texto)}</span></div>`; }).join('')
+      return `<div class="chM ${m.eu ? 'eu' : ''}" ${m.eu ? '' : `data-tr="${m.id}"`}>${m.eu ? '' : `<b data-nt>${esc(m.apelido)}</b>`}<span class="tOrig" data-nt>${esc(m.texto)}</span>${!m.eu && precisa(m.texto) ? `<button class="trVer" data-trad="${m.id}">${ico('pergaminho')} Traduzir</button>` : ''}</div>`; }).join('')
       : '<p class="sub">Nenhuma mensagem ainda. Diga oi para o clã!</p>';
     if (noFim || !el.dataset.foi) { el.scrollTop = el.scrollHeight; el.dataset.foi = '1'; }
-    traduzirChat(l);
+    chatMsgs = l;
   }).catch(e => { const el = $('#chatLista'); if (el && !chatAssin) el.innerHTML = `<p class="erro">${esc(e.message)}</p>`; });
 }
-// tradução automática das mensagens dos outros (para o idioma do celular)
-function traduzirChat(l) {
-  if (S.traduzir === false) return;
-  for (const m of l) if (m.tipo === 'msg' && !m.eu) traduzir(m.id, m.texto).then(r => { const e = document.querySelector(`.chM[data-tr="${m.id}"]`); if (!r || !e || e.querySelector('.tTrad')) return;
-    const el = $('#chatLista'), fim = el && el.scrollTop + el.clientHeight >= el.scrollHeight - 30;
-    e.insertAdjacentHTML('beforeend', `<span class="tTrad">${esc(r.tr)}</span><button class="trVer" data-tr-ver="${m.id}">${ico('pergaminho')} ${esc(nomeIdioma(r.de))} · <span class="lO">ver original</span><span class="lT">ver tradução</span></button>`); e.classList.add('trad');
-    if (fim) el.scrollTop = el.scrollHeight; });
+// tradução no toque: usa a que já está salva no servidor; se não houver, traduz e salva para os próximos
+let chatMsgs = [];
+async function traduzirMsg(b) {
+  const id = +b.dataset.trad, m = chatMsgs.find(x => x.id === id), e = b.closest('.chM'); if (!m || !e) return;
+  b.disabled = true; b.lastChild.textContent = ' traduzindo...';
+  let r = m.tr; if (!r) { r = await traduzir(m.id, m.texto, idioma()); if (r) ON.tradSalvar(m.id, idioma().slice(0, 5), r.tr, r.de).catch(() => {}); }
+  if (!r) { b.lastChild.textContent = ' já está no seu idioma'; return; }
+  e.insertAdjacentHTML('beforeend', `<span class="tTrad" data-nt>${esc(r.tr)}</span><button class="trVer" data-tr-ver="${m.id}">${ico('pergaminho')} ${esc(nomeIdioma(r.de))} · <span class="lO">ver original</span><span class="lT">ver tradução</span></button>`);
+  e.classList.add('trad'); b.remove(); som('clique');
 }
 // cartas que o clã doou chegam quando o jogador abre o jogo ou o chat
 function receberDoacoes() {
@@ -772,8 +775,12 @@ function clique(e) {
   if (b.dataset.pd) usarPoder(b.dataset.pd);
   if (a === 'roleta') pararRoleta();
   if (a === 'diario') { som('clique'); mostrarDiario(); }
+  if (a === 'idioma') { som('clique'); const j = $('#janela'); j.hidden = false;
+    j.innerHTML = `<div class="fimCaixa"><h2>${ico('pergaminho')}</h2><div class="idiomas" data-nt>${IDIOMAS.map(([k, n, f]) => `<button class="btn ${k === idiomaJogo() ? 'verde' : 'azul'}" data-idioma="${k}"><span class="flag">${f}</span>${n}</button>`).join('')}</div>
+      <button class="fSo" data-a="fecharJanela">OK</button></div>`; }
+  if (b.dataset.idioma) { som('clique'); mudarIdioma(b.dataset.idioma); $('#janela').hidden = true; desenharLobby(); }
   if (a === 'online') { som('clique'); mostrarOnline('rank'); }
-  if (b.dataset.rk || b.dataset.cla || b.dataset.cm || b.dataset.pedir || b.dataset.doar || ['trocarNome', 'salvarNome', 'voltarOnline', 'claCriar', 'claSair', 'chatEnviar', 'chatPedirAbrir', 'chatTrad'].includes(a) || b.dataset.trVer) cliqueOnline(b);
+  if (b.dataset.rk || b.dataset.cla || b.dataset.cm || b.dataset.pedir || b.dataset.doar || ['trocarNome', 'salvarNome', 'voltarOnline', 'claCriar', 'claSair', 'chatEnviar', 'chatPedirAbrir'].includes(a) || b.dataset.trVer || b.dataset.trad) cliqueOnline(b);
   if (a === 'dupla') { som('confirma'); procurarDupla(); }
   if (a === 'revanche') pedirRevanche();
   if (a === 'sairDupla') { som('fechar'); G?.dupla?.canal?.enviar('sair', {}); abrirLobby(); }
@@ -1397,7 +1404,7 @@ function acertarBloco(b, pista, lado, dano = 1) {
   }
   cena.remove(b.mesh); pista.splice(pista.indexOf(b), 1);
 }
-function faixa(txt, cor) { G.banner = { txt, cor, t: 0 }; }
+function faixa(txt, cor) { G.banner = { txt: tr(txt), cor, t: 0 }; }
 // textos flutuantes e contadores dos exércitos
 function nomeParceiro() {
   const D = G.dupla; if (!D || tela !== 'jogo') return; const p = C.tela(D.x, 7.5, ZH); if (!p) return;
@@ -1419,7 +1426,7 @@ function desenharFx(dt) {
     if (G.fila > 0) { const p = C.tela(0, 3, ZSPAWN); if (p) { gfx.font = '20px Titulo, sans-serif'; gfx.textAlign = 'center'; gfx.lineWidth = 4; gfx.strokeStyle = '#0f2f6a'; gfx.strokeText(`+${fmt(G.fila)}`, p[0], p[1]); gfx.fillStyle = '#8ac8ff'; gfx.fillText(`+${fmt(G.fila)}`, p[0], p[1]); } }
   }
   for (const t of G.txt) { t.t += dt; const p = C.tela(t.x, t.y + t.t * 3, t.z); if (!p) continue; gfx.globalAlpha = Math.max(0, 1 - Math.max(0, t.t - 0.5) / 0.5);
-    gfx.font = `${t.grande ? 34 : 24}px Titulo, sans-serif`; gfx.textAlign = 'center'; gfx.lineWidth = 5; gfx.strokeStyle = 'rgba(0,0,0,.7)'; gfx.strokeText(t.txt, p[0], p[1]); gfx.fillStyle = t.cor; gfx.fillText(t.txt, p[0], p[1]); gfx.globalAlpha = 1; }
+    const tx = tr(t.txt); gfx.font = `${t.grande ? 34 : 24}px Titulo, sans-serif`; gfx.textAlign = 'center'; gfx.lineWidth = 5; gfx.strokeStyle = 'rgba(0,0,0,.7)'; gfx.strokeText(tx, p[0], p[1]); gfx.fillStyle = t.cor; gfx.fillText(tx, p[0], p[1]); gfx.globalAlpha = 1; }
   G.txt = G.txt.filter(t => t.t < 1);
   const B = G.banner;
   if (B) { B.t += dt; const k = Math.min(1, B.t / 0.18), s = k < 1 ? 0.4 + 0.9 * k : 1 + 0.08 * Math.max(0, 1 - (B.t - 0.18) * 4), a = Math.max(0, 1 - Math.max(0, B.t - 1.1) / 0.4);

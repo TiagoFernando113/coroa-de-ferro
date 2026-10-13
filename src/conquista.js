@@ -7,6 +7,7 @@ import { PETS, RARIDADES, CLASSES, atributos, forca, modeloDe, tinta, base, est,
 import { fmt } from './dados.js';
 import { sfx } from './musica.js';
 import { ico, som, $ } from './util.js';
+import { t as tr } from './i18n.js';
 
 const Z_NOS = -24, Z_ELES = -50, ALT = 4.2; // altura de um pet na tela
 let Q = null, aoSair = null, el = null;
@@ -189,13 +190,13 @@ export function desenharFx(g, dt) {
     g.fillStyle = 'rgba(0,0,0,.6)'; g.beginPath(); g.roundRect(x - 2, y - 2, w + 4, 10, 4); g.fill();
     g.fillStyle = u.lado ? '#e8423a' : '#3ac85a'; g.fillRect(x, y, w * u.hp / u.max, 6);
     const R = RARIDADES[PETS[base(u.k)].r], e = est(u.k), txt = `${e ? `★${e} ` : ''}Nv.${u.nvVis}`;
-    g.font = '13px Titulo, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'bottom'; g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,.75)'; g.strokeText(txt, p[0], y - 3); g.fillStyle = e ? ESTRELAS[e].cor : R.cor === '#9aa3ad' ? '#fff' : R.cor; g.fillText(txt, p[0], y - 3); }
+    g.font = '13px Titulo, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'bottom'; g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,.75)'; const tt = tr(txt); g.strokeText(tt, p[0], y - 3); g.fillStyle = e ? ESTRELAS[e].cor : R.cor === '#9aa3ad' ? '#fff' : R.cor; g.fillText(tt, p[0], y - 3); }
   for (const t of Q.txt) { t.t += dt; const p = C.tela(t.x, t.y + t.t * 3, t.z); if (!p) continue; g.globalAlpha = Math.max(0, 1 - Math.max(0, t.t - 0.4) / 0.4);
-    g.font = `${t.grande ? 34 : 18}px Titulo, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineWidth = 4; g.strokeStyle = 'rgba(0,0,0,.7)'; g.strokeText(t.txt, p[0], p[1]); g.fillStyle = t.cor; g.fillText(t.txt, p[0], p[1]); g.globalAlpha = 1; }
+    g.font = `${t.grande ? 34 : 18}px Titulo, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineWidth = 4; g.strokeStyle = 'rgba(0,0,0,.7)'; g.strokeText(tr(t.txt), p[0], p[1]); g.fillStyle = t.cor; g.fillText(tr(t.txt), p[0], p[1]); g.globalAlpha = 1; }
   Q.txt = Q.txt.filter(t => t.t < 0.8);
   const B = Q.banner;
   if (B) { B.t += dt; const k = Math.min(1, B.t / 0.18), s = k < 1 ? 0.4 + 0.9 * k : 1, a = Math.max(0, 1 - Math.max(0, B.t - 1.1) / 0.4);
     g.save(); g.globalAlpha = a; g.translate(innerWidth / 2, innerHeight * 0.34); g.scale(s, s); g.rotate(-0.04); g.font = '46px Titulo, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.lineWidth = 9; g.lineJoin = 'round'; g.strokeStyle = 'rgba(30,10,0,.85)'; g.strokeText(B.txt, 0, 0); g.fillStyle = B.cor; g.fillText(B.txt, 0, 0); g.restore(); if (B.t > 1.5) Q.banner = null; }
+    g.lineWidth = 9; g.lineJoin = 'round'; g.strokeStyle = 'rgba(30,10,0,.85)'; g.strokeText(tr(B.txt), 0, 0); g.fillStyle = B.cor; g.fillText(tr(B.txt), 0, 0); g.restore(); if (B.t > 1.5) Q.banner = null; }
 }
 export { forcaInimiga, CLASSES };

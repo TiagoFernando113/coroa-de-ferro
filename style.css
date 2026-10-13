@@ -545,12 +545,11 @@ input{font:inherit;user-select:text;-webkit-user-select:text}
 .chatEnviar .btn{margin:0}.chatEnviar .btn .ico{width:20px;height:20px}
 .chatBtnPedir{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(#ffd23a,#d8901a);color:#5a2e08;box-shadow:0 3px 0 #7a4a08;flex:none}
 .chatBtnPedir .ico{width:26px;height:26px}
-.chatTrad{display:flex;align-items:center;gap:5px;margin:0 0 6px auto;padding:4px 10px;border-radius:10px;font-size:12px;color:var(--suave);background:#efe3c8}
-.chatTrad.on{color:#1a5a1a;background:#d8f5cc}
-.chatTrad .ico{width:14px;height:14px}
 .chM .tTrad{display:none}
 .chM.trad .tOrig{display:none}.chM.trad .tTrad{display:inline}
 .chM.trad.orig .tOrig{display:inline}.chM.trad.orig .tTrad{display:none}
 .trVer{display:flex;align-items:center;gap:3px;margin-top:2px;font-size:10px;color:var(--azul2);text-decoration:underline}
 .trVer .ico{width:11px;height:11px}
 .trVer .lT,.chM.orig .trVer .lO{display:none}.chM.orig .trVer .lT{display:inline}
+.idiomas{display:flex;flex-direction:column;gap:2px;width:min(300px,80vw);margin:0 auto}
+.idiomas .btn .flag,.lingua .flag{font-size:24px;line-height:1}
