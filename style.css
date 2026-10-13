@@ -695,3 +695,13 @@ input{font:inherit;user-select:text;-webkit-user-select:text}
 .jPerfil .codigo{margin:0 0 4px}.jPerfil .codigo input{text-transform:none}
 .jPerfil > .btn{margin:6px 0 0}
 #amErro{min-height:0;margin:2px 0;font-size:13px;color:var(--vermelho2)}
+.ctCaixa{padding:8px 10px;border-radius:14px;background:#fff;border:2px solid var(--creme2);font-size:13px}
+.ctCaixa p{margin:4px 0;display:flex;align-items:center;gap:4px;flex-wrap:wrap}.ctCaixa p .ico{width:15px;height:15px;color:var(--verde2)}
+.ctCaixa .oculto{display:none}
+.ctCaixa details{margin-top:6px}.ctCaixa summary{font-weight:700;color:var(--azul2);cursor:pointer}
+.ctCaixa .aviso{color:var(--vermelho2);font-size:12px}
+.ctCaixa .codigo input{text-transform:none}
+.ctCaixa .btn{margin:6px 0 0}
+#ctErro{margin:4px 0 0;font-size:13px;min-height:0}#ctErro.erro{color:var(--vermelho2)}#ctErro.ok{color:var(--verde2);font-family:var(--fT)}
+.pilula.guerra{top:calc(max(10px,env(safe-area-inset-top)) + 104px)}
+.fLinha{display:grid;grid-template-columns:1fr 1fr;gap:8px}.fLinha .btn{margin:6px 0 0}

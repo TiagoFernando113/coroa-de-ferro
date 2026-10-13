@@ -166,6 +166,18 @@ const T = {
   'Amigo · remover': L('Friend · remove', 'Amigo · quitar'), 'Entre no Clã ou no Ranking uma vez para ter amigos.': L('Open Clan or Ranking once to have friends.', 'Abre el Clan o el Ranking una vez para tener amigos.'),
   'Nenhum amigo ainda. Toque no nome de alguém no clã, chat ou ranking, ou adicione pelo código.': L("No friends yet. Tap someone's name in the clan, chat or ranking, or add by code.", 'Aún no tienes amigos. Toca el nombre de alguien en el clan, chat o ranking, o agrega por código.'),
   'código não encontrado': L('code not found', 'código no encontrado'), 'esse é o seu código': L("that's your code", 'ese es tu código'), 'limite de # amigos': L('limit of # friends', 'límite de # amigos'),
+  // nuvem
+  'Conta e nuvem': L('Account & cloud', 'Cuenta y nube'), 'Progresso salvo na nuvem:': L('Progress saved to the cloud:', 'Progreso guardado en la nube:'), 'agora': L('now', 'ahora'), 'ainda não': L('not yet', 'aún no'),
+  'há # min': L('# min ago', 'hace # min'), 'há # h': L('# h ago', 'hace # h'), 'há # dias': L('# days ago', 'hace # días'),
+  'Senha de recuperação criada. Seu código:': L('Recovery password set. Your code:', 'Contraseña de recuperación creada. Tu código:'), 'trocar senha': L('change password', 'cambiar contraseña'),
+  'Crie uma senha para recuperar tudo em outro celular (com seu código': L('Create a password to recover everything on another phone (with your code', 'Crea una contraseña para recuperar todo en otro celular (con tu código'),
+  'Nova senha': L('New password', 'Nueva contraseña'), 'Recuperar progresso de outro celular': L('Recover progress from another phone', 'Recuperar progreso de otro celular'),
+  'Isso troca o progresso deste celular pelo da outra conta.': L("This replaces this phone's progress with the other account's.", 'Esto reemplaza el progreso de este celular por el de la otra cuenta.'),
+  'Código': L('Code', 'Código'), 'Senha': L('Password', 'Contraseña'), 'Recuperar': L('Recover', 'Recuperar'), 'Senha com pelo menos # caracteres': L('Password with at least # characters', 'Contraseña de al menos # caracteres'),
+  'senha com pelo menos # caracteres': L('password with at least # characters', 'contraseña de al menos # caracteres'), 'Preencha o código e a senha': L('Fill in the code and password', 'Completa el código y la contraseña'),
+  'código ou senha errados': L('wrong code or password', 'código o contraseña incorrectos'), 'muitas tentativas, espere # hora': L('too many tries, wait # hour', 'demasiados intentos, espera # hora'),
+  'Progresso recuperado! Reiniciando...': L('Progress recovered! Restarting...', '¡Progreso recuperado! Reiniciando...'),
+  'Menu': L('Menu', 'Menú'),
 };
 export const TEXTOS = { en: {}, es: {} };
 for (const [k, v] of Object.entries(T)) { TEXTOS.en[k] = v.en; TEXTOS.es[k] = v.es; }

@@ -12,7 +12,10 @@ export function carregar() {
   S.heroi = S.heroi || 'lyra'; S.herois = S.herois || ['lyra'];
   return S;
 }
-export function salvar() { try { localStorage.setItem(CHAVE, JSON.stringify(S)); } catch (e) {} }
+let sujo = false; // mudou desde o último backup na nuvem
+export const mudouDesdeBackup = () => sujo;
+export const backupFeito = () => { sujo = false; };
+export function salvar() { sujo = true; try { localStorage.setItem(CHAVE, JSON.stringify(S)); } catch (e) {} }
 export function comprar(k) {
   const U = UPGRADES[k], n = S.up[k]; if (n >= U.max) return false;
   const c = U.custo(n); if (S.moedas < c) return false;

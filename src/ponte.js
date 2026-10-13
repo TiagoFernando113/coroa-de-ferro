@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import * as C from './cena.js';
 import { HABILIDADES, fase as dadosFase, tiros, vidaMuralha, escudo, fmt, UPGRADES } from './dados.js';
-import { S, salvar, darCartas, comprar, BAUS, MAX_BAUS, ganharBau, abrirBau, cartasPara, CARTAS, DIARIO, diarioPronto, diaDoPresente, pegarDiario } from './meta.js';
+import { S, salvar, mudouDesdeBackup, backupFeito, darCartas, comprar, BAUS, MAX_BAUS, ganharBau, abrirBau, cartasPara, CARTAS, DIARIO, diarioPronto, diaDoPresente, pegarDiario } from './meta.js';
 import { visualPadrao } from './aparencia.js';
 import { ico, som, $, alternarSom, estaMudo } from './util.js';
 import { tema, sfx, intensidade } from './musica.js';
@@ -397,7 +397,7 @@ export function abrirLobby() {
   iniciarFase(S.fase); desenharLobby();
   if (!diarioVisto && diarioPronto()) { diarioVisto = true; setTimeout(mostrarDiario, 900); }
   else setTimeout(coletarPremios, 1200);
-  setTimeout(enviarPerfil, 2500);
+  setTimeout(enviarPerfil, 2500); setTimeout(() => { backupNuvem(!nuvemT); if (S.temSenha == null && S.online?.codigo) ON.temSenha().then(t => { S.temSenha = !!t; salvar(); }).catch(() => {}); }, 4000);
 }
 let diarioVisto = false;
 // ---- lobby: cena 3D atrás do herói, card da fase, JOGAR, baús e abas embaixo ----
@@ -832,8 +832,43 @@ function mostrarPerfil() {
     <h3>Amigos ${O?.codigo ? `<small>seu código: <b data-nt>${O.codigo}</b></small>` : ''}</h3>
     <div class="codigo"><input id="amCod" maxlength="6" inputmode="numeric" placeholder="Código do amigo"><button class="btn verde peq" data-a="amigoCod">${ico('herois')}</button></div><p class="erro" id="amErro"></p>
     <div id="amLista"><p class="sub">Carregando...</p></div>
-    <h3>Medalhas <small>cada nível dá um prêmio</small></h3>${Object.keys(MEDALHAS).map(med).join('')}</div>
+    <h3>Medalhas <small>cada nível dá um prêmio</small></h3>${Object.keys(MEDALHAS).map(med).join('')}${htmlConta()}</div>
     <button class="btn azul" data-a="fecharJanela">Fechar</button></div>`;
+}
+// ---- nuvem: backup automático (sem o segredo da conta) a cada 60 s se algo mudou ----
+let nuvemT = 0; try { nuvemT = +localStorage.getItem('ponte_nuvem') || 0; } catch (e) {}
+let enviandoNuvem = false;
+function backupNuvem(forcar) {
+  if (enviandoNuvem || (!forcar && !mudouDesdeBackup())) return Promise.resolve();
+  const { online, ...dados } = S; enviandoNuvem = true;
+  return ON.saveEnviar(dados).then(() => { backupFeito(); nuvemT = Date.now(); try { localStorage.setItem('ponte_nuvem', nuvemT); } catch (e) {} }).catch(() => {}).finally(() => { enviandoNuvem = false; });
+}
+setInterval(() => { if (tela !== 'jogo') backupNuvem(); }, 60000);
+const haQuanto = t => { const m = Math.floor((Date.now() - t) / 60000); return m < 1 ? 'agora' : m < 60 ? `há ${m} min` : m < 1440 ? `há ${Math.floor(m / 60)} h` : `há ${Math.floor(m / 1440)} dias`; };
+function htmlConta() {
+  const O = ON.conta();
+  return `<h3>${ico('escudo')} Conta e nuvem</h3><div class="ctCaixa">
+    <p>${ico('check')} Progresso salvo na nuvem: <b>${nuvemT ? haQuanto(nuvemT) : 'ainda não'}</b></p>
+    ${S.temSenha ? `<p>${ico('cadeado')} Senha de recuperação criada. Seu código: <b data-nt>${O?.codigo || '...'}</b></p><button class="fSo" data-a="ctTrocarSenha">trocar senha</button>`
+      : `<p>Crie uma senha para recuperar tudo em outro celular (com seu código <b data-nt>${O?.codigo || '...'}</b>).</p>`}
+    <div class="codigo ${S.temSenha ? 'oculto' : ''}" id="ctSenhaBox"><input id="ctSenha" type="password" maxlength="32" placeholder="Nova senha"><button class="btn verde peq" data-a="ctSalvarSenha">Salvar</button></div>
+    <details><summary>Recuperar progresso de outro celular</summary><p class="aviso">Isso troca o progresso deste celular pelo da outra conta.</p>
+      <div class="codigo"><input id="ctCod" maxlength="6" inputmode="numeric" placeholder="Código"><input id="ctPass" type="password" maxlength="32" placeholder="Senha"></div>
+      <button class="btn roxo" data-a="ctRecuperar">Recuperar</button></details><p class="erro" id="ctErro"></p></div>`;
+}
+async function acaoConta(a, b) {
+  const e = $('#ctErro'), msg = (t, ok) => { if (e) { e.textContent = tr(t); e.className = ok ? 'ok' : 'erro'; } som(ok ? 'confirma' : 'erro'); };
+  if (a === 'ctTrocarSenha') { $('#ctSenhaBox')?.classList.remove('oculto'); return; }
+  if (a === 'ctSalvarSenha') { const v = $('#ctSenha').value; if (v.length < 4) return msg('Senha com pelo menos 4 caracteres');
+    b.disabled = true; try { await ON.senhaDefinir(v); S.temSenha = true; salvar(); await backupNuvem(true); mostrarPerfil(); } catch (er) { b.disabled = false; msg(er.message); } return; }
+  if (a === 'ctRecuperar') { const c = $('#ctCod').value.trim(), v = $('#ctPass').value; if (c.length < 4 || v.length < 4) return msg('Preencha o código e a senha');
+    if (b.dataset.certeza !== '1') { b.dataset.certeza = '1'; b.textContent = tr('Toque de novo para confirmar'); return; }
+    b.disabled = true;
+    try { const r = await ON.recuperar(c, v); const novo = r.dados && typeof r.dados === 'object' ? r.dados : { v: 1, fase: 1, moedas: 0, up: {}, melhor: 0 };
+      novo.online = { id: r.id, segredo: r.segredo, apelido: r.apelido, codigo: r.codigo }; novo.temSenha = true;
+      localStorage.setItem('ponte_v1', JSON.stringify(novo)); try { localStorage.setItem('ponte_nuvem', Date.now()); } catch (er) {}
+      msg('Progresso recuperado! Reiniciando...', true); setTimeout(() => location.reload(), 900); }
+    catch (er) { b.disabled = false; b.dataset.certeza = ''; b.textContent = tr('Recuperar'); msg(er.message); } }
 }
 // perfil público: o que os outros veem ao tocar no seu nome (enviado ao abrir o lobby)
 function dadosPerfil() { const E = S.est || {}; return { fase: Math.max(S.melhor || 0, S.fase - 1), renasc: S.renasc || 0, recInf: S.recInf || 0, cq: S.cq.est - 1, orcs: E.orcs || 0, chefes: E.chefes || 0, ovos: E.ovos || 0,
@@ -937,6 +972,7 @@ function clique(e) {
   if (a === 'sair') { som('fechar'); G?.dupla?.canal?.enviar('sair', {}); $('#janela').hidden = true; abrirLobby(); }
   if (a === 'proxima') { som('confirma'); comecarFase(); }
   if (a === 'lobby') { som('clique'); abrirLobby(); }
+  if (a === 'lobbyUp') { som('clique'); abrirLobby(); abaLobby = 'up'; desenharLobby(); }
   if (b.dataset.pd) usarPoder(b.dataset.pd);
   if (a === 'roleta') pararRoleta();
   if (a === 'diario') { som('clique'); mostrarDiario(); }
@@ -944,6 +980,7 @@ function clique(e) {
   if (a === 'resgatar') resgatarCodigo(b);
   if (a === 'missoes') { som('clique'); mostrarMissoes(); }
   if (a === 'perfil') { som('clique'); mostrarPerfil(); }
+  if (a?.startsWith('ct')) { acaoConta(a, b); return; }
   if (b.dataset.perfil) { som('clique'); verPerfil(b.dataset.perfil); return; }
   if (b.dataset.amigo) { marcarAmigo(b); return; }
   if (a === 'amigoCod') { const c = $('#amCod').value.trim(); if (c.length < 4) { som('erro'); return; } b.dataset.amigo = c; b.dataset.ativo = '1'; marcarAmigo(b).then(() => { const i = $('#amCod'); if (i && !$('#amErro')?.textContent) i.value = ''; }); return; }
@@ -1071,7 +1108,7 @@ function terminarInf() {
       <div class="ganho">${ico('estrela')}<b>${fmt(pts)}</b></div><p>Recorde: ${fmt(S.recInf || 0)}</p><p id="fPos" class="pos">${ON.conta()?.codigo ? 'Enviando para o ranking...' : '<button class="fSo" data-a="online">Entre no online para aparecer no ranking</button>'}</p>
       <div class="ganho">${ico('ouro')}<b>+${fmt(ganho)}</b></div>
       ${bau ? `<div class="fBau">${bauHtml(bau, 'mini')}<b>${BAUS[bau].nome}!</b></div>` : ''}
-      <button class="btn roxo grande" data-a="denovoInf">∞ Jogar de novo</button><button class="btn azul" data-a="lobby">${ico('raio')} Melhorias</button></div>`;
+      <button class="btn roxo grande" data-a="denovoInf">∞ Jogar de novo</button><div class="fLinha"><button class="btn azul" data-a="lobbyUp">${ico('raio')} Melhorias</button><button class="btn cinza" data-a="lobby">${ico('guilda')} Menu</button></div></div>`;
     sfx(novo ? 'vitoria' : 'derrota');
     if (ON.conta()?.codigo) ON.enviarRecorde(S.recInf || pts, G.chefesMortos).then(pos => { const e = $('#fPos'); if (e) e.textContent = `Você está em #${pos} no ranking mundial!`; })
       .catch(() => { const e = $('#fPos'); if (e) e.textContent = 'Sem conexão: o recorde vai na próxima.'; });
@@ -1093,7 +1130,7 @@ function terminar(venceu) {
       <div id="fBotoes"><button class="btn amarelo grande" data-a="roleta">${ico('ouro')} Pegar <b id="rMult">x2</b></button>
       <button class="fSo" data-a="proxima">Só +${fmt(ganho)}, próxima fase</button></div>` : ''}
       <div id="fSeguir" ${venceu || G.dupla ? 'hidden' : ''}><button class="btn verde grande" data-a="proxima">${venceu ? `Fase ${S.fase} ${ico('seta')}` : 'Tentar de novo'}</button>
-      <button class="btn azul" data-a="lobby">${ico('raio')} Melhorias</button></div></div>`;
+      <div class="fLinha"><button class="btn azul" data-a="lobbyUp">${ico('raio')} Melhorias</button><button class="btn cinza" data-a="lobby">${ico('guilda')} Menu</button></div></div></div>`;
     sfx(venceu ? 'vitoria' : 'derrota');
     atualizarRevanche();
     if (venceu && !G.dupla) { roleta = { ganho, t0: performance.now(), m: 2 }; const gira = () => { if (!roleta || roleta.parada) return;
