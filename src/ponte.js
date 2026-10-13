@@ -544,7 +544,7 @@ const tagHtml = (tag, cor) => tag ? `<em class="tagCla" style="--c:${CORES_CLA[(
 let rankModo = 'jog';
 // conteúdo das abas Clã e Ranking (dentro da folha do lobby)
 function carregarOnline(aba) {
-  const el = $('#onCorpo'); if (!el) return; const O = ON.conta();
+  const el = $('#onCorpo'); if (!el) return; const O = ON.conta(); el.classList.remove('comChat');
   const nome = `<div class="nomeEu">Seu nome: <b data-nt>${esc(O?.apelido || '...')}</b> <button class="fSo" data-a="trocarNome">trocar</button></div>`;
   if (aba === 'nome') {
     el.innerHTML = `<p class="sub">Esse nome aparece no ranking, no clã e na dupla.</p><input id="apelido" maxlength="16" placeholder="Seu apelido" value="${esc(O?.apelido || '')}"><p class="erro" id="onErro"></p>
@@ -564,7 +564,8 @@ function carregarOnline(aba) {
   el.innerHTML = `${nome}<div id="claCorpo"><p>Carregando...</p></div>`;
   ON.meuCla().then(c => { const e = $('#claCorpo'); if (!e) return; const b = document.querySelector('.nomeEu b'); if (b) b.textContent = ON.conta()?.apelido || '';
     if (c) { const k = Math.min(1, c.dano / c.vida), abas = `<div class="abas"><button class="${claModo === 'chat' ? 'on' : ''}" data-cm="chat">${ico('pergaminho')} Chat</button><button class="${claModo === 'info' ? 'on' : ''}" data-cm="info">${ico('escudo')} Clã</button></div>`;
-      if (claModo === 'chat') { e.innerHTML = abas + htmlChat(); abrirChat(); return; }
+      if (claModo === 'chat') { e.innerHTML = abas + htmlChat(); e.classList.add('modoChat'); $('#onCorpo')?.classList.add('comChat'); abrirChat(); return; }
+      e.classList.remove('modoChat');
       e.innerHTML = abas + `<div class="claTopo">${escudoCla(c.cor, c.tag || c.nome)}<div><b data-nt>${tagHtml(c.tag, c.cor)}${esc(c.nome)}</b><small>Nível ${c.nivel} · ${c.membros.length}/30 membros</small></div></div>
         <div class="claChefe"><small>${ico('chefe')} Chefe do clã (semana) — todo dano que vocês dão nas batalhas conta</small>
           <div class="barra vm"><i style="width:${100 - 100 * k}%"></i><span>${fmt(c.vida - c.dano)} / ${fmt(c.vida)}</span></div>

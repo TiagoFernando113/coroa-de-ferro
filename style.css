@@ -553,3 +553,13 @@ input{font:inherit;user-select:text;-webkit-user-select:text}
 .trVer .lT,.chM.orig .trVer .lO{display:none}.chM.orig .trVer .lT{display:inline}
 .idiomas{display:flex;flex-direction:column;gap:2px;width:min(300px,80vw);margin:0 auto}
 .idiomas .btn .flag,.lingua .flag{font-size:24px;line-height:1}
+/* abas do lobby em tela cheia (só a barra de baixo fica de fora) */
+.lbTopo{z-index:3}
+.lbFolha{left:0;right:0;top:0;bottom:calc(max(6px,env(safe-area-inset-bottom)) + 62px);max-width:none;margin:0;border:0;border-radius:0;box-shadow:none;
+  padding:calc(max(10px,env(safe-area-inset-top)) + 50px) 12px 6px}
+.lbFolha > h2{margin:0 0 4px;font-size:24px}
+.lbFolhaCorpo > *{max-width:640px;margin-left:auto;margin-right:auto}
+#onCorpo.comChat{display:flex;flex-direction:column;overflow:hidden}
+#claCorpo.modoChat{flex:1;display:flex;flex-direction:column;min-height:0;width:100%}
+.modoChat .chatLista{flex:1;height:auto;min-height:0}
+.modoChat .abas{margin:4px 0}

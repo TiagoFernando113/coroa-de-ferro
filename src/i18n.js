@@ -20,7 +20,7 @@ export function t(txt) {
   const D = TEXTOS[lang.slice(0, 2)]; if (!D) return s;
   const ck = lang + k; let tr = cache.get(ck);
   if (tr === undefined) { tr = D[k] ?? D[k.toLowerCase()] ?? null; cache.set(ck, tr); }
-  if (tr == null) { for (const [re, out] of PADROES[lang.slice(0, 2)] || []) if (re.test(limpo)) return s.replace(limpo, limpo.replace(re, out)); return s; }
+  if (tr == null) { window.__faltam?.add(k); for (const [re, out] of PADROES[lang.slice(0, 2)] || []) if (re.test(limpo)) return s.replace(limpo, limpo.replace(re, out)); return s; }
   let i = 0; const out = tr.replace(/#/g, () => nums[i++] ?? '');
   return s.replace(limpo, out);
 }
