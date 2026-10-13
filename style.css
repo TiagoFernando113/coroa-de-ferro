@@ -705,3 +705,6 @@ input{font:inherit;user-select:text;-webkit-user-select:text}
 #ctErro{margin:4px 0 0;font-size:13px;min-height:0}#ctErro.erro{color:var(--vermelho2)}#ctErro.ok{color:var(--verde2);font-family:var(--fT)}
 .pilula.guerra{top:calc(max(10px,env(safe-area-inset-top)) + 104px)}
 .fLinha{display:grid;grid-template-columns:1fr 1fr;gap:8px}.fLinha .btn{margin:6px 0 0}
+.lnTxt{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.lnTxt span{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;line-height:1.15;word-break:break-word}
+.lnTxt small{font-size:11px}

@@ -610,7 +610,7 @@ function carregarOnline(aba) {
     const html = {
       jog: l => l.length ? l.map(r => `<div class="linha ${r.eu ? 'eu' : ''}"><b>${med(r.posicao)}</b><button class="nomeBtn" data-perfil="${r.codigo}" data-nt>${tagHtml(r.tag, 0)}${esc(r.apelido)}</button><small>${r.chefes} chefes</small><em>${fmt(r.pontos)}</em></div>`).join('') : '<p>Ninguém no ranking ainda. Jogue a Ponte sem fim e seja o primeiro!</p>',
       cq: l => l.length ? l.map(r => `<div class="linha ${r.eu ? 'eu' : ''}"><b>${med(r.posicao)}</b><button class="nomeBtn" data-perfil="${r.codigo}" data-nt>${tagHtml(r.tag, 0)}${esc(r.apelido)}</button><small>${ico('forca')} ${fmt(r.forca)}</small><em>${ico('bandeira')} ${r.estagio}</em></div>`).join('') : '<p>Ninguém ainda. Vença estágios na Conquista!</p>',
-      cla: l => l.length ? l.map((c, i) => `<div class="linha"><b>${med(i + 1)}</b>${escudoCla(c.cor, c.tag || c.nome)}<span data-nt>${tagHtml(c.tag, c.cor)}${esc(c.nome)}</span><small>${c.membros} membros</small><em>Nv ${c.nivel}</em></div>`).join('') : '<p>Nenhum clã ainda.</p>',
+      cla: l => l.length ? l.map((c, i) => `<div class="linha"><b>${med(i + 1)}</b>${escudoCla(c.cor, c.tag || c.nome)}<div class="lnTxt"><span data-nt>${tagHtml(c.tag, c.cor)}${esc(c.nome)}</span><small>${c.membros} membros</small></div><em>Nv ${c.nivel}</em></div>`).join('') : '<p>Nenhum clã ainda.</p>',
     }[modo];
     const buscar = modo === 'jog' ? () => ON.garantir().then(ON.ranking) : modo === 'cq' ? () => ON.garantir().then(ON.cqTop) : () => ON.clas();
     comCache('rank_' + modo, buscar, l => { const e = $('#lista'); if (e && rankModo === modo) e.innerHTML = html(l); mostrarNomeEu(); },
@@ -633,7 +633,7 @@ function carregarOnline(aba) {
     e.classList.remove('modoChat'); $('#onCorpo')?.classList.remove('comChat');
     comCache('clas', () => ON.clas(), l => { const e2 = $('#claCorpo'); if (!e2 || lerCache('meucla')?.d) return;
       e2.innerHTML = `<p class="sub">Entre num clã: membros se ajudam sozinhos nas batalhas e derrotam juntos o chefe da semana. A sigla aparece antes do seu nome.</p>
-        <div class="lista">${l.length ? l.map(c => `<div class="linha">${escudoCla(c.cor, c.tag || c.nome)}<span data-nt>${tagHtml(c.tag, c.cor)}${esc(c.nome)}</span><small>Nv ${c.nivel} · ${c.membros}/30</small><button class="btn verde peq" data-cla="${c.id}">Entrar</button></div>`).join('') : '<p>Nenhum clã ainda. Crie o primeiro!</p>'}</div>
+        <div class="lista">${l.length ? l.map(c => `<div class="linha">${escudoCla(c.cor, c.tag || c.nome)}<div class="lnTxt"><span data-nt>${tagHtml(c.tag, c.cor)}${esc(c.nome)}</span><small>Nv ${c.nivel} · ${c.membros}/30</small></div><button class="btn verde peq" data-cla="${c.id}">Entrar</button></div>`).join('') : '<p>Nenhum clã ainda. Crie o primeiro!</p>'}</div>
         <div class="criarCla"><input id="tagCla" maxlength="4" placeholder="SIGLA"><input id="nomeCla" maxlength="18" placeholder="Nome do novo clã"></div>
         <button class="btn amarelo" data-a="claCriar">Criar clã ${ico('ouro')}200</button><p class="erro" id="onErro"></p>`; });
   }, e => { const x = $('#claCorpo'); if (x) x.innerHTML = `<p class="erro">${esc(e.message)}</p>`; });
