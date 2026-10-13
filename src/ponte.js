@@ -26,10 +26,14 @@ const ZFRENTE = ZBOSS - 35, ZTRAS = 40;
 const ZFORK0 = ZLANE - 5, ZFORK1 = ZBOSS + 15; // trecho com duas rotas
 // torres que o jogador constrói durante a batalha com o ouro ⚔ dos orcs derrotados
 const TORRES = {
-  balista: { nome: 'Balista', modelo: 'C:siege-ballista', esc: 4.6, icone: 'h_perfura', custo: [25, 45, 80], alcance: 20, cad: [0.9, 0.6, 0.4] },
-  catapulta: { nome: 'Catapulta', modelo: 'C:siege-catapult', esc: 4.2, icone: 'h_meteoro', custo: [50, 90, 140], alcance: 34, cad: [3, 2.3, 1.7], raio: [3.2, 3.9, 4.6] },
+  balista: { nome: 'Balista', modelo: 'C:siege-ballista', esc: 4.6, icone: 'h_perfura', custo: [25, 45, 80], alcance: 30, cad: [0.9, 0.6, 0.4] },
+  catapulta: { nome: 'Catapulta', modelo: 'C:siege-catapult', esc: 4.2, icone: 'h_meteoro', custo: [50, 90, 140], alcance: 42, cad: [3, 2.3, 1.7], raio: [3.2, 3.9, 4.6] },
 };
-const GEO_VAGA = new THREE.CylinderGeometry(1.5, 1.7, 0.4, 16), MAT_VAGA = new THREE.MeshLambertMaterial({ color: 0x9a9088 });
+// sacada de pedra presa do lado de fora da ponte, com mureta
+const XVAGA = MEIA + 3.2;
+const GEO_VAGA = mergeGeometries([new THREE.CylinderGeometry(3.4, 3.4, 1.2, 20).translate(0, -0.6, 0), new THREE.ConeGeometry(3.4, 5, 20).rotateX(Math.PI).translate(0, -3.7, 0),
+  ...Array.from({ length: 10 }, (_, i) => { const a = Math.PI * 0.5 + (i / 9) * Math.PI, s = 1; return new THREE.BoxGeometry(0.9, 0.9, 0.9).translate(Math.cos(a) * 3.1 * s, 0.45, Math.sin(a) * 3.1); })]);
+const MAT_VAGA = new THREE.MeshLambertMaterial({ color: 0x9a9088 });
 const GEO_PEDRA = new THREE.SphereGeometry(0.55, 10, 8), MAT_PEDRA_T = new THREE.MeshLambertMaterial({ color: 0x6a6460 });
 const xRota = r => G.rotas > 1 ? r * (1 + Math.random() * 2.8) : (Math.random() - 0.5) * XC * 1.8;
 function tipoNovo() { // cada tropa escolhida vem em ~22% (+1% por nível); o resto são espadachins
@@ -191,7 +195,7 @@ function criarBloco(b, lado) {
     const mf = new THREE.MeshLambertMaterial({ map: texRotulo(b.p === 'flecha' ? 'FLECHA +1' : 'RÁPIDO', '#a24ae8', '#5a1a9a') });
     b.mesh = new THREE.Mesh(GEO_BLOCO, [MAT_ROXO, MAT_ROXO, mf, MAT_ROXO, mf, MAT_ROXO]);
   } else {
-    const amarelo = lado > 0, txt = b.tipo === 'vezes' ? `x${b.valor}` : `+${b.valor}`, fundo = b.tipo === 'vezes' ? '#2bb84a' : amarelo ? '#f2b51a' : '#2f7ae8', borda = b.tipo === 'vezes' ? '#13702a' : amarelo ? '#a8740a' : '#173f9a';
+    const amarelo = b.valor >= 10, txt = b.tipo === 'vezes' ? `x${b.valor}` : `+${b.valor}`, fundo = b.tipo === 'vezes' ? '#2bb84a' : amarelo ? '#f2b51a' : '#2f7ae8', borda = b.tipo === 'vezes' ? '#13702a' : amarelo ? '#a8740a' : '#173f9a';
     const mf = new THREE.MeshLambertMaterial({ map: texRotulo(txt, fundo, borda) }), ml = b.tipo === 'vezes' ? new THREE.MeshLambertMaterial({ color: 0x2bb84a }) : amarelo ? MAT_LADO_AMAR : MAT_LADO_AZUL;
     b.mesh = new THREE.Mesh(GEO_BLOCO, [ml, ml, mf, ml, mf, ml]);
   }
@@ -212,12 +216,12 @@ export function iniciarFase(n, inf = false) {
     muro: vidaMuralha(up.vida), muroMax: vidaMuralha(up.vida), tiro: tiros(up.fogo), nFlechas: 1 + up.flechas, escudo: escudo(up.escudos),
     heroi: { x: 0, alvo: 0 }, golpeT: 4, fim: null, mortesVm: 0, portoes: [], ondaT: 16, banner: null, punch: 0, lento: 0, brilhoH: 0,
     pd: { chuva: { cd: 4, max: Math.max(6, 11 - 0.6 * (S.pd.chuva.nv - 1)), nv: S.pd.chuva.nv }, gigante: { cd: 12, max: Math.max(16, 30 - 1.8 * (S.pd.gigante.nv - 1)), nv: S.pd.gigante.nv } }, chuvas: [], gigante: null, puloT: 0,
-    inf, chefesMortos: 0, rotas: F.rotas, ouro: 25, deck: S.deck.filter(k => S.pd[k]?.nv > 0), vagas: [], tiros: [], menuVaga: null };
+    inf, chefesMortos: 0, multPilha: 1, velVm: 1, perfura: 0, autoChuva: false, escolhas: 0, proxEscolha: 14, pausa: false, pedras: [], pedraT: 9, tonto: 0, bonus: [], rotas: F.rotas, ouro: 25, deck: S.deck.filter(k => S.pd[k]?.nv > 0), vagas: [], tiros: [], menuVaga: null };
   // duas rotas: um muro baixo divide a pista do meio
   if (G.rotas > 1) { G.forquilha = new THREE.Mesh(new THREE.BoxGeometry(1, 1.6, ZFORK0 - ZFORK1).translate(0, 0.8, (ZFORK0 + ZFORK1) / 2), MAT_MURO); G.forquilha.castShadow = G.forquilha.receiveShadow = true; cena.add(G.forquilha); }
   // vagas de torre em cima das divisórias
-  for (let i = 0; i < F.vagas; i++) { const x = (i % 2 ? 1 : -1) * DIV, z = ZLANE - 10 - Math.floor(i / 2) * 20;
-    const base = new THREE.Mesh(GEO_VAGA, MAT_VAGA); base.position.set(x, 1.7, z); base.receiveShadow = true; cena.add(base);
+  for (let i = 0; i < F.vagas; i++) { const lado = i % 2 ? 1 : -1, x = lado * XVAGA, z = ZLANE - 12 - Math.floor(i / 2) * 24;
+    const base = new THREE.Mesh(GEO_VAGA, MAT_VAGA); base.position.set(x, 0, z); base.rotation.y = lado > 0 ? 0 : Math.PI; base.receiveShadow = base.castShadow = true; cena.add(base);
     G.vagas.push({ i, x, z, base, tipo: null, nv: 0, cd: 0, o: null }); }
   montarVagas();
   for (const p0 of F.portoes) { const p = { ...p0, z: ZLANE - 2 - p0.i * PASSO }; criarPortao(p); G.portoes.push(p); }
@@ -241,13 +245,38 @@ function proximoChefe() {
   const ch = G.chefe; G.chefesMortos++; G.n++; const F = dadosFase(G.n);
   C.faiscas(0, 6, ch.z, 0xffd84a, 120, 12); C.camera.tremor = 1; G.lento = 1; G.punch = 1; sfx('vitoria');
   for (const v of G.vm) arremessar('vm', v, 0, ch.z, 14); G.vm = []; G.chuvas.length = 0;
-  ch.v.remover(); G.F = F; G.t = 0; G.ondaT = 16; G.puloT = 0; G.golpePend = 0; intensidade(1);
+  ch.v.remover(); G.F = F; G.t = 0; G.proxEscolha = 14; G.ondaT = 16; G.puloT = 0; G.golpePend = 0; intensidade(1);
   criarChefe(F); $('#jChefeN').textContent = G.chefe.nome; $('#jN').textContent = `∞ · ${G.chefesMortos + 1}`;
   for (const p of G.portoes) cena.remove(p.o); G.portoes = [];
   for (const p0 of F.portoes) { const p = { ...p0, z: ZLANE - 2 - p0.i * PASSO }; criarPortao(p); G.portoes.push(p); }
   G.ouro += 30; G.muro = Math.min(G.muroMax, G.muro + Math.ceil(G.muroMax * 0.25));
   faixa(`CHEFE ${G.chefesMortos} DERROTADO!`, '#ffd84a'); G.txt.push({ x: 0, y: 8, z: -40, txt: '+1000', cor: '#ffd84a', t: 0, grande: true });
   montarCenario(biomaDe(G.n));
+}
+// ---- bônus no meio da fase: escolha 1 de 3 ----
+const BONUS = {
+  flechas: { nome: 'Tiro triplo', icone: 'h_triplo', desc: '+2 flechas por tiro', usar: () => { G.nFlechas = Math.min(10, G.nFlechas + 2); } },
+  furia: { nome: 'Fúria', icone: 'raio', desc: 'Atira 40% mais rápido', usar: () => { G.tiro *= 1.4; } },
+  recrutas: { nome: 'Reforços', icone: 'herois', desc: () => `+${40 + 10 * G.n} soldados agora`, usar: () => { G.fila += 40 + 10 * G.n; } },
+  escudos: { nome: 'Escudos de ferro', icone: 'escudo', desc: '+20% dos soldados sobrevivem', usar: () => { G.escudo = Math.min(0.8, G.escudo + 0.2); } },
+  muralha: { nome: 'Muralha reforçada', icone: 'forja', desc: 'Muralha +50% e curada', usar: () => { G.muroMax = Math.round(G.muroMax * 1.5); G.muro = G.muroMax; } },
+  ouro: { nome: 'Ouro de guerra', icone: 'forca', desc: '+80 de ouro para torres', usar: () => { G.ouro += 80; } },
+  recarga: { nome: 'Recarga rápida', icone: 'relogio', desc: 'Poderes prontos e 40% mais rápidos', usar: () => { for (const P of Object.values(G.pd)) { P.max *= 0.6; P.cd = 0; } } },
+  gelo: { nome: 'Flechas de gelo', icone: 'h_gelo', desc: 'Orcs andam 30% mais devagar', usar: () => { G.velVm *= 0.7; } },
+  fogo: { nome: 'Flechas de fogo', icone: 'h_fogo', desc: 'Cada flecha atravessa +2 orcs', usar: () => { G.perfura += 2; } },
+  pilhas: { nome: 'Pilhas em dobro', icone: 'estrela', desc: 'Pilhas dão +50% soldados', usar: () => { G.multPilha *= 1.5; } },
+  chuvaAuto: { nome: 'Chuva automática', icone: 'h_chuva', desc: 'A chuva cai sozinha quando pronta', usar: () => { G.autoChuva = true; } },
+};
+function abrirEscolha() {
+  const ops = Object.keys(BONUS).filter(k => !(k === 'chuvaAuto' && G.autoChuva) && !(k === 'escudos' && G.escudo >= 0.8)).sort(() => Math.random() - 0.5).slice(0, 3);
+  G.pausa = true; G.escolhas++; sfx('brilho');
+  const j = $('#janela'); j.hidden = false;
+  j.innerHTML = `<div class="jEscolha"><h2>Escolha um bônus!</h2><div class="opcoes">${ops.map(k => { const B = BONUS[k];
+    return `<button class="opcao" data-bonus="${k}"><span>${ico(B.icone)}</span><b>${B.nome}</b><small>${typeof B.desc === 'function' ? B.desc() : B.desc}</small></button>`; }).join('')}</div></div>`;
+}
+function escolherBonus(k) {
+  const B = BONUS[k]; if (!B || !G) return; B.usar(); G.bonus.push(k); $('#janela').hidden = true; G.pausa = false;
+  faixa(B.nome.toUpperCase() + '!', '#c88aff'); G.brilhoH = 1; G.punch = 1; C.faiscas(G.heroi.x, 3, ZH, 0xc88aff, 40, 6); sfx('magia'); sfx('vitoria');
 }
 const pontosInf = () => G.chefesMortos * 1000 + G.mortesVm;
 function limparFase() {
@@ -257,6 +286,7 @@ function limparFase() {
   for (const p of G.portoes) cena.remove(p.o);
   G.chefe?.v.remover(); G.heroiV?.remover(); G.gigante?.v.remover();
   for (const c of G.chuvas) for (const f of c.fl) cena.remove(f.o);
+  for (const p of G.pedras) cena.remove(p.o);
   for (const v of G.vagas) { cena.remove(v.base); if (v.o) cena.remove(v.o); }
   for (const s of G.tiros) cena.remove(s.o);
   if (G.forquilha) cena.remove(G.forquilha);
@@ -370,7 +400,7 @@ function clique(e) {
   if (a === 'jogar') { som('confirma'); comecarFase(); }
   if (a === 'infinito') { if (S.melhor < 3) { som('erro'); return; } som('confirma'); comecarFase(true); }
   if (a === 'denovoInf') { som('confirma'); comecarFase(true); }
-  if (a === 'sair') { som('fechar'); abrirLobby(); }
+  if (a === 'sair') { som('fechar'); $('#janela').hidden = true; abrirLobby(); }
   if (a === 'proxima') { som('confirma'); comecarFase(); }
   if (a === 'lobby') { som('clique'); abrirLobby(); }
   if (b.dataset.pd) usarPoder(b.dataset.pd);
@@ -380,6 +410,7 @@ function clique(e) {
   if (a === 'pegarDiario') { const D = DIARIO[diaDoPresente()];
     if (D.bau) mostrarBau(D.bau, 'Presente do dia!', () => pegarDiario());
     else { const p = pegarDiario(); if (p) { sfx('vitoria'); mostrarDiario(); $('#janela .jDiario h2').insertAdjacentHTML('afterend', `<div class="premio grande">${ico('ouro')}<b>+${fmt(p.moedas)}</b></div>`); } } }
+  if (b.dataset.bonus) escolherBonus(b.dataset.bonus);
   if (b.dataset.tropa) { const k = b.dataset.tropa; if (!S.pd[k].nv) { som('erro'); return; }
     S.deck = S.deck.includes(k) ? S.deck.filter(x => x !== k) : [...S.deck, k].slice(-2); salvar(); som('clique'); desenharLobby(); }
   if (b.dataset.bau) { const i = +b.dataset.bau, tipo = S.baus[i]?.tipo; if (tipo) { som('clique'); mostrarBau(tipo, BAUS[tipo].nome, () => abrirBau(i)); } }
@@ -407,7 +438,7 @@ export function construir(i, tipo) { // nova torre ou sobe de nível
   const c = T.custo[v.nv]; if (G.ouro < c) { som('erro'); return false; }
   G.ouro -= c; v.tipo = tipo; v.nv++; G.menuVaga = null;
   if (v.o) cena.remove(v.o);
-  v.o = C.objeto(T.modelo, T.esc * (1 + 0.12 * (v.nv - 1))); v.o.position.set(v.x, 1.9, v.z); v.o.rotation.y = Math.PI; v.o.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  v.o = C.objeto(T.modelo, T.esc * (1 + 0.12 * (v.nv - 1))); v.o.position.set(v.x, 0, v.z); v.o.rotation.y = Math.PI; v.o.traverse(o => { if (o.isMesh) o.castShadow = true; });
   C.faiscas(v.x, 3, v.z, 0xffd84a, 30, 6); som('compra'); G.txt.push({ x: v.x, y: 6, z: v.z, txt: v.nv > 1 ? `Nível ${v.nv}!` : T.nome + '!', cor: '#ffd84a', t: 0, grande: true });
   atualizarVagas(); return true;
 }
@@ -473,7 +504,7 @@ export function passo(dt0) {
   const t = C.tempo();
   if (G) {
     G.heroiV.mixer.update(dt);
-    if (tela === 'jogo' && !G.fim) passoJogo(dt);
+    if (tela === 'jogo' && !G.fim && !G.pausa) passoJogo(dt);
     else if (G.fim === 'v') { G.chefe.v.mixer.update(dt); }
     else G.chefe.v.mixer.update(dt);
     // desenha os exércitos
@@ -504,7 +535,7 @@ export function passo(dt0) {
   desenharFx(dt);
 }
 function posicionarVagas() {
-  for (const v of G.vagas) { const b = document.querySelector(`[data-vaga="${v.i}"]`), p = C.tela(v.x, v.tipo ? 6.5 : 3, v.z); if (!b) continue;
+  for (const v of G.vagas) { const b = document.querySelector(`[data-vaga="${v.i}"]`), p = C.tela(v.x, v.tipo ? 7 : 1.5, v.z); if (!b) continue;
     const ver = p && p[1] > 100 && p[1] < innerHeight - 60; b.style.display = ver ? '' : 'none'; if (ver) { b.style.left = p[0] + 'px'; b.style.top = p[1] + 'px'; } }
   if (G.menuVaga != null) { const v = G.vagas[G.menuVaga], p = C.tela(v.x, 3, v.z), m = $('#jMenuT');
     if (p) { m.style.left = Math.max(92, Math.min(innerWidth - 92, p[0])) + 'px'; m.style.top = Math.max(200, p[1] - 26) + 'px'; } }
@@ -514,12 +545,25 @@ function passoJogo(dt) {
   G.t += dt; const h = G.heroi, ch = G.chefe;
   // herói anda e atira
   h.x += (h.alvo - h.x) * Math.min(1, dt * 14);
-  G.cd -= dt;
-  if (G.cd <= 0) {
+  G.cd -= dt; G.tonto = Math.max(0, G.tonto - dt);
+  if (G.cd <= 0 && G.tonto <= 0) {
     G.cd = 1 / G.tiro; G.heroiV.tocar('Ranged_Bow_Release', { loop: false, reinicia: true, vel: Math.max(1.2, G.tiro * 0.6) });
     for (let k = 0; k < G.nFlechas; k++) { const x = h.x + (k - (G.nFlechas - 1) / 2) * 1.1, o = new THREE.Mesh(GEO_FLECHA, MAT_FLECHA); o.position.set(x, 2.6, ZH - 1); cena.add(o); G.flechas.push({ x, z: ZH - 1, o }); }
     if (Math.random() < 0.5) sfx('arco');
   }
+  // hora de escolher um bônus
+  if (G.t >= G.proxEscolha && !ch.pulo) { G.proxEscolha = G.t + 22 + 4 * G.escolhas; abrirEscolha(); }
+  // o chefe joga pedras no herói: um círculo avisa onde cai, arraste para desviar
+  if (G.t > 8 && (G.pedraT -= dt) <= 0) { G.pedraT = Math.max(3.5, 8 - 0.25 * G.n) * (ch.furia ? 0.65 : 1);
+    const x = Math.max(-MEIA + 3, Math.min(MEIA - 3, h.x + (Math.random() - 0.5) * 4)), dur = 1.4;
+    const o = new THREE.Mesh(GEO_PEDRA, MAT_PEDRA_T); o.scale.setScalar(2.6); o.position.set(0, 8, ch.z + 4); cena.add(o);
+    G.pedras.push({ o, x, t: 0, dur, z0: ch.z + 4, av: C.aviso(x, ZH, 3.6, dur, 0xff3322) }); ch.v.tocar('Attack2', { loop: false, reinicia: true }); }
+  for (const pd of G.pedras) { pd.t += dt; const k = Math.min(1, pd.t / pd.dur); pd.o.position.set(pd.x * k, 8 + Math.sin(Math.PI * k) * 26 - 6 * k, pd.z0 + (ZH - pd.z0) * k); pd.o.rotation.x += dt * 6;
+    if (k >= 1) { pd.fim = true; cena.remove(pd.o); C.faiscas(pd.x, 1, ZH, 0xc8a878, 40, 8); C.camera.tremor = Math.max(C.camera.tremor, 0.5); som('pancada', 0.6);
+      if (Math.abs(h.x - pd.x) < 3.6) { G.tonto = 1.6; G.muro--; G.heroiV.tocar('Hit_A', { loop: false, reinicia: true }); faixa('ATORDOADO!', '#ff9a3a'); C.faiscas(h.x, 5, ZH, 0xffff6a, 20, 4); }
+      else G.txt.push({ x: h.x, y: 6, z: ZH, txt: 'Desviou!', cor: '#8aff8a', t: 0 }); } }
+  G.pedras = G.pedras.filter(p => !p.fim);
+  if (G.autoChuva && G.pd.chuva.cd <= 0 && G.vm.length > 8) usarPoder('chuva');
   // vermelhos saem do portão do chefe
   G.ondaT -= dt;
   const ritmo = G.F.ritmo * (1 + G.t / 45);
@@ -553,7 +597,7 @@ function passoJogo(dt) {
   const grade = new Map(), K = 1.6; for (const v of G.vm) { const k = Math.floor(v.z / K); let l = grade.get(k); if (!l) grade.set(k, l = []); l.push(v); }
   // marcha
   for (const a of G.az) if (!a.luta && !a.parado) { a.z -= VEL_AZ * dt; a.x += (a.ax - a.x) * Math.min(1, dt * 3); }
-  for (const v of G.vm) { if (v.luta && (v.luta.morto || v.luta.luta !== v)) v.luta = null; if (!v.luta) { v.z += VEL_VM * dt; v.x += (v.ax - v.x) * Math.min(1, dt * 2); } }
+  for (const v of G.vm) { if (v.luta && (v.luta.morto || v.luta.luta !== v)) v.luta = null; if (!v.luta) { v.z += VEL_VM * G.velVm * dt; v.x += (v.ax - v.x) * Math.min(1, dt * 2); } }
   // choques: cada azul procura um vermelho à frente e mira nele; encostou, os dois caem
   let poeira = 0;
   for (const a of G.az) {
@@ -594,7 +638,7 @@ function passoJogo(dt) {
     const noChefe = !alvo && Math.hypot(v.x, ch.z + 3 - v.z) < T.alcance + 6; if (!alvo && !noChefe) continue;
     v.cd = T.cad[v.nv - 1]; const tx = alvo ? alvo.x : 0, tz = alvo ? alvo.z : ch.z + 3;
     v.o.rotation.y = Math.atan2(tx - v.x, tz - v.z) + Math.PI;
-    const o = new THREE.Mesh(v.tipo === 'balista' ? GEO_FLECHA : GEO_PEDRA, v.tipo === 'balista' ? MAT_FLECHA : MAT_PEDRA_T); o.position.set(v.x, 3.5, v.z); cena.add(o);
+    const o = new THREE.Mesh(v.tipo === 'balista' ? GEO_FLECHA : GEO_PEDRA, v.tipo === 'balista' ? MAT_FLECHA : MAT_PEDRA_T); o.position.set(v.x, 2.5, v.z); cena.add(o);
     if (v.tipo === 'balista') o.lookAt(tx, 1.2, tz), o.rotateY(Math.PI);
     G.tiros.push({ o, tipo: v.tipo, nv: v.nv, x0: v.x, z0: v.z, tx, tz, alvo, t: 0, dur: v.tipo === 'balista' ? 0.18 : 0.8 });
     if (v.tipo === 'balista') { if (Math.random() < 0.4) sfx('arco'); } else som('pancada', 0.15);
@@ -627,7 +671,7 @@ function passoJogo(dt) {
     } else { // pista do meio: vermelhos e depois o chefe
       const k = Math.floor(f.z / K); let alvo = null;
       for (let d = 0; d <= 1 && !alvo; d++) for (const v of grade.get(k + d) || []) if (!v.morto && Math.abs(v.x - f.x) < 1.3 && Math.abs(v.z - f.z) < 1.8) { alvo = v; break; }
-      if (alvo) { alvo.morto = true; G.mortesVm++; f.morta = true; voar('vm', alvo.x, alvo.z, (Math.random() - 0.5) * 3, 5, -6); C.faiscas(alvo.x, 1.4, alvo.z, 0xff6a4a, 6, 3); }
+      if (alvo) { alvo.morto = true; G.mortesVm++; if ((f.perf = (f.perf ?? G.perfura) - 1) < 0) f.morta = true; voar('vm', alvo.x, alvo.z, (Math.random() - 0.5) * 3, 5, -6); C.faiscas(alvo.x, 1.4, alvo.z, 0xff6a4a, 6, 3); }
       else if (f.z <= ch.z + 3) { f.morta = true; ferirChefe(1, f.x, ch.z + 3); }
     }
   }
@@ -728,9 +772,9 @@ function acertarBloco(b, pista, lado) {
     else { G.tiro *= 1.35; faixa('TIRO RÁPIDO!', '#c88aff'); }
     G.brilhoH = 1; G.punch = 1; C.faiscas(b.mesh.position.x, 2, b.z + 1, 0xc88aff, 40, 7); C.faiscas(G.heroi.x, 3, ZH, 0xc88aff, 30, 5); sfx('magia'); sfx('brilho');
   } else {
-    const n = b.tipo === 'vezes' ? Math.min(250, G.az.length + G.fila) : b.valor;
-    G.fila += n; G.txt.push({ x: lado * XL, y: 4, z: b.z, txt: b.tipo === 'vezes' ? `x${b.valor}!` : `+${b.valor}`, cor: b.tipo === 'vezes' ? '#7aff8a' : lado > 0 ? '#ffd84a' : '#8ac8ff', t: 0, grande: n >= 10 });
-    C.faiscas(b.mesh.position.x, 2, b.z + 1, b.tipo === 'vezes' ? 0x4aff6a : lado > 0 ? 0xffd84a : 0x5aa8ff, n >= 10 ? 26 : 12, 5);
+    const n = Math.round((b.tipo === 'vezes' ? Math.min(250, G.az.length + G.fila) : b.valor) * G.multPilha);
+    G.fila += n; G.txt.push({ x: lado * XL, y: 4, z: b.z, txt: b.tipo === 'vezes' ? `x${b.valor}!` : `+${b.valor}`, cor: b.tipo === 'vezes' ? '#7aff8a' : n >= 10 ? '#ffd84a' : '#8ac8ff', t: 0, grande: n >= 10 });
+    C.faiscas(b.mesh.position.x, 2, b.z + 1, b.tipo === 'vezes' ? 0x4aff6a : n >= 10 ? 0xffd84a : 0x5aa8ff, n >= 10 ? 26 : 12, 5);
     G.combo = (G.combo || 0) + 1; G.comboT = 1.2; sfx('nota', G.combo - 1); if (n >= 10) sfx('brilho');
     if (b.tipo === 'vezes') { faixa('EXÉRCITO DOBRADO!', '#7aff8a'); G.punch = 1; }
     else if (b.valor >= 50) { faixa(b.valor >= 99 ? 'MEGA!' : 'INCRÍVEL!', '#ffd84a'); G.punch = 0.8; }

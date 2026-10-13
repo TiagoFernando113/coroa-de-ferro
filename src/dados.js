@@ -1,5 +1,5 @@
 // Batalha da Ponte: números das fases e das melhorias.
-export const VERSAO = 71;
+export const VERSAO = 72;
 
 const SUF = ['', 'K', 'M', 'B', 'T'];
 export function fmt(n) {
@@ -28,27 +28,32 @@ export const CHEFES = [['mg:Orc', 'Grom, o Brutal'], ['mg:Demon', 'Demônio da P
 // configuração de cada fase (n = 1, 2, 3...)
 export function fase(n) {
   let sd = n * 7919 + 13; const r = () => ((sd = (sd * 16807) % 2147483647) / 2147483647);
-  const NB = 20, esq = [], dir = [];
-  // pista da esquerda: valores pequenos, sempre aberta; um x2 de vez em quando
+  const NB = 20, esq = [], dir = [], pega = l => l.splice(Math.floor(r() * l.length), 1)[0];
+  // posições especiais sorteadas por fase (cada fase tem outro desenho)
+  const livresE = [3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18], livresD = [2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 18];
+  const vezesE = [pega(livresE), pega(livresE), ...(r() < 0.5 ? [pega(livresE)] : [])], poderE = pega(livresE), poderD = [pega(livresD), pega(livresD)];
+  const barrE = n >= 3 ? [10, ...(n >= 6 && r() < 0.5 ? [pega(livresE)] : [])] : [], barrD = [0, 10, ...(n >= 5 && r() < 0.4 ? [pega(livresD)] : [])];
+  const poderes = ['flecha', 'rapido'], pd = () => poderes[Math.floor(r() * 2)];
+  // pista pobre: valores pequenos, sempre aberta, com x2
   for (let i = 0; i < NB; i++) {
-    if (i === 10 && n >= 3) { esq.push({ tipo: 'barreira', hp: 3 + n }); continue; }
-    if (i % 7 === 6) { esq.push({ tipo: 'vezes', valor: 2 }); continue; }
-    if (i === 4) { esq.push({ tipo: 'poder', p: 'flecha' }); continue; }
-    if (i === 15) { esq.push({ tipo: 'poder', p: 'rapido' }); continue; }
+    if (barrE.includes(i)) { esq.push({ tipo: 'barreira', hp: 3 + n }); continue; }
+    if (vezesE.includes(i)) { esq.push({ tipo: 'vezes', valor: 2 }); continue; }
+    if (i === poderE) { esq.push({ tipo: 'poder', p: pd() }); continue; }
     const l = [1, 1, 2, 2, 3, 5]; esq.push({ tipo: 'mais', valor: l[Math.floor(r() * Math.min(l.length, 3 + Math.floor(i / 5)))] });
   }
-  // pista da direita: rica, mas fechada por barreiras
+  // pista rica, fechada por barreiras
   const grandes = [10, 15, 20, 25, 50, 99];
   for (let i = 0; i < NB; i++) {
-    if (i === 0) { dir.push({ tipo: 'barreira', hp: 6 + 4 * n }); continue; }
-    if (i === 10) { dir.push({ tipo: 'barreira', hp: 10 + 7 * n }); continue; }
-    if (i === 6) { dir.push({ tipo: 'poder', p: 'rapido' }); continue; }
-    if (i === 15) { dir.push({ tipo: 'poder', p: 'flecha' }); continue; }
+    if (barrD.includes(i)) { dir.push({ tipo: 'barreira', hp: (i === 0 ? 6 + 4 * n : 10 + 7 * n) }); continue; }
+    if (poderD.includes(i)) { dir.push({ tipo: 'poder', p: pd() }); continue; }
     dir.push({ tipo: 'mais', valor: grandes[Math.min(grandes.length - 1, Math.floor(i / 3.4 + r() * 1.5))] });
   }
+  // a partir da fase 3 o lado rico pode trocar
+  const troca = n >= 3 && r() < 0.5;
+  // portões: quantidade, tipo e posição variam
+  const posP = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], portoes = [{ tipo: 'vezes', valor: n >= 5 && r() < 0.3 ? 3 : 2, i: pega(posP) }, { tipo: 'mais', valor: 10 + 5 * n, i: pega(posP) }];
+  if (n >= 6 && r() < 0.5) portoes.push({ tipo: 'vezes', valor: 2, i: pega(posP) });
   const [modelo, nome] = CHEFES[(n - 1) % CHEFES.length];
-  return { n, esq, dir, chefe: { modelo, nome: n > CHEFES.length ? `${nome} +${Math.floor((n - 1) / CHEFES.length)}` : nome, hp: Math.round(220 + 160 * n ** 1.1) },
-    // portões no meio da ponte: os soldados azuis que passam se multiplicam
-    portoes: [{ tipo: 'vezes', valor: 2, i: 6 }, { tipo: 'mais', valor: 10 + 5 * n, i: 13 }],
-    ritmo: 2 + 0.9 * n ** 1.15, rotas: n >= 4 ? 2 : 1, vagas: n >= 4 ? 6 : n >= 2 ? 4 : 2, duro: Math.floor(n / 3), moedas: 20 + 12 * n }; // ritmo: vermelhos por segundo no começo (cresce com o tempo)
+  return { n, esq: troca ? dir : esq, dir: troca ? esq : dir, chefe: { modelo, nome: n > CHEFES.length ? `${nome} +${Math.floor((n - 1) / CHEFES.length)}` : nome, hp: Math.round(220 + 160 * n ** 1.1) },
+    portoes, ritmo: 2 + 0.9 * n ** 1.15, rotas: n >= 4 ? 2 : 1, vagas: n >= 4 ? 6 : n >= 2 ? 4 : 2, duro: Math.floor(n / 3), moedas: 20 + 12 * n }; // ritmo: vermelhos por segundo no começo (cresce com o tempo)
 }
