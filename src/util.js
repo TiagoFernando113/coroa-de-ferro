@@ -21,6 +21,12 @@ export async function carregarRecursos(buf) {
   addEventListener('pointerdown', iniciarAudio, { once: true });
 }
 const ultimoSom = {};
+// app em segundo plano ou tela desligada: o som para (e volta quando o jogo aparece de novo)
+function pausarSom(p) { if (!actx) return; if (p) actx.suspend().catch(() => {}); else actx.resume().catch(() => {}); }
+window.__pausar = pausarSom;
+document.addEventListener('visibilitychange', () => pausarSom(document.hidden));
+addEventListener('pagehide', () => pausarSom(true));
+addEventListener('pageshow', () => pausarSom(false));
 export function som(n, vol = 0.6) {
   if (mudo || !actx || !sons[n]) return;
   const a = actx.currentTime; if (ultimoSom[n] && a - ultimoSom[n] < 0.08) return; ultimoSom[n] = a; // evita metralhadora de sons iguais

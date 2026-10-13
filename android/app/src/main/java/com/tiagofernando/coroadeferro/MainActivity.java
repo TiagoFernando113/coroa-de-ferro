@@ -178,4 +178,17 @@ public class MainActivity extends Activity {
         if (web.canGoBack()) web.goBack();
         else super.onBackPressed();
     }
+
+    // app em segundo plano: pausa o jogo e o som (a página recebe visibilitychange)
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (web != null) { web.evaluateJavascript("window.__pausar&&window.__pausar(true)", null); web.onPause(); }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (web != null) { web.onResume(); web.evaluateJavascript("window.__pausar&&window.__pausar(false)", null); }
+    }
 }
