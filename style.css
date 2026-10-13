@@ -619,3 +619,21 @@ input{font:inherit;user-select:text;-webkit-user-select:text}
 .codigo input{flex:1;min-width:0;padding:9px 12px;border-radius:12px;border:2px solid var(--creme2);font:inherit;text-transform:uppercase;user-select:text;-webkit-user-select:text}
 .codigo .btn{margin:0}
 #codErro{margin:4px 0 0;font-size:13px;min-height:1em}#codErro.erro{color:var(--vermelho)}#codErro.ok{color:#8aff8a;font-family:var(--fT)}
+.fEvento{display:flex;align-items:center;gap:4px;margin-top:3px;font-style:normal;font-size:12px;font-weight:700;color:var(--c);text-shadow:0 1px 2px #000}
+.fEvento .ico{width:15px;height:15px;flex:none}
+.fEvento b{font-weight:800}
+.linha em .ico,.linha small .ico{width:14px;height:14px;vertical-align:-2px}
+.jLoja h2{margin:0;text-align:center;font-family:var(--fT);font-weight:400;font-size:26px;display:flex;align-items:center;justify-content:center;gap:6px}
+.jLoja h2 .ico{width:28px;height:28px;color:var(--amarelo2)}
+.jLoja .sub{text-align:center;margin:0 0 6px;font-size:12px;color:var(--suave)}
+.ljGrade{display:grid;grid-template-columns:1fr 1fr;gap:8px;overflow-y:auto}
+.ljItem{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 6px;border-radius:14px;background:#fff;border:2px solid var(--creme2);box-shadow:0 3px 0 var(--creme2)}
+.ljItem.feito{opacity:.55}
+.ljImg{height:118px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:2px;text-align:center}
+.ljImg img{width:80px;height:80px;object-fit:contain}
+.ljImg .ovoG{width:58px;height:70px}.ljImg .bauG{width:78px;height:64px}.ljImg .cartaMini{width:60px;height:60px}.ljImg .cartaMini .ico{width:38px;height:38px}
+.ljImg b{font-family:var(--fT);font-weight:400;font-size:14px}.ljImg small{font-size:11px;font-weight:700}
+.ljItem .btn{margin:0;width:100%}
+.ljItem em{font-style:normal;color:var(--verde2);display:flex;align-items:center;gap:3px;font-family:var(--fT)}.ljItem em .ico{width:16px;height:16px}
+.ljDesc{position:absolute;top:-6px;right:-4px;font-style:normal;font-family:var(--fT);font-size:13px;padding:2px 7px;border-radius:10px;background:var(--vermelho);color:#fff;transform:rotate(8deg)}
+.semAnim{animation:none!important}

@@ -31,6 +31,8 @@ const id = () => ({ p_id: S.online.id, p_segredo: S.online.segredo });
 const comConta = fn => async (...a) => { await garantir(); return fn(...a); };
 
 export const enviarRecorde = comConta((pontos, chefes) => rpc('ponte_enviar_recorde', { ...id(), p_pontos: pontos, p_chefes: chefes }));
+export const cqEnviar = comConta((est, forca) => rpc('ponte_cq_enviar', { ...id(), p_estagio: est, p_forca: forca }));
+export const cqTop = () => rpc('ponte_cq_top', { p_limite: 50, p_id: S.online?.id || null });
 export const ranking = () => rpc('ponte_top2', { p_limite: 50, p_id: S.online?.id || null });
 export const ajudaAuto = comConta(fase => rpc('ponte_ajuda_auto', { ...id(), p_fase: fase }));
 export const premios = comConta(() => rpc('ponte_premios', id()));

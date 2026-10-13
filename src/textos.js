@@ -138,6 +138,16 @@ const T = {
   // códigos
   'Tem um código?': L('Have a code?', '¿Tienes un código?'), 'Usar': L('Use', 'Usar'), 'código inválido ou expirado': L('invalid or expired code', 'código inválido o expirado'),
   'código esgotado': L('code sold out', 'código agotado'), 'você já usou esse código': L('you already used this code', 'ya usaste este código'),
+  // eventos de fase
+  'Noite': L('Night', 'Noche'), 'Tudo escuro': L('Everything dark', 'Todo oscuro'), '# moedas': L('# coins', '# monedas'), 'Chuva de meteoros': L('Meteor shower', 'Lluvia de meteoros'),
+  'Meteoros acertam os dois exércitos': L('Meteors hit both armies', 'Los meteoros golpean a ambos ejércitos'), 'Febre do ouro': L('Gold rush', 'Fiebre del oro'), 'Pilhas valem #': L('Stacks worth #', 'Pilas valen #'),
+  'orcs mais rápidos': L('faster orcs', 'orcos más rápidos'), 'Neblina': L('Fog', 'Niebla'), 'Não dá para ver longe': L("Can't see far", 'No se ve lejos'), 'orcs mais lentos': L('slower orcs', 'orcos más lentos'),
+  'Chefe furioso': L('Enraged boss', 'Jefe furioso'), 'O chefe já começa furioso': L('The boss starts enraged', 'El jefe empieza furioso'),
+  'NOITE!': L('NIGHT!', '¡NOCHE!'), 'CHUVA DE METEOROS!': L('METEOR SHOWER!', '¡LLUVIA DE METEOROS!'), 'FEBRE DO OURO!': L('GOLD RUSH!', '¡FIEBRE DEL ORO!'), 'NEBLINA!': L('FOG!', '¡NIEBLA!'), 'CHEFE FURIOSO!': L('ENRAGED BOSS!', '¡JEFE FURIOSO!'),
+  'Noite:': L('Night:', 'Noche:'), 'Chuva de meteoros:': L('Meteor shower:', 'Lluvia de meteoros:'), 'Febre do ouro:': L('Gold rush:', 'Fiebre del oro:'), 'Neblina:': L('Fog:', 'Niebla:'), 'Chefe furioso:': L('Enraged boss:', 'Jefe furioso:'),
+  'Maior estágio da Conquista': L('Highest Conquest stage', 'Mayor etapa de Conquista'), 'Ninguém ainda. Vença estágios na Conquista!': L('Nobody yet. Win Conquest stages!', 'Nadie aún. ¡Gana etapas en Conquista!'),
+  'Loja do dia': L("Today's shop", 'Tienda del día'), 'Novas ofertas em #h#': L('New offers in #h#', 'Nuevas ofertas en #h#'), 'Comprado': L('Bought', 'Comprado'),
+  'Especial #': L('Special #', 'Especial #'), 'Gigante #': L('Giant #', 'Gigante #'), 'Arqueiros #': L('Archers #', 'Arqueros #'), 'Lanceiros #': L('Spearmen #', 'Lanceros #'), 'Magos #': L('Mages #', 'Magos #'),
 };
 export const TEXTOS = { en: {}, es: {} };
 for (const [k, v] of Object.entries(T)) { TEXTOS.en[k] = v.en; TEXTOS.es[k] = v.es; }

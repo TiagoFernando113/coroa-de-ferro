@@ -13,6 +13,7 @@ import { HEROIS, heroiAtual } from './herois.js';
 import { criarTropas, desenharTropas, voar, passoVoo, limparTropas } from './tropas.js';
 import { PETS, RARIDADES, CLASSES, OVOS, BONUS as BONUS_PET, ESTRELAS, MAX_EQUIPE, MAX_NV, MAX_EST, base, est, qtd, temPet, modeloDe, tinta, atributos, forca, forcaEquipe, custoNivel, subirNivel, juntar, equipar, equiparMelhores, chocar, bonusPet, bonusEquipe, txtBonus, lucroOcioso } from './pets.js';
 import * as CQ from './conquista.js';
+import { ofertas, lojaDia, comprarOferta, temOferta } from './loja.js';
 import { TIPOS as TIPOS_MISSAO, PTS_NIVEL, NIVEIS_PASSE, atualizarMissoes, evento, prontas, pegarMissao, premioNivel, nivelPasse, pegarNivel, fimTemporada } from './missoes.js';
 import { traduzir, nomeIdioma, idioma, precisa } from './traduzir.js';
 import { t as tr, IDIOMAS, idiomaJogo, mudarIdioma } from './i18n.js';
@@ -217,9 +218,19 @@ function redesenharBarreira(b) {
   g.strokeText(b.hp, 128, 52); g.fillStyle = '#fff'; g.fillText(b.hp, 128, 52); b.tex.needsUpdate = true;
 }
 
+// eventos de fase (a partir da fase 3, ~70% das fases): mudam o clima e as regras
+export const EVENTOS = {
+  noite: { nome: 'Noite', icone: 'h_sombra', desc: 'Tudo escuro · +30% moedas', cor: '#8a9aff' },
+  meteoros: { nome: 'Chuva de meteoros', icone: 'h_meteoro', desc: 'Meteoros acertam os dois exércitos', cor: '#ff8a3a' },
+  ouro: { nome: 'Febre do ouro', icone: 'ouro', desc: 'Pilhas valem +50% · orcs mais rápidos', cor: '#ffd23a' },
+  nevoa: { nome: 'Neblina', icone: 'h_gelo', desc: 'Não dá para ver longe · orcs mais lentos', cor: '#c8d8e8' },
+  furia: { nome: 'Chefe furioso', icone: 'h_furia', desc: 'O chefe já começa furioso · +50% moedas', cor: '#ff5a4a' },
+};
+export function eventoDaFase(n) { if (n < 3 || ((n * 2654435761) >>> 0) % 100 < 30) return null; const ks = Object.keys(EVENTOS); return ks[(n * 7 + 3) % ks.length]; }
 export const ehCorrida = () => false; // fase Corrida desligada (código guardado para uma versão futura)
 export function iniciarFase(n, inf = false, semCorrida = false) {
   limparFase(); montarCenario(biomaDe(n));
+  { const B = BIOMAS[biomaDe(n)]; C.diaNoite(0); C.ceu(B.ceu); C.neblina(...B.nevoa); } // clima normal (o evento muda abaixo)
   const F = dadosFase(n), up = S.up, corrida = !inf && !semCorrida && ehCorrida(n);
   for (const m of MUROS_PISTA) m.visible = !corrida;
   G = { F, n, t: 0, az: [], vm: [], flechas: [], txt: [], fila: 8 * up.exercito, acum: 0, cd: 0.5, pistas: [[], []], spawnVm: 0, golpePend: 0,
@@ -229,6 +240,11 @@ export function iniciarFase(n, inf = false, semCorrida = false) {
     inf, chefesMortos: 0, tornados: [], medoT: 0, fogos: [], congelado: 0, multPilha: 1, velVm: 1, perfura: 0, autoChuva: false, escolhas: 0, proxEscolha: 14, pausa: false, pedras: [], pedraT: 9, tonto: 0, bonus: [], rotas: F.rotas, ouro: 25, deck: S.deck.filter(k => S.pd[k]?.nv > 0), vagas: [], tiros: [], menuVaga: null };
   if (corrida) { G.rotas = 1; F.vagas = 0; }
   aplicarBonusPets();
+  G.evento = inf || semCorrida ? null : eventoDaFase(n); G.multMoedas = 1; G.meteoros = []; G.metT = 7;
+  if (G.evento === 'noite') { C.diaNoite(0.47); C.ceu(0x141c34); C.neblina(140, 420); G.multMoedas = 1.3; }
+  if (G.evento === 'nevoa') { C.ceu(0xc8d2dc); C.neblina(45, 150); G.velVm *= 0.8; }
+  if (G.evento === 'ouro') { G.multPilha *= 1.5; F.ritmo *= 1.3; }
+  if (G.evento === 'furia') G.multMoedas = 1.5;
   // duas rotas: um muro baixo divide a pista do meio
   if (G.rotas > 1) { G.forquilha = new THREE.Mesh(new THREE.BoxGeometry(1, 1.6, ZFORK0 - ZFORK1).translate(0, 0.8, (ZFORK0 + ZFORK1) / 2), MAT_MURO); G.forquilha.castShadow = G.forquilha.receiveShadow = true; cena.add(G.forquilha); }
   // vagas de torre em cima das divisórias
@@ -240,7 +256,7 @@ export function iniciarFase(n, inf = false, semCorrida = false) {
     for (const p0 of F.portoes) { const p = { ...p0, z: ZLANE - 2 - p0.i * PASSO }; criarPortao(p); G.portoes.push(p); }
     [F.esq, F.dir].forEach((lista, k) => lista.forEach((b0, i) => novoBloco(b0, k, ZLANE - 2 - i * PASSO, F.duro)));
   }
-  criarChefe(F);
+  criarChefe(F); if (G.evento === 'furia') { G.chefe.furia = true; G.puloT = 6; }
   if (corrida) montarCorrida(F, n);
   // herói arqueiro
   G.heroiDef = heroiAtual(S); G.tiro *= G.heroiDef.ataque.cad; G.tiroMax *= G.heroiDef.ataque.cad;
@@ -344,7 +360,7 @@ function limparFase() {
   if (G.corrida) for (const o of G.corrida.objs) cena.remove(o);
   for (const tn of G.tornados) cena.remove(tn.o); for (const fg of G.fogos) cena.remove(fg.o); if (G.chefe?.bolha) cena.remove(G.chefe.bolha); for (const c of G.chuvas) if (c.o) cena.remove(c.o);
   for (const v of G.vagas) { cena.remove(v.base); if (v.o) cena.remove(v.o); }
-  for (const s of G.tiros) cena.remove(s.o);
+  for (const s of G.tiros) cena.remove(s.o); for (const m of G.meteoros || []) cena.remove(m.o);
   if (G.forquilha) cena.remove(G.forquilha);
   limparTropas(); G = null;
 }
@@ -427,11 +443,12 @@ function desenharLobby() {
   const F = dadosFase(S.fase), O = S.online, upPode = Object.entries(UPGRADES).some(([k, U]) => S.up[k] < U.max && S.moedas >= U.custo(S.up[k]));
   const nav = `<nav class="lbNav">${ABAS.map(([k, nome, icone]) => `<button class="${abaLobby === k ? 'on' : ''}" data-aba-lobby="${k}">${ico(icone)}<small>${nome}</small>${(k === 'up' && upPode) || (k === 'pets' && (S.ovos.comum || S.ovos.magico)) ? '<i class="ponto"></i>' : ''}</button>`).join('')}</nav>`;
   const topo = `<div class="lbTopo"><div class="pilula ouro">${ico('ouro')}<b>${fmt(S.moedas)}</b></div>
-    <button class="redondo missoes" data-a="missoes">${ico('missoes')}${prontas() ? '<i class="ponto"></i>' : ''}</button><button class="redondo presente" data-a="diario">${ico('presente')}${diarioPronto() ? '<i class="ponto"></i>' : ''}</button><button class="redondo lingua" data-a="idioma"><span class="flag">${IDIOMAS.find(i => i[0] === idiomaJogo())?.[2] || '🌐'}</span></button><button class="redondo" data-a="som">${ico(estaMudo() ? 'mudo' : 'som')}</button></div>`;
+    <button class="redondo loja" data-a="loja">${ico('mercado')}${temOferta() ? '<i class="ponto"></i>' : ''}</button><button class="redondo missoes" data-a="missoes">${ico('missoes')}${prontas() ? '<i class="ponto"></i>' : ''}</button><button class="redondo presente" data-a="diario">${ico('presente')}${diarioPronto() ? '<i class="ponto"></i>' : ''}</button><button class="redondo lingua" data-a="idioma"><span class="flag">${IDIOMAS.find(i => i[0] === idiomaJogo())?.[2] || '🌐'}</span></button><button class="redondo" data-a="som">${ico(estaMudo() ? 'mudo' : 'som')}</button></div>`;
   let meio;
   if (abaLobby === 'home') meio = `
     <div class="lbLogo"><small>Batalha da</small><h1>Ponte</h1></div>
-    <div class="lbFaseCard"><span class="fN ${ehCorrida(S.fase) ? 'corrida' : ''}"><small>${ehCorrida(S.fase) ? 'CORRIDA' : 'FASE'}</small><b>${S.fase}</b></span><span class="fInfo"><b>${ico('chefe')} ${F.chefe.nome}</b><small>${HABILIDADES[F.chefe.modelo]?.desc || ''} · ${BIOMAS[biomaDe(S.fase)].nome} · vida ${fmt(F.chefe.hp)}${O?.apelido ? ` · ${esc(O.apelido)}` : ''}</small></span></div>
+    <div class="lbFaseCard"><span class="fN ${ehCorrida(S.fase) ? 'corrida' : ''}"><small>${ehCorrida(S.fase) ? 'CORRIDA' : 'FASE'}</small><b>${S.fase}</b></span><span class="fInfo"><b>${ico('chefe')} ${F.chefe.nome}</b><small>${HABILIDADES[F.chefe.modelo]?.desc || ''} · ${BIOMAS[biomaDe(S.fase)].nome} · vida ${fmt(F.chefe.hp)}${O?.apelido ? ` · <span data-nt>${esc(O.apelido)}</span>` : ''}</small>
+      ${eventoDaFase(S.fase) ? (E => `<em class="fEvento" style="--c:${E.cor}">${ico(E.icone)}<b>${E.nome}:</b> ${E.desc}</em>`)(EVENTOS[eventoDaFase(S.fase)]) : ''}</span></div>
     <div class="lbBase">
       <button class="cqEntrar" data-a="conquista">${ico('bandeira')}<span><b>Conquista</b><small>Estágio ${S.cq.est} · seus pets lutam sozinhos</small></span>${lucroOcioso() > 0 ? `<em>${ico('ouro')}${fmt(lucroOcioso())}</em>` : ''}</button>
       <div class="baus">${Array.from({ length: MAX_BAUS }, (_, i) => { const b = S.baus[i];
@@ -571,11 +588,13 @@ function carregarOnline(aba) {
       <button class="btn verde grande" data-a="salvarNome">Salvar</button><button class="btn azul" data-a="voltarOnline">Voltar</button>`; return;
   }
   if (aba === 'rank') {
-    el.innerHTML = `${nome}<div class="abas"><button class="${rankModo === 'jog' ? 'on' : ''}" data-rk="jog">Jogadores</button><button class="${rankModo === 'cla' ? 'on' : ''}" data-rk="cla">Clãs</button></div>
-      <p class="sub">${rankModo === 'jog' ? 'Ponte sem fim · melhores do mundo' : 'Clãs com mais chefes semanais derrotados'}</p><div class="lista" id="lista"><p>Carregando...</p></div>`;
+    el.innerHTML = `${nome}<div class="abas"><button class="${rankModo === 'jog' ? 'on' : ''}" data-rk="jog">Jogadores</button><button class="${rankModo === 'cq' ? 'on' : ''}" data-rk="cq">Conquista</button><button class="${rankModo === 'cla' ? 'on' : ''}" data-rk="cla">Clãs</button></div>
+      <p class="sub">${rankModo === 'jog' ? 'Ponte sem fim · melhores do mundo' : rankModo === 'cq' ? 'Maior estágio da Conquista' : 'Clãs com mais chefes semanais derrotados'}</p><div class="lista" id="lista"><p>Carregando...</p></div>`;
     const med = p => p <= 3 ? ['🥇', '🥈', '🥉'][p - 1] : '#' + p;
     (rankModo === 'jog' ? ON.garantir().then(ON.ranking).then(l => l.length ? l.map(r => `<div class="linha ${r.eu ? 'eu' : ''}"><b>${med(r.posicao)}</b><span data-nt>${tagHtml(r.tag, 0)}${esc(r.apelido)}</span><small>${r.chefes} chefes</small><em>${fmt(r.pontos)}</em></div>`).join('')
         : '<p>Ninguém no ranking ainda. Jogue a Ponte sem fim e seja o primeiro!</p>')
+      : rankModo === 'cq' ? ON.garantir().then(ON.cqTop).then(l => l.length ? l.map(r => `<div class="linha ${r.eu ? 'eu' : ''}"><b>${med(r.posicao)}</b><span data-nt>${tagHtml(r.tag, 0)}${esc(r.apelido)}</span><small>${ico('forca')} ${fmt(r.forca)}</small><em>${ico('bandeira')} ${r.estagio}</em></div>`).join('')
+        : '<p>Ninguém ainda. Vença estágios na Conquista!</p>')
       : ON.clas().then(l => l.length ? l.map((c, i) => `<div class="linha"><b>${med(i + 1)}</b>${escudoCla(c.cor, c.tag || c.nome)}<span data-nt>${tagHtml(c.tag, c.cor)}${esc(c.nome)}</span><small>${c.membros} membros</small><em>Nv ${c.nivel}</em></div>`).join('') : '<p>Nenhum clã ainda.</p>'))
       .then(h => { const e = $('#lista'); if (e) e.innerHTML = h; const b = document.querySelector('.nomeEu b'); if (b) b.textContent = ON.conta()?.apelido || ''; })
       .catch(e => { const x = $('#lista'); if (x) x.innerHTML = `<p class="erro">${esc(e.message)}</p>`; });
@@ -774,6 +793,18 @@ function atualizarRevanche() {
   else if (!D.fim) el.innerHTML = `<b>${nome}</b> ainda está jogando...`;
   else el.textContent = '';
 }
+// ---- loja diária ----
+function mostrarLoja() {
+  const L = lojaDia(), j = $('#janela'); j.hidden = false; const ag = new Date(), meia = new Date(ag.getFullYear(), ag.getMonth(), ag.getDate() + 1), h = Math.floor((meia - ag) / 36e5), m = Math.floor((meia - ag) / 6e4) % 60;
+  const item = o => o.tipo === 'ovo' ? `${CQ.ovoHtml(o.ovo)}<b>${OVOS[o.ovo].nome}</b>` : o.tipo === 'bau' ? `${bauHtml(o.bau)}<b>${BAUS[o.bau].nome}</b>`
+    : o.tipo === 'pet' ? `<img src="${fotoPet(o.pet)}" alt=""><b data-nt>${PETS[o.pet].nome}</b><small style="color:${RARIDADES[PETS[o.pet].r].cor}">${RARIDADES[PETS[o.pet].r].nome}</small>`
+    : `<span class="cartaMini ${o.carta}">${ico(NOME_CARTA[o.carta][1])}</span><b>${NOME_CARTA[o.carta][0]} x${o.n}</b>`;
+  const re = !!j.querySelector('.jLoja'); j.innerHTML = `<div class="jMissoes jLoja ${re ? 'semAnim' : ''}"><h2>${ico('mercado')} Loja do dia</h2><p class="sub">Novas ofertas em ${h}h${String(m).padStart(2, '0')}</p>
+    <div class="ljGrade">${ofertas().map((o, i) => { const feito = L.comprados.includes(i);
+      return `<div class="ljItem ${feito ? 'feito' : ''}">${o.desconto ? `<i class="ljDesc">-${o.desconto}%</i>` : ''}<div class="ljImg">${item(o)}</div>
+        ${feito ? `<em>${ico('check')} Comprado</em>` : `<button class="btn ${S.moedas >= o.preco ? 'verde' : 'cinza'} peq" data-oferta="${i}" ${S.moedas >= o.preco ? '' : 'disabled'}>${ico('ouro')} ${fmt(o.preco)}</button>`}</div>`; }).join('')}</div>
+    <button class="btn azul" data-a="fecharJanela">Fechar</button></div>`;
+}
 // ---- missões e passe ----
 let modoMissao = 'missoes';
 function mostrarMissoes() {
@@ -783,7 +814,7 @@ function mostrarMissoes() {
       <div class="barra"><i style="width:${100 * m.prog / m.meta}%"></i><span>${fmt(m.prog)}/${fmt(m.meta)}</span></div></div>
       ${m.pego ? `<em>${ico('check')}</em>` : `<button class="btn ${ok ? 'verde' : 'cinza'} peq" data-missao="${sem ? 's' : 'd'}:${i}" ${ok ? '' : 'disabled'}>${ico('estrela')}+${sem ? 150 : 40}</button>`}</div>`; };
   const premioHtml = n => { const p = premioNivel(n); return p.ovo ? CQ.ovoHtml(p.ovo, 'mini') : p.bau ? bauHtml(p.bau, 'mini') : `${ico('ouro')}<small>${fmt(p.moedas)}</small>`; };
-  j.innerHTML = `<div class="jMissoes"><div class="abas"><button class="${modoMissao === 'missoes' ? 'on' : ''}" data-mm="missoes">${ico('missoes')} Missões</button><button class="${modoMissao === 'passe' ? 'on' : ''}" data-mm="passe">${ico('coroa')} Passe</button></div>
+  const re = !!j.querySelector('.jMissoes'); j.innerHTML = `<div class="jMissoes ${re ? 'semAnim' : ''}"><div class="abas"><button class="${modoMissao === 'missoes' ? 'on' : ''}" data-mm="missoes">${ico('missoes')} Missões</button><button class="${modoMissao === 'passe' ? 'on' : ''}" data-mm="passe">${ico('coroa')} Passe</button></div>
     ${modoMissao === 'missoes' ? `<h3>Diárias <small>renovam todo dia</small></h3>${M.diarias.map((m, i) => linha(m, i, false)).join('')}
       <h3>Semanais <small>dão um Ovo Comum</small></h3>${M.semanais.map((m, i) => linha(m, i, true)).join('')}`
     : `<div class="psTopo"><b>Nível ${nv}/${NIVEIS_PASSE}</b><small>Temporada acaba em ${fimTemporada()} dias</small>
@@ -828,6 +859,9 @@ function clique(e) {
   if (a === 'renascer') renascer(b);
   if (a === 'resgatar') resgatarCodigo(b);
   if (a === 'missoes') { som('clique'); mostrarMissoes(); }
+  if (a === 'loja') { som('clique'); mostrarLoja(); }
+  if (b.dataset.oferta) { const r = comprarOferta(+b.dataset.oferta); if (!r) { som('erro'); return; } if (r.cheio) { som('erro'); b.textContent = tr('Baús cheios'); return; }
+    som('compra'); sfx('vitoria'); mostrarLoja(); if (tela === 'lobby') { recriarPetsLobby(); desenharLobby(); } }
   if (b.dataset.mm) { som('clique'); modoMissao = b.dataset.mm; mostrarMissoes(); }
   if (b.dataset.missao) { const [sem, i] = b.dataset.missao.split(':'), r = pegarMissao(sem === 's', +i); if (!r) { som('erro'); return; } sfx('vitoria'); som('moedas'); mostrarMissoes(); if (tela === 'lobby') desenharLobby(); }
   if (b.dataset.passe) { const r = pegarNivel(+b.dataset.passe); if (!r) { som('erro'); return; } if (r.cheio) { som('erro'); b.textContent = tr('Baús cheios'); return; } sfx('vitoria'); mostrarMissoes(); if (tela === 'lobby') desenharLobby(); }
@@ -898,6 +932,7 @@ function comecarFase(inf = false, dupla = null) {
   $('#jN').textContent = G.inf ? '∞ · 1' : G.n; $('#jChefeN').textContent = G.chefe.nome; tema((G.n - 1) % 8);
   { const P = G.heroiDef.poder, bt = document.querySelector('[data-pd=chuva]'); if (bt) bt.innerHTML = `${ico(P.icone)}<small>${P.nome}</small>`; }
   if (G.inf) faixa('PONTE SEM FIM!', '#c88aff');
+  if (G.evento) { const E = EVENTOS[G.evento]; setTimeout(() => { if (G?.evento && !G.fim) faixa(E.nome.toUpperCase() + '!', E.cor); }, 1800); if (G.evento === 'furia') intensidade(2); }
   $('.jPoderes').hidden = !!G.corrida;
 
   if (G.dupla) faixa(`EM DUPLA COM ${G.dupla.apelido.toUpperCase()}!`, '#8ae0ff');
@@ -934,7 +969,7 @@ function terminarInf() {
 function danoNoCla() { const d = G.danoTotal || 0; if (d > 0 && S.online?.codigo) ON.claDano(d).then(r => { if (r?.caiu) setTimeout(coletarPremios, 500); }).catch(() => {}); }
 function terminar(venceu) {
   if (G.fim) return; danoNoCla(); fimDupla(venceu); if (G.inf) return terminarInf(); G.fim = venceu ? 'v' : 'd'; tela = 'fim';
-  const ganho = Math.round((venceu ? G.F.moedas + Math.floor(G.az.length / 4) : G.F.moedas * 0.25) * (G.dupla ? 1.5 : 1) * (1 + ((bonusEquipe().moedas || 0) + bonusRenasc(S.renasc || 0).moedas) / 100));
+  const ganho = Math.round((venceu ? G.F.moedas + Math.floor(G.az.length / 4) : G.F.moedas * 0.25) * (G.dupla ? 1.5 : 1) * (1 + ((bonusEquipe().moedas || 0) + bonusRenasc(S.renasc || 0).moedas) / 100) * (G.multMoedas || 1));
   S.moedas += ganho; evento('orcs', G.mortesVm); if (venceu) { evento('fases'); evento('chefes'); } let bau = null; if (venceu) { bau = ganharBau(G.n); if (!G.dupla || G.n === S.fase) S.fase++; S.melhor = Math.max(S.melhor, G.n); } salvar();
   setTimeout(() => {
     $('#jogo').hidden = true; const f = $('#fim'); f.hidden = false;
@@ -1029,6 +1064,17 @@ function passoJogo(dt) {
       for (let i = 0; i < 10; i++) novoBloco(blocoInf(l[i + 8], k), k, (p.length ? p[p.length - 1].z : ZLANE) - PASSO - 6, F.duro + G.chefesMortos); });
   // hora de escolher um bônus
   if (G.t >= G.proxEscolha && !ch.pulo) { G.proxEscolha = G.t + 22 + 4 * G.escolhas; abrirEscolha(); }
+  // evento: meteoros caem na ponte e acertam azuis e vermelhos
+  if (G.evento === 'meteoros' && G.t > 6 && (G.metT -= dt) <= 0) { G.metT = Math.max(2.6, 5 - 0.05 * G.n);
+    const x = (Math.random() * 2 - 1) * (MEIA - 4), z = ZSPAWN - 8 - Math.random() * Math.max(10, ZSPAWN - 8 - (ch.z + 20)), o = new THREE.Mesh(GEO_METEORO, MAT_METEORO);
+    o.scale.setScalar(0.55); o.position.set(x + 20, 70, z - 30); cena.add(o); G.meteoros.push({ o, x, z, t: 0, dur: 1.6, av: C.aviso(x, z, 4.5, 1.6, 0xff6a1a) }); }
+  for (const m of G.meteoros) { m.t += dt; const k = Math.min(1, m.t / m.dur); m.o.position.set(m.x + 20 * (1 - k), 70 * (1 - k) + 1, m.z - 30 * (1 - k)); m.o.rotation.x += dt * 5;
+    if (Math.random() < 0.6) C.faiscas(m.o.position.x, m.o.position.y, m.o.position.z, 0xff8a2a, 2, 1);
+    if (k >= 1) { m.fim = true; cena.remove(m.o); C.faiscas(m.x, 1, m.z, 0xff6a1a, 50, 10); C.onda(m.x, m.z, 6, 0xff8a3a, 0.5); C.camera.tremor = Math.max(C.camera.tremor, 0.6); som('pancada', 0.6);
+      let na = 0, nv = 0; for (const a of G.az) if (!a.morto && Math.hypot(a.x - m.x, a.z - m.z) < 4.5) { a.morto = true; na++; arremessar(a.tipo, a, m.x, m.z, 14); }
+      for (const v of G.vm) if (!v.morto && Math.hypot(v.x - m.x, v.z - m.z) < 4.5) { v.morto = true; nv++; G.mortesVm++; arremessar('vm', v, m.x, m.z, 14); }
+      G.az = G.az.filter(a => !a.morto); if (nv) G.txt.push({ x: m.x, y: 5, z: m.z, txt: `${nv}!`, cor: '#ff8a3a', t: 0, grande: true }); } }
+  G.meteoros = G.meteoros.filter(m => !m.fim);
   // o chefe joga pedras no herói: um círculo avisa onde cai, arraste para desviar
   if (G.t > 8 && (G.pedraT -= dt) <= 0) { G.pedraT = Math.max(3.5, 8 - 0.25 * G.n) * (ch.furia ? 0.65 : 1);
     const x = Math.max(-MEIA + 3, Math.min(MEIA - 3, h.x + (Math.random() - 0.5) * 4)), dur = 1.4;

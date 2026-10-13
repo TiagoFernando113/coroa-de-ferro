@@ -9,6 +9,8 @@ import { sfx } from './musica.js';
 import { ico, som, $ } from './util.js';
 import { t as tr } from './i18n.js';
 import { evento } from './missoes.js';
+import * as ON from './online.js';
+import { forcaEquipe } from './pets.js';
 
 const Z_NOS = -24, Z_ELES = -50, ALT = 4.2; // altura de um pet na tela
 let Q = null, aoSair = null, el = null;
@@ -143,7 +145,7 @@ function acabar(venceu) {
   for (const u of Q.us) if (!u.morto && u.v) u.v.tocar('Idle');
   const est = Q.est; let premio = 0, ovo = null;
   if (venceu) { evento('conquista'); premio = 15 + 6 * est; if (est % 10 === 0) { ovo = 'magico'; premio *= 4; } else if (est % 5 === 0) ovo = 'comum';
-    S.moedas += premio; if (ovo) S.ovos[ovo]++; S.cq.est = Math.max(S.cq.est, est + 1); salvar(); }
+    S.moedas += premio; if (ovo) S.ovos[ovo]++; S.cq.est = Math.max(S.cq.est, est + 1); salvar(); if (S.online?.codigo) ON.cqEnviar(S.cq.est - 1, forcaEquipe()).catch(() => {}); }
   setTimeout(() => { if (!Q || !el) return; const j = $('#cqJanela'); j.hidden = false; el.querySelector('.cqLuta')?.remove();
     j.innerHTML = `<div class="cqFim ${venceu ? 'vit' : 'der'}"><h2>${venceu ? `Estágio ${est} conquistado!` : 'Seus pets caíram!'}</h2>
       ${venceu ? `<div class="ganho">${ico('ouro')}<b>+${fmt(premio)}</b></div>${ovo ? `<div class="cqOvo">${ovoHtml(ovo)}<b>+1 ${OVOS[ovo].nome}!</b></div>` : ''}<p>Lucro ocioso agora: ${fmt(lucroHora())}/h</p>`
