@@ -13,6 +13,7 @@ import { HEROIS, heroiAtual } from './herois.js';
 import { criarTropas, desenharTropas, voar, passoVoo, limparTropas } from './tropas.js';
 import { PETS, RARIDADES, CLASSES, OVOS, BONUS as BONUS_PET, ESTRELAS, MAX_EQUIPE, MAX_NV, MAX_EST, base, est, qtd, temPet, modeloDe, tinta, atributos, forca, forcaEquipe, custoNivel, subirNivel, juntar, equipar, equiparMelhores, chocar, bonusPet, bonusEquipe, txtBonus, lucroOcioso } from './pets.js';
 import * as CQ from './conquista.js';
+import { traduzir, nomeIdioma } from './traduzir.js';
 
 // ---------------- medidas da ponte (frente = -z) ----------------
 const MEIA = 17;            // meia largura da ponte
@@ -585,6 +586,8 @@ async function cliqueOnline(b) {
   if (b.dataset.cm) { som('clique'); claModo = b.dataset.cm; carregarOnline('cla'); return; }
   if (a === 'chatEnviar') { const i = $('#chatTxt'), t = i.value.trim(); if (!t) return; b.disabled = true;
     try { await ON.chatEnviar(t); i.value = ''; som('clique'); lerChat(); } catch (e) { erro(e.message); } b.disabled = false; }
+  if (a === 'chatTrad') { S.traduzir = S.traduzir === false; salvar(); som('clique'); carregarOnline('cla'); return; }
+  if (b.dataset.trVer) { b.closest('.chM').classList.toggle('orig'); return; }
   if (a === 'chatPedirAbrir') { som('clique'); const p = $('#chatPedir'); p.hidden = !p.hidden; }
   if (b.dataset.pedir) { b.disabled = true; try { const min = await ON.chatPedir(b.dataset.pedir); if (min > 0) erro(`Próximo pedido em ${Math.floor(min / 60)}h${String(min % 60).padStart(2, '0')}`); else { sfx('brilho'); $('#chatPedir').hidden = true; lerChat(); } } catch (e) { erro(e.message); } b.disabled = false; }
   if (b.dataset.doar) { b.disabled = true; try { await ON.chatDoar(+b.dataset.doar); sfx('brilho'); som('moedas'); lerChat(); setTimeout(coletarPremios, 400); } catch (e) { b.disabled = false; erro(e.message); } }
@@ -603,7 +606,7 @@ async function cliqueOnline(b) {
 let claModo = 'chat', chatTimer = null, chatAssin = '';
 const NOME_CARTA = { chuva: ['Especial', 'estrela'], gigante: ['Gigante', 'cav'], arco: ['Arqueiros', 'arq'], lanca: ['Lanceiros', 'bar'], mago: ['Magos', 'mag'] };
 function htmlChat() {
-  return `<div class="chatLista" id="chatLista"><p class="sub">Carregando...</p></div>
+  return `<button class="chatTrad ${S.traduzir === false ? '' : 'on'}" data-a="chatTrad">${ico('pergaminho')} Tradução automática: <b>${S.traduzir === false ? 'desligada' : 'ligada'}</b></button><div class="chatLista" id="chatLista"><p class="sub">Carregando...</p></div>
     <div class="chatPedir" id="chatPedir" hidden><small>Peça uma carta (1 pedido a cada 4h, até 8 doações):</small><div>${Object.entries(NOME_CARTA).filter(([k]) => S.pd[k]?.nv > 0)
       .map(([k, [n, i]]) => `<button class="cartaMini ${k}" data-pedir="${k}">${ico(i)}<small>${n}</small></button>`).join('')}</div></div>
     <p class="erro" id="onErro"></p>
@@ -623,10 +626,19 @@ function lerChat() {
         return `<div class="chM pedido ${m.eu ? 'eu' : ''}"><b>${esc(m.apelido)}</b><div class="pedCorpo"><span class="cartaMini ${m.item}">${ico(i)}</span><div><small>pede ${n}</small>
           <div class="barra"><i style="width:${100 * m.doado / m.maximo}%"></i><span>${m.doado}/${m.maximo}</span></div></div>
           ${m.eu ? '' : cheio ? `<em>Completo</em>` : m.doei ? `<em>${ico('check')} Doado</em>` : `<button class="btn amarelo peq" data-doar="${m.id}">Doar<small>${ico('ouro')}20</small></button>`}</div></div>`; }
-      return `<div class="chM ${m.eu ? 'eu' : ''}">${m.eu ? '' : `<b>${esc(m.apelido)}</b>`}<span>${esc(m.texto)}</span></div>`; }).join('')
+      return `<div class="chM ${m.eu ? 'eu' : ''}" ${m.eu ? '' : `data-tr="${m.id}"`}>${m.eu ? '' : `<b>${esc(m.apelido)}</b>`}<span class="tOrig">${esc(m.texto)}</span></div>`; }).join('')
       : '<p class="sub">Nenhuma mensagem ainda. Diga oi para o clã!</p>';
     if (noFim || !el.dataset.foi) { el.scrollTop = el.scrollHeight; el.dataset.foi = '1'; }
+    traduzirChat(l);
   }).catch(e => { const el = $('#chatLista'); if (el && !chatAssin) el.innerHTML = `<p class="erro">${esc(e.message)}</p>`; });
+}
+// tradução automática das mensagens dos outros (para o idioma do celular)
+function traduzirChat(l) {
+  if (S.traduzir === false) return;
+  for (const m of l) if (m.tipo === 'msg' && !m.eu) traduzir(m.id, m.texto).then(r => { const e = document.querySelector(`.chM[data-tr="${m.id}"]`); if (!r || !e || e.querySelector('.tTrad')) return;
+    const el = $('#chatLista'), fim = el && el.scrollTop + el.clientHeight >= el.scrollHeight - 30;
+    e.insertAdjacentHTML('beforeend', `<span class="tTrad">${esc(r.tr)}</span><button class="trVer" data-tr-ver="${m.id}">${ico('pergaminho')} ${esc(nomeIdioma(r.de))} · <span class="lO">ver original</span><span class="lT">ver tradução</span></button>`); e.classList.add('trad');
+    if (fim) el.scrollTop = el.scrollHeight; });
 }
 // cartas que o clã doou chegam quando o jogador abre o jogo ou o chat
 function receberDoacoes() {
@@ -761,7 +773,7 @@ function clique(e) {
   if (a === 'roleta') pararRoleta();
   if (a === 'diario') { som('clique'); mostrarDiario(); }
   if (a === 'online') { som('clique'); mostrarOnline('rank'); }
-  if (b.dataset.rk || b.dataset.cla || b.dataset.cm || b.dataset.pedir || b.dataset.doar || ['trocarNome', 'salvarNome', 'voltarOnline', 'claCriar', 'claSair', 'chatEnviar', 'chatPedirAbrir'].includes(a)) cliqueOnline(b);
+  if (b.dataset.rk || b.dataset.cla || b.dataset.cm || b.dataset.pedir || b.dataset.doar || ['trocarNome', 'salvarNome', 'voltarOnline', 'claCriar', 'claSair', 'chatEnviar', 'chatPedirAbrir', 'chatTrad'].includes(a) || b.dataset.trVer) cliqueOnline(b);
   if (a === 'dupla') { som('confirma'); procurarDupla(); }
   if (a === 'revanche') pedirRevanche();
   if (a === 'sairDupla') { som('fechar'); G?.dupla?.canal?.enviar('sair', {}); abrirLobby(); }
