@@ -205,14 +205,14 @@ function redesenharBarreira(b) {
   g.strokeText(b.hp, 128, 52); g.fillStyle = '#fff'; g.fillText(b.hp, 128, 52); b.tex.needsUpdate = true;
 }
 
-export function iniciarFase(n) {
+export function iniciarFase(n, inf = false) {
   limparFase(); montarCenario(biomaDe(n));
   const F = dadosFase(n), up = S.up;
   G = { F, n, t: 0, az: [], vm: [], flechas: [], txt: [], fila: 8 * up.exercito, acum: 0, cd: 0.5, pistas: [[], []], spawnVm: 0, golpePend: 0,
     muro: vidaMuralha(up.vida), muroMax: vidaMuralha(up.vida), tiro: tiros(up.fogo), nFlechas: 1 + up.flechas, escudo: escudo(up.escudos),
     heroi: { x: 0, alvo: 0 }, golpeT: 4, fim: null, mortesVm: 0, portoes: [], ondaT: 16, banner: null, punch: 0, lento: 0, brilhoH: 0,
     pd: { chuva: { cd: 4, max: Math.max(6, 11 - 0.6 * (S.pd.chuva.nv - 1)), nv: S.pd.chuva.nv }, gigante: { cd: 12, max: Math.max(16, 30 - 1.8 * (S.pd.gigante.nv - 1)), nv: S.pd.gigante.nv } }, chuvas: [], gigante: null, puloT: 0,
-    rotas: F.rotas, ouro: 25, deck: S.deck.filter(k => S.pd[k]?.nv > 0), vagas: [], tiros: [], menuVaga: null };
+    inf, chefesMortos: 0, rotas: F.rotas, ouro: 25, deck: S.deck.filter(k => S.pd[k]?.nv > 0), vagas: [], tiros: [], menuVaga: null };
   // duas rotas: um muro baixo divide a pista do meio
   if (G.rotas > 1) { G.forquilha = new THREE.Mesh(new THREE.BoxGeometry(1, 1.6, ZFORK0 - ZFORK1).translate(0, 0.8, (ZFORK0 + ZFORK1) / 2), MAT_MURO); G.forquilha.castShadow = G.forquilha.receiveShadow = true; cena.add(G.forquilha); }
   // vagas de torre em cima das divisórias
@@ -221,16 +221,35 @@ export function iniciarFase(n) {
     G.vagas.push({ i, x, z, base, tipo: null, nv: 0, cd: 0, o: null }); }
   montarVagas();
   for (const p0 of F.portoes) { const p = { ...p0, z: ZLANE - 2 - p0.i * PASSO }; criarPortao(p); G.portoes.push(p); }
-  [F.esq, F.dir].forEach((lista, k) => lista.forEach((b0, i) => { const b = { ...b0, z: ZLANE - 2 - i * PASSO };
-    if (b.tipo !== 'barreira') b.hp = b.hpMax = (b.tipo === 'mais' ? Math.max(1, Math.round(1.3 * Math.log(b.valor))) : 3) + F.duro; criarBloco(b, k ? 1 : -1); G.pistas[k].push(b); }));
-  // chefe
-  const ch = C.personagem(F.chefe.modelo, [], 1); ch.raiz.scale.setScalar(5); ch.raiz.position.set(0, 0, ZBOSS); ch.tocar('Idle');
-  G.chefe = { v: ch, hp: F.chefe.hp, max: F.chefe.hp, nome: F.chefe.nome, flash: 0, z: ZBOSS, y: 0, esc: 5, mats: [] };
-  ch.raiz.traverse(o => { if (o.material?.emissive) G.chefe.mats.push(o.material); });
+  [F.esq, F.dir].forEach((lista, k) => lista.forEach((b0, i) => novoBloco(b0, k, ZLANE - 2 - i * PASSO, F.duro)));
+  criarChefe(F);
   // herói arqueiro
   if (!G.heroiV) { const v = C.heroi(S.visual || visualPadrao('arq')); v.raiz.scale.setScalar(2.4); v.raiz.rotation.y = Math.PI; v.tocar('Ranged_Bow_Aiming_Idle'); G.heroiV = v; }
   G.heroiV.raiz.position.set(0, 0, ZH);
 }
+function novoBloco(b0, k, z, duro) {
+  const b = { ...b0, z }; if (b.tipo !== 'barreira') b.hp = b.hpMax = (b.tipo === 'mais' ? Math.max(1, Math.round(1.3 * Math.log(b.valor))) : 3) + duro;
+  criarBloco(b, k ? 1 : -1); G.pistas[k].push(b);
+}
+function criarChefe(F) {
+  const ch = C.personagem(F.chefe.modelo, [], 1); ch.raiz.scale.setScalar(5); ch.raiz.position.set(0, 0, ZBOSS); ch.tocar('Idle');
+  G.chefe = { v: ch, hp: F.chefe.hp, max: F.chefe.hp, nome: F.chefe.nome, flash: 0, z: ZBOSS, y: 0, esc: 5, mats: [] };
+  ch.raiz.traverse(o => { if (o.material?.emissive) G.chefe.mats.push(o.material); });
+}
+// ponte sem fim: chefe derrotado explode e vem o próximo, mais forte (pistas e portões se renovam)
+function proximoChefe() {
+  const ch = G.chefe; G.chefesMortos++; G.n++; const F = dadosFase(G.n);
+  C.faiscas(0, 6, ch.z, 0xffd84a, 120, 12); C.camera.tremor = 1; G.lento = 1; G.punch = 1; sfx('vitoria');
+  for (const v of G.vm) arremessar('vm', v, 0, ch.z, 14); G.vm = []; G.chuvas.length = 0;
+  ch.v.remover(); G.F = F; G.t = 0; G.ondaT = 16; G.puloT = 0; G.golpePend = 0; intensidade(1);
+  criarChefe(F); $('#jChefeN').textContent = G.chefe.nome; $('#jN').textContent = `∞ · ${G.chefesMortos + 1}`;
+  for (const p of G.portoes) cena.remove(p.o); G.portoes = [];
+  for (const p0 of F.portoes) { const p = { ...p0, z: ZLANE - 2 - p0.i * PASSO }; criarPortao(p); G.portoes.push(p); }
+  G.ouro += 30; G.muro = Math.min(G.muroMax, G.muro + Math.ceil(G.muroMax * 0.25));
+  faixa(`CHEFE ${G.chefesMortos} DERROTADO!`, '#ffd84a'); G.txt.push({ x: 0, y: 8, z: -40, txt: '+1000', cor: '#ffd84a', t: 0, grande: true });
+  montarCenario(biomaDe(G.n));
+}
+const pontosInf = () => G.chefesMortos * 1000 + G.mortesVm;
 function limparFase() {
   if (!G) return;
   for (const p of G.pistas) for (const b of p) cena.remove(b.mesh);
@@ -288,7 +307,8 @@ function desenharLobby() {
           ${sel ? `<em>${ico('check')}</em>` : ''}</${tropa ? 'button' : 'div'}>`; }).join('')}</div>
       <div class="baus">${Array.from({ length: MAX_BAUS }, (_, i) => { const b = S.baus[i];
         return b ? `<button class="slotBau" data-bau="${i}">${bauHtml(b.tipo, 'mini')}<small>Abrir!</small></button>` : `<div class="slotBau vazio"><small>Vença para ganhar baú</small></div>`; }).join('')}</div>
-      <button class="btn verde grande" data-a="jogar">${ico('h_triplo')} JOGAR</button></div>`;
+      <button class="btn verde grande" data-a="jogar">${ico('h_triplo')} JOGAR</button>
+      <button class="btn roxo infBtn ${S.melhor < 3 ? 'sem' : ''}" data-a="infinito"><span>∞ Ponte sem fim</span><em>${S.melhor < 3 ? `${ico('cadeado')} vença a fase 3` : `${ico('estrela')} ${fmt(S.recInf || 0)}`}</em></button></div>`;
 }
 const PODERES = [['chuva', 'Chuva', 'h_chuva'], ['gigante', 'Gigante', 'cav']];
 // tropas especiais: misturam-se aos espadachins; o nível melhora cada uma
@@ -348,6 +368,8 @@ function clique(e) {
   if (a === 'som') { alternarSom(); som('clique'); desenharLobby(); }
   if (b.dataset.up) { if (comprar(b.dataset.up)) { som('compra'); desenharLobby(); } else som('erro'); }
   if (a === 'jogar') { som('confirma'); comecarFase(); }
+  if (a === 'infinito') { if (S.melhor < 3) { som('erro'); return; } som('confirma'); comecarFase(true); }
+  if (a === 'denovoInf') { som('confirma'); comecarFase(true); }
   if (a === 'sair') { som('fechar'); abrirLobby(); }
   if (a === 'proxima') { som('confirma'); comecarFase(); }
   if (a === 'lobby') { som('clique'); abrirLobby(); }
@@ -389,11 +411,12 @@ export function construir(i, tipo) { // nova torre ou sobe de nível
   C.faiscas(v.x, 3, v.z, 0xffd84a, 30, 6); som('compra'); G.txt.push({ x: v.x, y: 6, z: v.z, txt: v.nv > 1 ? `Nível ${v.nv}!` : T.nome + '!', cor: '#ffd84a', t: 0, grande: true });
   atualizarVagas(); return true;
 }
-function comecarFase() {
+function comecarFase(inf = false) {
   roleta = null;
-  if (!G || G.n !== S.fase || G.t > 0) iniciarFase(S.fase);
+  if (inf) iniciarFase(1, true); else if (!G || G.inf || G.n !== S.fase || G.t > 0) iniciarFase(S.fase);
   tela = 'jogo'; $('#lobby').hidden = true; $('#fim').hidden = true; $('#jogo').hidden = false; $('#jDica').hidden = false;
-  $('#jN').textContent = G.n; $('#jChefeN').textContent = G.chefe.nome; tema((G.n - 1) % 8);
+  $('#jN').textContent = G.inf ? '∞ · 1' : G.n; $('#jChefeN').textContent = G.chefe.nome; tema((G.n - 1) % 8);
+  if (G.inf) faixa('PONTE SEM FIM!', '#c88aff');
   $('#jDica').textContent = G.rotas > 1 ? 'Duas rotas! Seus soldados vão pelo lado do herói' : 'Arraste para mover · toque nas vagas para construir torres';
   if (G.rotas > 1) faixa('DUAS ROTAS!', '#ffd84a');
 }
@@ -404,8 +427,22 @@ function pararRoleta() {
   S.moedas += extra; salvar(); sfx('vitoria'); $('#fGanho').textContent = `+${fmt(roleta.ganho * roleta.m)}`; $('#fGanho').parentElement.classList.add('pulo');
   $('#fBotoes').hidden = true; $('#fSeguir').hidden = false;
 }
+function terminarInf() {
+  G.fim = 'd'; tela = 'fim'; const pts = pontosInf(), novo = pts > (S.recInf || 0), ganho = Math.floor(pts / 40);
+  if (novo) S.recInf = pts; S.moedas += ganho; const bau = G.chefesMortos > 0 ? ganharBau(G.n) : null; salvar();
+  setTimeout(() => {
+    $('#jogo').hidden = true; const f = $('#fim'); f.hidden = false;
+    f.innerHTML = `<div class="fimCaixa ${novo ? 'vit' : 'der'}"><h2>${novo ? 'NOVO RECORDE!' : 'Fim da linha!'}</h2>
+      <p>${G.chefesMortos} chefe${G.chefesMortos === 1 ? '' : 's'} · ${fmt(G.mortesVm)} orcs derrotados</p>
+      <div class="ganho">${ico('estrela')}<b>${fmt(pts)}</b></div><p>Recorde: ${fmt(S.recInf || 0)}</p>
+      <div class="ganho">${ico('ouro')}<b>+${fmt(ganho)}</b></div>
+      ${bau ? `<div class="fBau">${bauHtml(bau, 'mini')}<b>${BAUS[bau].nome}!</b></div>` : ''}
+      <button class="btn roxo grande" data-a="denovoInf">∞ Jogar de novo</button><button class="btn azul" data-a="lobby">${ico('raio')} Melhorias</button></div>`;
+    sfx(novo ? 'vitoria' : 'derrota');
+  }, 1200);
+}
 function terminar(venceu) {
-  if (G.fim) return; G.fim = venceu ? 'v' : 'd'; tela = 'fim';
+  if (G.fim) return; if (G.inf) return terminarInf(); G.fim = venceu ? 'v' : 'd'; tela = 'fim';
   const ganho = venceu ? G.F.moedas + Math.floor(G.az.length / 4) : Math.round(G.F.moedas * 0.25);
   S.moedas += ganho; let bau = null; if (venceu) { bau = ganharBau(G.n); S.fase++; S.melhor = Math.max(S.melhor, G.n); } salvar();
   setTimeout(() => {
@@ -442,6 +479,8 @@ export function passo(dt0) {
     // desenha os exércitos
     desenharTropas('az', G.az, Math.PI, t); desenharTropas('vm', G.vm, 0, t); passoVoo(dt);
     // pilhas deslizam para a frente da pista
+    if (G.inf && tela === 'jogo') G.pistas.forEach((p, k) => { if (p.length >= 8) return; const F = dadosFase(G.n + Math.floor(Math.random() * 3)), l = k ? F.dir : F.esq;
+      for (let i = 0; i < 12; i++) novoBloco(l[8 + i], k, (p.length ? p[p.length - 1].z : ZLANE) - PASSO - 6, F.duro); });
     for (const p of G.pistas) p.forEach((b, i) => { const zAlvo = ZLANE - 2 - i * PASSO; b.z += (zAlvo - b.z) * Math.min(1, dt * 5); b.mesh.position.z = b.z; });
     const ch = G.chefe; ch.flash = Math.max(0, ch.flash - dt);
     { const f = ch.flash > 0 ? 0.45 : 0, r = ch.furia ? 0.28 + 0.12 * Math.sin(t * 9) : 0; for (const m of ch.mats) m.emissive.setRGB(f + r, f, f); }
@@ -649,7 +688,8 @@ function passoJogo(dt) {
   if (G.ouroVisto !== G.ouro) { G.ouroVisto = G.ouro; $('#jOuro').textContent = fmt(G.ouro); atualizarVagas(); }
   $('#jChefeB').style.width = (100 * ch.hp / ch.max) + '%'; $('#jChefeT').textContent = `${fmt(Math.max(0, ch.hp))} / ${fmt(ch.max)}`;
   $('#jMuroB').style.width = (100 * Math.max(0, G.muro) / G.muroMax) + '%'; $('#jMuroT').textContent = `${Math.max(0, G.muro)} / ${G.muroMax}`;
-  if (ch.hp <= 0) { ch.v.tocar('Death', { loop: false, reinicia: true }); for (const v of G.vm) arremessar('vm', v, 0, ch.z, 14); G.vm = []; C.camera.tremor = 1;
+  if (ch.hp <= 0 && G.inf) proximoChefe();
+  else if (ch.hp <= 0) { ch.v.tocar('Death', { loop: false, reinicia: true }); for (const v of G.vm) arremessar('vm', v, 0, ch.z, 14); G.vm = []; C.camera.tremor = 1;
     G.lento = 1.6; C.faiscas(0, 6, ch.z, 0xffd84a, 120, 12); C.onda(0, ch.z, 16, 0xffd84a, 0.9); faixa('VITÓRIA!', '#ffd84a'); G.heroiV.tocar('Cheering'); terminar(true); }
   else if (ch.z >= ZMURO - 7) { G.muro = 0; C.camera.tremor = 1; faixa('O CHEFE DERRUBOU A MURALHA!', '#ff5a4a'); G.heroiV.tocar('Death_A', { loop: false, reinicia: true }); terminar(false); }
   else if (G.muro <= 0) { G.heroiV.tocar('Death_A', { loop: false, reinicia: true }); terminar(false); }
