@@ -375,7 +375,8 @@ function montarHud() {
       <div class="jChefe"><b id="jChefeN"></b><div class="barra vm"><i id="jChefeB"></i><span id="jChefeT"></span></div></div>
       <div class="jPoderes"><button class="poder" data-pd="chuva">${ico('h_chuva')}<small>Chuva</small></button><button class="poder" data-pd="gigante">${ico('cav')}<small>Gigante</small></button></div>
       <div class="jMuro">${ico('escudo')}<div class="barra muro"><i id="jMuroB"></i><span id="jMuroT"></span></div></div>
-      <p class="jDica" id="jDica">Arraste para mover · as flechas saem sozinhas</p></div>
+      <p class="jDica" id="jDica">Arraste para mover · as flechas saem sozinhas</p>
+      <div id="tut" hidden><p class="tutBalao"></p><div class="tutMao">${ico('mao')}</div></div></div>
     <div id="fim" hidden></div><div id="conq" hidden></div><div id="janela" hidden></div>`;
   fx = document.createElement('canvas'); fx.id = 'fx'; document.body.append(fx); gfx = fx.getContext('2d');
   const medir = () => { fx.width = innerWidth * devicePixelRatio; fx.height = innerHeight * devicePixelRatio; gfx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0); };
@@ -914,7 +915,7 @@ function tocarVaga(i) {
 export function construir(i, tipo) { // nova torre ou sobe de nível
   const v = G.vagas[i], T = TORRES[tipo]; if (!v || !T || v.nv >= 3 || (v.tipo && v.tipo !== tipo)) return false;
   const c = T.custo[v.nv]; if (G.ouro < c) { som('erro'); return false; }
-  G.ouro -= c; v.tipo = tipo; v.nv++; G.menuVaga = null;
+  G.ouro -= c; v.tipo = tipo; v.nv++; G.menuVaga = null; if (G.tut) G.tut.torre = true;
   if (v.o) cena.remove(v.o);
   v.o = C.objeto(T.modelo, T.esc * (1 + 0.12 * (v.nv - 1))); v.o.position.set(v.x, 0, v.z); v.o.rotation.y = Math.PI; v.o.traverse(o => { if (o.isMesh) o.castShadow = true; });
   C.faiscas(v.x, 3, v.z, 0xffd84a, 30, 6); som('compra'); G.txt.push({ x: v.x, y: 6, z: v.z, txt: v.nv > 1 ? `Nível ${v.nv}!` : T.nome + '!', cor: '#ffd84a', t: 0, grande: true });
@@ -932,6 +933,7 @@ function comecarFase(inf = false, dupla = null) {
   $('#jN').textContent = G.inf ? '∞ · 1' : G.n; $('#jChefeN').textContent = G.chefe.nome; tema((G.n - 1) % 8);
   { const P = G.heroiDef.poder, bt = document.querySelector('[data-pd=chuva]'); if (bt) bt.innerHTML = `${ico(P.icone)}<small>${P.nome}</small>`; }
   if (G.inf) faixa('PONTE SEM FIM!', '#c88aff');
+  G.tut = !S.tut && !(S.melhor > 0) && !G.inf && !G.dupla && G.n === 1 ? { passo: 0, t: 0, x0: G.heroi.x, pilhas: 0 } : null; if (G.tut) $('#jDica').hidden = true;
   if (G.evento) { const E = EVENTOS[G.evento]; setTimeout(() => { if (G?.evento && !G.fim) faixa(E.nome.toUpperCase() + '!', E.cor); }, 1800); if (G.evento === 'furia') intensidade(2); }
   $('.jPoderes').hidden = !!G.corrida;
 
@@ -941,6 +943,26 @@ function comecarFase(inf = false, dupla = null) {
   $('#jDica').textContent = G.rotas > 1 ? 'Duas rotas! Seus soldados vão pelo lado do herói' : 'Arraste para mover · toque nas vagas para construir torres';
   if (G.rotas > 1) faixa('DUAS ROTAS!', '#ffd84a');
   if (G.corrida) { faixa('CORRIDA! ARRASTE PARA ESCOLHER', '#ffd84a'); $('#jDica').textContent = 'Arraste: atire nos barris, escolha portões, fuja das serras'; }
+}
+// ---- tutorial da primeira partida: balão com dica + mãozinha apontando ----
+const PASSOS_TUT = [
+  { txt: 'Arraste o dedo para mover o herói', ok: T => Math.abs(G.heroi.x - T.x0) > 6, alvo: () => ({ arrasta: true }) },
+  { txt: 'As flechas saem sozinhas: acerte as pilhas +N para ganhar soldados', ok: T => T.pilhas >= 2, alvo: () => { const b = G.pistas.flat().sort((a, c) => c.z - a.z)[0]; return b && C.tela(b.mesh.position.x, 3, b.z); } },
+  { txt: 'Seus soldados (azul) marcham sozinhos contra os orcs (vermelho)', ok: T => T.t > 4, alvo: () => G.az[0] && C.tela(G.az[0].x, 2, G.az[0].z) },
+  { txt: 'Orcs derrotados dão ouro: toque no + para construir uma torre', ok: T => T.torre || T.t > 12, alvo: () => { const e = document.querySelector('.vaga.pode') || document.querySelector('.vaga'); if (!e || e.style.display === 'none') return null; const r = e.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }, quando: () => G.ouro >= 25 },
+  { txt: 'Use o poder do herói quando estiver pronto!', ok: T => T.poder || T.t > 10, alvo: () => { const r = document.querySelector('[data-pd=chuva]')?.getBoundingClientRect(); return r && [r.left + r.width / 2, r.top + r.height / 2]; }, quando: () => G.pd.chuva.cd <= 0 },
+  { txt: 'Derrote o chefe no fim da ponte antes que ele derrube sua muralha!', ok: T => T.t > 5, alvo: () => C.tela(0, 8, G.chefe.z) },
+];
+function passoTutorial(dt) {
+  const T = G?.tut, el = $('#tut'); if (!T || G.fim) { if (el) el.hidden = true; return; }
+  const P = PASSOS_TUT[T.passo]; if (!P) { G.tut = null; S.tut = true; salvar(); el.hidden = true; return; }
+  if (P.quando && !P.quando()) { el.hidden = true; return; }
+  T.t += dt; el.hidden = false;
+  if (el.dataset.passo !== String(T.passo)) { el.dataset.passo = T.passo; el.querySelector('.tutBalao').textContent = tr(P.txt); el.querySelector('.tutBalao').classList.remove('entra'); void el.offsetWidth; el.querySelector('.tutBalao').classList.add('entra'); }
+  const a = P.alvo(), mao = el.querySelector('.tutMao');
+  if (a?.arrasta) { mao.hidden = false; mao.className = 'tutMao arrasta'; mao.style.left = innerWidth / 2 + 'px'; mao.style.top = innerHeight * 0.8 + 'px'; }
+  else if (a) { mao.hidden = false; mao.className = 'tutMao'; mao.style.left = a[0] + 'px'; mao.style.top = a[1] + 'px'; } else mao.hidden = true;
+  if (P.ok(T)) { T.passo++; T.t = 0; sfx('brilho'); }
 }
 const ROLETA = [2, 3, 5, 3, 2];
 let roleta = null;
@@ -1033,7 +1055,7 @@ export function passo(dt0) {
   if (lobby) { foco.x = Math.sin(t * 0.25) * 2; foco.z = -34; }
   distCam += ((final ? 62 : corre ? 82 : 106) - distCam) * Math.min(1, dt0 * 2);
   C.camera.yaw = Math.PI; C.camera.pitch = lobby ? 0.5 : 0.9; C.camera.dist = lobby ? 52 : distCam - (G ? G.punch * 7 : 0); C.camera.altura = lobby ? 2 : 0; C.camera.suave = final ? 2.5 : 4;
-  if (G && tela === 'jogo') posicionarVagas();
+  if (G && tela === 'jogo') { posicionarVagas(); passoTutorial(dt0); }
   if (window.__ov) { Object.assign(C.camera, window.__ov.cam); Object.assign(foco, window.__ov.foco); } // para testes
   C.quadro(dt, foco);
   desenharFx(dt);
@@ -1471,7 +1493,7 @@ function poderHeroi(id) {
 }
 function usarPoder(k) {
   if (!G || G.fim || tela !== 'jogo') return; const P = G.pd[k]; if (P.cd > 0) { som('erro'); return; }
-  P.cd = P.max; const ch = G.chefe;
+  P.cd = P.max; const ch = G.chefe; if (G.tut) G.tut.poder = true;
   if (k === 'chuva' && G.heroiDef.poder.id !== 'chuva') { poderHeroi(G.heroiDef.poder.id); G.brilhoH = 1; som('confirma'); return; }
   if (k === 'chuva') { // cai em cima dos vermelhos mais perto da muralha (ou no chefe)
     const z = zDaHorda();
@@ -1505,7 +1527,7 @@ function acertarBloco(b, pista, lado, dano = 1) {
     if (b.tipo === 'vezes') { faixa('EXÉRCITO DOBRADO!', '#7aff8a'); G.punch = 1; }
     else if (b.valor >= 50) { faixa(b.valor >= 99 ? 'MEGA!' : 'INCRÍVEL!', '#ffd84a'); G.punch = 0.8; }
   }
-  cena.remove(b.mesh); pista.splice(pista.indexOf(b), 1);
+  cena.remove(b.mesh); pista.splice(pista.indexOf(b), 1); if (G.tut) G.tut.pilhas++;
 }
 function faixa(txt, cor) { G.banner = { txt: tr(txt), cor, t: 0 }; }
 // textos flutuantes e contadores dos exércitos

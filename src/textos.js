@@ -148,6 +148,13 @@ const T = {
   'Maior estágio da Conquista': L('Highest Conquest stage', 'Mayor etapa de Conquista'), 'Ninguém ainda. Vença estágios na Conquista!': L('Nobody yet. Win Conquest stages!', 'Nadie aún. ¡Gana etapas en Conquista!'),
   'Loja do dia': L("Today's shop", 'Tienda del día'), 'Novas ofertas em #h#': L('New offers in #h#', 'Nuevas ofertas en #h#'), 'Comprado': L('Bought', 'Comprado'),
   'Especial #': L('Special #', 'Especial #'), 'Gigante #': L('Giant #', 'Gigante #'), 'Arqueiros #': L('Archers #', 'Arqueros #'), 'Lanceiros #': L('Spearmen #', 'Lanceros #'), 'Magos #': L('Mages #', 'Magos #'),
+  // tutorial
+  'Arraste o dedo para mover o herói': L('Drag your finger to move the hero', 'Arrastra el dedo para mover al héroe'),
+  'As flechas saem sozinhas: acerte as pilhas +N para ganhar soldados': L('Arrows fire on their own: hit the +N stacks to get soldiers', 'Las flechas salen solas: acierta las pilas +N para ganar soldados'),
+  'Seus soldados (azul) marcham sozinhos contra os orcs (vermelho)': L('Your soldiers (blue) march on their own against the orcs (red)', 'Tus soldados (azul) marchan solos contra los orcos (rojo)'),
+  'Orcs derrotados dão ouro: toque no + para construir uma torre': L('Defeated orcs give gold: tap + to build a tower', 'Los orcos derrotados dan oro: toca + para construir una torre'),
+  'Use o poder do herói quando estiver pronto!': L("Use the hero's power when it's ready!", '¡Usa el poder del héroe cuando esté listo!'),
+  'Derrote o chefe no fim da ponte antes que ele derrube sua muralha!': L('Defeat the boss at the end of the bridge before it breaks your wall!', '¡Derrota al jefe al final del puente antes de que derribe tu muralla!'),
 };
 export const TEXTOS = { en: {}, es: {} };
 for (const [k, v] of Object.entries(T)) { TEXTOS.en[k] = v.en; TEXTOS.es[k] = v.es; }

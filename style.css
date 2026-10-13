@@ -637,3 +637,14 @@ input{font:inherit;user-select:text;-webkit-user-select:text}
 .ljItem em{font-style:normal;color:var(--verde2);display:flex;align-items:center;gap:3px;font-family:var(--fT)}.ljItem em .ico{width:16px;height:16px}
 .ljDesc{position:absolute;top:-6px;right:-4px;font-style:normal;font-family:var(--fT);font-size:13px;padding:2px 7px;border-radius:10px;background:var(--vermelho);color:#fff;transform:rotate(8deg)}
 .semAnim{animation:none!important}
+/* ---- tutorial ---- */
+#tut{position:absolute;inset:0;pointer-events:none;z-index:4}
+.tutBalao{position:absolute;left:50%;top:calc(max(10px,env(safe-area-inset-top)) + 150px);transform:translateX(-50%);width:min(340px,88vw);margin:0;padding:12px 16px;border-radius:18px;
+  background:var(--creme);border:3px solid var(--madeira);box-shadow:0 5px 0 var(--madeira),0 10px 20px rgba(0,0,0,.35);text-align:center;font-family:var(--fT);font-size:17px;color:var(--tinta)}
+.tutBalao.entra{animation:tutEntra .35s cubic-bezier(.2,1.6,.4,1)}
+@keyframes tutEntra{from{transform:translateX(-50%) scale(.6);opacity:0}}
+.tutMao{position:absolute;width:56px;height:56px;margin:-4px 0 0 -14px;color:#fff;filter:drop-shadow(0 3px 3px rgba(0,0,0,.6));animation:tutToca 1s ease-in-out infinite}
+.tutMao .ico{width:56px;height:56px;transform:rotate(-20deg)}
+.tutMao.arrasta{animation:tutArrasta 1.8s ease-in-out infinite}
+@keyframes tutToca{50%{transform:translate(6px,10px) scale(.9)}}
+@keyframes tutArrasta{0%,100%{transform:translateX(-90px)}50%{transform:translateX(90px)}}
