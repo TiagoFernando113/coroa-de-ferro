@@ -9,6 +9,7 @@ export function carregar() {
   S.baus = S.baus || []; S.diario = S.diario || { ultimo: '', seq: 0 };
   S.pd = S.pd || {}; for (const k of CARTAS) S.pd[k] = S.pd[k] || { nv: k === 'lanca' || k === 'mago' ? 0 : 1, c: 0 };
   S.deck = S.deck || ['arco'];
+  S.heroi = S.heroi || 'lyra'; S.herois = S.herois || ['lyra'];
   return S;
 }
 export function salvar() { try { localStorage.setItem(CHAVE, JSON.stringify(S)); } catch (e) {} }
