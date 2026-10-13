@@ -22,7 +22,7 @@ export function comprar(k) {
 // poderes (chuva, gigante) e tropas (arco, lanca, mago); tropa com nível 0 está bloqueada até a primeira carta
 export const CARTAS = ['chuva', 'gigante', 'arco', 'lanca', 'mago'];
 export const cartasPara = nv => 3 + nv * 2;
-function darCartas(k, n) {
+export function darCartas(k, n) {
   const P = S.pd[k], antes = P.nv; if (!n) return false;
   if (P.nv === 0) { P.nv = 1; n--; }
   P.c += n;

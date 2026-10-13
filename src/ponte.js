@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import * as C from './cena.js';
 import { HABILIDADES, fase as dadosFase, tiros, vidaMuralha, escudo, fmt, UPGRADES } from './dados.js';
-import { S, salvar, comprar, BAUS, MAX_BAUS, ganharBau, abrirBau, cartasPara, CARTAS, DIARIO, diarioPronto, diaDoPresente, pegarDiario } from './meta.js';
+import { S, salvar, darCartas, comprar, BAUS, MAX_BAUS, ganharBau, abrirBau, cartasPara, CARTAS, DIARIO, diarioPronto, diaDoPresente, pegarDiario } from './meta.js';
 import { visualPadrao } from './aparencia.js';
 import { ico, som, $, alternarSom, estaMudo } from './util.js';
 import { tema, sfx, intensidade } from './musica.js';
@@ -461,7 +461,8 @@ function mostrarPet(k) {
 function acaoPet(a, k) {
   if (a === 'melhores') { equiparMelhores(); som('confirma'); recriarPetsLobby(); desenharLobby(); return; }
   if (a === 'nivel') { if (subirNivel(k)) { som('compra'); sfx('brilho'); } else { som('erro'); return; } }
-  if (a === 'juntar') { const novo = juntar(k); if (!novo) { som('erro'); return; } sfx('vitoria'); som('lendario'); k = novo; }
+  if (a === 'juntar') { const novo = juntar(k); if (!novo) { som('erro'); return; } sfx('vitoria'); som('lendario'); k = novo;
+    if (est(k) >= 2) avisarCla(`juntou ${PETS[base(k)].nome} ${'★'.repeat(est(k))} ${ESTRELAS[est(k)].nome}!`); }
   if (a === 'equipar') { if (!equipar(k)) { som('erro'); return; } som('clique'); }
   recriarPetsLobby(); desenharLobby(); mostrarPet(k);
 }
@@ -478,7 +479,7 @@ function abrirOvo(tipo) {
       <div class="ptBonus">${bonusHtml(r.k)}</div><em>${r.novo ? 'NOVO!' : P.e[0] >= 3 ? 'Já dá para juntar ★!' : `${P.e[0]}/3 para ★`}</em>
       <div class="ovoBotoes">${S.ovos[tipo] || S.moedas >= O.preco ? `<button class="btn amarelo" data-ovo="${tipo}">${S.ovos[tipo] ? `De novo (${S.ovos[tipo]})` : `De novo ${ico('ouro')}${fmt(O.preco)}`}</button>` : ''}
       <button class="btn verde" data-a="fecharJanela">Pegar</button></div>`;
-    sfx(D.r >= 2 ? 'vitoria' : 'brilho'); if (D.r >= 3) som('lendario'); C.camera.tremor = 0.3; recriarPetsLobby(); }, 2100);
+    sfx(D.r >= 2 ? 'vitoria' : 'brilho'); if (D.r >= 3) som('lendario'); if (D.r >= 2) avisarCla(`tirou ${D.nome} (${R.nome}) num ovo!`); C.camera.tremor = 0.3; recriarPetsLobby(); }, 2100);
 }
 function abrirConquista() {
   limparFase(); for (const m of MUROS_PISTA) m.visible = false; $('#janela').hidden = true;
@@ -560,8 +561,9 @@ function carregarOnline(aba) {
   }
   el.innerHTML = `${nome}<div id="claCorpo"><p>Carregando...</p></div>`;
   ON.meuCla().then(c => { const e = $('#claCorpo'); if (!e) return; const b = document.querySelector('.nomeEu b'); if (b) b.textContent = ON.conta()?.apelido || '';
-    if (c) { const k = Math.min(1, c.dano / c.vida);
-      e.innerHTML = `<div class="claTopo">${escudoCla(c.cor, c.tag || c.nome)}<div><b>${tagHtml(c.tag, c.cor)}${esc(c.nome)}</b><small>Nível ${c.nivel} · ${c.membros.length}/30 membros</small></div></div>
+    if (c) { const k = Math.min(1, c.dano / c.vida), abas = `<div class="abas"><button class="${claModo === 'chat' ? 'on' : ''}" data-cm="chat">${ico('pergaminho')} Chat</button><button class="${claModo === 'info' ? 'on' : ''}" data-cm="info">${ico('escudo')} Clã</button></div>`;
+      if (claModo === 'chat') { e.innerHTML = abas + htmlChat(); abrirChat(); return; }
+      e.innerHTML = abas + `<div class="claTopo">${escudoCla(c.cor, c.tag || c.nome)}<div><b>${tagHtml(c.tag, c.cor)}${esc(c.nome)}</b><small>Nível ${c.nivel} · ${c.membros.length}/30 membros</small></div></div>
         <div class="claChefe"><small>${ico('chefe')} Chefe do clã (semana) — todo dano que vocês dão nas batalhas conta</small>
           <div class="barra vm"><i style="width:${100 - 100 * k}%"></i><span>${fmt(c.vida - c.dano)} / ${fmt(c.vida)}</span></div>
           <small>Derrotar dá ${ico('ouro')} ${150 + 50 * c.nivel} para cada membro</small></div>
@@ -580,6 +582,12 @@ function mostrarNome() { const b = document.querySelector('.nomeEu b'); if (b) b
 async function cliqueOnline(b) {
   const a = b.dataset.a, erro = m => { const e = $('#onErro'); if (e) e.textContent = m; som('erro'); };
   if (b.dataset.rk) { som('clique'); rankModo = b.dataset.rk; carregarOnline('rank'); return; }
+  if (b.dataset.cm) { som('clique'); claModo = b.dataset.cm; carregarOnline('cla'); return; }
+  if (a === 'chatEnviar') { const i = $('#chatTxt'), t = i.value.trim(); if (!t) return; b.disabled = true;
+    try { await ON.chatEnviar(t); i.value = ''; som('clique'); lerChat(); } catch (e) { erro(e.message); } b.disabled = false; }
+  if (a === 'chatPedirAbrir') { som('clique'); const p = $('#chatPedir'); p.hidden = !p.hidden; }
+  if (b.dataset.pedir) { b.disabled = true; try { const min = await ON.chatPedir(b.dataset.pedir); if (min > 0) erro(`Próximo pedido em ${Math.floor(min / 60)}h${String(min % 60).padStart(2, '0')}`); else { sfx('brilho'); $('#chatPedir').hidden = true; lerChat(); } } catch (e) { erro(e.message); } b.disabled = false; }
+  if (b.dataset.doar) { b.disabled = true; try { await ON.chatDoar(+b.dataset.doar); sfx('brilho'); som('moedas'); lerChat(); setTimeout(coletarPremios, 400); } catch (e) { b.disabled = false; erro(e.message); } }
   if (a === 'trocarNome') { som('clique'); carregarOnline('nome'); }
   if (a === 'voltarOnline') { som('clique'); carregarOnline(abaLobby); }
   if (a === 'salvarNome') { const ap = $('#apelido').value.trim(); if (ap.length < 2) return erro('Pelo menos 2 letras');
@@ -591,9 +599,46 @@ async function cliqueOnline(b) {
   if (a === 'claSair') { if (b.dataset.certeza !== '1') { b.dataset.certeza = '1'; b.textContent = 'Toque de novo para sair'; return; }
     try { await ON.claSair(); som('fechar'); carregarOnline('cla'); } catch (e) { erro(e.message); } }
 }
+// ---- chat do clã: mensagens, pedidos de cartas e avisos (atualiza a cada 4 s com a aba aberta) ----
+let claModo = 'chat', chatTimer = null, chatAssin = '';
+const NOME_CARTA = { chuva: ['Especial', 'estrela'], gigante: ['Gigante', 'cav'], arco: ['Arqueiros', 'arq'], lanca: ['Lanceiros', 'bar'], mago: ['Magos', 'mag'] };
+function htmlChat() {
+  return `<div class="chatLista" id="chatLista"><p class="sub">Carregando...</p></div>
+    <div class="chatPedir" id="chatPedir" hidden><small>Peça uma carta (1 pedido a cada 4h, até 8 doações):</small><div>${Object.entries(NOME_CARTA).filter(([k]) => S.pd[k]?.nv > 0)
+      .map(([k, [n, i]]) => `<button class="cartaMini ${k}" data-pedir="${k}">${ico(i)}<small>${n}</small></button>`).join('')}</div></div>
+    <p class="erro" id="onErro"></p>
+    <div class="chatEnviar"><button class="chatBtnPedir" data-a="chatPedirAbrir" title="Pedir cartas">${ico('bau')}</button><input id="chatTxt" maxlength="140" placeholder="Mensagem para o clã" enterkeyhint="send"><button class="btn verde peq" data-a="chatEnviar">${ico('seta')}</button></div>`;
+}
+function abrirChat() {
+  clearInterval(chatTimer); chatAssin = ''; lerChat(); receberDoacoes();
+  chatTimer = setInterval(() => { if (!$('#chatLista') || tela !== 'lobby') { clearInterval(chatTimer); chatTimer = null; return; } lerChat(); }, 4000);
+  $('#chatTxt').addEventListener('keydown', e => { if (e.key === 'Enter') document.querySelector('[data-a=chatEnviar]')?.click(); });
+}
+function lerChat() {
+  ON.chatLer().then(l => { const el = $('#chatLista'); if (!el) return; l = l || [];
+    const assin = l.map(m => m.id + ':' + m.doado + (m.doei ? 'd' : '')).join(); if (assin === chatAssin) return; const noFim = el.scrollTop + el.clientHeight >= el.scrollHeight - 30; chatAssin = assin;
+    el.innerHTML = l.length ? l.map(m => {
+      if (m.tipo === 'aviso') return `<div class="chM aviso">${ico('estrela')}<span><b>${esc(m.apelido)}</b> ${esc(m.texto)}</span></div>`;
+      if (m.tipo === 'pedido') { const [n, i] = NOME_CARTA[m.item] || ['Carta', 'bau'], cheio = m.doado >= m.maximo;
+        return `<div class="chM pedido ${m.eu ? 'eu' : ''}"><b>${esc(m.apelido)}</b><div class="pedCorpo"><span class="cartaMini ${m.item}">${ico(i)}</span><div><small>pede ${n}</small>
+          <div class="barra"><i style="width:${100 * m.doado / m.maximo}%"></i><span>${m.doado}/${m.maximo}</span></div></div>
+          ${m.eu ? '' : cheio ? `<em>Completo</em>` : m.doei ? `<em>${ico('check')} Doado</em>` : `<button class="btn amarelo peq" data-doar="${m.id}">Doar<small>${ico('ouro')}20</small></button>`}</div></div>`; }
+      return `<div class="chM ${m.eu ? 'eu' : ''}">${m.eu ? '' : `<b>${esc(m.apelido)}</b>`}<span>${esc(m.texto)}</span></div>`; }).join('')
+      : '<p class="sub">Nenhuma mensagem ainda. Diga oi para o clã!</p>';
+    if (noFim || !el.dataset.foi) { el.scrollTop = el.scrollHeight; el.dataset.foi = '1'; }
+  }).catch(e => { const el = $('#chatLista'); if (el && !chatAssin) el.innerHTML = `<p class="erro">${esc(e.message)}</p>`; });
+}
+// cartas que o clã doou chegam quando o jogador abre o jogo ou o chat
+function receberDoacoes() {
+  if (!S.online?.codigo) return; ON.doacoesReceber().then(l => { if (!l?.length) return; let tot = 0;
+    for (const { item, n } of l) if (S.pd[item]) { darCartas(item, n); tot += n; }
+    if (!tot) return; salvar(); sfx('vitoria'); if (G) faixa(`O CLÃ DOOU ${tot} CARTA${tot > 1 ? 'S' : ''}!`, '#8ae0ff'); if (tela === 'lobby' && abaLobby !== 'cla') desenharLobby(); }).catch(() => {});
+}
+// aviso automático no chat do clã (pet raro, estrelas...)
+function avisarCla(txt) { if (S.online?.codigo) ON.chatEnviar(txt, 'aviso').catch(() => {}); }
 // prêmios que chegaram (ajudas dadas, chefe do clã)
 function coletarPremios() {
-  if (!S.online?.codigo) return; ON.premios().then(l => { if (!l?.length) return; let m = 0; const motivos = {};
+  receberDoacoes(); if (!S.online?.codigo) return; ON.premios().then(l => { if (!l?.length) return; let m = 0; const motivos = {};
     for (const p of l) { m += p.moedas; const k = p.motivo.startsWith('Ajudou') ? 'Você ajudou outros jogadores' : p.motivo; motivos[k] = (motivos[k] || 0) + 1; }
     S.moedas += m; salvar(); if (tela === 'lobby') desenharLobby();
     const j = $('#janela'); if (!j.hidden) return; j.hidden = false; sfx('vitoria');
@@ -716,7 +761,7 @@ function clique(e) {
   if (a === 'roleta') pararRoleta();
   if (a === 'diario') { som('clique'); mostrarDiario(); }
   if (a === 'online') { som('clique'); mostrarOnline('rank'); }
-  if (b.dataset.rk || b.dataset.cla || ['trocarNome', 'salvarNome', 'voltarOnline', 'claCriar', 'claSair'].includes(a)) cliqueOnline(b);
+  if (b.dataset.rk || b.dataset.cla || b.dataset.cm || b.dataset.pedir || b.dataset.doar || ['trocarNome', 'salvarNome', 'voltarOnline', 'claCriar', 'claSair', 'chatEnviar', 'chatPedirAbrir'].includes(a)) cliqueOnline(b);
   if (a === 'dupla') { som('confirma'); procurarDupla(); }
   if (a === 'revanche') pedirRevanche();
   if (a === 'sairDupla') { som('fechar'); G?.dupla?.canal?.enviar('sair', {}); abrirLobby(); }

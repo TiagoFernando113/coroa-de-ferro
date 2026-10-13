@@ -41,6 +41,12 @@ export const claCriar = comConta((nome, tag, cor) => rpc('ponte_cla_criar2', { .
 export const claEntrar = comConta(cla => rpc('ponte_cla_entrar', { ...id(), p_cla: cla }));
 export const claSair = comConta(() => rpc('ponte_cla_sair', id()));
 export const claDano = comConta(dano => rpc('ponte_cla_dano', { ...id(), p_dano: Math.round(dano) }));
+// chat do clã e doações de cartas
+export const chatLer = comConta(() => rpc('ponte_chat_ler', id()));
+export const chatEnviar = comConta((texto, tipo = 'msg') => rpc('ponte_chat_enviar', { ...id(), p_texto: texto, p_tipo: tipo }));
+export const chatPedir = comConta(item => rpc('ponte_chat_pedir', { ...id(), p_item: item }));
+export const chatDoar = comConta(msg => rpc('ponte_chat_doar', { ...id(), p_msg: msg }));
+export const doacoesReceber = comConta(() => rpc('ponte_doacoes_receber', id()));
 // pareamento
 export const procurar = comConta(fase => rpc('ponte_procurar', { ...id(), p_fase: fase }));
 export const cancelar = () => S.online?.codigo ? rpc('ponte_cancelar', id()).catch(() => {}) : Promise.resolve();

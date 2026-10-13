@@ -509,3 +509,39 @@ input{font:inherit;user-select:text;-webkit-user-select:text}
 .cqBarra{position:relative;height:28px;border-radius:14px;background:#3a2a1a;overflow:hidden;margin:4px 0 8px;border:2px solid var(--madeira)}
 .cqBarra i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(#5fe87a,#22b84a)}
 .cqBarra span{position:relative;line-height:24px;font-family:var(--fT);color:#fff;text-shadow:0 1px 2px #000}
+/* ---- chat do clã ---- */
+.abas button .ico{width:16px;height:16px;vertical-align:-2px}
+.chatLista{height:calc(100vh - 400px);min-height:200px;overflow-y:auto;padding:6px;border-radius:14px;background:#efe3c8;display:flex;flex-direction:column;gap:5px}
+.chM{max-width:82%;align-self:flex-start;padding:5px 10px;border-radius:12px 12px 12px 4px;background:#fff;box-shadow:0 2px 0 var(--creme2);font-size:14px;line-height:1.25;word-break:break-word}
+.chM b{display:block;font-family:var(--fT);font-weight:400;font-size:12px;color:var(--azul2)}
+.chM.eu{align-self:flex-end;background:#c8f5b8;border-radius:12px 12px 4px 12px}
+.chM.aviso{align-self:center;max-width:95%;display:flex;align-items:center;gap:6px;background:#fff1b8;border:2px solid #f2b51a;font-size:12px;border-radius:10px}
+.chM.aviso b{display:inline;color:#a85a08}
+.chM.aviso .ico{width:16px;height:16px;color:#d8901a;flex:none}
+.chM.pedido{max-width:92%;width:92%;background:#e4f0ff;border:2px solid #9ac0f0}
+.chM.pedido.eu{background:#d8f5cc;border-color:#8ad07a}
+.pedCorpo{display:flex;align-items:center;gap:8px}
+.pedCorpo > div{flex:1;min-width:0}
+.pedCorpo small{font-size:12px;color:var(--suave)}
+.pedCorpo .barra{height:16px;border-color:var(--azul2);margin:2px 0 0}
+.pedCorpo .barra i{background:linear-gradient(#6ad86a,#2a8a3a)}
+.pedCorpo .btn{margin:0;flex-direction:column;gap:0;font-size:14px;padding:5px 10px}
+.pedCorpo .btn small{display:flex;align-items:center;gap:2px;font-size:11px;color:#fff}
+.pedCorpo .btn small .ico{width:12px;height:12px}
+.pedCorpo em{font-style:normal;font-family:var(--fT);font-size:13px;color:var(--verde2);display:flex;align-items:center;gap:3px}
+.pedCorpo em .ico{width:14px;height:14px}
+.cartaMini{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;width:44px;height:44px;border-radius:10px;color:#fff;background:linear-gradient(#6ab8ff,#2466c8);flex:none}
+.cartaMini .ico{width:26px;height:26px}
+.cartaMini.gigante{background:linear-gradient(#ffc85a,#d8701a)}.cartaMini.arco{background:linear-gradient(#6ad86a,#2a8a3a)}
+.cartaMini.lanca{background:linear-gradient(#c8d0dc,#6a7484)}.cartaMini.mago{background:linear-gradient(#c08aff,#6a2ac8)}
+.chatPedir{margin-top:6px;padding:6px;border-radius:12px;background:#fff;border:2px solid var(--creme2)}
+.chatPedir > small{color:var(--suave);font-size:12px}
+.chatPedir > div{display:flex;gap:6px;margin-top:4px;flex-wrap:wrap}
+.chatPedir button.cartaMini{width:56px;height:58px}
+.chatPedir button.cartaMini small{font-size:10px;font-family:var(--fT)}
+#onCorpo .erro{color:var(--vermelho2);min-height:0;margin:2px 0;font-size:13px}
+.chatEnviar{display:flex;gap:6px;align-items:center;margin-top:4px}
+.chatEnviar input{flex:1;min-width:0;padding:10px 12px;border-radius:12px;border:2px solid var(--creme2);font:inherit;font-size:15px;user-select:text;-webkit-user-select:text}
+.chatEnviar .btn{margin:0}.chatEnviar .btn .ico{width:20px;height:20px}
+.chatBtnPedir{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(#ffd23a,#d8901a);color:#5a2e08;box-shadow:0 3px 0 #7a4a08;flex:none}
+.chatBtnPedir .ico{width:26px;height:26px}
