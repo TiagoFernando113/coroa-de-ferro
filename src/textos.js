@@ -161,6 +161,7 @@ const T = {
   'Matador de orcs': L('Orc slayer', 'Matador de orcos'), 'Caçador de chefes': L('Boss hunter', 'Cazador de jefes'), 'Defensor da ponte': L('Bridge defender', 'Defensor del puente'), 'Colecionador': L('Collector', 'Coleccionista'),
   'Chocador': L('Hatcher', 'Incubador'), 'Estrelado': L('Starry', 'Estrellado'), 'Conquistador': L('Conqueror', 'Conquistador'), 'Renascido': L('Reborn', 'Renacido'), 'Bronze': L('Bronze', 'Bronce'), 'Prata': L('Silver', 'Plata'), 'Ouro': L('Gold', 'Oro'),
   'Bronze★': L('Bronze★', 'Bronce★'), 'Prata★★': L('Silver★★', 'Plata★★'), 'Ouro★★★': L('Gold★★★', 'Oro★★★'),
+  'online': L('online', 'en línea'), 'offline': L('offline', 'desconectado'),
 };
 export const TEXTOS = { en: {}, es: {} };
 for (const [k, v] of Object.entries(T)) { TEXTOS.en[k] = v.en; TEXTOS.es[k] = v.es; }

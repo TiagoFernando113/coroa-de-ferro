@@ -397,6 +397,7 @@ export function abrirLobby() {
   iniciarFase(S.fase); desenharLobby();
   if (!diarioVisto && diarioPronto()) { diarioVisto = true; setTimeout(mostrarDiario, 900); }
   else setTimeout(coletarPremios, 1200);
+  setTimeout(enviarPerfil, 2500);
 }
 let diarioVisto = false;
 // ---- lobby: cena 3D atrás do herói, card da fase, JOGAR, baús e abas embaixo ----
@@ -584,7 +585,7 @@ const tagHtml = (tag, cor) => tag ? `<em class="tagCla" style="--c:${CORES_CLA[(
 let rankModo = 'jog';
 // conteúdo das abas Clã e Ranking (dentro da folha do lobby)
 function carregarOnline(aba) {
-  const el = $('#onCorpo'); if (!el) return; const O = ON.conta(); el.classList.remove('comChat');
+  const el = $('#onCorpo'); if (!el) return; const O = ON.conta(); el.classList.remove('comChat'); ON.garantir().then(enviarPerfil).catch(() => {});
   const nome = `<div class="nomeEu">Seu nome: <b data-nt>${esc(O?.apelido || '...')}</b> <button class="fSo" data-a="trocarNome">trocar</button></div>`;
   if (aba === 'nome') {
     el.innerHTML = `<p class="sub">Esse nome aparece no ranking, no clã e na dupla.</p><input id="apelido" maxlength="16" placeholder="Seu apelido" value="${esc(O?.apelido || '')}"><p class="erro" id="onErro"></p>
@@ -594,9 +595,9 @@ function carregarOnline(aba) {
     el.innerHTML = `${nome}<div class="abas"><button class="${rankModo === 'jog' ? 'on' : ''}" data-rk="jog">Jogadores</button><button class="${rankModo === 'cq' ? 'on' : ''}" data-rk="cq">Conquista</button><button class="${rankModo === 'cla' ? 'on' : ''}" data-rk="cla">Clãs</button></div>
       <p class="sub">${rankModo === 'jog' ? 'Ponte sem fim · melhores do mundo' : rankModo === 'cq' ? 'Maior estágio da Conquista' : 'Clãs com mais chefes semanais derrotados'}</p><div class="lista" id="lista"><p>Carregando...</p></div>`;
     const med = p => p <= 3 ? ['🥇', '🥈', '🥉'][p - 1] : '#' + p;
-    (rankModo === 'jog' ? ON.garantir().then(ON.ranking).then(l => l.length ? l.map(r => `<div class="linha ${r.eu ? 'eu' : ''}"><b>${med(r.posicao)}</b><span data-nt>${tagHtml(r.tag, 0)}${esc(r.apelido)}</span><small>${r.chefes} chefes</small><em>${fmt(r.pontos)}</em></div>`).join('')
+    (rankModo === 'jog' ? ON.garantir().then(ON.ranking).then(l => l.length ? l.map(r => `<div class="linha ${r.eu ? 'eu' : ''}"><b>${med(r.posicao)}</b><button class="nomeBtn" data-perfil="${r.codigo}" data-nt>${tagHtml(r.tag, 0)}${esc(r.apelido)}</button><small>${r.chefes} chefes</small><em>${fmt(r.pontos)}</em></div>`).join('')
         : '<p>Ninguém no ranking ainda. Jogue a Ponte sem fim e seja o primeiro!</p>')
-      : rankModo === 'cq' ? ON.garantir().then(ON.cqTop).then(l => l.length ? l.map(r => `<div class="linha ${r.eu ? 'eu' : ''}"><b>${med(r.posicao)}</b><span data-nt>${tagHtml(r.tag, 0)}${esc(r.apelido)}</span><small>${ico('forca')} ${fmt(r.forca)}</small><em>${ico('bandeira')} ${r.estagio}</em></div>`).join('')
+      : rankModo === 'cq' ? ON.garantir().then(ON.cqTop).then(l => l.length ? l.map(r => `<div class="linha ${r.eu ? 'eu' : ''}"><b>${med(r.posicao)}</b><button class="nomeBtn" data-perfil="${r.codigo}" data-nt>${tagHtml(r.tag, 0)}${esc(r.apelido)}</button><small>${ico('forca')} ${fmt(r.forca)}</small><em>${ico('bandeira')} ${r.estagio}</em></div>`).join('')
         : '<p>Ninguém ainda. Vença estágios na Conquista!</p>')
       : ON.clas().then(l => l.length ? l.map((c, i) => `<div class="linha"><b>${med(i + 1)}</b>${escudoCla(c.cor, c.tag || c.nome)}<span data-nt>${tagHtml(c.tag, c.cor)}${esc(c.nome)}</span><small>${c.membros} membros</small><em>Nv ${c.nivel}</em></div>`).join('') : '<p>Nenhum clã ainda.</p>'))
       .then(h => { const e = $('#lista'); if (e) e.innerHTML = h; const b = document.querySelector('.nomeEu b'); if (b) b.textContent = ON.conta()?.apelido || ''; })
@@ -612,7 +613,7 @@ function carregarOnline(aba) {
         <div class="claChefe"><small>${ico('chefe')} Chefe do clã (semana) — todo dano que vocês dão nas batalhas conta</small>
           <div class="barra vm"><i style="width:${100 - 100 * k}%"></i><span>${fmt(c.vida - c.dano)} / ${fmt(c.vida)}</span></div>
           <small>Derrotar dá ${ico('ouro')} ${150 + 50 * c.nivel} para cada membro</small></div>
-        <div class="lista">${c.membros.map(m => `<div class="linha ${m.eu ? 'eu' : ''}"><i class="pontoOn ${m.online ? 'on' : ''}"></i><span data-nt>${esc(m.apelido)}</span><small>fase ${m.fase}</small><em>${fmt(m.dano)}</em></div>`).join('')}</div>
+        <div class="lista">${c.membros.map(m => `<div class="linha ${m.eu ? 'eu' : ''}"><i class="pontoOn ${m.online ? 'on' : ''}"></i><button class="nomeBtn" data-perfil="${m.codigo}" data-nt>${esc(m.apelido)}</button><small>fase ${m.fase}</small><em>${fmt(m.dano)}</em></div>`).join('')}</div>
         <button class="fSo" data-a="claSair">Sair do clã</button>`;
       return; }
     ON.clas().then(l => { const e2 = $('#claCorpo'); if (!e2) return;
@@ -667,10 +668,10 @@ function lerChat() {
     el.innerHTML = l.length ? l.map(m => {
       if (m.tipo === 'aviso') return `<div class="chM aviso">${ico('estrela')}<span data-nt><b>${esc(m.apelido)}</b> ${esc(m.texto)}</span></div>`;
       if (m.tipo === 'pedido') { const [n, i] = NOME_CARTA[m.item] || ['Carta', 'bau'], cheio = m.doado >= m.maximo;
-        return `<div class="chM pedido ${m.eu ? 'eu' : ''}"><b data-nt>${esc(m.apelido)}</b><div class="pedCorpo"><span class="cartaMini ${m.item}">${ico(i)}</span><div><small>pede ${n}</small>
+        return `<div class="chM pedido ${m.eu ? 'eu' : ''}"><button class="nomeBtn chatNome" data-perfil="${m.codigo}" data-nt>${esc(m.apelido)}</button><div class="pedCorpo"><span class="cartaMini ${m.item}">${ico(i)}</span><div><small>pede ${n}</small>
           <div class="barra"><i style="width:${100 * m.doado / m.maximo}%"></i><span>${m.doado}/${m.maximo}</span></div></div>
           ${m.eu ? '' : cheio ? `<em>Completo</em>` : m.doei ? `<em>${ico('check')} Doado</em>` : `<button class="btn amarelo peq" data-doar="${m.id}">Doar<small>${ico('ouro')}20</small></button>`}</div></div>`; }
-      return `<div class="chM ${m.eu ? 'eu' : ''}" ${m.eu ? '' : `data-tr="${m.id}"`}>${m.eu ? '' : `<b data-nt>${esc(m.apelido)}</b>`}<span class="tOrig" data-nt>${esc(m.texto)}</span>${!m.eu && precisa(m.texto) ? `<button class="trVer" data-trad="${m.id}">${ico('pergaminho')} Traduzir</button>` : ''}</div>`; }).join('')
+      return `<div class="chM ${m.eu ? 'eu' : ''}" ${m.eu ? '' : `data-tr="${m.id}"`}>${m.eu ? '' : `<button class="nomeBtn chatNome" data-perfil="${m.codigo}" data-nt>${esc(m.apelido)}</button>`}<span class="tOrig" data-nt>${esc(m.texto)}</span>${!m.eu && precisa(m.texto) ? `<button class="trVer" data-trad="${m.id}">${ico('pergaminho')} Traduzir</button>` : ''}</div>`; }).join('')
       : '<p class="sub">Nenhuma mensagem ainda. Diga oi para o clã!</p>';
     if (noFim || !el.dataset.foi) { el.scrollTop = el.scrollHeight; el.dataset.foi = '1'; }
     chatMsgs = l;
@@ -799,8 +800,7 @@ function atualizarRevanche() {
 // ---- perfil e medalhas ----
 const avatarAtual = () => (S.avatar && temPet(S.avatar) ? S.avatar : S.equipe[0] || 'cao');
 function mostrarPerfil() {
-  const j = $('#janela'), re = !j.hidden && !!j.querySelector('.jPerfil'); j.hidden = false; const E = S.est || {}, O = ON.conta();
-  const stat = (icone, nome, v) => `<div class="pfStat">${ico(icone)}<b>${v}</b><small>${nome}</small></div>`;
+  const j = $('#janela'), re = !j.hidden && !!j.querySelector('.jPerfil'); j.hidden = false; const O = ON.conta(); enviarPerfil();
   const med = k => { const M = MEDALHAS[k], nv = nivelMedalha(k), pg = pegas(k), v = M.valor(), prox = M.metas[Math.min(nv, 2)], cor = nv ? NIVEIS_MEDALHA[nv - 1][1] : '#b8b0a4';
     const p = pg < nv ? premioMedalha(pg + 1) : null;
     return `<div class="pfMed ${nv ? 'tem' : ''}" style="--m:${cor}"><span class="pfMedIco">${ico(M.icone)}</span><div><b>${M.nome}</b><small>${nv ? NIVEIS_MEDALHA[nv - 1][0] : '—'}${'★'.repeat(nv)}</small>
@@ -810,10 +810,29 @@ function mostrarPerfil() {
   j.innerHTML = `<div class="jMissoes jPerfil ${re ? 'semAnim' : ''}"><div class="pfTopo"><img src="${fotoPet(avatarAtual(), 256)}" alt=""><div><b data-nt>${esc(O?.apelido || 'Herói')}</b>
       <small>${S.renasc ? `${ico('girar')} ×${S.renasc} · ` : ''}Fase ${S.fase}</small></div></div>
     <div class="pfAvatares">${vars.map(k => `<button class="${k === avatarAtual() ? 'sel' : ''}" data-avatar="${k}"><img src="${fotoPet(k)}" alt=""></button>`).join('')}</div>
-    <div class="pfLista"><h3>Estatísticas</h3><div class="pfStats">${stat('escudo', 'Fase máxima', Math.max(S.melhor || 0, S.fase - 1))}${stat('caveira', 'Orcs derrotados', fmt(E.orcs || 0))}
-      ${stat('chefe', 'Chefes', fmt(E.chefes || 0))}${stat('ovo', 'Ovos chocados', fmt(E.ovos || 0))}${stat('pata', 'Pets', `${Object.keys(S.pets).length}/${Object.keys(PETS).length}`)}
-      ${stat('bandeira', 'Conquista', S.cq.est - 1)}${stat('h_triplo', 'Recorde ∞', fmt(S.recInf || 0))}${stat('girar', 'Renascer', S.renasc || 0)}</div>
+    <div class="pfLista"><h3>Estatísticas</h3>${htmlStats(dadosPerfil())}
     <h3>Medalhas <small>cada nível dá um prêmio</small></h3>${Object.keys(MEDALHAS).map(med).join('')}</div>
+    <button class="btn azul" data-a="fecharJanela">Fechar</button></div>`;
+}
+// perfil público: o que os outros veem ao tocar no seu nome (enviado ao abrir o lobby)
+function dadosPerfil() { const E = S.est || {}; return { fase: Math.max(S.melhor || 0, S.fase - 1), renasc: S.renasc || 0, recInf: S.recInf || 0, cq: S.cq.est - 1, orcs: E.orcs || 0, chefes: E.chefes || 0, ovos: E.ovos || 0,
+  pets: Object.keys(S.pets).length, medalhas: Object.fromEntries(Object.keys(MEDALHAS).map(k => [k, nivelMedalha(k)])), equipe: S.equipe.slice(0, 5), forca: forcaEquipe(), heroi: S.heroi }; }
+let perfilEnviado = '';
+function enviarPerfil() { if (!S.online?.codigo) return; const d = dadosPerfil(), a = avatarAtual(), k = a + JSON.stringify(d); if (k === perfilEnviado) return; perfilEnviado = k; ON.perfilSalvar(a, d).catch(() => { perfilEnviado = ''; }); }
+const petValido = k => (k && PETS[base(k)] ? k : 'cao');
+function htmlStats(d) { const st = (icone, nome, v) => `<div class="pfStat">${ico(icone)}<b>${v}</b><small>${nome}</small></div>`;
+  return `<div class="pfStats">${st('escudo', 'Fase máxima', d.fase || 0)}${st('caveira', 'Orcs derrotados', fmt(d.orcs || 0))}${st('chefe', 'Chefes', fmt(d.chefes || 0))}${st('ovo', 'Ovos chocados', fmt(d.ovos || 0))}
+    ${st('pata', 'Pets', `${d.pets || 0}/${Object.keys(PETS).length}`)}${st('bandeira', 'Conquista', d.cq || 0)}${st('h_triplo', 'Recorde ∞', fmt(d.recInf || 0))}${st('girar', 'Renascer', d.renasc || 0)}</div>`; }
+async function verPerfil(codigo) {
+  if (codigo === S.online?.codigo) return mostrarPerfil();
+  const j = $('#janela'); j.hidden = false; j.innerHTML = `<div class="jMissoes jPerfil"><p class="sub">Carregando...</p></div>`;
+  let P; try { P = await ON.perfilVer(codigo); } catch (e) { j.innerHTML = `<div class="jMissoes jPerfil"><p class="erro">${esc(e.message)}</p><button class="btn azul" data-a="fecharJanela">Fechar</button></div>`; return; }
+  if (!P) { j.hidden = true; return; } const d = P.dados || {};
+  const meds = Object.keys(MEDALHAS).map(k => { const nv = d.medalhas?.[k] || 0; return nv ? `<span class="pfMedP" style="--m:${NIVEIS_MEDALHA[nv - 1][1]}" title="${MEDALHAS[k].nome}">${ico(MEDALHAS[k].icone)}</span>` : ''; }).join('');
+  j.innerHTML = `<div class="jMissoes jPerfil"><div class="pfTopo"><img src="${fotoPet(petValido(P.avatar), 256)}" alt=""><div><b data-nt>${tagHtml(P.tag, P.cor)}${esc(P.apelido)}</b>
+      <small><i class="pontoOn ${P.online ? 'on' : ''}"></i>${P.online ? 'online' : 'offline'}${P.cla ? ` · <span data-nt>${esc(P.cla)}</span>` : ''}${d.renasc ? ` · ${ico('girar')} ×${d.renasc}` : ''}</small></div></div>
+    <div class="pfLista">${(d.equipe || []).length ? `<h3>Equipe <small>${ico('forca')} ${fmt(d.forca || 0)}</small></h3><div class="pfEquipe">${d.equipe.filter(k => PETS[base(k)]).map(k => `<span class="r${PETS[base(k)].r}" style="--r:${RARIDADES[PETS[base(k)].r].cor}"><img src="${fotoPet(k)}" alt="">${est(k) ? `<i style="color:${ESTRELAS[est(k)].cor}">${'★'.repeat(est(k))}</i>` : ''}</span>`).join('')}</div>` : ''}
+      <h3>Estatísticas</h3>${htmlStats(d)}${meds ? `<h3>Medalhas</h3><div class="pfMeds">${meds}</div>` : ''}</div>
     <button class="btn azul" data-a="fecharJanela">Fechar</button></div>`;
 }
 // ---- loja diária ----
@@ -883,6 +902,7 @@ function clique(e) {
   if (a === 'resgatar') resgatarCodigo(b);
   if (a === 'missoes') { som('clique'); mostrarMissoes(); }
   if (a === 'perfil') { som('clique'); mostrarPerfil(); }
+  if (b.dataset.perfil) { som('clique'); verPerfil(b.dataset.perfil); return; }
   if (b.dataset.avatar) { S.avatar = b.dataset.avatar; salvar(); som('clique'); mostrarPerfil(); desenharLobby(); }
   if (b.dataset.medalha) { const r = pegarMedalha(b.dataset.medalha); if (!r) { som('erro'); return; } sfx('medalha'); som('moedas'); mostrarPerfil(); desenharLobby(); }
   if (a === 'loja') { som('clique'); mostrarLoja(); }
