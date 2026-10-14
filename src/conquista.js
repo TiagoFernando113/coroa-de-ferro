@@ -12,6 +12,7 @@ import { evento } from './missoes.js';
 import * as ON from './online.js';
 import { forcaEquipe } from './pets.js';
 
+const esc = t => String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const Z_NOS = -24, Z_ELES = -50, ALT = 4.2; // altura de um pet na tela
 let Q = null, aoSair = null, el = null;
 
@@ -33,9 +34,9 @@ const forcaInimiga = est => inimigos(est).reduce((s, e) => s + forca(atributos(e
 const GEO_ANEL = new THREE.RingGeometry(0.85, 1.05, 28).rotateX(-Math.PI / 2), GEO_TIRO = new THREE.SphereGeometry(0.42, 10, 8);
 const MAT_ANEL = [new THREE.MeshBasicMaterial({ color: 0x4ab0ff, transparent: true, opacity: 0.8, depthWrite: false }), new THREE.MeshBasicMaterial({ color: 0xff4a3a, transparent: true, opacity: 0.8, depthWrite: false })];
 const matTiro = {}, corTiro = c => matTiro[c] ||= new THREE.MeshBasicMaterial({ color: c });
-function criar(k, lado, nv, extra, x, z, chefe, sem3d) {
+function criar(k, lado, nv, extra, x, z, chefe, sem3d, real) {
   const a = atributos(k, nv, extra), u = { k, lado, nv, ...a, max: a.hp, x, z, cd: 0.4 + Math.random() * 0.6, alvo: null, morto: false, flash: 0, atkT: 0, tm: 0, chefe, raio: chefe ? 2.2 : 1.3,
-    nvVis: lado && extra !== 1 ? Math.max(1, Math.round(1 + Math.log(Math.max(1, extra)) / Math.log(1.12))) : nv };
+    nvVis: lado && !real ? Math.max(1, Math.round(1 + Math.log(Math.max(1, extra)) / Math.log(1.12))) : nv };
   if (sem3d) return u;
   const m = modeloDe(k), v = C.personagem(m, [], 1); if (tinta(k) != null) C.tingirOuro(v.corpo, false, tinta(k));
   const h = C.alturaModelo(m); u.alt = ALT * (chefe ? 1.7 : 1 + 0.07 * est(k)) * (h / 2.5) ** 0.5; u.esc = u.alt / (h * C.ESC_PERS); // maiores continuam maiores
@@ -49,15 +50,22 @@ function formacao(lista, lado) { // tanques na frente, atiradores atrás
   return ordem.map((e, i) => { const fila = PETS[base(e.k)].c === 'atirador' ? 1 : 0, nFila = ordem.filter(o => (PETS[base(o.k)].c === 'atirador' ? 1 : 0) === fila).length, j = ordem.filter((o, i2) => i2 < i && (PETS[base(o.k)].c === 'atirador' ? 1 : 0) === fila).length;
     return { ...e, x: (j - (nFila - 1) / 2) * 5.2, z: z0 + dir * fila * 6 }; });
 }
-// equipe de outro jogador (Arena): só pets que existem, nível dentro do limite
+// equipe salva de outro jogador: só pets que existem, nível dentro do limite
 export const equipeValida = l => (Array.isArray(l) ? l : []).filter(e => e && typeof e.k === 'string' && PETS[base(e.k)] && est(e.k) <= MAX_EST).slice(0, 5)
   .map(e => ({ k: e.k, nv: Math.max(1, Math.min(MAX_NV, Math.floor(+e.nv || 1))), extra: 1 }));
-export function montar(est, sem3d = false, rivais = null) {
+// rival: equipe real de outro jogador, com a força ajustada para a do estágio (a dificuldade não muda)
+function equipeRival(est, rival) {
+  const l = equipeValida(rival.equipe); if (!l.length) return null;
+  const f = l.reduce((s, e) => s + forca(atributos(e.k, e.nv)), 0), ext = forcaInimiga(est) / Math.max(1, f);
+  return l.map(e => ({ ...e, extra: ext, real: true }));
+}
+export function montar(est, sem3d = false, rival = null) {
   limpar();
-  const nos = formacao(S.equipe.map(k => ({ k, nv: S.pets[base(k)].nv, extra: 1 })), 0), eles = formacao(rivais ? equipeValida(rivais) : inimigos(est).map(e => ({ ...e, nv: 1 })), 1);
-  Q = { est, us: [], tiros: [], golpes: [], txt: [], estado: 'prep', vel: S.cqVel || 1, t: 0, banner: null, sem3d };
+  const doRival = rival && equipeRival(est, rival);
+  const nos = formacao(S.equipe.map(k => ({ k, nv: S.pets[base(k)].nv, extra: 1 })), 0), eles = formacao(doRival || inimigos(est).map(e => ({ ...e, nv: 1 })), 1);
+  Q = { est, us: [], tiros: [], golpes: [], txt: [], estado: 'prep', vel: S.cqVel || 1, t: 0, banner: null, sem3d, rival: doRival ? rival : null };
   for (const e of nos) Q.us.push(criar(e.k, 0, e.nv, 1, e.x, e.z, false, sem3d));
-  for (const e of eles) Q.us.push(criar(e.k, 1, e.nv || 1, e.extra, e.x, e.z, e.chefe, sem3d));
+  for (const e of eles) Q.us.push(criar(e.k, 1, e.nv || 1, e.extra, e.x, e.z, e.chefe, sem3d, e.real));
   Q.forca = [forcaEquipeQ(0), forcaEquipeQ(1)];
   return Q;
 }
@@ -123,10 +131,13 @@ export function simular(est) { montar(est, true); Q.estado = 'luta'; Q.vel = 1; 
 
 // ---- tela ----
 export function abrir(container, sair) {
-  el = container; aoSair = sair; el.hidden = false; montar(S.cq.est); desenhar();
+  el = container; aoSair = sair; el.hidden = false; montar(S.cq.est); desenhar(); buscarRival();
 }
-export function abrirArena(container, sair, op) {
-  el = container; aoSair = sair; el.hidden = false; montar(0, false, op.equipe); Q.pvp = op; desenhar();
+// nos estágios normais o inimigo é a equipe salva de um jogador real (chefes continuam sendo chefes)
+function buscarRival() {
+  const est = Q?.est; if (!est || est % 10 === 0 || !S.online?.codigo) return;
+  ON.arenaDefesas().then(l => { const n = (l || []).filter(d => d.novo).length; if (n && Q && !Q.sem3d) Q.banner = { txt: n === 1 ? '1 JOGADOR ENFRENTOU SUA EQUIPE' : `${n} JOGADORES ENFRENTARAM SUA EQUIPE`, cor: '#8ae0ff', t: 0 }; }).catch(() => {});
+  ON.cqRival(Math.round(forcaInimiga(est))).then(r => { if (r && Q && !Q.sem3d && Q.estado === 'prep' && Q.est === est) { montar(est, false, r); desenhar(); } }).catch(() => {});
 }
 export function fechar() { limpar(); if (el) { el.hidden = true; el.innerHTML = ''; } }
 export const ativo = () => !!Q && !Q.sem3d;
@@ -136,13 +147,11 @@ function trilha() {
 }
 function desenhar() {
   if (!el || !Q) return; const L = lucroOcioso();
-  const P = Q.pvp;
-  el.innerHTML = `<div class="cqTopo"><button class="lSair" data-cq="sair">${ico('fechar')}</button><b>${P ? 'Arena' : 'Conquista'}</b>
-      <div class="cqForcas"><span class="nos">${ico('forca')}${fmt(Q.forca[0])}</span><em>${P ? 'VS' : Q.est}</em><span class="eles">${fmt(Q.forca[1])}${ico('forca')}</span></div></div>
-    ${P && Q.estado === 'prep' ? `<div class="cqBaixo"><p class="cqDica arenaVs"><b data-nt>${P.tag ? `[${P.tag}] ` : ''}${P.apelido}</b> · ${ico('coroa')} ${P.trofeus}</p>
-      <div class="cqBotoes"><button class="btn azul" data-cq="pets">${ico('pata')} Pets</button><button class="btn verde grande" data-cq="lutar">Atacar!</button></div></div>`
-    : Q.estado === 'prep' ? `<button class="cqOcioso ${L > 0 ? 'tem' : ''}" data-cq="ocioso">${ico('bau')}<small>${L > 0 ? fmt(L) : 'Lucro'}</small></button>
-    <div class="cqBaixo">${trilha()}<p class="cqDica">${Q.est % 10 === 0 ? 'Estágio de CHEFE! Vence e ganha um Ovo Mágico.' : Q.forca[0] < Q.forca[1] * 0.8 ? 'Inimigos fortes: suba o nível dos pets ou choque ovos.' : 'Os pets lutam sozinhos. Boa sorte!'}</p>
+  const P = Q.rival;
+  el.innerHTML = `<div class="cqTopo"><button class="lSair" data-cq="sair">${ico('fechar')}</button><b>Conquista</b>
+      <div class="cqForcas"><span class="nos">${ico('forca')}${fmt(Q.forca[0])}</span><em>${Q.est}</em><span class="eles">${fmt(Q.forca[1])}${ico('forca')}</span></div></div>
+    ${Q.estado === 'prep' ? `<button class="cqOcioso ${L > 0 ? 'tem' : ''}" data-cq="ocioso">${ico('bau')}<small>${L > 0 ? fmt(L) : 'Lucro'}</small></button>
+    <div class="cqBaixo">${trilha()}${P ? `<p class="cqDica cqRival">${ico('herois')} Equipe de <b data-nt>${P.tag ? `[${esc(P.tag)}] ` : ''}${esc(P.apelido)}</b></p>` : ''}<p class="cqDica">${Q.est % 10 === 0 ? 'Estágio de CHEFE! Vence e ganha um Ovo Mágico.' : Q.forca[0] < Q.forca[1] * 0.8 ? 'Inimigos fortes: suba o nível dos pets ou choque ovos.' : 'Os pets lutam sozinhos. Boa sorte!'}</p>
       <div class="cqBotoes"><button class="btn azul" data-cq="pets">${ico('pata')} Pets</button><button class="btn verde grande" data-cq="lutar">Lutar</button></div></div>`
     : Q.estado === 'luta' ? `<div class="cqLuta"><button class="cqVel" data-cq="vel">x${Q.vel}</button></div>` : ''}
     <div class="cqJanela" id="cqJanela" hidden></div>`;
@@ -152,8 +161,8 @@ function acabar(venceu) {
   Q.estado = 'fim'; Q.venceu = venceu; if (Q.sem3d) return;
   Q.banner = { txt: venceu ? 'VITÓRIA!' : 'DERROTA!', cor: venceu ? '#ffd84a' : '#ff6a5a', t: 0 }; sfx(venceu ? 'vitoria' : 'derrota');
   for (const u of Q.us) if (!u.morto && u.v) u.v.tocar('Idle');
-  if (Q.pvp) return fimArena(venceu);
   const est = Q.est; let premio = 0, ovo = null;
+  if (venceu && Q.rival) { evento('arena'); ON.cqDerrotou(Q.rival.codigo).catch(() => {}); }
   if (venceu) { evento('conquista'); premio = (15 + 6 * est) * (fimDeSemana() ? 2 : 1); if (est % 10 === 0) { ovo = 'magico'; premio *= 4; } else if (est % 5 === 0) ovo = 'comum';
     S.moedas += premio; if (ovo) S.ovos[ovo]++; S.cq.est = Math.max(S.cq.est, est + 1); salvar(); if (S.online?.codigo) ON.cqEnviar(S.cq.est - 1, forcaEquipe()).catch(() => {}); }
   setTimeout(() => { if (!Q || !el) return; const j = $('#cqJanela'); j.hidden = false; el.querySelector('.cqLuta')?.remove();
@@ -162,15 +171,6 @@ function acabar(venceu) {
         : '<p>Suba o nível dos pets, junte 3 iguais para um dourado ★ ou choque ovos.</p>'}
       <button class="btn verde grande" data-cq="seguir">${venceu ? `Estágio ${S.cq.est} ${ico('seta')}` : 'Tentar de novo'}</button>
       <button class="btn azul" data-cq="pets">${ico('pata')} Pets</button></div>`; }, 1600);
-}
-async function fimArena(venceu) {
-  const P = Q.pvp, premio = Math.round((venceu ? 40 + Math.min(200, P.trofeus / 10) : 10) * (fimDeSemana() ? 2 : 1)); S.moedas += premio; salvar(); if (venceu) evento('arena');
-  let r = null, erro = ''; try { r = await ON.arenaResultado(P.codigo, venceu); } catch (e) { erro = e.message; }
-  setTimeout(() => { if (!Q || !el) return; const j = $('#cqJanela'); j.hidden = false; el.querySelector('.cqLuta')?.remove(); const d = r?.delta || 0;
-    j.innerHTML = `<div class="cqFim ${venceu ? 'vit' : 'der'}"><h2>${venceu ? 'Vitória na Arena!' : 'Derrota na Arena!'}</h2>
-      ${r ? `<div class="ganho trofeu ${d < 0 ? 'menos' : ''}">${ico('coroa')}<b>${d > 0 ? '+' : ''}${d}</b></div><p>Troféus: ${r.trofeus} · ataques hoje ${r.ataques}/10</p>` : `<p class="erro">${erro}</p>`}
-      <div class="ganho">${ico('ouro')}<b>+${fmt(premio)}</b></div>
-      <button class="btn verde grande" data-cq="seguir">Próximo oponente</button><button class="btn azul" data-cq="pets">${ico('pata')} Pets</button></div>`; }, 1600);
 }
 export function ovoHtml(tipo, cls = '') {
   const [c1, c2] = OVOS[tipo].cor, i = Math.random().toString(36).slice(2, 7);
@@ -193,7 +193,7 @@ export function clique(b) {
   if (a === 'pets') { som('clique'); aoSair('pets'); }
   if (a === 'lutar') lutar();
   if (a === 'vel') { Q.vel = Q.vel === 1 ? 2 : 1; S.cqVel = Q.vel; salvar(); b.textContent = 'x' + Q.vel; som('clique'); }
-  if (a === 'seguir') { som('confirma'); if (Q.pvp) { aoSair('arena'); return; } montar(S.cq.est); desenhar(); }
+  if (a === 'seguir') { som('confirma'); montar(S.cq.est); desenhar(); buscarRival(); }
   if (a === 'ocioso') { som('clique'); mostrarOcioso(); }
   if (a === 'coletar') { const m = coletarOcioso(); if (m > 0) { som('moedas'); sfx('vitoria'); } $('#cqJanela').hidden = true; desenhar(); Q.txt.push({ x: 0, y: 8, z: -36, txt: `+${fmt(m)}`, cor: '#ffd84a', t: 0, grande: true }); }
   if (a === 'fecharJ') { som('fechar'); $('#cqJanela').hidden = true; }

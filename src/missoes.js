@@ -13,7 +13,7 @@ export const TIPOS = {
   nivelPet: { txt: 'Suba de nível # vezes um pet', icone: 'pata', dia: [2, 3], sem: [10] },
   infinito: { txt: 'Jogue # vezes a Ponte sem fim', icone: 'estrela', dia: [1], sem: [5] },
   ondas: { txt: 'Aguente # ondas no Castelo', icone: 'h_muralha', dia: [10, 20], sem: [100] },
-  arena: { txt: 'Vença # batalhas na Arena', icone: 'coroa', dia: [2, 3], sem: [15] },
+  arena: { txt: 'Vença # equipes de jogadores na Conquista', icone: 'coroa', dia: [2, 3], sem: [15] },
 };
 export const PTS_DIA = 40, PTS_SEM = 150, PTS_NIVEL = 100, NIVEIS_PASSE = 30;
 const hoje = () => new Date().toLocaleDateString('sv');
@@ -21,7 +21,7 @@ const semana = () => { const d = new Date(), dia = (d.getDay() + 6) % 7; d.setDa
 const temporada = () => new Date().toLocaleDateString('sv').slice(0, 7);
 function sortear(n, chave, semente) {
   let sd = [...semente].reduce((a, c) => a * 31 + c.charCodeAt(0) | 0, 7) >>> 0 || 1; const r = () => ((sd = (sd * 16807) % 2147483647) / 2147483647);
-  const tipos = Object.keys(TIPOS).filter(t => (t !== 'ondas' || (S.melhor || 0) >= 3) && (t !== 'arena' || ((S.melhor || 0) >= 5 && S.online?.codigo))).sort(() => r() - 0.5).slice(0, n);
+  const tipos = Object.keys(TIPOS).filter(t => (t !== 'ondas' || (S.melhor || 0) >= 3) && (t !== 'arena' || S.online?.codigo)).sort(() => r() - 0.5).slice(0, n);
   return tipos.map(t => { const l = TIPOS[t][chave]; return { t, meta: l[Math.floor(r() * l.length)], prog: 0, pego: false }; });
 }
 // renova as listas quando vira o dia / a semana / o mês

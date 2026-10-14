@@ -804,3 +804,22 @@ input{font:inherit;user-select:text;-webkit-user-select:text}
 .linha em.menos,.ganho.trofeu.menos b{color:var(--vermelho2)}
 .ganho.trofeu .ico{color:#f2b51a}
 .arenaVs b{font-family:var(--fT);font-weight:400;font-size:18px;color:#ffd84a}
+/* ---- tela de modos ---- */
+.lbJogar{grid-template-columns:76px 1fr}
+.modosBtn{position:relative;height:72px}
+.modosBtn .ico{width:32px;height:32px}
+.modosBtn .ponto{position:absolute;top:-4px;right:-4px;width:16px;height:16px;border-radius:50%;background:#ffd23a;border:2px solid #fff;animation:respira 1.2s infinite}
+.jModos h3{display:flex;align-items:center;gap:6px;margin:10px 0 4px;font-family:var(--fT);font-weight:400;font-size:17px;color:var(--suave)}
+.jModos h3 .ico{width:18px;height:18px}
+.modoC{display:flex;align-items:center;gap:10px;width:100%;margin:0 0 7px;padding:10px 12px;border-radius:16px;color:#fff;text-align:left;
+  background:linear-gradient(color-mix(in srgb,var(--c) 80%,#fff),var(--c));border:3px solid #fff;box-shadow:0 4px 0 color-mix(in srgb,var(--c) 60%,#000)}
+.modoC > .ico{width:34px;height:34px;flex:none}
+.modoC span{display:flex;flex-direction:column;flex:1;min-width:0}
+.modoC b{font-family:var(--fT);font-weight:400;font-size:19px;line-height:1.1}
+.modoC small{font-size:12px;opacity:.9}
+.modoC em{display:flex;align-items:center;gap:3px;font-style:normal;font-family:var(--fT);font-size:14px;padding:3px 8px;border-radius:10px;background:rgba(0,0,0,.22);white-space:nowrap}
+.modoC em .ico{width:14px;height:14px}
+.modoC.bloq{filter:grayscale(.85);opacity:.8}
+.modoC:active{transform:translateY(3px)}
+.cqBotoes.tres{grid-template-columns:1fr 1fr 1.4fr}
+.cqBotoes .btn.bloq{filter:grayscale(.8);opacity:.75}

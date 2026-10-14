@@ -100,7 +100,7 @@ const T = {
   'Suba o nível dos pets, junte # iguais para uma estrela ★ ou choque ovos.': L('Level up pets, merge # alike for a star ★ or hatch eggs.', 'Sube de nivel, fusiona # iguales para una estrella ★ o eclosiona huevos.'),
   '+# Ovo Comum!': L('+# Common Egg!', '¡+# Huevo Común!'), '#/h': L('#/h', '#/h'), 'máximo #h': L('max #h', 'máximo #h'), 'sobe a cada estágio': L('rises every stage', 'sube cada etapa'), '# Ovo Comum!': L('# Common Egg!', '¡# Huevo Común!'), '# Ovo Mágico!': L('# Magic Egg!', '¡# Huevo Mágico!'),
   // online, clã, chat
-  'Seu nome:': L('Your name:', 'Tu nombre:'), 'trocar': L('change', 'cambiar'), 'Seu apelido': L('Your nickname', 'Tu apodo'), 'Salvar': L('Save', 'Guardar'), 'Voltar': L('Back', 'Volver'),
+  'Seu nome:': L('Your name:', 'Tu nombre:'), 'trocar': L('change', 'cambiar'), 'Seu apelido': L('Your nickname', 'Tu apodo'), 'Salvar': L('Save', 'Guardar'),
   'Esse nome aparece no ranking, no clã e na dupla.': L('This name shows in the ranking, clan and duo.', 'Este nombre aparece en el ranking, el clan y el dúo.'), 'Jogadores': L('Players', 'Jugadores'), 'Clãs': L('Clans', 'Clanes'),
   'Ponte sem fim · melhores do mundo': L('Endless bridge · best in the world', 'Puente sin fin · mejores del mundo'), 'melhores do mundo': L('best in the world', 'mejores del mundo'),
   'Clãs com mais chefes semanais derrotados': L('Clans with the most weekly bosses defeated', 'Clanes con más jefes semanales derrotados'), '# chefes': L('# bosses', '# jefes'), '# membros': L('# members', '# miembros'),
@@ -246,6 +246,16 @@ const T = {
   'Mais troféus na Arena': L('Most Arena trophies', 'Más trofeos en la Arena'), '# vitórias': L('# wins', '# victorias'), 'Ninguém ainda. Ataque na Arena!': L('Nobody yet. Attack in the Arena!', '¡Nadie aún. Ataca en la Arena!'),
   'Vença # batalhas na Arena': L('Win # Arena battles', 'Gana # batallas en la Arena'), 'monte sua equipe de pets primeiro': L('build your pet team first', 'arma tu equipo de mascotas primero'),
   'sem ataques hoje: volte amanhã': L('no attacks left today: come back tomorrow', 'sin ataques hoy: vuelve mañana'), 'oponente inválido': L('invalid opponent', 'oponente inválido'),
+  // tela de modos
+  'Modos': L('Modes', 'Modos'), 'Com o herói': L('With the hero', 'Con el héroe'), 'Com os pets': L('With the pets', 'Con las mascotas'),
+  'Chefes sem parar até cair': L('Bosses nonstop until you fall', 'Jefes sin parar hasta caer'),
+  'Defenda a muralha em ondas': L('Defend the wall in waves', 'Defiende la muralla en oleadas'), 'Jogue junto com outra pessoa': L('Play together with someone', 'Juega junto con otra persona'),
+  'Seus pets lutam sozinhos': L('Your pets fight on their own', 'Tus mascotas luchan solas'), 'Ataque a equipe de outros jogadores': L('Attack other players\' teams', 'Ataca al equipo de otros jugadores'),
+  'Online': L('Online', 'En línea'),
+  'Campanha e Arena contra jogadores': L('Campaign and Arena vs players', 'Campaña y Arena contra jugadores'), 'ARENA LIBERA NA FASE #': L('ARENA UNLOCKS AT STAGE #', 'LA ARENA SE DESBLOQUEA EN LA FASE #'), 'Voltar': L('Back', 'Volver'),
+  'Equipe de': L('Team of', 'Equipo de'), 'Seus pets contra equipes de outros jogadores': L('Your pets vs other players\' teams', 'Tus mascotas contra equipos de otros jugadores'),
+  'Vença # equipes de jogadores na Conquista': L('Beat # player teams in Conquest', 'Vence # equipos de jugadores en la Conquista'),
+  '# JOGADOR ENFRENTOU SUA EQUIPE': L('# PLAYER FACED YOUR TEAM', '# JUGADOR ENFRENTÓ A TU EQUIPO'), '# JOGADORES ENFRENTARAM SUA EQUIPE': L('# PLAYERS FACED YOUR TEAM', '# JUGADORES ENFRENTARON A TU EQUIPO'),
 };
 export const TEXTOS = { en: {}, es: {} };
 for (const [k, v] of Object.entries(T)) { TEXTOS.en[k] = v.en; TEXTOS.es[k] = v.es; }
