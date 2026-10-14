@@ -415,7 +415,7 @@ export function abrirLobby() {
   iniciarFase(S.fase); desenharLobby();
   if (!diarioVisto && diarioPronto()) { diarioVisto = true; setTimeout(mostrarDiario, 900); }
   else setTimeout(coletarPremios, 1200);
-  setTimeout(enviarPerfil, 2500); setTimeout(() => { backupNuvem(!nuvemT); if (S.temSenha == null && S.online?.codigo) ON.temSenha().then(t => { S.temSenha = !!t; salvar(); }).catch(() => {}); }, 4000);
+  setTimeout(enviarPerfil, 2500); setTimeout(() => { if (S.melhor >= 5) salvarDefesa().catch(() => {}); }, 5000); setTimeout(() => { backupNuvem(!nuvemT); if (S.temSenha == null && S.online?.codigo) ON.temSenha().then(t => { S.temSenha = !!t; salvar(); }).catch(() => {}); }, 4000);
 }
 let diarioVisto = false;
 // ---- lobby: cena 3D atrás do herói, card da fase, JOGAR, baús e abas embaixo ----
@@ -473,7 +473,8 @@ function desenharLobby() {
     <div class="lbBase">
       ${fimDeSemana() ? `<div class="fdsFaixa">${ico('festa')}<span><b>Fim de semana dourado!</b><small>Moedas x2 · ovos com sorte x2 · guerra de clãs</small></span></div>` : ''}
       <div class="lbModos"><button class="cqEntrar" data-a="conquista">${ico('bandeira')}<span><b>Conquista</b><small>Estágio ${S.cq.est}</small></span>${lucroOcioso() > 0 ? `<em>${ico('ouro')}${fmt(lucroOcioso())}</em>` : ''}</button>
-      <button class="cqEntrar ctEntrar ${S.melhor >= 3 ? '' : 'bloq'}" data-a="castelo">${ico(S.melhor >= 3 ? 'h_muralha' : 'cadeado')}<span><b>Castelo</b><small>${S.melhor >= 3 ? `Recorde: onda ${S.castelo?.rec || 0}` : 'Libera na fase 3'}</small></span></button></div>
+      <button class="cqEntrar ctEntrar ${S.melhor >= 3 ? '' : 'bloq'}" data-a="castelo">${ico(S.melhor >= 3 ? 'h_muralha' : 'cadeado')}<span><b>Castelo</b><small>${S.melhor >= 3 ? `Recorde: onda ${S.castelo?.rec || 0}` : 'Libera na fase 3'}</small></span></button>
+      <button class="cqEntrar arEntrar ${S.melhor >= 5 ? '' : 'bloq'}" data-a="arena">${ico(S.melhor >= 5 ? 'coroa' : 'cadeado')}<span><b>Arena</b><small>${S.melhor >= 5 ? `${ico('coroa')} ${S.arena?.trofeus ?? 1000}` : 'Libera na fase 5'}</small></span></button></div>
       <div class="baus">${Array.from({ length: MAX_BAUS }, (_, i) => { const b = S.baus[i];
         return b ? `<button class="slotBau" data-bau="${i}">${bauHtml(b.tipo, 'mini')}<small>Abrir!</small></button>` : `<div class="slotBau vazio">${ico('bau')}</div>`; }).join('')}</div>
       <div class="lbJogar"><button class="modo azul" data-a="dupla">${ico('herois')}<small>Dupla</small></button>
@@ -549,6 +550,32 @@ function abrirCastelo() {
   limparFase(); MUROS_PISTA[0].visible = MUROS_PISTA[1].visible = false; MUROS_PISTA[2].visible = true; $('#janela').hidden = true;
   tela = 'castelo'; $('#lobby').hidden = true; $('#jogo').hidden = true; $('#fim').hidden = true; tema(1);
   CT.abrir($('#castelo'), () => { CT.fechar(); abrirLobby(); desenharLobby(); });
+}
+// ---- Arena: seus pets atacam a equipe salva de outro jogador ----
+const equipeArena = () => S.equipe.map(k => ({ k, nv: S.pets[base(k)]?.nv || 1 }));
+async function salvarDefesa() { if (!S.online?.codigo || !S.equipe.length) return; const eq = equipeArena(), sig = JSON.stringify(eq); if (sig === S.arena?.sig) return;
+  const t = await ON.arenaSalvar(eq, forcaEquipe()); S.arena = { ...(S.arena || {}), sig, trofeus: t }; salvar(); }
+async function mostrarArena() {
+  const j = $('#janela'); j.hidden = false;
+  j.innerHTML = `<div class="jOnline jArena"><h2>${ico('coroa')} Arena</h2><p class="sub">Seus pets atacam a equipe de outro jogador. A sua equipe também defende quando você está fora.</p><div id="arCorpo"><p>Carregando...</p></div>
+    <p class="erro" id="gerErro"></p><button class="fSo" data-a="fecharJanela">Fechar</button></div>`;
+  try { await ON.garantir(); await salvarDefesa(); const [r, def] = await Promise.all([ON.arenaOponentes(), ON.arenaDefesas().catch(() => [])]); arenaOps = r.oponentes || [];
+    S.arena = { ...(S.arena || {}), trofeus: r.trofeus }; salvar(); const e = $('#arCorpo'); if (!e) return; const resta = Math.max(0, 10 - r.ataques);
+    e.innerHTML = `<div class="arTopo"><span>${ico('coroa')}<b>${r.trofeus}</b><small>troféus</small></span><span>${ico('raio')}<b>${resta}/10</b><small>ataques hoje</small></span><span>${ico('check')}<b>${r.vitorias}</b><small>vitórias</small></span></div>
+      <div class="lista">${arenaOps.length ? arenaOps.map((o, i) => `<div class="linha arOp"><div class="lnTxt"><button class="nomeBtn" data-perfil="${o.codigo}" data-nt>${tagHtml(o.tag, 0)}${esc(o.apelido)}</button>
+        <small>${ico('coroa')} ${o.trofeus} · ${ico('forca')} ${fmt(o.forca)}</small><div class="arPets">${equipeValidaArena(o.equipe).map(p => `<img src="${fotoPet(p.k, 64)}" alt="">`).join('')}</div></div>
+        <button class="btn ${resta ? 'vermelho' : 'cinza'} peq" data-arena-op="${i}" ${resta ? '' : 'disabled'}>Atacar</button></div>`).join('') : '<p>Ninguém na sua faixa agora. Volte daqui a pouco!</p>'}</div>
+      ${def.length ? `<h3>Defesas</h3><div class="lista arDef">${def.slice(0, 6).map(d => `<div class="linha ${d.novo ? 'novo' : ''}"><button class="nomeBtn" data-perfil="${d.codigo}" data-nt>${esc(d.apelido)}</button>
+        <small>${d.venceu ? 'venceu você' : 'perdeu para você'}</small><em class="${d.delta < 0 ? 'menos' : ''}">${d.delta > 0 ? '+' : ''}${d.delta}</em></div>`).join('')}</div>` : ''}`; }
+  catch (e) { const x = $('#arCorpo'); if (x) x.innerHTML = `<p class="erro">${esc(e.message)}</p>`; }
+}
+let arenaOps = [];
+const equipeValidaArena = l => CQ.equipeValida(l);
+function atacarArena(i) {
+  const op = arenaOps[i]; if (!op) return; som('confirma');
+  limparFase(); for (const m of MUROS_PISTA) m.visible = false; $('#janela').hidden = true;
+  tela = 'conq'; $('#lobby').hidden = true; $('#jogo').hidden = true; $('#fim').hidden = true; tema(5);
+  CQ.abrirArena($('#conq'), destino => { CQ.fechar(); abrirLobby(); if (destino === 'arena') setTimeout(mostrarArena, 300); else { abaLobby = destino; desenharLobby(); } }, op);
 }
 function abrirConquista() {
   limparFase(); for (const m of MUROS_PISTA) m.visible = false; $('#janela').hidden = true;
@@ -630,16 +657,17 @@ function carregarOnline(aba) {
       <button class="btn verde grande" data-a="salvarNome">Salvar</button><button class="btn azul" data-a="voltarOnline">Voltar</button>`; return;
   }
   if (aba === 'rank') {
-    el.innerHTML = `${nome}<div class="abas"><button class="${rankModo === 'jog' ? 'on' : ''}" data-rk="jog">Jogadores</button><button class="${rankModo === 'cq' ? 'on' : ''}" data-rk="cq">Conquista</button><button class="${rankModo === 'ct' ? 'on' : ''}" data-rk="ct">Castelo</button><button class="${rankModo === 'cla' ? 'on' : ''}" data-rk="cla">Clãs</button></div>
-      <p class="sub">${rankModo === 'jog' ? 'Ponte sem fim · melhores do mundo' : rankModo === 'cq' ? 'Maior estágio da Conquista' : rankModo === 'ct' ? 'Mais ondas aguentadas no Castelo' : 'Clãs com mais chefes semanais derrotados'}</p><div class="lista" id="lista"><p>Carregando...</p></div>`;
+    el.innerHTML = `${nome}<div class="abas"><button class="${rankModo === 'jog' ? 'on' : ''}" data-rk="jog">Jogadores</button><button class="${rankModo === 'cq' ? 'on' : ''}" data-rk="cq">Conquista</button><button class="${rankModo === 'ct' ? 'on' : ''}" data-rk="ct">Castelo</button><button class="${rankModo === 'ar' ? 'on' : ''}" data-rk="ar">Arena</button><button class="${rankModo === 'cla' ? 'on' : ''}" data-rk="cla">Clãs</button></div>
+      <p class="sub">${rankModo === 'jog' ? 'Ponte sem fim · melhores do mundo' : rankModo === 'cq' ? 'Maior estágio da Conquista' : rankModo === 'ct' ? 'Mais ondas aguentadas no Castelo' : rankModo === 'ar' ? 'Mais troféus na Arena' : 'Clãs com mais chefes semanais derrotados'}</p><div class="lista" id="lista"><p>Carregando...</p></div>`;
     const med = p => p <= 3 ? ['🥇', '🥈', '🥉'][p - 1] : '#' + p, modo = rankModo;
     const html = {
       jog: l => l.length ? l.map(r => `<div class="linha ${r.eu ? 'eu' : ''}"><b>${med(r.posicao)}</b><button class="nomeBtn" data-perfil="${r.codigo}" data-nt>${tagHtml(r.tag, 0)}${esc(r.apelido)}</button><small>${r.chefes} chefes</small><em>${fmt(r.pontos)}</em></div>`).join('') : '<p>Ninguém no ranking ainda. Jogue a Ponte sem fim e seja o primeiro!</p>',
       cq: l => l.length ? l.map(r => `<div class="linha ${r.eu ? 'eu' : ''}"><b>${med(r.posicao)}</b><button class="nomeBtn" data-perfil="${r.codigo}" data-nt>${tagHtml(r.tag, 0)}${esc(r.apelido)}</button><small>${ico('forca')} ${fmt(r.forca)}</small><em>${ico('bandeira')} ${r.estagio}</em></div>`).join('') : '<p>Ninguém ainda. Vença estágios na Conquista!</p>',
       ct: l => l.length ? l.map(r => `<div class="linha ${r.eu ? 'eu' : ''}"><b>${med(r.posicao)}</b><button class="nomeBtn" data-perfil="${r.codigo}" data-nt>${tagHtml(r.tag, 0)}${esc(r.apelido)}</button><small>${esc(HEROIS[r.heroi]?.nome || '')}</small><em>${ico('h_muralha')} ${r.onda}</em></div>`).join('') : '<p>Ninguém ainda. Defenda o Castelo!</p>',
+      ar: l => l.length ? l.map(r => `<div class="linha ${r.eu ? 'eu' : ''}"><b>${med(r.posicao)}</b><button class="nomeBtn" data-perfil="${r.codigo}" data-nt>${tagHtml(r.tag, 0)}${esc(r.apelido)}</button><small>${r.vitorias} vitórias</small><em>${ico('coroa')} ${r.trofeus}</em></div>`).join('') : '<p>Ninguém ainda. Ataque na Arena!</p>',
       cla: l => l.length ? l.map((c, i) => `<div class="linha"><b>${med(i + 1)}</b>${escudoCla(c.cor, c.tag || c.nome)}<div class="lnTxt"><span data-nt>${tagHtml(c.tag, c.cor)}${esc(c.nome)}</span><small>${c.membros} membros</small></div><em>Nv ${c.nivel}</em></div>`).join('') : '<p>Nenhum clã ainda.</p>',
     }[modo];
-    const buscar = modo === 'jog' ? () => ON.garantir().then(ON.ranking) : modo === 'cq' ? () => ON.garantir().then(ON.cqTop) : modo === 'ct' ? () => ON.garantir().then(ON.ctTop) : () => ON.clas();
+    const buscar = modo === 'jog' ? () => ON.garantir().then(ON.ranking) : modo === 'cq' ? () => ON.garantir().then(ON.cqTop) : modo === 'ct' ? () => ON.garantir().then(ON.ctTop) : modo === 'ar' ? () => ON.garantir().then(ON.arenaTop) : () => ON.clas();
     comCache('rank_' + modo, buscar, l => { const e = $('#lista'); if (e && rankModo === modo) e.innerHTML = html(l); mostrarNomeEu(); },
       e => { const x = $('#lista'); if (x) x.innerHTML = `<p class="erro">${esc(e.message)}</p>`; });
     return;
@@ -1159,6 +1187,8 @@ function clique(e) {
   if (b.dataset.cq) CQ.clique(b);
   if (b.dataset.ct || b.dataset.magia) CT.clique(b);
   if (a === 'conquista') { som('confirma'); abrirConquista(); }
+  if (a === 'arena') { if (S.melhor < 5) { som('erro'); return; } if (!S.equipe.length) { som('erro'); abaLobby = 'pets'; desenharLobby(); return; } som('clique'); mostrarArena(); }
+  if (b.dataset.arenaOp) { atacarArena(+b.dataset.arenaOp); return; }
   if (a === 'castelo') { if (S.melhor < 3) { som('erro'); return; } som('confirma'); abrirCastelo(); }
   if (b.dataset.ovo) abrirOvo(b.dataset.ovo);
   if (b.dataset.pet) { som('clique'); mostrarPet(b.dataset.pet); }

@@ -236,6 +236,16 @@ const T = {
   'Barreira': L('Barrier', 'Barrera'), 'Cura a muralha': L('Heals the wall', 'Cura la muralla'),
   'Raio arcano': L('Arcane bolt', 'Rayo arcano'), 'Raio forte no inimigo mais forte': L('Strong bolt on the toughest enemy', 'Rayo fuerte al enemigo más fuerte'),
   'a cada #s': L('every #s', 'cada #s'),
+  // arena
+  'Arena': L('Arena', 'Arena'),
+  'Seus pets atacam a equipe de outro jogador. A sua equipe também defende quando você está fora.': L('Your pets attack another player\'s team. Your team also defends while you are away.', 'Tus mascotas atacan al equipo de otro jugador. Tu equipo también defiende cuando no estás.'),
+  'troféus': L('trophies', 'trofeos'), 'ataques hoje': L('attacks today', 'ataques hoy'), 'vitórias': L('wins', 'victorias'), 'Atacar': L('Attack', 'Atacar'), 'Atacar!': L('Attack!', '¡Atacar!'),
+  'Ninguém na sua faixa agora. Volte daqui a pouco!': L('Nobody in your range now. Come back soon!', 'Nadie en tu rango ahora. ¡Vuelve pronto!'), 'Defesas': L('Defenses', 'Defensas'),
+  'venceu você': L('beat you', 'te ganó'), 'perdeu para você': L('lost to you', 'perdió contra ti'), 'Vitória na Arena!': L('Arena victory!', '¡Victoria en la Arena!'), 'Derrota na Arena!': L('Arena defeat!', '¡Derrota en la Arena!'),
+  'Troféus: # · ataques hoje #/#': L('Trophies: # · attacks today #/#', 'Trofeos: # · ataques hoy #/#'), 'Próximo oponente': L('Next opponent', 'Siguiente oponente'),
+  'Mais troféus na Arena': L('Most Arena trophies', 'Más trofeos en la Arena'), '# vitórias': L('# wins', '# victorias'), 'Ninguém ainda. Ataque na Arena!': L('Nobody yet. Attack in the Arena!', '¡Nadie aún. Ataca en la Arena!'),
+  'Vença # batalhas na Arena': L('Win # Arena battles', 'Gana # batallas en la Arena'), 'monte sua equipe de pets primeiro': L('build your pet team first', 'arma tu equipo de mascotas primero'),
+  'sem ataques hoje: volte amanhã': L('no attacks left today: come back tomorrow', 'sin ataques hoy: vuelve mañana'), 'oponente inválido': L('invalid opponent', 'oponente inválido'),
 };
 export const TEXTOS = { en: {}, es: {} };
 for (const [k, v] of Object.entries(T)) { TEXTOS.en[k] = v.en; TEXTOS.es[k] = v.es; }

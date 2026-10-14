@@ -782,3 +782,25 @@ input{font:inherit;user-select:text;-webkit-user-select:text}
 .ptGolpe span{display:flex;flex-direction:column}
 .ptGolpe b{font-family:var(--fT);font-weight:400;font-size:16px;color:#7a3a08}
 .ptGolpe small{font-size:12px;color:#8a5a2a}
+/* ---- arena ---- */
+.lbModos{grid-template-columns:repeat(3,1fr)}
+.lbModos .cqEntrar{flex-direction:column;justify-content:center;text-align:center;gap:2px;padding:7px 4px}
+.lbModos .cqEntrar span{align-items:center}
+.lbModos .cqEntrar b{font-size:17px}
+.lbModos .cqEntrar small{font-size:11px;display:flex;align-items:center;gap:2px}
+.lbModos .cqEntrar small .ico{width:12px;height:12px}
+.arEntrar{background:linear-gradient(#e8503a,#a8201a)}
+.arEntrar.bloq{filter:grayscale(.8);opacity:.75}
+.jArena .lista{max-height:none}
+.arTopo{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:6px 0}
+.arTopo span{display:flex;flex-direction:column;align-items:center;padding:6px;border-radius:12px;background:#fff;border:2px solid var(--creme2)}
+.arTopo .ico{width:22px;height:22px;color:var(--amarelo2)}
+.arTopo b{font-family:var(--fT);font-weight:400;font-size:20px}
+.arTopo small{font-size:11px;color:var(--suave)}
+.arPets{display:flex;gap:3px;margin-top:3px}
+.arPets img{width:34px;height:34px;border-radius:8px;background:#efe3c8}
+.arOp .lnTxt small .ico{width:12px;height:12px;vertical-align:-2px}
+.arDef .linha.novo{border-color:#f2b51a;background:#fff8dc}
+.linha em.menos,.ganho.trofeu.menos b{color:var(--vermelho2)}
+.ganho.trofeu .ico{color:#f2b51a}
+.arenaVs b{font-family:var(--fT);font-weight:400;font-size:18px;color:#ffd84a}
