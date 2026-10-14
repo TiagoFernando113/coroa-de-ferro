@@ -132,6 +132,11 @@ export function simular(est) { montar(est, true); Q.estado = 'luta'; Q.vel = 1; 
 // ---- tela ----
 export function abrir(container, sair) {
   el = container; aoSair = sair; el.hidden = false; montar(S.cq.est); desenhar(); buscarRival();
+  if (!S.dicas?.conquista) { (S.dicas ||= {}).conquista = 1; salvar(); const j = $('#cqJanela'); j.hidden = false;
+    j.innerHTML = `<div class="cqFim dica"><h2>${ico('bandeira')} Conquista</h2>
+      <p>Seus pets lutam sozinhos contra equipes de outros jogadores.</p><p>${ico('ouro')} Cada estágio vencido aumenta o lucro ocioso (até 9h).</p>
+      <p>${ico('chefe')} A cada 10 estágios vem um chefe com Ovo Mágico.</p><p>${ico('pata')} Sua equipe também defende quando você está fora!</p>
+      <button class="btn verde grande" data-cq="fecharJ">Entendi!</button></div>`; }
 }
 // nos estágios normais o inimigo é a equipe salva de um jogador real (chefes continuam sendo chefes)
 function buscarRival() {

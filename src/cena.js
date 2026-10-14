@@ -41,6 +41,12 @@ export function iniciar(canvas, q) {
   medir();
   addEventListener('resize', medir);
 }
+// celular fraco: menos pixels, sem sombras e metade das partículas (sem recarregar)
+export function modoLeve() {
+  if (qualidade === 'baixa') return; qualidade = 'baixa';
+  renderer.setPixelRatio(1); renderer.shadowMap.enabled = false; sol.castShadow = false;
+  scene.traverse(o => { if (o.material) for (const m of [].concat(o.material)) m.needsUpdate = true; }); medir();
+}
 function medir() {
   const w = innerWidth, h = innerHeight;
   renderer.setSize(w, h, false); cam.aspect = w / h; cam.fov = w < h ? 50 : 40; cam.updateProjectionMatrix();
@@ -689,7 +695,7 @@ export function feixe(x1, z1, x2, z2, cor = 0xc9a0ff) {
   m.position.set((x1 + x2) / 2, 1.8 + chao((x1 + x2) / 2, (z1 + z2) / 2), (z1 + z2) / 2); m.rotation.y = Math.atan2(x2 - x1, z2 - z1); scene.add(m); efeitos.push({ o: m, t: 0, dur: 0.3, tipo: 'fade' });
 }
 export function faiscas(x, y, z, cor, n = 10, forca = 3) {
-  corTmp.set(cor);
+  corTmp.set(cor); if (qualidade === 'baixa') n = Math.ceil(n / 2);
   for (let i = 0; i < n && part.length < MAXP; i++) {
     const a = Math.random() * 6.28, v = forca * (0.4 + Math.random());
     const c0 = chao(x, z); part.push({ x, y: y + c0, z, c0, vx: Math.cos(a) * v, vy: Math.random() * forca * 1.2, vz: Math.sin(a) * v, t: 0, vida: 0.4 + Math.random() * 0.5, r: corTmp.r, g: corTmp.g, b: corTmp.b });

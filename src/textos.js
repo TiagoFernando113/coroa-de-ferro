@@ -219,7 +219,7 @@ const T = {
   'esse jogador já entrou em outro clã': L('this player already joined another clan', 'este jugador ya entró en otro clan'),
   // heróis novos
   'Paladina sagrada': L('Holy paladin', 'Paladina sagrada'), 'Mago da tempestade': L('Storm mage', 'Mago de la tormenta'),
-  'Martelos sagrados em área': L('Holy hammers (area)', 'Martillos sagrados en área'), 'Raios que pulam em 3': L('Lightning that jumps to 3', 'Rayos que saltan a 3'),
+  'Martelos sagrados em área': L('Holy hammers (area)', 'Martillos sagrados en área'), 'Raios que pulam em #': L('Lightning that jumps to #', 'Rayos que saltan a #'),
   'Escudo': L('Shield', 'Escudo'), 'Tempestade': L('Storm', 'Tormenta'), 'Muralha invencível por alguns segundos': L('Wall is invincible for a few seconds', 'Muralla invencible por unos segundos'),
   'Raios caem nos orcs perto da muralha': L('Lightning strikes orcs near the wall', 'Rayos caen sobre los orcos cerca de la muralla'),
   'ESCUDO SAGRADO!': L('HOLY SHIELD!', '¡ESCUDO SAGRADO!'), 'TEMPESTADE DE RAIOS!': L('LIGHTNING STORM!', '¡TORMENTA DE RAYOS!'),
@@ -256,6 +256,21 @@ const T = {
   'Equipe de': L('Team of', 'Equipo de'), 'Seus pets contra equipes de outros jogadores': L('Your pets vs other players\' teams', 'Tus mascotas contra equipos de otros jugadores'),
   'Vença # equipes de jogadores na Conquista': L('Beat # player teams in Conquest', 'Vence # equipos de jugadores en la Conquista'),
   '# JOGADOR ENFRENTOU SUA EQUIPE': L('# PLAYER FACED YOUR TEAM', '# JUGADOR ENFRENTÓ A TU EQUIPO'), '# JOGADORES ENFRENTARAM SUA EQUIPE': L('# PLAYERS FACED YOUR TEAM', '# JUGADORES ENFRENTARON A TU EQUIPO'),
+  // configurações
+  'Configurações': L('Settings', 'Ajustes'), 'Idioma': L('Language', 'Idioma'), 'Som': L('Sound', 'Sonido'), 'Som ligado': L('Sound on', 'Sonido activado'), 'Som desligado': L('Sound off', 'Sonido desactivado'),
+  'Gráficos': L('Graphics', 'Gráficos'), 'Leve': L('Light', 'Ligero'), 'Normal': L('Normal', 'Normal'), 'Bonito': L('Pretty', 'Bonito'),
+  'Vale quando abrir o jogo de novo.': L('Applies next time you open the game.', 'Se aplica al abrir el juego de nuevo.'), 'Leve: roda melhor em celular simples.': L('Light: runs better on simple phones.', 'Ligero: funciona mejor en móviles sencillos.'),
+  'Versão #': L('Version #', 'Versión #'), 'Modo leve ligado para o jogo rodar melhor': L('Light mode on so the game runs better', 'Modo ligero activado para que el juego funcione mejor'),
+  // dicas de primeira vez
+  'Seu herói e seus pets defendem a muralha sozinhos.': L('Your hero and pets defend the wall on their own.', 'Tu héroe y tus mascotas defienden la muralla solos.'),
+  'Use as # magias gastando mana (barra azul).': L('Use the # spells by spending mana (blue bar).', 'Usa los # hechizos gastando maná (barra azul).'),
+  'A cada # ondas vem um chefe.': L('Every # waves a boss comes.', 'Cada # oleadas llega un jefe.'),
+  'Não dá para melhorar durante a partida: fique forte fora dela!': L('You can\'t upgrade during the match: get stronger outside it!', 'No se puede mejorar durante la partida: ¡hazte fuerte fuera de ella!'),
+  'Entendi!': L('Got it!', '¡Entendido!'), 'Seus pets lutam sozinhos contra equipes de outros jogadores.': L('Your pets fight other players\' teams on their own.', 'Tus mascotas luchan solas contra equipos de otros jugadores.'),
+  'Cada estágio vencido aumenta o lucro ocioso (até #h).': L('Each stage won raises your idle profit (up to #h).', 'Cada fase ganada aumenta la ganancia inactiva (hasta #h).'),
+  'A cada # estágios vem um chefe com Ovo Mágico.': L('Every # stages a boss comes with a Magic Egg.', 'Cada # fases llega un jefe con Huevo Mágico.'),
+  'Sua equipe também defende quando você está fora!': L('Your team also defends while you are away!', '¡Tu equipo también defiende cuando no estás!'),
+  'Só # próxima fase': L('Only # next stage', 'Solo # próxima fase'), 'Volte para a fase # e fique mais forte para sempre': L('Go back to stage # and get stronger forever', 'Vuelve a la fase # y hazte más fuerte para siempre'),
 };
 export const TEXTOS = { en: {}, es: {} };
 for (const [k, v] of Object.entries(T)) { TEXTOS.en[k] = v.en; TEXTOS.es[k] = v.es; }

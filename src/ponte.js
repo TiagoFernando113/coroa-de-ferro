@@ -464,7 +464,7 @@ function desenharLobby() {
   const F = dadosFase(S.fase), O = S.online, upPode = Object.entries(UPGRADES).some(([k, U]) => S.up[k] < U.max && S.moedas >= U.custo(S.up[k]));
   const nav = `<nav class="lbNav">${ABAS.map(([k, nome, icone]) => `<button class="${abaLobby === k ? 'on' : ''}" data-aba-lobby="${k}">${ico(icone)}<small>${nome}</small>${(k === 'up' && upPode) || (k === 'pets' && (S.ovos.comum || S.ovos.magico)) ? '<i class="ponto"></i>' : ''}</button>`).join('')}</nav>`;
   const topo = `<div class="lbTopo"><button class="avatarBtn" data-a="perfil"><img src="${fotoPet(avatarAtual())}" alt="">${medalhasProntas() ? '<i class="ponto"></i>' : ''}</button><div class="pilula ouro">${ico('ouro')}<b>${fmt(S.moedas)}</b></div>
-    <button class="redondo loja" data-a="loja">${ico('mercado')}${temOferta() ? '<i class="ponto"></i>' : ''}</button><button class="redondo missoes" data-a="missoes">${ico('missoes')}${prontas() ? '<i class="ponto"></i>' : ''}</button><button class="redondo presente" data-a="diario">${ico('presente')}${diarioPronto() ? '<i class="ponto"></i>' : ''}</button><button class="redondo lingua" data-a="idioma"><span class="flag">${IDIOMAS.find(i => i[0] === idiomaJogo())?.[2] || '🌐'}</span></button><button class="redondo" data-a="som">${ico(estaMudo() ? 'mudo' : 'som')}</button></div>`;
+    <button class="redondo loja" data-a="loja">${ico('mercado')}${temOferta() ? '<i class="ponto"></i>' : ''}</button><button class="redondo missoes" data-a="missoes">${ico('missoes')}${prontas() ? '<i class="ponto"></i>' : ''}</button><button class="redondo presente" data-a="diario">${ico('presente')}${diarioPronto() ? '<i class="ponto"></i>' : ''}</button><button class="redondo" data-a="config">${ico('config')}</button></div>`;
   let meio;
   if (abaLobby === 'home') meio = `
     <div class="lbLogo"><small>Batalha da</small><h1>Ponte</h1></div>
@@ -546,6 +546,16 @@ function abrirCastelo() {
   limparFase(); MUROS_PISTA[0].visible = MUROS_PISTA[1].visible = false; MUROS_PISTA[2].visible = true; $('#janela').hidden = true;
   tela = 'castelo'; $('#lobby').hidden = true; $('#jogo').hidden = true; $('#fim').hidden = true; tema(1);
   CT.abrir($('#castelo'), () => { CT.fechar(); abrirLobby(); desenharLobby(); });
+}
+// ---- configurações: idioma, som e qualidade gráfica num lugar só ----
+function mostrarConfig(reabrir) {
+  const j = $('#janela'); j.hidden = false; let q = 'media'; try { q = localStorage.getItem('guilda_q') || 'media'; } catch (e) {}
+  j.innerHTML = `<div class="jOnline jConfig"><h2>${ico('config')} Configurações</h2>
+    <h3>Idioma</h3><div class="idiomas" data-nt>${IDIOMAS.map(([k, n, f]) => `<button class="btn peq ${k === idiomaJogo() ? 'verde' : 'azul'}" data-idioma="${k}"><span class="flag">${f}</span>${n}</button>`).join('')}</div>
+    <h3>Som</h3><button class="btn ${estaMudo() ? 'cinza' : 'verde'}" data-a="som">${ico(estaMudo() ? 'mudo' : 'som')} ${estaMudo() ? 'Som desligado' : 'Som ligado'}</button>
+    <h3>Gráficos</h3><div class="cfgQual">${[['baixa', 'Leve'], ['media', 'Normal'], ['alta', 'Bonito']].map(([k, n]) => `<button class="${q === k ? 'sel' : ''}" data-qual="${k}">${n}</button>`).join('')}</div>
+    <small class="cfgDica">${reabrir ? 'Vale quando abrir o jogo de novo.' : 'Leve: roda melhor em celular simples.'}</small>
+    <p class="cfgVer">Versão ${window.VERSAO || ''}</p><button class="fSo" data-a="fecharJanela">Fechar</button></div>`;
 }
 // ---- tela de modos: tudo que não é a campanha fica aqui (a tela inicial só tem JOGAR) ----
 function mostrarModos() {
@@ -1109,7 +1119,7 @@ async function resgatarCodigo(b) {
 }
 function clique(e) {
   const b = e.target.closest('button'); if (!b) return; let a = b.dataset.a; if (b.dataset.modo) { $('#janela').hidden = true; a = b.dataset.modo; }
-  if (a === 'som') { alternarSom(); som('clique'); desenharLobby(); }
+  if (a === 'som') { alternarSom(); som('clique'); if ($('#janela .jConfig')) mostrarConfig(); else desenharLobby(); }
   if (b.dataset.abaLobby) { som('clique'); abaLobby = b.dataset.abaLobby; desenharLobby(); }
   if (b.dataset.up) { if (comprar(b.dataset.up)) { som('compra'); desenharLobby(); } else som('erro'); }
   if (a === 'jogar') { som('confirma'); comecarFase(); }
@@ -1150,10 +1160,12 @@ function clique(e) {
   if (b.dataset.mm) { som('clique'); modoMissao = b.dataset.mm; mostrarMissoes(); }
   if (b.dataset.missao) { const [sem, i] = b.dataset.missao.split(':'), r = pegarMissao(sem === 's', +i); if (!r) { som('erro'); return; } sfx('vitoria'); som('moedas'); mostrarMissoes(); if (tela === 'lobby') desenharLobby(); }
   if (b.dataset.passe) { const r = pegarNivel(+b.dataset.passe); if (!r) { som('erro'); return; } if (r.cheio) { som('erro'); b.textContent = tr('Baús cheios'); return; } sfx('vitoria'); mostrarMissoes(); if (tela === 'lobby') desenharLobby(); }
+  if (a === 'config') { som('clique'); mostrarConfig(); return; }
+  if (b.dataset.qual) { const q = b.dataset.qual; try { localStorage.setItem('guilda_q', q); } catch (e) {} if (q === 'baixa') C.modoLeve(); som('clique'); mostrarConfig(q !== 'baixa' && q !== C.qualidadeAtual()); return; }
   if (a === 'idioma') { som('clique'); const j = $('#janela'); j.hidden = false;
     j.innerHTML = `<div class="fimCaixa"><h2>${ico('pergaminho')}</h2><div class="idiomas" data-nt>${IDIOMAS.map(([k, n, f]) => `<button class="btn ${k === idiomaJogo() ? 'verde' : 'azul'}" data-idioma="${k}"><span class="flag">${f}</span>${n}</button>`).join('')}</div>
       <button class="fSo" data-a="fecharJanela">OK</button></div>`; }
-  if (b.dataset.idioma) { som('clique'); mudarIdioma(b.dataset.idioma); $('#janela').hidden = true; desenharLobby(); }
+  if (b.dataset.idioma) { som('clique'); mudarIdioma(b.dataset.idioma); if ($('#janela .jConfig')) mostrarConfig(); else $('#janela').hidden = true; desenharLobby(); }
   if (a === 'online') { som('clique'); mostrarOnline('rank'); }
   if (b.dataset.rk || b.dataset.cla || b.dataset.claPedir || b.dataset.cm || b.dataset.pedir || b.dataset.doar || ['trocarNome', 'salvarNome', 'voltarOnline', 'claCriar', 'claSair', 'chatEnviar', 'chatPedirAbrir'].includes(a) || b.dataset.trVer || b.dataset.trad) cliqueOnline(b);
   if (a === 'dupla') { som('confirma'); procurarDupla(); }

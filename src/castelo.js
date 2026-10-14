@@ -81,6 +81,11 @@ export function abrir(container, sair) {
   K = { onda: 0, estado: 'pausa', pausaT: 2, fila: [], t: 0, inim: [], tiros: [], mets: [], def: criarDefensores(), muro, muroMax: muro, mana: 60, gelo: 0, vel: 1, mortos: 0, txt: [], banner: null,
     lento: 1 - Math.min(0.5, (B.lento || 0) / 100) * 0.5, multChefe: 1 + (B.chefe || 0) / 100, crit: Math.min(0.6, (B.critico || 0) / 100), cartas: 1 + 0.15 * ((S.pd.chuva?.nv || 1) - 1) };
   desenhar(); intensidade(1);
+  if (!S.dicas?.castelo) { K.pausaT = 1e9; const j = $('#ctJanela'); j.hidden = false;
+    j.innerHTML = `<div class="cqFim dica"><h2>${ico('h_muralha')} Castelo</h2>
+      <p>Seu herói e seus pets defendem a muralha sozinhos.</p><p>${ico('h_meteoro')} Use as 3 magias gastando mana (barra azul).</p>
+      <p>${ico('chefe')} A cada 10 ondas vem um chefe.</p><p>${ico('raio')} Não dá para melhorar durante a partida: fique forte fora dela!</p>
+      <button class="btn verde grande" data-ct="dicaOk">Entendi!</button></div>`; }
 }
 export function fechar() {
   if (K) { for (const d of K.def) d.v.remover(); for (const u of K.inim) u.v?.remover(); for (const s of K.tiros) cn().remove(s.o); for (const m of K.mets) cn().remove(m.o); }
@@ -199,6 +204,7 @@ export function clique(b) {
   if (mg) { usarMagia(mg); return; }
   if (a === 'sair') { som('fechar'); aoSair(); }
   if (a === 'vel') { K.vel = K.vel === 1 ? 2 : 1; b.textContent = 'x' + K.vel; som('clique'); }
+  if (a === 'dicaOk') { (S.dicas ||= {}).castelo = 1; salvar(); som('confirma'); $('#ctJanela').hidden = true; K.pausaT = 1; return; }
   if (a === 'denovo') { som('confirma'); const s = aoSair; fechar(); abrir(el || $('#castelo'), s); }
 }
 export function vista() { return { foco: { x: 0, z: -30 }, yaw: Math.PI, pitch: 0.95, dist: 100 }; }

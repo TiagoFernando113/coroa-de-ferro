@@ -33,7 +33,12 @@ async function comecar() {
   $('#carga').hidden = true;
   carregar(); iniciarPets(); montarPonte(); abrirLobby();
   let ultimo = performance.now();
-  const laco = agora => { const dt = Math.min(0.1, (agora - ultimo) / 1000); ultimo = agora; passo(dt); requestAnimationFrame(laco); };
+  // mede o FPS: se ficar travando por ~8 s seguidos, liga o modo leve sozinho (e guarda para a próxima vez)
+  let jan = 0, quadros = 0, ruins = 0;
+  const medirFps = dt => { if (document.hidden || C.qualidadeAtual() === 'baixa') return; jan += dt; quadros++;
+    if (jan >= 4) { const fps = quadros / jan; ruins = fps < 24 ? ruins + 1 : 0; jan = 0; quadros = 0;
+      if (ruins >= 2) { C.modoLeve(); try { localStorage.setItem('guilda_q', 'baixa'); } catch (e) {} avisoLeve(); } } };
+  const laco = agora => { const dt0 = (agora - ultimo) / 1000, dt = Math.min(0.1, dt0); ultimo = agora; if (dt0 < 1) medirFps(dt0); passo(dt); requestAnimationFrame(laco); };
   requestAnimationFrame(laco);
   const entrar = () => { const b = document.createElement('button'); b.className = 'btn verde grande'; b.textContent = 'Defender a ponte';
     b.onclick = () => { som('confirma'); $('#titulo').classList.add('sai'); setTimeout(() => $('#titulo').remove(), 600); };
@@ -45,4 +50,7 @@ async function comecar() {
   window.__C = C; window.__cam = C.camera; window.__G = _G; window.__sim = _sim; window.__construir = _construir; // para testes
 }
 
+function avisoLeve() {
+  const d = document.createElement('div'); d.className = 'toast'; d.textContent = 'Modo leve ligado para o jogo rodar melhor'; document.body.append(d); setTimeout(() => d.remove(), 3500);
+}
 comecar();
