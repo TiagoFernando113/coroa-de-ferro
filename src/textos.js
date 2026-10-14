@@ -287,6 +287,11 @@ const T = {
   'Lucro ocioso cheio!': L('Idle profit is full!', '¡Ganancia inactiva llena!'), 'Seus pets juntaram # moedas. Venha coletar!': L('Your pets gathered # coins. Come collect!', 'Tus mascotas juntaron # monedas. ¡Ven a recogerlas!'),
   'Presente diário pronto!': L('Daily gift ready!', '¡Regalo diario listo!'), 'Abra o jogo e pegue o presente de hoje.': L('Open the game and grab today\'s gift.', 'Abre el juego y toma el regalo de hoy.'),
   'Os orcs estão atacando a ponte!': L('The orcs are attacking the bridge!', '¡Los orcos atacan el puente!'), 'Volte e defenda a ponte com seus pets.': L('Come back and defend the bridge with your pets.', 'Vuelve y defiende el puente con tus mascotas.'),
+  // placar
+  'Nível do clã': L('Clan level', 'Nivel del clan'), 'Força do clã': L('Clan power', 'Poder del clan'), 'Dano da semana': L('Week damage', 'Daño de la semana'),
+  'Força dos pets': L('Pet power', 'Poder de mascotas'),
+  'Individual': L('Individual', 'Individual'), 'Rank': L('Rank', 'Rango'), 'Jogador': L('Player', 'Jugador'), 'Valor': L('Value', 'Valor'), 'Nível': L('Level', 'Nivel'),
+  'fase': L('stage', 'fase'), 'estágio': L('stage', 'fase'), 'onda': L('wave', 'oleada'), 'Ninguém ainda.': L('Nobody yet.', 'Nadie aún.'),
 };
 export const TEXTOS = { en: {}, es: {} };
 for (const [k, v] of Object.entries(T)) { TEXTOS.en[k] = v.en; TEXTOS.es[k] = v.es; }

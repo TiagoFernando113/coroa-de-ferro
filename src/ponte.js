@@ -665,7 +665,26 @@ let abaOnline = 'rank';
 const CORES_CLA = ['#e8503a', '#2f7ae8', '#2bb84a', '#a24ae8', '#f2b51a', '#1fb8b8', '#e85aa8', '#6a6a7a'];
 const escudoCla = (cor, txt = '') => `<span class="escCla" style="--c:${CORES_CLA[cor % 8]}">${ico('escudo')}<i>${esc(txt.slice(0, 2).toUpperCase())}</i></span>`;
 const tagHtml = (tag, cor) => tag ? `<em class="tagCla" style="--c:${CORES_CLA[(cor || 0) % 8]}">[${esc(tag)}]</em>` : '';
-let rankModo = 'jog';
+let rankModo = null;
+const PLACAR = {
+  cla_nivel: { nome: 'Nível do clã', icone: 'escudo', un: 'Nv' }, cla_forca: { nome: 'Força do clã', icone: 'forca', un: '' }, cla_semana: { nome: 'Dano da semana', icone: 'chefe', un: '' },
+  fase: { nome: 'Fase máxima', icone: 'bandeira', un: 'fase' }, forca: { nome: 'Força dos pets', icone: 'pata', un: '' }, infinito: { nome: 'Ponte sem fim', icone: 'estrela', un: '' },
+  conquista: { nome: 'Conquista', icone: 'bandeira', un: 'estágio' }, castelo: { nome: 'Castelo', icone: 'h_muralha', un: 'onda' }, orcs: { nome: 'Orcs derrotados', icone: 'caveira', un: '' },
+};
+const PLACAR_CLA = ['cla_nivel', 'cla_forca'], PLACAR_IND = ['fase', 'forca', 'infinito', 'conquista', 'castelo', 'orcs'];
+const fotoPlacar = (k, r, tam = 64) => k.startsWith('cla_') ? escudoCla(r.cor || 0, r.tag || r.nome) : `<img src="${fotoPet(petValido(r.avatar), tam)}" alt="">`;
+function mostrarListaPlacar(el, nome, k, mostrarNomeEu) {
+  const P = PLACAR[k], cla = k.startsWith('cla_'), val = r => `${P.un === 'Nv' ? 'Nv ' : ''}${fmt(r.valor)}`;
+  el.innerHTML = `${nome}<div class="plTopo"><button class="plVoltar" data-rk="voltar">${ico('seta')}</button><b>${P.nome}</b></div>
+    <div class="plCab"><span>Rank</span><span>${cla ? 'Clã' : 'Jogador'}</span><span>${P.un && P.un !== 'Nv' ? P.un : cla && k === 'cla_nivel' ? 'Nível' : 'Valor'}</span></div><div class="lista plLista" id="lista"><p>Carregando...</p></div><div id="plEu"></div>`;
+  const linha = r => `<div class="linha plLinha p${Math.min(4, r.posicao)} ${r.eu ? 'eu' : ''}"><b class="plPos">${r.posicao <= 3 ? `<i class="medalha m${r.posicao}">${r.posicao}</i>` : r.posicao}</b>
+    <span class="plMini">${fotoPlacar(k, r)}</span>${cla ? `<div class="lnTxt"><span data-nt>${tagHtml(r.tag, r.cor)}${esc(r.nome)}</span></div>` : `<button class="nomeBtn" data-perfil="${r.codigo}" data-nt>${tagHtml(r.tag, r.cor)}${esc(r.nome)}</button>`}<em>${val(r)}</em></div>`;
+  comCache('pl_' + k, () => ON.garantir().then(() => ON.placarLista(k)), l => { if (rankModo !== k) return; const e = $('#lista'); if (!e) return; mostrarNomeEu();
+    const top = l.filter(r => r.posicao <= 50), eu = l.find(r => r.eu);
+    e.innerHTML = top.length ? top.map(linha).join('') : '<p>Ninguém ainda.</p>';
+    const pe = $('#plEu'); if (pe) pe.innerHTML = eu ? `<div class="plFixo">${linha(eu)}</div>` : ''; },
+    er => { const x = $('#lista'); if (x) x.innerHTML = `<p class="erro">${esc(er.message)}</p>`; }, 30000);
+}
 // conteúdo das abas Clã e Ranking (dentro da folha do lobby)
 // ---- cache das telas online: mostra na hora o último resultado e atualiza em segundo plano ----
 const CACHE = {};
@@ -686,19 +705,14 @@ function carregarOnline(aba) {
     el.innerHTML = `<p class="sub">Esse nome aparece no ranking, no clã e na dupla.</p><input id="apelido" maxlength="16" placeholder="Seu apelido" value="${esc(O?.apelido || '')}"><p class="erro" id="onErro"></p>
       <button class="btn verde grande" data-a="salvarNome">Salvar</button><button class="btn azul" data-a="voltarOnline">Voltar</button>`; return;
   }
-  if (aba === 'rank') {
-    el.innerHTML = `${nome}<div class="abas"><button class="${rankModo === 'jog' ? 'on' : ''}" data-rk="jog">Jogadores</button><button class="${rankModo === 'cq' ? 'on' : ''}" data-rk="cq">Conquista</button><button class="${rankModo === 'ct' ? 'on' : ''}" data-rk="ct">Castelo</button><button class="${rankModo === 'cla' ? 'on' : ''}" data-rk="cla">Clãs</button></div>
-      <p class="sub">${rankModo === 'jog' ? 'Ponte sem fim · melhores do mundo' : rankModo === 'cq' ? 'Maior estágio da Conquista' : rankModo === 'ct' ? 'Mais ondas aguentadas no Castelo' :  'Clãs com mais chefes semanais derrotados'}</p><div class="lista" id="lista"><p>Carregando...</p></div>`;
-    const med = p => p <= 3 ? ['🥇', '🥈', '🥉'][p - 1] : '#' + p, modo = rankModo;
-    const html = {
-      jog: l => l.length ? l.map(r => `<div class="linha ${r.eu ? 'eu' : ''}"><b>${med(r.posicao)}</b><button class="nomeBtn" data-perfil="${r.codigo}" data-nt>${tagHtml(r.tag, 0)}${esc(r.apelido)}</button><small>${r.chefes} chefes</small><em>${fmt(r.pontos)}</em></div>`).join('') : '<p>Ninguém no ranking ainda. Jogue a Ponte sem fim e seja o primeiro!</p>',
-      cq: l => l.length ? l.map(r => `<div class="linha ${r.eu ? 'eu' : ''}"><b>${med(r.posicao)}</b><button class="nomeBtn" data-perfil="${r.codigo}" data-nt>${tagHtml(r.tag, 0)}${esc(r.apelido)}</button><small>${ico('forca')} ${fmt(r.forca)}</small><em>${ico('bandeira')} ${r.estagio}</em></div>`).join('') : '<p>Ninguém ainda. Vença estágios na Conquista!</p>',
-      ct: l => l.length ? l.map(r => `<div class="linha ${r.eu ? 'eu' : ''}"><b>${med(r.posicao)}</b><button class="nomeBtn" data-perfil="${r.codigo}" data-nt>${tagHtml(r.tag, 0)}${esc(r.apelido)}</button><small>${esc(HEROIS[r.heroi]?.nome || '')}</small><em>${ico('h_muralha')} ${r.onda}</em></div>`).join('') : '<p>Ninguém ainda. Defenda o Castelo!</p>',
-      cla: l => l.length ? l.map((c, i) => `<div class="linha"><b>${med(i + 1)}</b>${escudoCla(c.cor, c.tag || c.nome)}<div class="lnTxt"><span data-nt>${tagHtml(c.tag, c.cor)}${esc(c.nome)}</span><small>${c.membros} membros</small></div><em>Nv ${c.nivel}</em></div>`).join('') : '<p>Nenhum clã ainda.</p>',
-    }[modo];
-    const buscar = modo === 'jog' ? () => ON.garantir().then(ON.ranking) : modo === 'cq' ? () => ON.garantir().then(ON.cqTop) : modo === 'ct' ? () => ON.garantir().then(ON.ctTop) :  () => ON.clas();
-    comCache('rank_' + modo, buscar, l => { const e = $('#lista'); if (e && rankModo === modo) e.innerHTML = html(l); mostrarNomeEu(); },
-      e => { const x = $('#lista'); if (x) x.innerHTML = `<p class="erro">${esc(e.message)}</p>`; });
+  if (aba === 'rank') { // placar: cards com o 1º de cada categoria; tocar abre a lista completa
+    if (rankModo && PLACAR[rankModo]) return mostrarListaPlacar(el, nome, rankModo, mostrarNomeEu);
+    const card = k => { const P = PLACAR[k]; return `<button class="plCard" data-rk="${k}"><b>${P.nome}</b><span class="plFoto" id="plF_${k}">${ico(P.icone)}</span><small class="plNome" id="plN_${k}">...</small></button>`; };
+    el.innerHTML = `${nome}<div class="plSecao">${ico('escudo')} Clãs</div><div class="plGrade">${PLACAR_CLA.map(card).join('')}</div>
+      <div class="plSecao">${ico('herois')} Individual</div><div class="plGrade">${PLACAR_IND.map(card).join('')}</div>`;
+    comCache('placar', () => ON.garantir().then(ON.placar), d => { mostrarNomeEu(); for (const k of [...PLACAR_CLA, ...PLACAR_IND]) { const r = d?.[k], f = $('#plF_' + k), n = $('#plN_' + k); if (!f || !n) continue;
+      if (!r) { n.textContent = '—'; continue; } f.innerHTML = fotoPlacar(k, r, 96); n.innerHTML = `<span data-nt>${tagHtml(r.tag, r.cor)}${esc(r.nome)}</span>`; } },
+      e => { const x = $('.plGrade'); if (x) x.insertAdjacentHTML('beforebegin', `<p class="erro">${esc(e.message)}</p>`); }, 60000);
     return;
   }
   el.innerHTML = `${nome}<div id="claCorpo"><p>Carregando...</p></div>`;
@@ -735,7 +749,7 @@ function mostrarOnline(aba) { if (tela !== 'lobby') abrirLobby(); abaLobby = aba
 function mostrarNome() { const b = document.querySelector('.nomeEu b'); if (b) b.textContent = ON.conta()?.apelido || ''; }
 async function cliqueOnline(b) {
   const a = b.dataset.a, erro = m => { const e = $('#onErro'); if (e) e.textContent = m; som('erro'); };
-  if (b.dataset.rk) { som('clique'); rankModo = b.dataset.rk; carregarOnline('rank'); return; }
+  if (b.dataset.rk) { som('clique'); rankModo = b.dataset.rk === 'voltar' ? null : b.dataset.rk; carregarOnline('rank'); return; }
   if (b.dataset.cm) { som('clique'); claModo = b.dataset.cm; const e = $('#claCorpo'); if (e) e.classList.remove('modoChat'); carregarOnline('cla'); return; }
   if (a === 'chatEnviar') { const i = $('#chatTxt'), t = i.value.trim(); if (!t) return; b.disabled = true;
     try { await ON.chatEnviar(t); i.value = ''; som('clique'); lerChat(); } catch (e) { erro(e.message); } b.disabled = false; }

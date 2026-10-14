@@ -38,6 +38,8 @@ export const arenaOponentes = comConta(() => rpc('ponte_arena_oponentes', id()))
 export const arenaResultado = comConta((codigo, venceu) => rpc('ponte_arena_resultado', { ...id(), p_codigo: codigo, p_venceu: venceu }));
 export const arenaDefesas = comConta(() => rpc('ponte_arena_defesas', id()));
 export const arenaTop = () => rpc('ponte_arena_top', { p_limite: 50, p_id: S.online?.id || null });
+export const placar = () => rpc('ponte_placar', { p_id: S.online?.id || null });
+export const placarLista = cat => rpc('ponte_placar_lista', { p_cat: cat, p_id: S.online?.id || null, p_limite: 50 });
 export const cqRival = comConta(forca => rpc('ponte_cq_rival', { ...id(), p_forca: forca }));
 export const cqDerrotou = comConta(codigo => rpc('ponte_cq_derrotou', { ...id(), p_codigo: codigo }));
 export const ctEnviar = comConta((onda, heroi) => rpc('ponte_ct_enviar', { ...id(), p_onda: onda, p_heroi: heroi }));

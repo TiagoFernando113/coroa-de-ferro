@@ -844,3 +844,40 @@ input{font:inherit;user-select:text;-webkit-user-select:text}
 .jResumo .rsItem span{flex:1;font-size:14px}
 .jResumo .rsItem .btn{margin:0}
 .jConta .ctNome{font-family:var(--fT);font-size:18px;display:flex;align-items:center;justify-content:center;gap:6px}.jConta .ctNome .ico{width:22px;height:22px}
+/* ---- placar (ranking) ---- */
+.plSecao{display:flex;align-items:center;justify-content:center;gap:6px;margin:10px -4px 8px;padding:6px;font-family:var(--fT);font-size:18px;color:#fff;text-shadow:0 2px 0 rgba(90,50,10,.5);
+  background:linear-gradient(90deg,transparent,#d8a868 12%,#d8a868 88%,transparent);clip-path:polygon(0 50%,4% 0,96% 0,100% 50%,96% 100%,4% 100%)}
+.plSecao .ico{width:18px;height:18px}
+.plGrade{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.plCard{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 6px 18px;background:linear-gradient(#f2c98a,#e8b070);border:3px solid #fff3dc;
+  clip-path:polygon(0 0,100% 0,100% 82%,50% 100%,0 82%);box-shadow:inset 0 -6px 0 rgba(150,90,30,.25);color:#fff}
+.plCard > b{font-family:var(--fT);font-weight:400;font-size:15px;line-height:1.1;text-shadow:0 2px 0 rgba(120,60,10,.6);min-height:34px;display:grid;place-items:center;text-align:center}
+.plFoto{width:72px;height:72px;border-radius:18px;display:grid;place-items:center;background:radial-gradient(#ffffff,#9ad0ff);border:3px solid #6ab8ff;box-shadow:0 0 12px #6ab8ff;overflow:hidden}
+.plFoto img{width:100%;height:100%;object-fit:cover}
+.plFoto > .ico{width:40px;height:40px;color:#6a8ab0}
+.plFoto .escCla,.plFoto .escCla .ico{width:60px;height:60px}
+.plFoto .escCla i{font-size:16px}
+.plNome{font-family:var(--fT);font-size:13px;color:#5a2e08;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.plCard:active{transform:translateY(3px)}
+.plTopo{display:flex;align-items:center;gap:10px;margin:4px 0 8px}
+.plTopo b{font-family:var(--fT);font-weight:400;font-size:22px}
+.plVoltar{width:44px;height:36px;border-radius:12px;background:linear-gradient(#7ae0c8,#2a9a8a);border:2px solid #fff;color:#fff;display:grid;place-items:center}
+.plVoltar .ico{width:22px;height:22px;transform:scaleX(-1)}
+.plCab{display:grid;grid-template-columns:56px 1fr auto;padding:6px 12px;border-radius:12px 12px 0 0;background:#c8a878;color:#fff;font-family:var(--fT);font-size:14px}
+.plCab span:last-child{text-align:right}
+.plLista{padding-bottom:70px}
+.plLinha{gap:8px;padding:6px 10px}
+.plLinha .plPos{min-width:40px;text-align:center;font-family:var(--fT);font-size:18px}
+.plLinha.p1{background:linear-gradient(90deg,#ffe27a,#f2b51a);border-color:#f2b51a}
+.plLinha.p2{background:linear-gradient(90deg,#c8e8ff,#7ab8f0);border-color:#7ab8f0}
+.plLinha.p3{background:linear-gradient(90deg,#ffd8c8,#e8a080);border-color:#e8a080}
+.plLinha .medalha{display:inline-grid;place-items:center;width:34px;height:34px;font-style:normal;font-family:var(--fT);font-size:18px;color:#fff;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%)}
+.plLinha .medalha.m1{background:linear-gradient(#ffd23a,#c8801a)}.plLinha .medalha.m2{background:linear-gradient(#7ab8ff,#2a5ac8)}.plLinha .medalha.m3{background:linear-gradient(#ff9a6a,#b8501a)}
+.plMini{width:42px;height:42px;border-radius:12px;overflow:hidden;flex:none;display:grid;place-items:center;background:#efe3c8}
+.plMini img{width:100%;height:100%;object-fit:cover}
+.plLinha .nomeBtn,.plLinha .lnTxt{flex:1;min-width:0;text-align:left}
+.plLinha em{font-family:var(--fT);font-style:normal;font-size:16px;color:#5a2e08}
+.plFixo{position:sticky;bottom:0;margin-top:-64px;padding:6px 0;background:linear-gradient(transparent,var(--creme) 30%)}
+.plFixo .plLinha{border:3px solid #fff;background:#b89a70;color:#fff;box-shadow:0 -2px 8px rgba(0,0,0,.2)}
+.plFixo .plLinha em,.plFixo .plLinha .nomeBtn{color:#fff}
+.plLinha .plMini{flex:none}.plCard .plNome span{flex:none}
