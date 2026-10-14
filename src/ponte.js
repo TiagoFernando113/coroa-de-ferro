@@ -678,7 +678,7 @@ function mostrarListaPlacar(el, nome, k, mostrarNomeEu) {
   el.innerHTML = `${nome}<div class="plTopo"><button class="plVoltar" data-rk="voltar">${ico('seta')}</button><b>${P.nome}</b></div>
     <div class="plCab"><span>Rank</span><span>${cla ? 'Clã' : 'Jogador'}</span><span>${P.un && P.un !== 'Nv' ? P.un : cla && k === 'cla_nivel' ? 'Nível' : 'Valor'}</span></div><div class="lista plLista" id="lista"><p>Carregando...</p></div><div id="plEu"></div>`;
   const linha = r => `<div class="linha plLinha p${Math.min(4, r.posicao)} ${r.eu ? 'eu' : ''}"><b class="plPos">${r.posicao <= 3 ? `<i class="medalha m${r.posicao}">${r.posicao}</i>` : r.posicao}</b>
-    <span class="plMini">${fotoPlacar(k, r)}</span>${cla ? `<div class="lnTxt"><span data-nt>${tagHtml(r.tag, r.cor)}${esc(r.nome)}</span></div>` : `<button class="nomeBtn" data-perfil="${r.codigo}" data-nt>${tagHtml(r.tag, r.cor)}${esc(r.nome)}</button>`}<em>${val(r)}</em></div>`;
+    <span class="plMini">${fotoPlacar(k, r, 128)}</span>${cla ? `<div class="lnTxt"><span data-nt>${tagHtml(r.tag, r.cor)}${esc(r.nome)}</span></div>` : `<button class="nomeBtn" data-perfil="${r.codigo}" data-nt>${tagHtml(r.tag, r.cor)}${esc(r.nome)}</button>`}<em>${val(r)}</em></div>`;
   comCache('pl_' + k, () => ON.garantir().then(() => ON.placarLista(k)), l => { if (rankModo !== k) return; const e = $('#lista'); if (!e) return; mostrarNomeEu();
     const top = l.filter(r => r.posicao <= 50), eu = l.find(r => r.eu);
     e.innerHTML = top.length ? top.map(linha).join('') : '<p>Ninguém ainda.</p>';
@@ -711,7 +711,7 @@ function carregarOnline(aba) {
     el.innerHTML = `${nome}<div class="plSecao">${ico('escudo')} Clãs</div><div class="plGrade">${PLACAR_CLA.map(card).join('')}</div>
       <div class="plSecao">${ico('herois')} Individual</div><div class="plGrade">${PLACAR_IND.map(card).join('')}</div>`;
     comCache('placar', () => ON.garantir().then(ON.placar), d => { mostrarNomeEu(); for (const k of [...PLACAR_CLA, ...PLACAR_IND]) { const r = d?.[k], f = $('#plF_' + k), n = $('#plN_' + k); if (!f || !n) continue;
-      if (!r) { n.textContent = '—'; continue; } f.innerHTML = fotoPlacar(k, r, 96); n.innerHTML = `<span data-nt>${tagHtml(r.tag, r.cor)}${esc(r.nome)}</span>`; } },
+      if (!r) { n.textContent = '—'; continue; } f.innerHTML = fotoPlacar(k, r, 160); n.innerHTML = `<span data-nt>${tagHtml(r.tag, r.cor)}${esc(r.nome)}</span>`; } },
       e => { const x = $('.plGrade'); if (x) x.insertAdjacentHTML('beforebegin', `<p class="erro">${esc(e.message)}</p>`); }, 60000);
     return;
   }

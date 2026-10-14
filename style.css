@@ -881,3 +881,35 @@ input{font:inherit;user-select:text;-webkit-user-select:text}
 .plFixo .plLinha{border:3px solid #fff;background:#b89a70;color:#fff;box-shadow:0 -2px 8px rgba(0,0,0,.2)}
 .plFixo .plLinha em,.plFixo .plLinha .nomeBtn{color:#fff}
 .plLinha .plMini{flex:none}.plCard .plNome span{flex:none}
+/* retratos do placar inteiros (sem cortar) */
+.plFoto img,.plMini img{object-fit:contain;padding:2px}
+.plLinha .plMini{width:48px;height:48px;flex:0 0 48px}
+.plLinha .plMini .escCla,.plLinha .plMini .escCla .ico{width:40px;height:40px}
+/* ---- placar v2: mais contraste e profundidade ---- */
+.plSecao{color:#fff;font-size:19px;text-shadow:0 2px 0 #7a4210,0 0 6px rgba(0,0,0,.25);background:linear-gradient(90deg,transparent,#c8803a 10%,#e8a050 50%,#c8803a 90%,transparent)}
+.plCard{position:relative;padding:12px 6px 22px;background:linear-gradient(#f7d49a,#e09a4a 70%,#c8762a);border:none;box-shadow:none;
+  filter:drop-shadow(0 4px 0 #8a4a14) drop-shadow(0 6px 8px rgba(80,40,0,.35))}
+.plCard::before{content:'';position:absolute;inset:5px 5px 9px;background:linear-gradient(#fbe2b8,#f0b870);clip-path:polygon(0 0,100% 0,100% 82%,50% 100%,0 82%);z-index:-1}
+.plCard > b{font-size:16px;color:#fff;text-shadow:0 2px 0 #8a4a14,0 0 4px #8a4a14;-webkit-text-stroke:.6px #7a3a08;paint-order:stroke fill}
+.plFoto{width:78px;height:78px;border-radius:20px;background:radial-gradient(circle at 50% 35%,#ffffff,#bfe2ff 55%,#5aa0ff);border:3px solid #fff;
+  box-shadow:0 0 0 3px #3a6ae8,0 0 16px 4px rgba(90,160,255,.9),inset 0 -6px 10px rgba(30,60,160,.35)}
+.plFoto .escCla{filter:drop-shadow(0 2px 2px rgba(0,0,0,.35))}
+.plNome{margin-top:4px;padding:2px 10px;border-radius:10px;background:rgba(90,40,8,.82);color:#fff;font-size:13px;max-width:96%}
+.plNome .tagCla{color:#ffd23a!important}
+.plCab{background:linear-gradient(#7a5434,#5a3a20);border-radius:14px 14px 0 0;font-size:15px;text-shadow:0 1px 0 #000}
+.plLista{background:#e8d6b4;padding:6px 6px 74px;border-radius:0 0 14px 14px}
+.plLinha{background:#fff8ec;border:2px solid #e8c898;box-shadow:0 3px 0 #d8b07a;margin-bottom:7px;border-radius:14px}
+.plLinha .nomeBtn,.plLinha .lnTxt span{font-weight:700;color:#4a2a10;font-family:var(--fT);font-size:16px;text-decoration:none}
+.plLinha em{font-size:18px;color:#4a2a10;font-weight:700}
+.plLinha .plPos{color:#7a5434}
+.plLinha.p1{background:linear-gradient(90deg,#fff1a8,#ffcf3a 60%,#f2a81a);border-color:#fff;box-shadow:0 3px 0 #c8801a,0 0 12px rgba(255,200,60,.6)}
+.plLinha.p2{background:linear-gradient(90deg,#e0f2ff,#8ac8ff 60%,#4a8ae8);border-color:#fff;box-shadow:0 3px 0 #2a5ab8}
+.plLinha.p3{background:linear-gradient(90deg,#ffe6d8,#f0a888 60%,#d8784a);border-color:#fff;box-shadow:0 3px 0 #a8501a}
+.plLinha.p1 .nomeBtn,.plLinha.p2 .nomeBtn,.plLinha.p3 .nomeBtn,.plLinha.p1 em,.plLinha.p2 em,.plLinha.p3 em,.plLinha.p1 .lnTxt span,.plLinha.p2 .lnTxt span,.plLinha.p3 .lnTxt span{color:#fff;text-shadow:0 1px 0 rgba(0,0,0,.45),0 0 3px rgba(0,0,0,.35)}
+.plLinha .medalha{width:38px;height:42px;font-size:20px;text-shadow:0 1px 0 rgba(0,0,0,.4);box-shadow:inset 0 -4px 0 rgba(0,0,0,.2)}
+.plLinha .medalha.m1{background:linear-gradient(#ffe27a,#e8a01a 60%,#b8700a)}
+.plMini{border-radius:14px;background:radial-gradient(circle at 50% 35%,#fff,#e8d2a8);border:2px solid #fff;box-shadow:0 0 0 2px #c8a070}
+.plLinha.p1 .plMini{box-shadow:0 0 0 2px #e8a01a,0 0 10px #ffd23a}.plLinha.p2 .plMini{box-shadow:0 0 0 2px #2a6ae8,0 0 10px #8ac8ff}.plLinha.p3 .plMini{box-shadow:0 0 0 2px #b8501a}
+.plFixo .plLinha{background:linear-gradient(#a07850,#7a5434);border:3px solid #fff;box-shadow:0 0 0 2px #5a3a20,0 -4px 12px rgba(0,0,0,.3)}
+.plFixo .plLinha .plPos{color:#fff;font-size:20px}
+.plTopo b{font-size:24px;color:#5a2e08}
