@@ -11,6 +11,7 @@ export const MEDALHAS = {
   ovos: { nome: 'Chocador', icone: 'ovo', metas: [10, 50, 200], valor: () => S.est?.ovos || 0 },
   estrela: { nome: 'Estrelado', icone: 'estrela', metas: [1, 3, 5], valor: maxEstrela },
   conquista: { nome: 'Conquistador', icone: 'bandeira', metas: [10, 30, 60], valor: () => (S.cq?.est || 1) - 1 },
+  castelo: { nome: 'Guardião do castelo', icone: 'h_muralha', metas: [10, 25, 50], valor: () => S.castelo?.rec || 0 },
   infinito: { nome: 'Ponte sem fim', icone: 'h_triplo', metas: [5000, 20000, 100000], valor: () => S.recInf || 0 },
   renascer: { nome: 'Renascido', icone: 'girar', metas: [1, 3, 10], valor: () => S.renasc || 0 },
 };

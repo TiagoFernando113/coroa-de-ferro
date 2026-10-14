@@ -203,6 +203,12 @@ const T = {
   'Fique mais forte com melhorias, cartas e pets para ir mais longe.': L('Get stronger with upgrades, cards and pets to go further.', 'Hazte más fuerte con mejoras, cartas y mascotas para llegar más lejos.'),
   'Jogar de novo': L('Play again', 'Jugar de nuevo'),
   'Mais ondas aguentadas no Castelo': L('Most waves held in the Castle', 'Más oleadas resistidas en el Castillo'), 'Ninguém ainda. Defenda o Castelo!': L('Nobody yet. Defend the Castle!', '¡Nadie aún. Defiende el Castillo!'),
+  // Castelo: inimigos novos, missão e medalha
+  'Escudeiro': L('Shieldbearer', 'Escudero'), 'Xamã': L('Shaman', 'Chamán'), 'Sabotador': L('Saboteur', 'Saboteador'),
+  'NOVO: ESCUDEIRO': L('NEW: SHIELDBEARER', 'NUEVO: ESCUDERO'), 'NOVO: XAMÃ': L('NEW: SHAMAN', 'NUEVO: CHAMÁN'), 'NOVO: SABOTADOR': L('NEW: SABOTEUR', 'NUEVO: SABOTEADOR'),
+  'bloqueia os # primeiros golpes': L('blocks the first # hits', 'bloquea los # primeros golpes'), 'cura os inimigos perto dele': L('heals nearby enemies', 'cura a los enemigos cercanos'),
+  'explode na muralha!': L('explodes on the wall!', '¡explota en la muralla!'), 'BLOQUEOU': L('BLOCKED', 'BLOQUEADO'),
+  'Aguente # ondas no Castelo': L('Hold # waves in the Castle', 'Resiste # oleadas en el Castillo'), 'Guardião do castelo': L('Castle guardian', 'Guardián del castillo'),
 };
 export const TEXTOS = { en: {}, es: {} };
 for (const [k, v] of Object.entries(T)) { TEXTOS.en[k] = v.en; TEXTOS.es[k] = v.es; }
