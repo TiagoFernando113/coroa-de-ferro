@@ -925,3 +925,7 @@ input{font:inherit;user-select:text;-webkit-user-select:text}
 .plSecao{border-radius:0;font-size:20px;-webkit-text-stroke:3px #9a5a1e;paint-order:stroke fill;text-shadow:0 2px 0 #9a5a1e;
   background:linear-gradient(#ecc590,#d9a466);clip-path:polygon(0 50%,3% 0,97% 0,100% 50%,97% 100%,3% 100%);margin:12px -2px 10px}
 .plSecao .ico{color:#fff;filter:drop-shadow(0 1px 0 #9a5a1e)}
+/* sua posição fica presa no rodapé da folha durante toda a rolagem */
+#plEu{position:sticky;bottom:0;z-index:3;margin-top:-70px}
+#plEu .plFixo{position:static;margin:0;padding:8px 0 4px;background:linear-gradient(rgba(255,248,236,0),var(--creme) 35%)}
+.plLista{padding-bottom:84px}
