@@ -52,15 +52,18 @@ export const convites = comConta(() => rpc('ponte_convites', id()));
 export const conviteResponder = comConta((conv, aceita) => rpc('ponte_convite_responder', { ...id(), p_conv: conv, p_aceita: aceita }));
 export const guerra = comConta(() => rpc('ponte_guerra_info', id()));
 export const claGerir = comConta((codigo, acao) => rpc('ponte_cla_gerir', { ...id(), p_codigo: codigo, p_acao: acao }));
-export const claEditar = comConta((nome, tag, cor, desc) => rpc('ponte_cla_editar', { ...id(), p_nome: nome, p_tag: tag, p_cor: cor, p_desc: desc }));
+export const claEditar = comConta((nome, tag, cor, desc, fechado, faseMin) => rpc('ponte_cla_editar2', { ...id(), p_nome: nome, p_tag: tag, p_cor: cor, p_desc: desc, p_fechado: fechado, p_fase_min: faseMin }));
+export const claPedir = comConta(cla => rpc('ponte_cla_pedir2', { ...id(), p_cla: cla, p_fase: Math.max(S.fase || 1, S.melhor || 0) }));
+export const claPedidos = comConta(() => rpc('ponte_cla_pedidos', id()));
+export const claResponder = comConta((codigo, aceitar) => rpc('ponte_cla_responder', { ...id(), p_codigo: codigo, p_aceitar: aceitar }));
 export const ranking = () => rpc('ponte_top3', { p_limite: 50, p_id: S.online?.id || null });
 export const ajudaAuto = comConta(fase => rpc('ponte_ajuda_auto', { ...id(), p_fase: fase }));
 export const premios = comConta(() => rpc('ponte_premios', id()));
 // clãs
-export const clas = (busca = '') => rpc('ponte_clas2', { p_busca: busca });
+export const clas = (busca = '') => rpc('ponte_clas3', { p_busca: busca, p_id: S.online?.id || null });
 export const meuCla = comConta(() => rpc('ponte_meu_cla', id()));
 export const claCriar = comConta((nome, tag, cor) => rpc('ponte_cla_criar2', { ...id(), p_nome: nome, p_tag: tag, p_cor: cor }));
-export const claEntrar = comConta(cla => rpc('ponte_cla_entrar', { ...id(), p_cla: cla }));
+export const claEntrar = comConta(cla => rpc('ponte_cla_entrar2', { ...id(), p_cla: cla, p_fase: Math.max(S.fase || 1, S.melhor || 0) }));
 export const claSair = comConta(() => rpc('ponte_cla_sair', id()));
 export const claDano = comConta(dano => rpc('ponte_cla_dano', { ...id(), p_dano: Math.round(dano) }));
 // chat do clã e doações de cartas

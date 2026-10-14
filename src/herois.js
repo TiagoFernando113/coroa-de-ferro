@@ -27,5 +27,13 @@ export const HEROIS = {
     visual: base('Mage', { cab: 'Rogue', arma: 'W:wand_A', esq: 'A:spellbook_open', tinta: '#161819', chifre: 'demonio', rabo: 'demonio', asas: 'morcego', orelha: 'elfo', pele: '#d8675a' }),
     ataque: { nome: 'Fogo que atravessa', proj: 'fogo', cor: 0xff5a1a, cad: 0.85, dano: 2, perf: 1, area: 1.2 }, tiro: 'Ranged_Magic_Shoot', pose: 'Ranged_Magic_Spellcasting',
     poder: { id: 'portal', nome: 'Portal', icone: 'portal', desc: 'Portal engole uma onda' } },
+  thalia: { nome: 'Thalia', titulo: 'Paladina sagrada', preco: 6000, cor: '#e8b83a',
+    visual: base('Knight', { cha: 'elmo', arma: 'W:hammer_A', esq: 'A:shield_badge_color', tinta: '#e8b83a', aura: 'sim', alt: 1.02 }),
+    ataque: { nome: 'Martelos sagrados em área', proj: 'orbe', cor: 0xffe27a, cad: 0.7, dano: 2.2, perf: 0, area: 1.8 }, tiro: 'Throw', pose: 'Idle_A',
+    poder: { id: 'escudo', nome: 'Escudo', icone: 'escudo', desc: 'Muralha invencível por alguns segundos' } },
+  raiden: { nome: 'Raiden', titulo: 'Mago da tempestade', preco: 8000, cor: '#2a6ae8',
+    visual: base('Mage', { cha: 'mago', arma: 'W:staff_B', tinta: '#2a6ae8', barba: 'longa', corPelo: '#e8eef6', alt: 1.08 }),
+    ataque: { nome: 'Raios que pulam em 3', proj: 'orbe', cor: 0x7ac8ff, cad: 0.8, dano: 1.6, perf: 3, area: 0 }, tiro: 'Ranged_Magic_Shoot', pose: 'Ranged_Magic_Spellcasting',
+    poder: { id: 'tempestade', nome: 'Tempestade', icone: 'h_raio', desc: 'Raios caem nos orcs perto da muralha' } },
 };
 export const heroiAtual = S => HEROIS[S.heroi] || HEROIS.lyra;

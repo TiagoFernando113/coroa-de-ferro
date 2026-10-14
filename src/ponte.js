@@ -360,7 +360,7 @@ function limparFase() {
   for (const c of G.chuvas) for (const f of c.fl) cena.remove(f.o);
   for (const p of G.pedras) cena.remove(p.o);
   if (G.corrida) for (const o of G.corrida.objs) cena.remove(o);
-  for (const tn of G.tornados) cena.remove(tn.o); for (const fg of G.fogos) cena.remove(fg.o); if (G.chefe?.bolha) cena.remove(G.chefe.bolha); for (const c of G.chuvas) if (c.o) cena.remove(c.o);
+  for (const tn of G.tornados) cena.remove(tn.o); for (const fg of G.fogos) cena.remove(fg.o); if (G.chefe?.bolha) cena.remove(G.chefe.bolha); for (const c of G.chuvas) if (c.o) cena.remove(c.o); if (G.escudoO) cena.remove(G.escudoO);
   for (const v of G.vagas) { cena.remove(v.base); if (v.o) cena.remove(v.o); }
   for (const s of G.tiros) cena.remove(s.o); for (const m of G.meteoros || []) cena.remove(m.o);
   if (G.forquilha) cena.remove(G.forquilha);
@@ -427,7 +427,7 @@ function htmlMelhorias() {
     return `<button class="up ${!max && S.moedas >= c ? 'pode' : ''}" data-up="${k}"><span class="upIco">${ico(U.icone)}</span><b>${U.nome}</b><small>${U.desc(n)}</small><em>${max ? 'MÁX' : `${ico('ouro')}${fmt(c)}`}</em><i>Nv ${n}</i></button>`; }).join('')}</div>`;
 }
 const DESC_CARTA = { chuva: 'Sobe o poder especial do herói', gigante: 'Cavaleiro enorme aliado', arco: 'Atiram de longe', lanca: 'Aguentam mais duelos', mago: 'Explosão em área' };
-const ICONE_HEROI = { lyra: 'arq', brann: 'h_perfura', selene: 'mag', grom: 'r_orc', kira: 'lad', zarak: 'r_demonio' };
+const ICONE_HEROI = { lyra: 'arq', brann: 'h_perfura', selene: 'mag', grom: 'r_orc', kira: 'lad', zarak: 'r_demonio', thalia: 'r_anjo', raiden: 'h_raio' };
 function htmlHerois() {
   return `<h3>Herói <small>toque para escolher</small></h3><div class="heroisG">${Object.entries(HEROIS).map(([k, H]) => { const tem = S.herois.includes(k), sel = S.heroi === k;
     return `<button class="heroiC ${sel ? 'sel' : ''} ${tem ? '' : 'bloq'}" data-heroi="${k}" style="--c:${H.cor}"><span>${ico(ICONE_HEROI[k])}</span><b>${H.nome}</b><small>${H.titulo}</small>
@@ -634,7 +634,8 @@ function carregarOnline(aba) {
       e.classList.remove('modoChat');
       claAtual = c;
       e.innerHTML = abas + `<div class="claTopo">${escudoCla(c.cor, c.tag || c.nome)}<div><b data-nt>${tagHtml(c.tag, c.cor)}${esc(c.nome)}</b><small>Nível ${c.nivel} · ${c.membros.length}/30 membros</small>
-          ${c.descricao ? `<p class="claDesc" data-nt>${esc(c.descricao)}</p>` : ''}</div>${c.meuCargo === 'lider' ? `<button class="btn peq azul" data-a="claEditarAbrir">${ico('pincel')}</button>` : ''}</div>
+          ${c.descricao ? `<p class="claDesc" data-nt>${esc(c.descricao)}</p>` : ''}<small class="claModo">${c.fechado ? `${ico('cadeado')} Fechado: só entra com pedido` : `${ico('check')} Aberto`}${c.faseMin ? ` · fase ${c.faseMin}+` : ''}</small></div>${c.meuCargo === 'lider' ? `<button class="btn peq azul" data-a="claEditarAbrir">${ico('pincel')}</button>` : ''}</div>
+        ${(c.meuCargo === 'lider' || c.meuCargo === 'colider') && c.pedidos > 0 ? `<button class="btn amarelo pedidosBtn" data-a="claPedidosAbrir">${ico('mao')} ${c.pedidos} pedido${c.pedidos > 1 ? 's' : ''} para entrar</button>` : ''}
         <div class="claChefe"><small>${ico('chefe')} Chefe do clã (semana) — todo dano que vocês dão nas batalhas conta</small>
           <div class="barra vm"><i style="width:${100 - 100 * k}%"></i><span>${fmt(c.vida - c.dano)} / ${fmt(c.vida)}</span></div>
           <small>Derrotar dá ${ico('ouro')} ${150 + 50 * c.nivel} para cada membro</small></div>
@@ -648,7 +649,9 @@ function carregarOnline(aba) {
     e.classList.remove('modoChat'); $('#onCorpo')?.classList.remove('comChat');
     comCache('clas', () => ON.clas(), l => { const e2 = $('#claCorpo'); if (!e2 || lerCache('meucla')?.d) return;
       e2.innerHTML = `<p class="sub">Entre num clã: membros se ajudam sozinhos nas batalhas e derrotam juntos o chefe da semana. A sigla aparece antes do seu nome.</p>
-        <div class="lista">${l.length ? l.map(c => `<div class="linha">${escudoCla(c.cor, c.tag || c.nome)}<div class="lnTxt"><span data-nt>${tagHtml(c.tag, c.cor)}${esc(c.nome)}</span><small>Nv ${c.nivel} · ${c.membros}/30</small></div><button class="btn verde peq" data-cla="${c.id}">Entrar</button></div>`).join('') : '<p>Nenhum clã ainda. Crie o primeiro!</p>'}</div>
+        <div class="lista">${l.length ? l.map(c => `<div class="linha">${escudoCla(c.cor, c.tag || c.nome)}<div class="lnTxt"><span data-nt>${tagHtml(c.tag, c.cor)}${esc(c.nome)}</span><small>Nv ${c.nivel} · ${c.membros}/30${c.fase_min ? ` · fase ${c.fase_min}+` : ''}</small>${c.descricao ? `<small class="claDescP" data-nt>${esc(c.descricao)}</small>` : ''}</div>
+          ${c.fechado ? (c.pedi ? `<button class="btn cinza peq" disabled>${ico('relogio')} Pedido enviado</button>` : `<button class="btn amarelo peq" data-cla-pedir="${c.id}">${ico('cadeado')} Pedir</button>`)
+            : `<button class="btn verde peq" data-cla="${c.id}">Entrar</button>`}</div>`).join('') : '<p>Nenhum clã ainda. Crie o primeiro!</p>'}</div>
         <div class="criarCla"><input id="tagCla" maxlength="4" placeholder="SIGLA"><input id="nomeCla" maxlength="18" placeholder="Nome do novo clã"></div>
         <button class="btn amarelo" data-a="claCriar">Criar clã ${ico('ouro')}200</button><p class="erro" id="onErro"></p>`; });
   }, e => { const x = $('#claCorpo'); if (x) x.innerHTML = `<p class="erro">${esc(e.message)}</p>`; });
@@ -670,6 +673,7 @@ async function cliqueOnline(b) {
   if (a === 'voltarOnline') { som('clique'); carregarOnline(abaLobby); }
   if (a === 'salvarNome') { const ap = $('#apelido').value.trim(); if (ap.length < 2) return erro('Pelo menos 2 letras');
     b.disabled = true; try { await ON.registrar(ap); som('confirma'); carregarOnline(abaLobby); } catch (e) { b.disabled = false; erro(e.message); } }
+  if (b.dataset.claPedir) { b.disabled = true; try { await ON.claPedir(+b.dataset.claPedir); esquecer('clas'); sfx('brilho'); b.outerHTML = `<button class="btn cinza peq" disabled>${ico('relogio')} ${tr('Pedido enviado')}</button>`; } catch (e) { b.disabled = false; erro(e.message); } return; }
   if (b.dataset.cla) { b.disabled = true; try { await ON.claEntrar(+b.dataset.cla); esquecer('meucla', 'clas', 'chat'); sfx('vitoria'); carregarOnline('cla'); } catch (e) { b.disabled = false; erro(e.message); } }
   if (a === 'claCriar') { const n = $('#nomeCla').value.trim(), tg = $('#tagCla').value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
     if (tg.length < 2) return erro('Sigla com 2 a 4 letras'); if (n.length < 3) return erro('Nome com pelo menos 3 letras'); if (S.moedas < 200) return erro('Precisa de 200 moedas');
@@ -697,17 +701,33 @@ async function acaoCla(b) {
   try { await ON.claGerir(b.dataset.k, acao); som('confirma'); esquecer('meucla'); $('#janela').hidden = true; carregarOnline('cla'); }
   catch (e) { b.disabled = false; const x = $('#gerErro'); if (x) x.textContent = e.message; som('erro'); }
 }
+function mostrarPedidos() {
+  const j = $('#janela'); j.hidden = false;
+  j.innerHTML = `<div class="jOnline"><h2>${ico('mao')} Pedidos para entrar</h2><div class="lista" id="pedLista"><p>Carregando...</p></div><p class="erro" id="gerErro"></p><button class="fSo" data-a="fecharJanela">Fechar</button></div>`;
+  ON.claPedidos().then(l => { const e = $('#pedLista'); if (!e) return;
+    e.innerHTML = l?.length ? l.map(p => `<div class="linha"><button class="nomeBtn" data-perfil="${p.codigo}" data-nt>${esc(p.apelido)}</button><small>fase ${p.fase}</small>
+      <button class="btn verde peq" data-ped="${p.codigo}" data-ok="1">${ico('check')}</button><button class="btn vermelho peq" data-ped="${p.codigo}" data-ok="0">${ico('fechar')}</button></div>`).join('') : '<p>Nenhum pedido agora.</p>'; })
+    .catch(e => { const x = $('#gerErro'); if (x) x.textContent = e.message; });
+}
+async function responderPedido(b) {
+  const ok = b.dataset.ok === '1'; b.closest('.linha').querySelectorAll('button[data-ped]').forEach(x => { x.disabled = true; });
+  try { await ON.claResponder(b.dataset.ped, ok); som(ok ? 'confirma' : 'clique'); if (ok) sfx('vitoria'); b.closest('.linha').remove(); esquecer('meucla', 'chat');
+    if (!$('#pedLista .linha')) { $('#janela').hidden = true; carregarOnline('cla'); } }
+  catch (e) { b.closest('.linha')?.querySelectorAll('button[data-ped]').forEach(x => { x.disabled = false; }); const x = $('#gerErro'); if (x) x.textContent = e.message; som('erro'); }
+}
 function editarCla() {
   const c = claAtual; if (!c) return; const j = $('#janela'); j.hidden = false; let cor = c.cor % 8;
   j.innerHTML = `<div class="jOnline editarCla"><h2>${ico('pincel')} Editar clã</h2>
     <input id="edNome" maxlength="18" value="${esc(c.nome)}" placeholder="Nome do novo clã"><input id="edTag" maxlength="4" value="${esc(c.tag || '')}" placeholder="SIGLA">
     <div class="cores">${CORES_CLA.map((k, i) => `<button class="${i === cor ? 'sel' : ''}" data-cor-cla="${i}" style="background:${k}"></button>`).join('')}</div>
     <textarea id="edDesc" maxlength="120" rows="3" placeholder="Descrição do clã">${esc(c.descricao || '')}</textarea>
+    <div class="edModo"><button class="${c.fechado ? '' : 'sel'}" data-ed-modo="0">${ico('check')} Aberto</button><button class="${c.fechado ? 'sel' : ''}" data-ed-modo="1">${ico('cadeado')} Fechado</button></div>
+    <label class="edFase">Fase mínima para entrar <input id="edFase" type="number" min="0" max="500" inputmode="numeric" value="${c.faseMin || 0}"></label>
     <button class="btn verde" data-a="claEditarSalvar">Salvar</button><p class="erro" id="gerErro"></p><button class="fSo" data-a="fecharJanela">Fechar</button></div>`;
 }
 async function salvarEdicaoCla(b) {
   const cor = +(document.querySelector('.cores .sel')?.dataset.corCla || 0); b.disabled = true;
-  try { await ON.claEditar($('#edNome').value.trim(), $('#edTag').value.trim().toUpperCase(), cor, $('#edDesc').value.trim()); som('confirma'); esquecer('meucla', 'clas', 'rank_cla'); $('#janela').hidden = true; carregarOnline('cla'); }
+  try { await ON.claEditar($('#edNome').value.trim(), $('#edTag').value.trim().toUpperCase(), cor, $('#edDesc').value.trim(), !!document.querySelector('[data-ed-modo="1"].sel'), Math.max(0, Math.floor(+$('#edFase').value || 0))); som('confirma'); esquecer('meucla', 'clas', 'rank_cla'); $('#janela').hidden = true; carregarOnline('cla'); }
   catch (e) { b.disabled = false; const x = $('#gerErro'); if (x) x.textContent = e.message; som('erro'); }
 }
 // ---- guerra de clãs (sábado e domingo): o dano de todos nas batalhas conta ----
@@ -1078,6 +1098,9 @@ function clique(e) {
   if (b.dataset.gerir) { som('clique'); menuMembro(b.dataset.gerir); return; }
   if (b.dataset.claAcao) { acaoCla(b); return; }
   if (a === 'claEditarAbrir') { som('clique'); editarCla(); return; }
+  if (a === 'claPedidosAbrir') { som('clique'); mostrarPedidos(); return; }
+  if (b.dataset.ped) { responderPedido(b); return; }
+  if (b.dataset.edModo) { document.querySelectorAll('.edModo button').forEach(x => x.classList.toggle('sel', x === b)); som('clique'); return; }
   if (a === 'claEditarSalvar') { salvarEdicaoCla(b); return; }
   if (b.dataset.corCla) { document.querySelectorAll('.cores button').forEach(x => x.classList.toggle('sel', x === b)); som('clique'); return; }
   if (b.dataset.convidar) { som('confirma'); convidarDupla(b.dataset.convidar, b.dataset.nome); return; }
@@ -1097,7 +1120,7 @@ function clique(e) {
       <button class="fSo" data-a="fecharJanela">OK</button></div>`; }
   if (b.dataset.idioma) { som('clique'); mudarIdioma(b.dataset.idioma); $('#janela').hidden = true; desenharLobby(); }
   if (a === 'online') { som('clique'); mostrarOnline('rank'); }
-  if (b.dataset.rk || b.dataset.cla || b.dataset.cm || b.dataset.pedir || b.dataset.doar || ['trocarNome', 'salvarNome', 'voltarOnline', 'claCriar', 'claSair', 'chatEnviar', 'chatPedirAbrir'].includes(a) || b.dataset.trVer || b.dataset.trad) cliqueOnline(b);
+  if (b.dataset.rk || b.dataset.cla || b.dataset.claPedir || b.dataset.cm || b.dataset.pedir || b.dataset.doar || ['trocarNome', 'salvarNome', 'voltarOnline', 'claCriar', 'claSair', 'chatEnviar', 'chatPedirAbrir'].includes(a) || b.dataset.trVer || b.dataset.trad) cliqueOnline(b);
   if (a === 'dupla') { som('confirma'); procurarDupla(); }
   if (a === 'revanche') pedirRevanche();
   if (a === 'sairDupla') { som('fechar'); G?.dupla?.canal?.enviar('sair', {}); abrirLobby(); }
@@ -1402,7 +1425,7 @@ function passoJogo(dt) {
   // azuis que passaram batem no chefe
   for (const a of G.az) if (!a.morto && a.z <= ch.z + 5) { a.morto = true; ferirChefe(1, a.x, a.z); voar(a.tipo, a.x, a.z, (Math.random() - 0.5) * 10, 10 + Math.random() * 6, 7 + Math.random() * 5); }
   // vermelhos que chegaram batem na muralha
-  for (const v of G.vm) if (!v.morto && v.z >= ZMURO - 1.2) { v.morto = true; v.muro = true; G.muro--; C.faiscas(v.x, 1.5, v.z, 0xff5a3a, 10, 4); C.camera.tremor = Math.max(C.camera.tremor, 0.25); som('pancada', 0.3); }
+  for (const v of G.vm) if (!v.morto && v.z >= ZMURO - 1.2) { v.morto = true; v.muro = true; if (G.invT > 0) { G.mortesVm++; C.faiscas(v.x, 1.5, v.z, 0xffe27a, 6, 3); continue; } G.muro--; C.faiscas(v.x, 1.5, v.z, 0xff5a3a, 10, 4); C.camera.tremor = Math.max(C.camera.tremor, 0.25); som('pancada', 0.3); }
   // torres
   for (const v of G.vagas) {
     if (!v.tipo || (v.cd -= dt) > 0) continue; const T = TORRES[v.tipo];
@@ -1504,6 +1527,7 @@ function passoJogo(dt) {
   }
   G.tornados = G.tornados.filter(tn => !tn.fim);
   G.medoT = Math.max(0, (G.medoT || 0) - dt);
+  if (G.invT > 0) { G.invT -= dt; if (G.escudoO) G.escudoO.material.opacity = 0.25 + 0.12 * Math.sin(C.tempo() * 8); if (G.invT <= 0 && G.escudoO) G.escudoO.visible = false; }
   const gi = G.gigante;
   if (gi) {
     gi.t += dt; gi.hp -= dt * 3;
@@ -1655,7 +1679,7 @@ function passoCorrida(dt) {
 // ---- habilidades dos chefes: aviso (1,2 s) e depois o efeito ----
 const GEO_BOLHA = new THREE.SphereGeometry(1, 20, 14), MAT_BOLHA = new THREE.MeshBasicMaterial({ color: 0x6ab8ff, transparent: true, opacity: 0.3, depthWrite: false });
 const GEO_FOGO = new THREE.CircleGeometry(1, 28).rotateX(-Math.PI / 2), MAT_FOGO = new THREE.MeshBasicMaterial({ color: 0xff5a1a, transparent: true, opacity: 0.55, depthWrite: false });
-const AVISOS_HAB = { investida: 'VAI AVANÇAR!', chamas: 'VAI CUSPIR FOGO!', gelo: 'VAI CONGELAR VOCÊ!', reviver: 'VAI LEVANTAR OS MORTOS!', esporos: 'VAI SOLTAR ESPOROS!', escudo: 'VAI SE PROTEGER!', cura: 'VAI SE CURAR!' };
+const AVISOS_HAB = { investida: 'VAI AVANÇAR!', chamas: 'VAI CUSPIR FOGO!', gelo: 'VAI CONGELAR VOCÊ!', reviver: 'VAI LEVANTAR OS MORTOS!', esporos: 'VAI SOLTAR ESPOROS!', escudo: 'VAI SE PROTEGER!', cura: 'VAI SE CURAR!', laser: 'VAI DISPARAR O LASER!', lingua: 'VAI ENGOLIR SEUS SOLDADOS!' };
 const frenteAzul = () => { let z = ZSPAWN; for (const a of G.az) if (a.z < z) z = a.z; return z; };
 function passoHabilidade(dt) {
   const ch = G.chefe; if (!ch.hab || ch.hab === 'salto' || G.t < 6) return;
@@ -1664,7 +1688,9 @@ function passoHabilidade(dt) {
     faixa(`${ch.nome.split(',')[0].toUpperCase()} ${AVISOS_HAB[ch.hab]}`, '#ff9a3a');
     if (ch.hab === 'investida') ch.alvoInv = Math.min(ch.z + 16, ZMURO - 8), C.avisoLinha(0, ch.z + 3, 0, ch.alvoInv - ch.z + 4, 10, 1.2);
     if (ch.hab === 'chamas') { ch.zFogo = Math.max(ch.z + 8, Math.min(frenteAzul() - 2, ZMURO - 10)); C.aviso(0, ch.zFogo, 7, 1.2, 0xff5a1a); }
-    if (ch.hab === 'gelo') C.aviso(G.heroi.x, ZH, 4, 1.2, 0x6ab8ff); }
+    if (ch.hab === 'gelo') C.aviso(G.heroi.x, ZH, 4, 1.2, 0x6ab8ff);
+    if (ch.hab === 'laser') { ch.laserX = Math.max(-MEIA + 3, Math.min(MEIA - 3, G.heroi.x)); C.avisoLinha(ch.laserX, ch.z + 3, 0, ZH - ch.z, 5, 1.2, 0x9aff3a); }
+    if (ch.hab === 'lingua') C.avisoLinha(0, ch.z + 3, 0, Math.max(6, frenteAzul() - ch.z), 7, 1.2, 0xff6aa0); }
   // efeitos que duram
   if (ch.inv) { const I = ch.inv; I.t += dt; const k = Math.min(1, I.t / 0.6); const z0 = ch.z; ch.z = I.z0 + (I.z1 - I.z0) * k;
     for (const a of G.az) if (!a.morto && a.z > z0 && a.z < ch.z + 6 && Math.abs(a.x) < 6) { a.morto = true; arremessar(a.tipo, a, a.x, ch.z, 14); }
@@ -1689,6 +1715,13 @@ function efeitoHabilidade(hab) {
   if (hab === 'esporos') { const n = Math.min(40, 10 + 2 * G.n); for (let i = 0; i < n && G.vm.length < MAXU; i++) G.vm.push({ x: (Math.random() - 0.5) * XC * 1.8, z: ch.z + 5 + Math.random() * 3, ph: Math.random() * 6, ax: (Math.random() - 0.5) * XC * 1.8, vel: 1.8 });
     C.faiscas(0, 6, ch.z + 3, 0xd88aff, 50, 7); faixa('COGUMELINHOS!', '#d88aff'); }
   if (hab === 'escudo') { ch.escudoT = 4.5; if (!ch.bolha) { ch.bolha = new THREE.Mesh(GEO_BOLHA, MAT_BOLHA); cena.add(ch.bolha); } faixa('ESCUDO MÁGICO! ATAQUE OS ORCS', '#6ab8ff'); }
+  if (hab === 'laser') { const lx = ch.laserX ?? 0; C.feixe(lx, ch.z + 3, lx, ZH + 1, 0x9aff3a); C.feixe(lx + 0.6, ch.z + 3, lx + 0.6, ZH + 1, 0xeaffd0);
+    for (const a of G.az) if (!a.morto && Math.abs(a.x - lx) < 2.5) { a.morto = true; voar(a.tipo, a.x, a.z, (a.x - lx) * 4, 8, 1); } G.az = G.az.filter(a => !a.morto);
+    if (Math.abs(G.heroi.x - lx) < 2.5) { G.congelado = 1.5; faixa('ATORDOADO PELO LASER!', '#9aff3a'); } else faixa('ESQUIVOU DO LASER!', '#9aff3a');
+    C.camera.tremor = 0.6; sfx('magia'); }
+  if (hab === 'lingua') { const vivos = G.az.filter(a => !a.morto).sort((a, b) => a.z - b.z), n = Math.min(vivos.length, Math.max(5, Math.round(vivos.length * 0.3)));
+    for (const a of vivos.slice(0, n)) { a.morto = true; arremessar(a.tipo, a, 0, ch.z + 2, 10); } G.az = G.az.filter(a => !a.morto);
+    C.faiscas(0, 3, ch.z + 4, 0xff6aa0, 40, 7); faixa(n ? `NHAC! ENGOLIU ${n} SOLDADOS!` : 'A LÍNGUA ERROU!', '#ff6aa0'); som('pancada'); }
   if (hab === 'cura') { ch.curaT = 2; faixa('O XAMÃ SE CURA!', '#6aff6a'); sfx('magia'); }
 }
 function ferirChefe(d, x, z, forte) {
@@ -1716,6 +1749,13 @@ function poderHeroi(id) {
     for (const v of G.vm) { v.z -= 10 + 2 * nv; v.luta = null; } for (const a of G.az) a.luta = null;
     ch.z -= 3; G.medoT = 4 + 0.5 * nv; C.camera.tremor = 1; G.punch = 1; C.faiscas(h.x, 3, ZH - 3, 0xff9a3a, 60, 10);
     faixa('RUGIDO! OS ORCS RECUAM!', '#ff9a3a'); G.heroiV.tocar('Cheering', { loop: false, reinicia: true }); som('pancada'); }
+  if (id === 'escudo') { G.invT = 5 + 0.5 * nv; if (!G.escudoO) { G.escudoO = new THREE.Mesh(new THREE.BoxGeometry(MEIA * 2, 7, 1.2), new THREE.MeshBasicMaterial({ color: 0xffe27a, transparent: true, opacity: 0.35, depthWrite: false })); G.escudoO.position.set(0, 3.5, ZMURO - 0.6); cena.add(G.escudoO); }
+    G.escudoO.visible = true; C.faiscas(0, 4, ZMURO, 0xffe27a, 60, 8); faixa('ESCUDO SAGRADO!', '#ffe27a'); G.heroiV.tocar('Cheering', { loop: false, reinicia: true }); sfx('magia'); }
+  if (id === 'tempestade') { // raios nos orcs mais perto da muralha e um no chefe
+    const alvos = G.vm.filter(v => !v.morto).sort((a, b) => b.z - a.z).slice(0, 16 + 2 * nv); let n = 0;
+    for (const v of alvos) { v.morto = true; G.mortesVm++; n++; if (n <= 12) C.onda(v.x, v.z, 2.2, 0x7ac8ff, 0.35); voar('vm', v.x, v.z, (Math.random() - 0.5) * 6, 10, -3); if (n % 3 === 0) C.faiscas(v.x, 2, v.z, 0x7ac8ff, 6, 5); }
+    ferirChefe(Math.round(ch.max * (0.03 + 0.005 * (nv - 1))), 0, ch.z + 3, true); C.onda(0, ch.z + 3, 6, 0x7ac8ff, 0.5); C.faiscas(0, 6, ch.z + 3, 0x7ac8ff, 40, 8); limparVm();
+    C.camera.tremor = 0.8; G.punch = 1; faixa('TEMPESTADE DE RAIOS!', '#7ac8ff'); G.heroiV.tocar('Ranged_Magic_Summon', { loop: false, reinicia: true }); sfx('magia'); som('pancada'); }
   if (id === 'tornado') { const o = new THREE.Mesh(GEO_TORNADO, MAT_TORNADO), x = Math.max(-XC, Math.min(XC, h.x)); o.position.set(x, 0, ZSPAWN); cena.add(o);
     G.tornados.push({ o, x, z: ZSPAWN }); faixa('TORNADO DE LÂMINAS!', '#e8f0ff'); G.heroiV.tocar('Throw', { loop: false, reinicia: true }); sfx('magia'); }
 }

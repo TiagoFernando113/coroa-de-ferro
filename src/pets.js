@@ -41,6 +41,10 @@ export const PETS = {
   merlin: { nome: 'Merlinzinho', m: 'mb:Wizard', r: 2, c: 'atirador', cor: 0xb07aff, b: [['recarga', 1], ['chefe', 1]] },
   ninja: { nome: 'Ninja', m: 'mb:Ninja', r: 3, c: 'lutador', b: [['critico', 0.4], ['chefe', 1]] },
   fantasma: { nome: 'Assombro', m: 'mv:Ghost', o: 'mv:Ghost_Skull', r: 3, c: 'tanque', b: [['reviver', 0.3], ['lento', 0.6]] },
+  piu: { nome: 'Piu', m: 'mb:Birb', r: 1, c: 'atirador', cor: 0xffb03a, b: [['pilhas', 1]] },
+  zorp: { nome: 'Zorp', m: 'mb:Alien', r: 2, c: 'lutador', b: [['sorte', 1.5], ['chefe', 1]] },
+  lula: { nome: 'Lulão', m: 'mv:Squidle', r: 3, c: 'atirador', cor: 0x9a6aff, b: [['critico', 0.4], ['recarga', 1]] },
+  totem: { nome: 'Totem', m: 'mv:Tribal', r: 3, c: 'tanque', b: [['muralha', 1.5], ['moedas', 1]] },
   dragao: { nome: 'Dragãozinho', m: 'mv:Dragon', o: 'mv:Dragon_Evolved', r: 3, c: 'atirador', cor: 0xff6a1a, b: [['fogo', 1], ['tiro', 1]] },
 };
 // ovos: chances de cada raridade

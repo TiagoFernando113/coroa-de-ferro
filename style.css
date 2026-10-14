@@ -764,3 +764,16 @@ input{font:inherit;user-select:text;-webkit-user-select:text}
 .lbModos .cqEntrar > .ico{width:28px;height:28px}
 .lbModos .cqEntrar b{font-size:18px}
 .lbModos .cqEntrar em{position:absolute;top:-10px;right:-4px;font-size:13px;padding:2px 6px}
+/* ---- clã fechado / pedidos ---- */
+.claDescP{display:block;white-space:normal;font-style:italic;opacity:.85}
+.claModo{display:flex;align-items:center;gap:4px;color:var(--suave);font-size:12px;margin-top:2px}
+.claModo .ico{width:14px;height:14px}
+.pedidosBtn{width:100%;margin:6px 0;animation:respira 1.4s infinite}
+.edModo{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:6px 0}
+.edModo button{display:flex;align-items:center;justify-content:center;gap:6px;padding:9px;border-radius:12px;border:2px solid var(--creme2);background:#fff;font-family:var(--fT);font-size:15px;color:var(--suave)}
+.edModo button.sel{background:var(--azul2);border-color:#fff;color:#fff;box-shadow:0 3px 0 #0a2a6a}
+.edModo .ico{width:18px;height:18px}
+.edFase{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:14px;color:var(--suave)}
+.edFase input{width:90px!important;text-align:center}
+.linha .btn.peq .ico{width:16px;height:16px;vertical-align:-3px}
+.linha .escCla{flex:none}

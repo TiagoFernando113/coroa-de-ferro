@@ -209,6 +209,25 @@ const T = {
   'bloqueia os # primeiros golpes': L('blocks the first # hits', 'bloquea los # primeros golpes'), 'cura os inimigos perto dele': L('heals nearby enemies', 'cura a los enemigos cercanos'),
   'explode na muralha!': L('explodes on the wall!', '¡explota en la muralla!'), 'BLOQUEOU': L('BLOCKED', 'BLOQUEADO'),
   'Aguente # ondas no Castelo': L('Hold # waves in the Castle', 'Resiste # oleadas en el Castillo'), 'Guardião do castelo': L('Castle guardian', 'Guardián del castillo'),
+  // clã fechado
+  'Pedir': L('Request', 'Pedir'), 'Pedido enviado': L('Request sent', 'Solicitud enviada'), 'fase #+': L('stage #+', 'fase #+'), 'Aberto': L('Open', 'Abierto'), 'Fechado': L('Closed', 'Cerrado'),
+  'Fechado: só entra com pedido': L('Closed: join by request only', 'Cerrado: solo con solicitud'), 'Fase mínima para entrar': L('Minimum stage to join', 'Fase mínima para entrar'),
+  'Pedidos para entrar': L('Join requests', 'Solicitudes para entrar'), 'Nenhum pedido agora.': L('No requests right now.', 'No hay solicitudes ahora.'),
+  '# pedido para entrar': L('# join request', '# solicitud para entrar'), '# pedidos para entrar': L('# join requests', '# solicitudes para entrar'),
+  'clã fechado: peça para entrar': L('closed clan: send a request', 'clan cerrado: envía una solicitud'), 'precisa chegar na fase #': L('you need to reach stage #', 'necesitas llegar a la fase #'),
+  'você já tem # pedidos abertos': L('you already have # open requests', 'ya tienes # solicitudes abiertas'), 'pedido recusado: tente mais tarde': L('request declined: try later', 'solicitud rechazada: intenta más tarde'),
+  'esse jogador já entrou em outro clã': L('this player already joined another clan', 'este jugador ya entró en otro clan'),
+  // heróis novos
+  'Paladina sagrada': L('Holy paladin', 'Paladina sagrada'), 'Mago da tempestade': L('Storm mage', 'Mago de la tormenta'),
+  'Martelos sagrados em área': L('Holy hammers (area)', 'Martillos sagrados en área'), 'Raios que pulam em 3': L('Lightning that jumps to 3', 'Rayos que saltan a 3'),
+  'Escudo': L('Shield', 'Escudo'), 'Tempestade': L('Storm', 'Tormenta'), 'Muralha invencível por alguns segundos': L('Wall is invincible for a few seconds', 'Muralla invencible por unos segundos'),
+  'Raios caem nos orcs perto da muralha': L('Lightning strikes orcs near the wall', 'Rayos caen sobre los orcos cerca de la muralla'),
+  'ESCUDO SAGRADO!': L('HOLY SHIELD!', '¡ESCUDO SAGRADO!'), 'TEMPESTADE DE RAIOS!': L('LIGHTNING STORM!', '¡TORMENTA DE RAYOS!'),
+  // chefes novos
+  'Raio laser numa pista': L('Laser beam on a lane', 'Rayo láser en un carril'), 'Engole seus soldados': L('Swallows your soldiers', 'Se traga a tus soldados'),
+  'VAI DISPARAR O LASER!': L('WILL FIRE THE LASER!', '¡VA A DISPARAR EL LÁSER!'), 'VAI ENGOLIR SEUS SOLDADOS!': L('WILL SWALLOW YOUR SOLDIERS!', '¡VA A TRAGARSE TUS SOLDADOS!'),
+  'ATORDOADO PELO LASER!': L('STUNNED BY THE LASER!', '¡ATURDIDO POR EL LÁSER!'), 'ESQUIVOU DO LASER!': L('DODGED THE LASER!', '¡ESQUIVASTE EL LÁSER!'),
+  'NHAC! ENGOLIU # SOLDADOS!': L('GULP! SWALLOWED # SOLDIERS!', '¡ÑAM! ¡SE TRAGÓ # SOLDADOS!'), 'A LÍNGUA ERROU!': L('THE TONGUE MISSED!', '¡LA LENGUA FALLÓ!'),
 };
 export const TEXTOS = { en: {}, es: {} };
 for (const [k, v] of Object.entries(T)) { TEXTOS.en[k] = v.en; TEXTOS.es[k] = v.es; }
@@ -219,6 +238,7 @@ const PAD = [
   P(/^(.+) VAI CUSPIR FOGO!$/, '$1 WILL BREATHE FIRE!', '¡$1 VA A ESCUPIR FUEGO!'), P(/^(.+) VAI CONGELAR VOCÊ!$/, '$1 WILL FREEZE YOU!', '¡$1 TE VA A CONGELAR!'),
   P(/^(.+) VAI LEVANTAR OS MORTOS!$/, '$1 WILL RAISE THE DEAD!', '¡$1 VA A LEVANTAR A LOS MUERTOS!'), P(/^(.+) VAI SOLTAR ESPOROS!$/, '$1 WILL RELEASE SPORES!', '¡$1 VA A SOLTAR ESPORAS!'),
   P(/^(.+) VAI SE PROTEGER!$/, '$1 WILL SHIELD ITSELF!', '¡$1 SE VA A PROTEGER!'), P(/^(.+) VAI SE CURAR!$/, '$1 WILL HEAL!', '¡$1 SE VA A CURAR!'),
+  P(/^(.+) VAI DISPARAR O LASER!$/, '$1 WILL FIRE THE LASER!', '¡$1 VA A DISPARAR EL LÁSER!'), P(/^(.+) VAI ENGOLIR SEUS SOLDADOS!$/, '$1 WILL SWALLOW YOUR SOLDIERS!', '¡$1 SE VA A TRAGAR TUS SOLDADOS!'),
   P(/^EM DUPLA COM (.+)!$/, 'DUO WITH $1!', '¡EN DÚO CON $1!'), P(/^(.+) CAIU! AGUENTE!$/, '$1 FELL! HOLD ON!', '¡$1 CAYÓ! ¡AGUANTA!'), P(/^(.+) DESCONECTOU$/, '$1 DISCONNECTED', '$1 SE DESCONECTÓ'),
   P(/^(.+) SAIU$/, '$1 LEFT', '$1 SALIÓ'), P(/^(.+?)( \(CLÃ\))? VEIO AJUDAR! (.+)$/, '$1 CAME TO HELP! $3', '¡$1 VINO A AYUDAR! $3'), P(/^O CLÃ DOOU (\d+) CARTAS?!$/, 'THE CLAN DONATED $1 CARD(S)!', '¡EL CLAN DONÓ $1 CARTA(S)!'),
   P(/^Em dupla com (.+): \+50% moedas$/, 'Duo with $1: +50% coins', 'En dúo con $1: +50% monedas'), P(/^Jogar de novo com (.+)$/, 'Play again with $1', 'Jugar de nuevo con $1'),
