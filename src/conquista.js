@@ -6,7 +6,7 @@ import { S, salvar, fimDeSemana } from './meta.js';
 import { PETS, RARIDADES, CLASSES, MAX_NV, MAX_EST, atributos, forca, modeloDe, tinta, base, est, ESTRELAS, lucroHora, lucroOcioso, tempoOcioso, MAX_OCIOSO, coletarOcioso, OVOS } from './pets.js';
 import { fmt } from './dados.js';
 import { sfx } from './musica.js';
-import { ico, som, $ } from './util.js';
+import { ico, som, $, voarMoedas, flashTela } from './util.js';
 import { t as tr } from './i18n.js';
 import { evento } from './missoes.js';
 import * as ON from './online.js';
@@ -171,7 +171,7 @@ function desenhar() {
 function lutar() { if (Q.estado !== 'prep') return; Q.estado = 'luta'; Q.banner = { txt: 'LUTEM!', cor: '#ffd84a', t: 0 }; sfx('trombeta'); som('espada'); desenhar(); }
 function acabar(venceu) {
   Q.estado = 'fim'; Q.venceu = venceu; if (Q.sem3d) return;
-  Q.banner = { txt: venceu ? 'VITÓRIA!' : 'DERROTA!', cor: venceu ? '#ffd84a' : '#ff6a5a', t: 0 }; sfx(venceu ? 'vitoria' : 'derrota');
+  Q.banner = { txt: venceu ? 'VITÓRIA!' : 'DERROTA!', cor: venceu ? '#ffd84a' : '#ff6a5a', t: 0 }; sfx(venceu ? 'vitoria' : 'derrota'); if (venceu) flashTela('#fff', 0.4);
   for (const u of Q.us) if (!u.morto && u.v) u.v.tocar('Idle');
   const est = Q.est; let premio = 0, ovo = null;
   if (venceu && Q.rival) { evento('arena'); ON.cqDerrotou(Q.rival.codigo).catch(() => {}); }
@@ -182,7 +182,8 @@ function acabar(venceu) {
       ${venceu ? `<div class="ganho">${ico('ouro')}<b>+${fmt(premio)}</b></div>${ovo ? `<div class="cqOvo">${ovoHtml(ovo)}<b>+1 ${OVOS[ovo].nome}!</b></div>` : ''}<p>Lucro ocioso agora: ${fmt(lucroHora())}/h</p>`
         : '<p>Suba o nível dos pets, junte 3 iguais para um dourado ★ ou choque ovos.</p>'}
       <button class="btn verde grande" data-cq="seguir">${venceu ? `Estágio ${S.cq.est} ${ico('seta')}` : 'Tentar de novo'}</button>
-      <button class="btn azul" data-cq="pets">${ico('pata')} Pets</button></div>`; }, 1600);
+      <button class="btn azul" data-cq="pets">${ico('pata')} Pets</button></div>`;
+    if (venceu) { flashTela('#ffe27a', 0.45); setTimeout(() => voarMoedas('#cqJanela .ganho', 10), 120); } }, 1600);
 }
 export function ovoHtml(tipo, cls = '') {
   const [c1, c2] = OVOS[tipo].cor, i = Math.random().toString(36).slice(2, 7);

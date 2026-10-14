@@ -8,7 +8,7 @@ import { PETS, atributos, modeloDe, tinta, base, est, bonusEquipe, GOLPES, golpe
 import { heroiAtual } from './herois.js';
 import { desenharTropas, voar, passoVoo, limparTropas } from './tropas.js';
 import { sfx, intensidade } from './musica.js';
-import { ico, som, $ } from './util.js';
+import { ico, som, $, voarMoedas, flashTela } from './util.js';
 import { t as tr } from './i18n.js';
 import { evento } from './missoes.js';
 import * as ON from './online.js';
@@ -199,7 +199,8 @@ function acabar() {
   setTimeout(() => { if (!K || !el) return; const j = $('#ctJanela'); j.hidden = false;
     j.innerHTML = `<div class="cqFim ${novo ? 'vit' : 'der'}"><h2>${novo ? 'NOVO RECORDE!' : 'A muralha caiu!'}</h2><p>Você aguentou ${ondas} onda${ondas === 1 ? '' : 's'} · ${fmt(K.mortos)} inimigos</p>
       <div class="ganho">${ico('ouro')}<b>+${fmt(premio)}</b></div><p>Fique mais forte com melhorias, cartas e pets para ir mais longe.</p>
-      <button class="btn verde grande" data-ct="denovo">Jogar de novo</button><button class="btn azul" data-ct="sair">${ico('guilda')} Menu</button></div>`; }, 1500);
+      <button class="btn verde grande" data-ct="denovo">Jogar de novo</button><button class="btn azul" data-ct="sair">${ico('guilda')} Menu</button></div>`;
+    if (novo) flashTela('#ffe27a', 0.45); setTimeout(() => voarMoedas('#ctJanela .ganho', novo ? 12 : 6), 120); }, 1500);
 }
 export function clique(b) {
   const a = b.dataset.ct, mg = b.dataset.magia;
