@@ -736,3 +736,30 @@ input{font:inherit;user-select:text;-webkit-user-select:text}
 .cores button{width:30px;height:30px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 2px var(--creme2)}
 .cores button.sel{box-shadow:0 0 0 3px var(--tinta)}
 .linha .cargo{flex:none;font-family:var(--fX)}
+/* ---- castelo ---- */
+#castelo{position:absolute;inset:0;pointer-events:none}
+#castelo > *{pointer-events:auto}
+.ctEntrar{background:linear-gradient(#8a6ae8,#4a2aa8)}
+.ctEntrar.bloq{filter:grayscale(.8);opacity:.75}
+.ctTopo{position:absolute;left:0;right:0;top:0;display:flex;gap:8px;align-items:center;padding:max(10px,env(safe-area-inset-top)) 10px 10px;background:linear-gradient(rgba(10,30,60,.55),transparent)}
+.ctTopo > b{font-family:var(--fT);font-weight:400;font-size:26px;color:#ffd84a;text-shadow:0 2px 0 #000a}
+.ctTopo > small{flex:1;color:#fff;font-size:14px;text-shadow:0 1px 2px #000}
+.ctMuro{position:absolute;left:12px;right:12px;top:calc(max(10px,env(safe-area-inset-top)) + 62px);max-width:420px;margin:0 auto;display:flex;align-items:center;gap:6px;color:#fff}
+.ctMuro .ico{width:28px;height:28px;color:#ffd23a;flex:none}
+.ctMuro .barra{flex:1;position:relative;height:22px;border-radius:11px;background:#3a1a1a;overflow:hidden;border:2px solid #fff8}
+.ctMuro .barra i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(#5fe87a,#22a84a);transition:width .2s}
+.ctMuro .barra span{position:relative;display:block;text-align:center;line-height:18px;font-family:var(--fT);font-size:14px;text-shadow:0 1px 2px #000}
+.ctMagias{position:absolute;left:10px;right:10px;bottom:max(14px,env(safe-area-inset-bottom));max-width:420px;margin:0 auto;display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.ctMagia{position:relative;display:flex;flex-direction:column;align-items:center;padding:8px 4px 6px;border-radius:16px;background:linear-gradient(#5a5a6a,#3a3a48);border:3px solid #fff6;color:#fff;filter:grayscale(.7);opacity:.75}
+.ctMagia.pode{filter:none;opacity:1;background:linear-gradient(#4a8ae8,#1a4aa8);border-color:#fff;box-shadow:0 4px 0 #0a2a6a}
+.ctMagia .ico{width:38px;height:38px}
+.ctMagia small{font-family:var(--fT);font-size:13px}
+.ctMagia em{position:absolute;top:-8px;right:-4px;font-style:normal;font-family:var(--fT);font-size:14px;padding:1px 7px;border-radius:10px;background:#2a8ae8;border:2px solid #fff}
+.ctMana{grid-column:1/-1;position:relative;height:16px;border-radius:8px;background:#1a1a3a;overflow:hidden;border:2px solid #fff6}
+.ctMana i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(#7ac8ff,#2a6ae8);transition:width .2s}
+.ctMana span{position:relative;display:block;text-align:center;line-height:12px;font-size:11px;color:#fff;font-family:var(--fT)}
+.lbModos{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.lbModos .cqEntrar{margin:0;padding:8px;gap:6px;position:relative}
+.lbModos .cqEntrar > .ico{width:28px;height:28px}
+.lbModos .cqEntrar b{font-size:18px}
+.lbModos .cqEntrar em{position:absolute;top:-10px;right:-4px;font-size:13px;padding:2px 6px}

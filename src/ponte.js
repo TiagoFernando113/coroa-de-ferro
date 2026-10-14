@@ -13,6 +13,7 @@ import { HEROIS, heroiAtual } from './herois.js';
 import { criarTropas, desenharTropas, voar, passoVoo, limparTropas } from './tropas.js';
 import { PETS, RARIDADES, CLASSES, OVOS, BONUS as BONUS_PET, ESTRELAS, MAX_EQUIPE, MAX_NV, MAX_EST, base, est, qtd, temPet, modeloDe, tinta, atributos, forca, forcaEquipe, custoNivel, subirNivel, juntar, equipar, equiparMelhores, chocar, bonusPet, bonusEquipe, txtBonus, lucroOcioso } from './pets.js';
 import * as CQ from './conquista.js';
+import * as CT from './castelo.js';
 import { MEDALHAS, NIVEIS_MEDALHA, nivelMedalha, pegas, medalhasProntas, premioMedalha, pegarMedalha } from './perfil.js';
 import { ofertas, lojaDia, comprarOferta, temOferta } from './loja.js';
 import { TIPOS as TIPOS_MISSAO, PTS_NIVEL, NIVEIS_PASSE, atualizarMissoes, evento, prontas, pegarMissao, premioNivel, nivelPasse, pegarNivel, fimTemporada } from './missoes.js';
@@ -378,7 +379,7 @@ function montarHud() {
       <div class="jMuro">${ico('escudo')}<div class="barra muro"><i id="jMuroB"></i><span id="jMuroT"></span></div></div>
       <p class="jDica" id="jDica">Arraste para mover · as flechas saem sozinhas</p>
       <div id="tut" hidden><p class="tutBalao"></p><div class="tutMao">${ico('mao')}</div></div></div>
-    <div id="fim" hidden></div><div id="conq" hidden></div><div id="janela" hidden></div>`;
+    <div id="fim" hidden></div><div id="conq" hidden></div><div id="castelo" hidden></div><div id="janela" hidden></div>`;
   fx = document.createElement('canvas'); fx.id = 'fx'; document.body.append(fx); gfx = fx.getContext('2d');
   const medir = () => { fx.width = innerWidth * devicePixelRatio; fx.height = innerHeight * devicePixelRatio; gfx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0); };
   medir(); addEventListener('resize', medir);
@@ -454,7 +455,8 @@ function desenharLobby() {
       ${eventoDaFase(S.fase) ? (E => `<em class="fEvento" style="--c:${E.cor}">${ico(E.icone)}<b>${E.nome}:</b> ${E.desc}</em>`)(EVENTOS[eventoDaFase(S.fase)]) : ''}</span></div>
     <div class="lbBase">
       ${fimDeSemana() ? `<div class="fdsFaixa">${ico('festa')}<span><b>Fim de semana dourado!</b><small>Moedas x2 · ovos com sorte x2 · guerra de clãs</small></span></div>` : ''}
-      <button class="cqEntrar" data-a="conquista">${ico('bandeira')}<span><b>Conquista</b><small>Estágio ${S.cq.est} · seus pets lutam sozinhos</small></span>${lucroOcioso() > 0 ? `<em>${ico('ouro')}${fmt(lucroOcioso())}</em>` : ''}</button>
+      <div class="lbModos"><button class="cqEntrar" data-a="conquista">${ico('bandeira')}<span><b>Conquista</b><small>Estágio ${S.cq.est}</small></span>${lucroOcioso() > 0 ? `<em>${ico('ouro')}${fmt(lucroOcioso())}</em>` : ''}</button>
+      <button class="cqEntrar ctEntrar ${S.melhor >= 3 ? '' : 'bloq'}" data-a="castelo">${ico(S.melhor >= 3 ? 'h_muralha' : 'cadeado')}<span><b>Castelo</b><small>${S.melhor >= 3 ? `Recorde: onda ${S.castelo?.rec || 0}` : 'Libera na fase 3'}</small></span></button></div>
       <div class="baus">${Array.from({ length: MAX_BAUS }, (_, i) => { const b = S.baus[i];
         return b ? `<button class="slotBau" data-bau="${i}">${bauHtml(b.tipo, 'mini')}<small>Abrir!</small></button>` : `<div class="slotBau vazio">${ico('bau')}</div>`; }).join('')}</div>
       <div class="lbJogar"><button class="modo azul" data-a="dupla">${ico('herois')}<small>Dupla</small></button>
@@ -524,6 +526,11 @@ function abrirOvo(tipo) {
       <div class="ovoBotoes">${S.ovos[tipo] || S.moedas >= O.preco ? `<button class="btn amarelo" data-ovo="${tipo}">${S.ovos[tipo] ? `De novo (${S.ovos[tipo]})` : `De novo ${ico('ouro')}${fmt(O.preco)}`}</button>` : ''}
       <button class="btn verde" data-a="fecharJanela">Pegar</button></div>`;
     sfx(D.r >= 2 ? 'vitoria' : 'brilho'); if (D.r >= 3) som('lendario'); if (D.r >= 2) avisarCla(`tirou ${D.nome} (${R.nome}) num ovo!`); C.camera.tremor = 0.3; recriarPetsLobby(); }, 2100);
+}
+function abrirCastelo() {
+  limparFase(); MUROS_PISTA[0].visible = MUROS_PISTA[1].visible = false; MUROS_PISTA[2].visible = true; $('#janela').hidden = true;
+  tela = 'castelo'; $('#lobby').hidden = true; $('#jogo').hidden = true; $('#fim').hidden = true; tema(1);
+  CT.abrir($('#castelo'), () => { CT.fechar(); abrirLobby(); desenharLobby(); });
 }
 function abrirConquista() {
   limparFase(); for (const m of MUROS_PISTA) m.visible = false; $('#janela').hidden = true;
@@ -605,15 +612,16 @@ function carregarOnline(aba) {
       <button class="btn verde grande" data-a="salvarNome">Salvar</button><button class="btn azul" data-a="voltarOnline">Voltar</button>`; return;
   }
   if (aba === 'rank') {
-    el.innerHTML = `${nome}<div class="abas"><button class="${rankModo === 'jog' ? 'on' : ''}" data-rk="jog">Jogadores</button><button class="${rankModo === 'cq' ? 'on' : ''}" data-rk="cq">Conquista</button><button class="${rankModo === 'cla' ? 'on' : ''}" data-rk="cla">Clãs</button></div>
-      <p class="sub">${rankModo === 'jog' ? 'Ponte sem fim · melhores do mundo' : rankModo === 'cq' ? 'Maior estágio da Conquista' : 'Clãs com mais chefes semanais derrotados'}</p><div class="lista" id="lista"><p>Carregando...</p></div>`;
+    el.innerHTML = `${nome}<div class="abas"><button class="${rankModo === 'jog' ? 'on' : ''}" data-rk="jog">Jogadores</button><button class="${rankModo === 'cq' ? 'on' : ''}" data-rk="cq">Conquista</button><button class="${rankModo === 'ct' ? 'on' : ''}" data-rk="ct">Castelo</button><button class="${rankModo === 'cla' ? 'on' : ''}" data-rk="cla">Clãs</button></div>
+      <p class="sub">${rankModo === 'jog' ? 'Ponte sem fim · melhores do mundo' : rankModo === 'cq' ? 'Maior estágio da Conquista' : rankModo === 'ct' ? 'Mais ondas aguentadas no Castelo' : 'Clãs com mais chefes semanais derrotados'}</p><div class="lista" id="lista"><p>Carregando...</p></div>`;
     const med = p => p <= 3 ? ['🥇', '🥈', '🥉'][p - 1] : '#' + p, modo = rankModo;
     const html = {
       jog: l => l.length ? l.map(r => `<div class="linha ${r.eu ? 'eu' : ''}"><b>${med(r.posicao)}</b><button class="nomeBtn" data-perfil="${r.codigo}" data-nt>${tagHtml(r.tag, 0)}${esc(r.apelido)}</button><small>${r.chefes} chefes</small><em>${fmt(r.pontos)}</em></div>`).join('') : '<p>Ninguém no ranking ainda. Jogue a Ponte sem fim e seja o primeiro!</p>',
       cq: l => l.length ? l.map(r => `<div class="linha ${r.eu ? 'eu' : ''}"><b>${med(r.posicao)}</b><button class="nomeBtn" data-perfil="${r.codigo}" data-nt>${tagHtml(r.tag, 0)}${esc(r.apelido)}</button><small>${ico('forca')} ${fmt(r.forca)}</small><em>${ico('bandeira')} ${r.estagio}</em></div>`).join('') : '<p>Ninguém ainda. Vença estágios na Conquista!</p>',
+      ct: l => l.length ? l.map(r => `<div class="linha ${r.eu ? 'eu' : ''}"><b>${med(r.posicao)}</b><button class="nomeBtn" data-perfil="${r.codigo}" data-nt>${tagHtml(r.tag, 0)}${esc(r.apelido)}</button><small>${esc(HEROIS[r.heroi]?.nome || '')}</small><em>${ico('h_muralha')} ${r.onda}</em></div>`).join('') : '<p>Ninguém ainda. Defenda o Castelo!</p>',
       cla: l => l.length ? l.map((c, i) => `<div class="linha"><b>${med(i + 1)}</b>${escudoCla(c.cor, c.tag || c.nome)}<div class="lnTxt"><span data-nt>${tagHtml(c.tag, c.cor)}${esc(c.nome)}</span><small>${c.membros} membros</small></div><em>Nv ${c.nivel}</em></div>`).join('') : '<p>Nenhum clã ainda.</p>',
     }[modo];
-    const buscar = modo === 'jog' ? () => ON.garantir().then(ON.ranking) : modo === 'cq' ? () => ON.garantir().then(ON.cqTop) : () => ON.clas();
+    const buscar = modo === 'jog' ? () => ON.garantir().then(ON.ranking) : modo === 'cq' ? () => ON.garantir().then(ON.cqTop) : modo === 'ct' ? () => ON.garantir().then(ON.ctTop) : () => ON.clas();
     comCache('rank_' + modo, buscar, l => { const e = $('#lista'); if (e && rankModo === modo) e.innerHTML = html(l); mostrarNomeEu(); },
       e => { const x = $('#lista'); if (x) x.innerHTML = `<p class="erro">${esc(e.message)}</p>`; });
     return;
@@ -1108,7 +1116,9 @@ function clique(e) {
   if (b.dataset.bau) { const i = +b.dataset.bau, tipo = S.baus[i]?.tipo; if (tipo) { som('clique'); mostrarBau(tipo, BAUS[tipo].nome, () => { const p = abrirBau(i); if (p) evento('baus'); return p; }); } }
   if (b.dataset.vaga) tocarVaga(+b.dataset.vaga);
   if (b.dataset.cq) CQ.clique(b);
+  if (b.dataset.ct || b.dataset.magia) CT.clique(b);
   if (a === 'conquista') { som('confirma'); abrirConquista(); }
+  if (a === 'castelo') { if (S.melhor < 3) { som('erro'); return; } som('confirma'); abrirCastelo(); }
   if (b.dataset.ovo) abrirOvo(b.dataset.ovo);
   if (b.dataset.pet) { som('clique'); mostrarPet(b.dataset.pet); }
   if (b.dataset.petA) acaoPet(b.dataset.petA, b.dataset.k);
@@ -1239,12 +1249,12 @@ let distCam = 106;
 export function passo(dt0) {
   let dt = dt0; if (G && G.lento > 0) { G.lento -= dt0; dt = dt0 * 0.25; }
   const t = C.tempo();
-  if (tela === 'conq') { // modo Conquista: os pets lutam sozinhos
-    CQ.passo(dt0); passoVoo(dt0); const V = CQ.vista(); foco.x = V.foco.x; foco.z = V.foco.z;
+  if (tela === 'conq' || tela === 'castelo') { // Conquista (pets lutam sozinhos) e Castelo (defesa da muralha)
+    const M = tela === 'conq' ? CQ : CT; if (tela === 'conq') { CQ.passo(dt0); passoVoo(dt0); } else CT.passo(dt0); const V = M.vista(); foco.x = V.foco.x; foco.z = V.foco.z;
     C.camera.yaw = V.yaw; C.camera.pitch = V.pitch; C.camera.dist = V.dist; C.camera.altura = 0; C.camera.suave = 2.5;
     if (texAgua) texAgua.offset.y += dt0 * 0.03;
     if (window.__ov) { Object.assign(C.camera, window.__ov.cam); Object.assign(foco, window.__ov.foco); }
-    C.quadro(dt0, foco); gfx.clearRect(0, 0, innerWidth, innerHeight); CQ.desenharFx(gfx, dt0); return;
+    C.quadro(dt0, foco); gfx.clearRect(0, 0, innerWidth, innerHeight); M.desenharFx(gfx, dt0); return;
   }
   if (G) {
     G.heroiV.mixer.update(dt); passoPetsHeroi(dt, tela === 'jogo' && !G.fim && !G.pausa && !G.corrida);

@@ -33,6 +33,8 @@ const comConta = fn => async (...a) => { await garantir(); return fn(...a); };
 export const enviarRecorde = comConta((pontos, chefes) => rpc('ponte_enviar_recorde', { ...id(), p_pontos: pontos, p_chefes: chefes }));
 export const cqEnviar = comConta((est, forca) => rpc('ponte_cq_enviar', { ...id(), p_estagio: est, p_forca: forca }));
 export const cqTop = () => rpc('ponte_cq_top2', { p_limite: 50, p_id: S.online?.id || null });
+export const ctEnviar = comConta((onda, heroi) => rpc('ponte_ct_enviar', { ...id(), p_onda: onda, p_heroi: heroi }));
+export const ctTop = () => rpc('ponte_ct_top', { p_limite: 50, p_id: S.online?.id || null });
 export const perfilSalvar = comConta((avatar, dados) => rpc('ponte_perfil_salvar', { ...id(), p_avatar: avatar, p_dados: dados }));
 export const perfilVer = codigo => rpc('ponte_perfil_ver', { p_codigo: codigo });
 export const amigoMarcar = comConta((codigo, ativo) => rpc('ponte_amigo_marcar', { ...id(), p_codigo: codigo, p_ativo: ativo }));

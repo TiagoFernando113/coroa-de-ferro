@@ -52,7 +52,7 @@ const T = {
   'Orcs andam # mais devagar': L('Orcs walk # slower', 'Los orcos andan # más lento'), 'Flechas de fogo': L('Fire arrows', 'Flechas de fuego'), 'Cada flecha atravessa # orcs': L('Each arrow pierces # orcs', 'Cada flecha atraviesa # orcos'),
   'Pilhas em dobro': L('Double stacks', 'Pilas dobles'), 'Pilhas dão # soldados': L('Stacks give # soldiers', 'Las pilas dan # soldados'), 'Chuva automática': L('Auto rain', 'Lluvia automática'),
   'A chuva cai sozinha quando pronta': L('Rain falls on its own when ready', 'La lluvia cae sola cuando está lista'), 'RÁPIDO': L('FAST', 'RÁPIDO'), 'FLECHA #': L('ARROW #', 'FLECHA #'),
-  'VITÓRIA!': L('VICTORY!', '¡VICTORIA!'), 'A muralha caiu!': L('The wall fell!', '¡La muralla cayó!'), 'Melhore o exército e tente de novo.': L('Upgrade your army and try again.', 'Mejora el ejército e inténtalo de nuevo.'),
+  'VITÓRIA!': L('VICTORY!', '¡VICTORIA!'), 'Melhore o exército e tente de novo.': L('Upgrade your army and try again.', 'Mejora el ejército e inténtalo de nuevo.'),
   '# foi derrotado!': L('# was defeated!', '¡# fue derrotado!'), 'Tentar de novo': L('Try again', 'Intentar de nuevo'), 'Pegar #': L('Take #', 'Tomar #'), 'Só #, próxima fase': L('Just #, next stage', 'Solo #, siguiente fase'),
   'NOVO RECORDE!': L('NEW RECORD!', '¡NUEVO RÉCORD!'), 'Fim da linha!': L('End of the line!', '¡Fin del camino!'), 'Recorde: #': L('Record: #', 'Récord: #'), '# orcs derrotados': L('# orcs defeated', '# orcos derrotados'),
   '# chefe': L('# boss', '# jefe'), '# chefes': L('# bosses', '# jefes'), '∞ Jogar de novo': L('∞ Play again', '∞ Jugar de nuevo'), 'Ponte sem fim': L('Endless bridge', 'Puente sin fin'),
@@ -194,6 +194,15 @@ const T = {
   'Rebaixar a membro': L('Demote to member', 'Degradar a miembro'), 'Passar a liderança': L('Transfer leadership', 'Pasar el liderazgo'), 'Expulsar do clã': L('Kick from clan', 'Expulsar del clan'),
   'Editar clã': L('Edit clan', 'Editar clan'), 'Descrição do clã': L('Clan description', 'Descripción del clan'), 'sem permissão': L('no permission', 'sin permiso'), 'membro não encontrado': L('member not found', 'miembro no encontrado'),
   'só o líder pode editar o clã': L('only the leader can edit the clan', 'solo el líder puede editar el clan'),
+  // modo Castelo
+  'Castelo': L('Castle', 'Castillo'), 'Recorde: onda #': L('Record: wave #', 'Récord: oleada #'), 'Libera na fase #': L('Unlocks at stage #', 'Se desbloquea en la fase #'),
+  'Onda #': L('Wave #', 'Oleada #'), 'Recorde #': L('Record #', 'Récord #'), 'Congelar': L('Freeze', 'Congelar'), 'Curar muralha': L('Heal wall', 'Curar muralla'),
+  'MURALHA CURADA!': L('WALL HEALED!', '¡MURALLA CURADA!'), 'CONGELADOS!': L('FROZEN!', '¡CONGELADOS!'), 'CHEFE DERROTADO!': L('BOSS DEFEATED!', '¡JEFE DERROTADO!'),
+  'A MURALHA CAIU!': L('THE WALL FELL!', '¡LA MURALLA CAYÓ!'), 'ONDA #': L('WAVE #', 'OLEADA #'), 'ONDA #: CHEFE!': L('WAVE #: BOSS!', 'OLEADA #: ¡JEFE!'),
+  'Você aguentou # ondas': L('You held # waves', 'Resististe # oleadas'), 'Você aguentou # onda': L('You held # wave', 'Resististe # oleada'), '# inimigos': L('# enemies', '# enemigos'),
+  'Fique mais forte com melhorias, cartas e pets para ir mais longe.': L('Get stronger with upgrades, cards and pets to go further.', 'Hazte más fuerte con mejoras, cartas y mascotas para llegar más lejos.'),
+  'Jogar de novo': L('Play again', 'Jugar de nuevo'),
+  'Mais ondas aguentadas no Castelo': L('Most waves held in the Castle', 'Más oleadas resistidas en el Castillo'), 'Ninguém ainda. Defenda o Castelo!': L('Nobody yet. Defend the Castle!', '¡Nadie aún. Defiende el Castillo!'),
 };
 export const TEXTOS = { en: {}, es: {} };
 for (const [k, v] of Object.entries(T)) { TEXTOS.en[k] = v.en; TEXTOS.es[k] = v.es; }
