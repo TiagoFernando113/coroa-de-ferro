@@ -228,6 +228,14 @@ const T = {
   'VAI DISPARAR O LASER!': L('WILL FIRE THE LASER!', '¡VA A DISPARAR EL LÁSER!'), 'VAI ENGOLIR SEUS SOLDADOS!': L('WILL SWALLOW YOUR SOLDIERS!', '¡VA A TRAGARSE TUS SOLDADOS!'),
   'ATORDOADO PELO LASER!': L('STUNNED BY THE LASER!', '¡ATURDIDO POR EL LÁSER!'), 'ESQUIVOU DO LASER!': L('DODGED THE LASER!', '¡ESQUIVASTE EL LÁSER!'),
   'NHAC! ENGOLIU # SOLDADOS!': L('GULP! SWALLOWED # SOLDIERS!', '¡ÑAM! ¡SE TRAGÓ # SOLDADOS!'), 'A LÍNGUA ERROU!': L('THE TONGUE MISSED!', '¡LA LENGUA FALLÓ!'),
+  // golpes dos pets
+  'Bafo de fogo': L('Fire breath', 'Aliento de fuego'), 'Queima os inimigos da frente': L('Burns the front enemies', 'Quema a los enemigos del frente'),
+  'Assombração': L('Haunting', 'Espanto'), 'Os inimigos fogem com medo': L('Enemies flee in fear', 'Los enemigos huyen con miedo'),
+  'Chuva de shurikens': L('Shuriken rain', 'Lluvia de shurikens'), 'Acerta vários inimigos de uma vez': L('Hits many enemies at once', 'Golpea a varios enemigos a la vez'),
+  'Jato de tinta': L('Ink jet', 'Chorro de tinta'), 'Cega o chefe e deixa os inimigos lentos': L('Blinds the boss and slows enemies', 'Ciega al jefe y ralentiza a los enemigos'),
+  'Barreira': L('Barrier', 'Barrera'), 'Cura a muralha': L('Heals the wall', 'Cura la muralla'),
+  'Raio arcano': L('Arcane bolt', 'Rayo arcano'), 'Raio forte no inimigo mais forte': L('Strong bolt on the toughest enemy', 'Rayo fuerte al enemigo más fuerte'),
+  'a cada #s': L('every #s', 'cada #s'),
 };
 export const TEXTOS = { en: {}, es: {} };
 for (const [k, v] of Object.entries(T)) { TEXTOS.en[k] = v.en; TEXTOS.es[k] = v.es; }

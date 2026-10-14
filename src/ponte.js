@@ -11,7 +11,7 @@ import { tema, sfx, intensidade } from './musica.js';
 import * as ON from './online.js';
 import { HEROIS, heroiAtual } from './herois.js';
 import { criarTropas, desenharTropas, voar, passoVoo, limparTropas } from './tropas.js';
-import { PETS, RARIDADES, CLASSES, OVOS, BONUS as BONUS_PET, ESTRELAS, MAX_EQUIPE, MAX_NV, MAX_EST, base, est, qtd, temPet, modeloDe, tinta, atributos, forca, forcaEquipe, custoNivel, subirNivel, juntar, equipar, equiparMelhores, chocar, bonusPet, bonusEquipe, txtBonus, lucroOcioso } from './pets.js';
+import { PETS, RARIDADES, CLASSES, OVOS, BONUS as BONUS_PET, ESTRELAS, MAX_EQUIPE, MAX_NV, MAX_EST, base, est, qtd, temPet, modeloDe, tinta, atributos, forca, forcaEquipe, custoNivel, subirNivel, juntar, equipar, equiparMelhores, chocar, bonusPet, bonusEquipe, txtBonus, lucroOcioso, GOLPES, golpe, cdGolpe, forcaGolpe } from './pets.js';
 import * as CQ from './conquista.js';
 import * as CT from './castelo.js';
 import { MEDALHAS, NIVEIS_MEDALHA, nivelMedalha, pegas, medalhasProntas, premioMedalha, pegarMedalha } from './perfil.js';
@@ -281,7 +281,7 @@ const POS_PET = [[-3.4, 2.6], [3.4, 2.6], [0, 4.6]];
 function criarPetsHeroi() {
   G.petsV = S.equipe.slice(0, 3).map((k, i) => { const m = modeloDe(k), v = C.personagem(m, [], 1); if (tinta(k) != null) C.tingirOuro(v.corpo, false, tinta(k));
     v.raiz.scale.setScalar(2.7 * (1 + 0.08 * est(k)) / (C.alturaModelo(m) * C.ESC_PERS)); v.raiz.rotation.y = Math.PI; v.tocar('Idle'); v.mixer.update(Math.random());
-    const D = PETS[base(k)]; return { k, v, x: POS_PET[i][0], dz: POS_PET[i][1], cd: 1 + i * 0.4, cor: D.cor || 0xffe08a, dano: 1 + (D.r >= 2 ? 1 : 0) + est(k), cad: D.c === 'atirador' ? 1.1 : 1.6 }; });
+    const D = PETS[base(k)]; return { k, v, x: POS_PET[i][0], dz: POS_PET[i][1], cd: 1 + i * 0.4, cor: D.cor || 0xffe08a, dano: 1 + (D.r >= 2 ? 1 : 0) + est(k), cad: D.c === 'atirador' ? 1.1 : 1.6, gcd: golpe(k) ? cdGolpe(k) * 0.5 : null }; });
 }
 function passoPetsHeroi(dt, atira) {
   const h = G.heroi, anda = Math.abs(h.alvo - h.x) > 0.6;
@@ -290,8 +290,25 @@ function passoPetsHeroi(dt, atira) {
     p.v.raiz.position.set(p.x, Math.abs(Math.sin(C.tempo() * 9 + p.dz)) * (anda ? 0.5 : 0), ZH + p.dz); p.v.mixer.update(dt);
     if (atira && (p.cd -= dt) <= 0) { p.cd = p.cad; const o = projetilHeroi('orbe', p.cor); o.scale.setScalar(0.7); o.position.set(p.x, 2.2, ZH + p.dz - 1); cena.add(o);
       G.flechas.push({ x: p.x, z: ZH + p.dz - 1, o, dano: p.dano, perf: 0, area: 0, proj: 'orbe' }); p.v.tocar('Attack', { loop: false, reinicia: true }); p.atk = 0.5; }
+    if (atira && p.gcd != null && (p.gcd -= dt) <= 0 && golpePonte(p)) p.gcd = cdGolpe(p.k);
     if ((p.atk = (p.atk || 0) - dt) <= 0) p.v.tocar(anda ? 'Gallop' : 'Idle');
   }
+}
+// golpe especial dos pets épicos/lendários na Ponte (sai sozinho)
+function golpePonte(p) {
+  const id = base(p.k), F = forcaGolpe(p.k), ch = G.chefe, vivos = G.vm.filter(v => !v.morto), Gp = GOLPES[id];
+  if (!ch || ch.hp <= 0) return false;
+  if ((id === 'dragao' || id === 'ninja') && !vivos.length && ch.z < ZMURO - 60) return false; // espera ter alvo
+  const matar = l => { for (const v of l) { v.morto = true; G.mortesVm++; voar('vm', v.x, v.z, (Math.random() - 0.5) * 6, 9, -3); } limparVm(); };
+  if (id === 'dragao') { const l = vivos.sort((a, b) => b.z - a.z).slice(0, Math.round(10 * F)); matar(l); for (const v of l.slice(0, 8)) C.faiscas(v.x, 1.5, v.z, 0xff6a1a, 6, 4);
+    if (!l.length) ferirChefe(Math.round(ch.max * 0.012 * F), 0, ch.z + 3, true); }
+  if (id === 'ninja') { const l = vivos.sort(() => Math.random() - 0.5).slice(0, Math.round(7 * F)); matar(l); ferirChefe(Math.round(ch.max * 0.006 * F), 0, ch.z + 3); }
+  if (id === 'fantasma') { G.medoT = Math.max(G.medoT || 0, 2.5 + est(p.k)); for (const v of vivos) v.z -= 3; C.onda(p.x, ZH - 8, 14, 0xc8d8ff, 0.6); }
+  if (id === 'lula') { ch.habT += 4; G.medoT = Math.max(G.medoT || 0, 2); ferirChefe(Math.round(ch.max * 0.01 * F), 0, ch.z + 3); C.faiscas(0, 5, ch.z + 3, 0x6a3ab0, 40, 7); }
+  if (id === 'totem') { if (G.muro >= G.muroMax) return false; G.muro = Math.min(G.muroMax, G.muro + Math.ceil(G.muroMax * 0.1 * F)); C.faiscas(0, 2, ZMURO, 0x6aff8a, 30, 6); }
+  if (id === 'merlin') { ferirChefe(Math.round(ch.max * 0.02 * F), 0, ch.z + 3, true); C.onda(0, ch.z + 3, 7, 0xb07aff, 0.5); }
+  G.txt.push({ x: p.x, y: 6, z: ZH + p.dz, txt: Gp.nome, cor: '#ffd84a', t: 0, grande: true });
+  p.v.tocar('Attack2', { loop: false, reinicia: true }); p.atk = 0.7; sfx('magia'); return true;
 }
 const REDONDOS = [1, 2, 3, 5, 10, 15, 20, 25, 50, 75, 99, 150, 200, 250, 300, 400, 500, 750, 1000];
 function blocoInf(b, k) { // ponte sem fim: cada chefe derrotado deixa as pilhas maiores (e mais duras)
@@ -497,6 +514,7 @@ function mostrarPet(k) {
   j.innerHTML = `<div class="jPet" style="--r:${e ? ESTRELAS[e].cor : R.cor}"><div class="raios liga"></div><img src="${fotoPet(k, 256)}" alt="">
     <h2>${D.nome}</h2>${estrelas(k)}<p class="raridade">${R.nome}${e ? ` ${ESTRELAS[e].nome}` : ''} · ${ico(CLASSES[D.c].icone)} ${CLASSES[D.c].nome}</p>
     <div class="ptBonus grande">${bonusHtml(k)}</div>
+    ${golpe(k) ? `<div class="ptGolpe">${ico(golpe(k).icone)}<span><b>${golpe(k).nome}</b><small>${golpe(k).desc} · a cada ${Math.round(cdGolpe(k))}s</small></span></div>` : ''}
     <div class="ptStats"><span>${ico('coracao')} ${fmt(A.hp)}</span><span>${ico('forca')} ${fmt(A.atk)}</span><span>Nv <b>${P.nv}</b></span><span>${ico('poder')} ${fmt(forca(A))}</span></div>
     <button class="btn amarelo" data-pet-a="nivel" data-k="${k}" ${max || S.moedas < c ? 'disabled' : ''}>${max ? 'Nível máximo' : `${ico('seta', 'up')} Nível ${P.nv + 1} · ${ico('ouro')} ${fmt(c)}`}</button>
     ${e < MAX_EST ? `<button class="btn roxo" data-pet-a="juntar" data-k="${k}" ${n >= 3 ? '' : 'disabled'}>Juntar 3 → <span style="color:${ESTRELAS[e + 1].cor}">${'★'.repeat(e + 1)}</span> ${ESTRELAS[e + 1].nome} (${n}/3)</button>` : ''}

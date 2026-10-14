@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import * as C from './cena.js';
 import { S, salvar, fimDeSemana } from './meta.js';
 import { tiros, fmt, CHEFES } from './dados.js';
-import { PETS, atributos, modeloDe, tinta, base, est, bonusEquipe } from './pets.js';
+import { PETS, atributos, modeloDe, tinta, base, est, bonusEquipe, GOLPES, golpe, cdGolpe, forcaGolpe } from './pets.js';
 import { heroiAtual } from './herois.js';
 import { desenharTropas, voar, passoVoo, limparTropas } from './tropas.js';
 import { sfx, intensidade } from './musica.js';
@@ -37,7 +37,7 @@ function criarDefensores() {
     v.raiz.scale.setScalar(4.6 * (1 + 0.08 * est(k)) / (C.alturaModelo(m) * C.ESC_PERS)); v.raiz.rotation.y = Math.PI; v.tocar('Idle');
     const A = atributos(k), D = PETS[base(k)];
     L.push({ v, x: xs[i], z: Z_DEF, cd: Math.random(), cad: A.cad * (D.c === 'atirador' ? 0.8 : 1.1), dano: A.atk * 0.35, area: D.c === 'tanque' ? 3 : 0, perf: 0,
-      alc: D.c === 'atirador' ? 80 : 45, cor: D.cor || 0xffe08a, anim: 'Attack', classe: D.c });
+      alc: D.c === 'atirador' ? 80 : 45, cor: D.cor || 0xffe08a, anim: 'Attack', classe: D.c, k, gcd: golpe(k) ? cdGolpe(k) * 0.5 : null });
   });
   for (const d of L) d.v.raiz.position.set(d.x, 0, d.z);
   return L;
@@ -149,6 +149,8 @@ function luta(dt) {
       C.faiscas(u.x, 2, u.z, 0x9aff3a, 50, 10); C.onda(u.x, u.z, 6, 0x9aff3a, 0.4); C.camera.tremor = 0.6; som('pancada'); continue; }
     if (u.z < zMax) { u.z = Math.min(zMax, u.z + vel * dt); u.x += (u.ax - u.x) * Math.min(1, dt); if (u.v && u.na) { u.na = false; u.v.tocar('Gallop'); } }
     else { K.muro -= u.golpe * dt * (K.gelo > 0 ? 0 : 1); if (u.v && !u.na) { u.na = true; u.v.tocar('Attack'); } u.luta = true; } }
+  // golpes especiais dos pets
+  for (const d of K.def) if (d.gcd != null && (d.gcd -= dt) <= 0 && golpeCastelo(d)) d.gcd = cdGolpe(d.k);
   // defensores atiram
   for (const d of K.def) { if ((d.cd -= dt) > 0) continue; const a = alvoDe(d); if (!a) continue; d.cd = d.cad;
     const o = new THREE.Mesh(GEO_TIRO, mat(d.cor)); o.position.set(d.x, 3, d.z); cn().add(o); K.tiros.push({ o, d, a, x: d.x, y: 3, z: d.z });
@@ -170,6 +172,18 @@ function luta(dt) {
   // fim da onda / derrota
   if (!K.fila.length && !K.inim.some(u => !u.morto)) { K.estado = 'pausa'; K.pausaT = 2; K.mana = Math.min(100, K.mana + 15); sfx('brilho'); if (K.onda % 10 === 0) intensidade(1); }
   if (K.muro <= 0) acabar();
+}
+function golpeCastelo(d) {
+  const id = base(d.k), F = forcaGolpe(d.k), vivos = K.inim.filter(u => !u.morto);
+  if (id !== 'totem' && !vivos.length) return false;
+  const perto = vivos.sort((a, b) => b.z - a.z);
+  if (id === 'dragao') { const z0 = perto[0].z; for (const u of vivos) if (u.z > z0 - 12) { ferir(u, u.max * (u.tipo === 'chefe' ? 0.04 : u.tipo === 'gigante' ? 0.12 : 0.35) * F, true); C.faiscas(u.x, 1.5, u.z, 0xff6a1a, 4, 3); } }
+  if (id === 'ninja') for (const u of vivos.sort(() => Math.random() - 0.5).slice(0, Math.round(6 * F))) ferir(u, d.dano * 3 * F, true);
+  if (id === 'fantasma') { for (const u of vivos) { u.z -= 6; u.lentoT = 2 + est(d.k); } C.onda(0, perto[0].z, 16, 0xc8d8ff, 0.6); }
+  if (id === 'lula') { for (const u of vivos) u.lentoT = 3 + est(d.k); C.onda(0, -30, 40, 0x6a3ab0, 0.7); }
+  if (id === 'totem') { if (K.muro >= K.muroMax) return false; K.muro = Math.min(K.muroMax, K.muro + K.muroMax * 0.08 * F); C.faiscas(0, 3, Z_MURO, 0x6aff8a, 30, 6); }
+  if (id === 'merlin') { const a = vivos.reduce((m, u) => (u.hp > m.hp ? u : m)); ferir(a, a.max * (a.tipo === 'chefe' ? 0.06 : 0.3) * F, true); C.onda(a.x, a.z, 4, 0xb07aff, 0.5); }
+  K.txt.push({ x: d.x, y: 6, z: d.z, txt: tr(GOLPES[id].nome), cor: '#ffd84a', t: 0 }); if (d.v.tem('Attack2')) d.v.tocar('Attack2', { loop: false, reinicia: true }); sfx('magia'); return true;
 }
 function acabar() {
   K.estado = 'fim'; const ondas = K.onda - 1, novo = ondas > (S.castelo?.rec || 0); S.castelo ||= { rec: 0 }; if (novo) S.castelo.rec = ondas;

@@ -77,6 +77,18 @@ export function atributos(k, nv = S.pets[base(k)]?.nv || 1, extra = 1) {
   const D = PETS[base(k)], Cl = CLASSES[D.c], m = RARIDADES[D.r].mult * 1.12 ** (nv - 1) * 3 ** est(k) * extra;
   return { hp: Math.round(Cl.hp * m), atk: Math.round(Cl.atk * m), alc: Cl.alc, cad: Cl.cad, vel: Cl.vel, classe: D.c };
 }
+// golpe especial (épicos e lendários): sai sozinho na Ponte e no Castelo; estrelas recarregam mais rápido e batem mais forte
+export const GOLPES = {
+  dragao: { nome: 'Bafo de fogo', icone: 'h_fogo', desc: 'Queima os inimigos da frente', cd: 14 },
+  fantasma: { nome: 'Assombração', icone: 'caveira', desc: 'Os inimigos fogem com medo', cd: 16 },
+  ninja: { nome: 'Chuva de shurikens', icone: 'h_adagas', desc: 'Acerta vários inimigos de uma vez', cd: 12 },
+  lula: { nome: 'Jato de tinta', icone: 'h_fumaca', desc: 'Cega o chefe e deixa os inimigos lentos', cd: 15 },
+  totem: { nome: 'Barreira', icone: 'h_muralha', desc: 'Cura a muralha', cd: 20 },
+  merlin: { nome: 'Raio arcano', icone: 'h_raio', desc: 'Raio forte no inimigo mais forte', cd: 13 },
+};
+export const golpe = k => GOLPES[base(k)] || null;
+export const cdGolpe = k => GOLPES[base(k)].cd * (1 - 0.1 * est(k));
+export const forcaGolpe = k => (1 + 0.5 * est(k)) * (1 + 0.03 * ((S.pets[base(k)]?.nv || 1) - 1));
 export const forca = a => Math.round(a.hp / 3 + a.atk * 4 / a.cad);
 export const forcaEquipe = () => S.equipe.reduce((s, k) => s + forca(atributos(k)), 0);
 // bônus de um pet: raridade x nível x estrelas
