@@ -417,7 +417,7 @@ export function abrirLobby() {
   else setTimeout(coletarPremios, 1200);
   if (!resumoFeito) { resumoFeito = true; const fora = Date.now() - (S.vistoT || Date.now()); if (fora > 20 * 60e3) setTimeout(() => mostrarResumo(fora), 1500); }
   marcarVisto();
-  setTimeout(enviarPerfil, 2500); setTimeout(() => salvarDefesa().catch(() => {}), 5000); setTimeout(() => { backupNuvem(!nuvemT); if (S.temSenha == null && S.online?.codigo) ON.temSenha().then(t => { S.temSenha = !!t; salvar(); }).catch(() => {}); }, 4000);
+  setTimeout(enviarPerfil, 2500); setTimeout(() => salvarDefesa().catch(() => {}), 5000); setTimeout(() => ON.botsTick().catch(() => {}), 7000); setTimeout(() => { backupNuvem(!nuvemT); if (S.temSenha == null && S.online?.codigo) ON.temSenha().then(t => { S.temSenha = !!t; salvar(); }).catch(() => {}); }, 4000);
 }
 let diarioVisto = false, resumoFeito = false;
 // ---- notificações do celular (só no APK, que expõe window.Avisos): agenda ao sair, cancela ao voltar ----
