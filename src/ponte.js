@@ -673,12 +673,24 @@ const PLACAR = {
 };
 const PLACAR_CLA = ['cla_nivel', 'cla_forca'], PLACAR_IND = ['fase', 'forca', 'infinito', 'conquista', 'castelo', 'orcs'];
 const fotoPlacar = (k, r, tam = 64) => k.startsWith('cla_') ? escudoCla(r.cor || 0, r.tag || r.nome) : `<img src="${fotoPet(petValido(r.avatar), tam)}" alt="">`;
+// ficha de um clã (de qualquer lugar): membros, nível, e entrar/pedir
+async function verCla(id) {
+  const j = $('#janela'); j.hidden = false; j.innerHTML = `<div class="jOnline"><p>Carregando...</p></div>`;
+  try { const c = await ON.claInfo(+id); if (!c) { j.hidden = true; return; } const meu = lerCache('meucla')?.d?.id === c.id;
+    j.innerHTML = `<div class="jOnline jClaVer"><div class="claTopo">${escudoCla(c.cor, c.tag || c.nome)}<div><b data-nt>${tagHtml(c.tag, c.cor)}${esc(c.nome)}</b><small>Nível ${c.nivel} · ${c.membros.length}/30 membros</small>
+      ${c.descricao ? `<p class="claDesc" data-nt>${esc(c.descricao)}</p>` : ''}<small class="claModo">${c.fechado ? `${ico('cadeado')} Fechado: só entra com pedido` : `${ico('check')} Aberto`}${c.faseMin ? ` · fase ${c.faseMin}+` : ''}</small></div></div>
+      <div class="lista">${c.membros.map(m => `<div class="linha"><span class="plMini"><img src="${fotoPet(petValido(m.avatar), 96)}" alt=""></span><button class="nomeBtn" data-perfil="${m.codigo}" data-nt>${esc(m.apelido)}</button>
+        ${m.cargo === 'lider' ? `<span class="cargo lider">${ico('coroa')}Líder</span>` : m.cargo === 'colider' ? `<span class="cargo colider">${ico('estrela')}Colíder</span>` : ''}<small>fase ${m.fase}</small></div>`).join('')}</div>
+      ${meu || lerCache('meucla')?.d ? '' : c.fechado ? `<button class="btn amarelo" data-cla-pedir="${c.id}">${ico('cadeado')} Pedir para entrar</button>` : `<button class="btn verde" data-cla="${c.id}">Entrar no clã</button>`}
+      <p class="erro" id="onErro"></p><button class="fSo" data-a="fecharJanela">Fechar</button></div>`; }
+  catch (e) { j.innerHTML = `<div class="jOnline"><p class="erro">${esc(e.message)}</p><button class="fSo" data-a="fecharJanela">Fechar</button></div>`; }
+}
 function mostrarListaPlacar(el, nome, k, mostrarNomeEu) {
   const P = PLACAR[k], cla = k.startsWith('cla_'), val = r => `${P.un === 'Nv' ? 'Nv ' : ''}${fmt(r.valor)}`;
   el.innerHTML = `${nome}<div class="plTopo"><button class="plVoltar" data-rk="voltar">${ico('seta')}</button><b>${P.nome}</b></div>
     <div class="plCab"><span>Rank</span><span>${cla ? 'Clã' : 'Jogador'}</span><span>${P.un && P.un !== 'Nv' ? P.un : cla && k === 'cla_nivel' ? 'Nível' : 'Valor'}</span></div><div class="lista plLista" id="lista"><p>Carregando...</p></div><div id="plEu"></div>`;
   const linha = r => `<div class="linha plLinha p${Math.min(4, r.posicao)} ${r.eu ? 'eu' : ''}"><b class="plPos">${r.posicao <= 3 ? `<i class="medalha m${r.posicao}">${r.posicao}</i>` : r.posicao}</b>
-    <span class="plMini">${fotoPlacar(k, r, 128)}</span>${cla ? `<div class="lnTxt"><span data-nt>${tagHtml(r.tag, r.cor)}${esc(r.nome)}</span></div>` : `<button class="nomeBtn" data-perfil="${r.codigo}" data-nt>${tagHtml(r.tag, r.cor)}${esc(r.nome)}</button>`}<em>${val(r)}</em></div>`;
+    <span class="plMini">${fotoPlacar(k, r, 128)}</span>${cla ? `<button class="nomeBtn" data-cla-ver="${r.codigo}" data-nt>${tagHtml(r.tag, r.cor)}${esc(r.nome)}</button>` : `<button class="nomeBtn" data-perfil="${r.codigo}" data-nt>${tagHtml(r.tag, r.cor)}${esc(r.nome)}</button>`}<em>${val(r)}</em></div>`;
   comCache('pl_' + k, () => ON.garantir().then(() => ON.placarLista(k)), l => { if (rankModo !== k) return; const e = $('#lista'); if (!e) return; mostrarNomeEu();
     const top = l.filter(r => r.posicao <= 50), eu = l.find(r => r.eu);
     e.innerHTML = top.length ? top.map(linha).join('') : '<p>Ninguém ainda.</p>';
@@ -763,7 +775,7 @@ async function cliqueOnline(b) {
   if (a === 'salvarNome') { const ap = $('#apelido').value.trim(); if (ap.length < 2) return erro('Pelo menos 2 letras');
     b.disabled = true; try { await ON.registrar(ap); som('confirma'); carregarOnline(abaLobby); } catch (e) { b.disabled = false; erro(e.message); } }
   if (b.dataset.claPedir) { b.disabled = true; try { await ON.claPedir(+b.dataset.claPedir); esquecer('clas'); sfx('brilho'); b.outerHTML = `<button class="btn cinza peq" disabled>${ico('relogio')} ${tr('Pedido enviado')}</button>`; } catch (e) { b.disabled = false; erro(e.message); } return; }
-  if (b.dataset.cla) { b.disabled = true; try { await ON.claEntrar(+b.dataset.cla); esquecer('meucla', 'clas', 'chat'); sfx('vitoria'); carregarOnline('cla'); } catch (e) { b.disabled = false; erro(e.message); } }
+  if (b.dataset.cla) { b.disabled = true; try { await ON.claEntrar(+b.dataset.cla); esquecer('meucla', 'clas', 'chat', 'placar'); sfx('vitoria'); $('#janela').hidden = true; if (abaLobby !== 'cla') { abaLobby = 'cla'; desenharLobby(); } else carregarOnline('cla'); } catch (e) { b.disabled = false; erro(e.message); } }
   if (a === 'claCriar') { const n = $('#nomeCla').value.trim(), tg = $('#tagCla').value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
     if (tg.length < 2) return erro('Sigla com 2 a 4 letras'); if (n.length < 3) return erro('Nome com pelo menos 3 letras'); if (S.moedas < 200) return erro('Precisa de 200 moedas');
     b.disabled = true; try { await ON.claCriar(n, tg, Math.floor(Math.random() * 8)); esquecer('meucla', 'clas', 'chat'); S.moedas -= 200; salvar(); sfx('vitoria'); carregarOnline('cla'); } catch (e) { b.disabled = false; erro(e.message); } }
@@ -1087,7 +1099,7 @@ function dadosPerfil() { const E = S.est || {}; return { fase: Math.max(S.melhor
   pets: Object.keys(S.pets).length, medalhas: Object.fromEntries(Object.keys(MEDALHAS).map(k => [k, nivelMedalha(k)])), equipe: S.equipe.slice(0, 5), forca: forcaEquipe(), heroi: S.heroi }; }
 let perfilEnviado = '';
 function enviarPerfil() { if (!S.online?.codigo) return; const d = dadosPerfil(), a = avatarAtual(), k = a + JSON.stringify(d); if (k === perfilEnviado) return; perfilEnviado = k; ON.perfilSalvar(a, d).catch(() => { perfilEnviado = ''; }); }
-const petValido = k => (k && PETS[base(k)] ? k : 'cao');
+const petValido = k => { if (k && typeof k === 'object') k = k.k; return typeof k === 'string' && PETS[base(k)] ? k : 'cao'; };
 function htmlStats(d) { const st = (icone, nome, v) => `<div class="pfStat">${ico(icone)}<b>${v}</b><small>${nome}</small></div>`;
   return `<div class="pfStats">${st('escudo', 'Fase máxima', d.fase || 0)}${st('caveira', 'Orcs derrotados', fmt(d.orcs || 0))}${st('chefe', 'Chefes', fmt(d.chefes || 0))}${st('ovo', 'Ovos chocados', fmt(d.ovos || 0))}
     ${st('pata', 'Pets', `${d.pets || 0}/${Object.keys(PETS).length}`)}${st('bandeira', 'Conquista', d.cq || 0)}${st('h_triplo', 'Recorde ∞', fmt(d.recInf || 0))}${st('girar', 'Renascer', d.renasc || 0)}</div>`; }
@@ -1097,7 +1109,8 @@ async function verPerfil(codigo) {
   if (c) { pintarPerfil(codigo, c.d); if (Date.now() - c.t < 60000) return; } else j.innerHTML = `<div class="jMissoes jPerfil"><p class="sub">Carregando...</p></div>`;
   let P; try { P = await ON.perfilVer(codigo); } catch (e) { if (!c) j.innerHTML = `<div class="jMissoes jPerfil"><p class="erro">${esc(e.message)}</p><button class="btn azul" data-a="fecharJanela">Fechar</button></div>`; return; }
   if (!P) { if (!c) j.hidden = true; return; }
-  const mudou = !c || JSON.stringify(c.d) !== JSON.stringify(P); CACHE[ck] = { t: Date.now(), d: P }; if (mudou && !j.hidden) pintarPerfil(codigo, P);
+  const mudou = !c || JSON.stringify(c.d) !== JSON.stringify(P); CACHE[ck] = { t: Date.now(), d: P };
+  if (mudou && !j.hidden) try { pintarPerfil(codigo, P); } catch (e) { j.innerHTML = `<div class="jMissoes jPerfil"><p class="erro">${esc(e.message)}</p><button class="btn azul" data-a="fecharJanela">Fechar</button></div>`; }
 }
 function pintarPerfil(codigo, P) {
   const j = $('#janela'), re = !!j.querySelector('.jPerfil .pfTopo'); const d = P.dados || {};
@@ -1181,6 +1194,7 @@ function clique(e) {
   if (b.dataset.up) { if (comprar(b.dataset.up)) { som('compra'); desenharLobby(); } else som('erro'); }
   if (a === 'jogar') { som('confirma'); comecarFase(); }
   if (a === 'modos') { som('clique'); mostrarModos(); return; }
+  if (b.dataset.claVer) { som('clique'); verCla(b.dataset.claVer); return; }
   if (a === 'contaRecuperar') { som('clique'); mostrarPerfil(); setTimeout(() => { const d = document.querySelector('#janela details'); if (d) { d.open = true; d.scrollIntoView({ block: 'center' }); } }, 300); return; }
   if (a === 'contaNova') { if (b.dataset.certeza !== '1') { b.dataset.certeza = '1'; b.textContent = tr('Toque de novo para confirmar'); som('clique'); return; }
     S.online = null; S.contaInvalida = false; S.temSenha = null; S.arena = null; salvar(); avisouConta = false; ON.garantir().then(() => { sfx('vitoria'); mostrarPerfil(); }).catch(() => {}); return; }
@@ -1399,7 +1413,7 @@ export function passo(dt0) {
     for (const p of G.pistas) p.forEach((b, i) => { const zAlvo = ZLANE - 2 - i * PASSO; b.z += (zAlvo - b.z) * Math.min(1, dt * 5); b.mesh.position.z = b.z; });
     const ch = G.chefe; ch.flash = Math.max(0, ch.flash - dt);
     { const f = ch.flash > 0 ? 0.45 : 0, r = ch.furia ? 0.28 + 0.12 * Math.sin(t * 9) : 0; for (const m of ch.mats) m.emissive.setRGB(f + r, f, f); }
-    ch.esc += ((ch.furia ? 6 : 5) - ch.esc) * Math.min(1, dt * 3); ch.v.raiz.scale.setScalar(ch.esc);
+    ch.esc += ((ch.furia ? 6 : 5) - ch.esc) * Math.min(1, dt * 3); ch.punch = Math.max(0, (ch.punch || 0) - dt); ch.v.raiz.scale.setScalar(ch.esc * (1 + 0.07 * ch.punch / 0.14));
     G.heroiV.raiz.position.x = G.heroi.x; ch.v.raiz.position.set(0, ch.y, ch.z);
     if (G.gigante) { G.gigante.v.mixer.update(dt); G.gigante.v.raiz.position.set(G.gigante.x, 0, G.gigante.z); }
     G.brilhoH = Math.max(0, G.brilhoH - dt); G.heroiV.brilho(G.brilhoH > 0 ? 0.5 * G.brilhoH : 0);
@@ -1836,7 +1850,7 @@ function efeitoHabilidade(hab) {
 function ferirChefe(d, x, z, forte) {
   const ch = G.chefe; if (ch.escudoT > 0) { if (Math.random() < 0.15) G.txt.push({ x, y: 9, z, txt: 'BLOQUEADO', cor: '#8ae0ff', t: 0 }); return; }
   d = Math.round(d * (G.multChefe || 1)); if (G.crit && Math.random() < G.crit) { d *= 3; G.txt.push({ x, y: 11, z, txt: 'CRÍTICO!', cor: '#ff5a3a', t: 0 }); forte = true; }
-  ch.hp -= d; G.danoTotal = (G.danoTotal || 0) + d; if (G.dupla) G.dupla.meuDano += d; ch.flash = forte ? 0.15 : 0.08; if (forte || Math.random() < 0.3) C.faiscas(x, 3, z, 0xffffff, 4, 4);
+  ch.hp -= d; G.danoTotal = (G.danoTotal || 0) + d; if (G.dupla) G.dupla.meuDano += d; ch.flash = forte ? 0.15 : 0.08; if (forte) { C.impacto(x, 4, z, 0xffd84a, 1.4); ch.punch = 0.14; } else if (Math.random() < 0.3) { C.faiscas(x, 3, z, 0xffffff, 4, 4); if (Math.random() < 0.3) C.clarao(x, 4, z, 0xffffff, 1.6, 0.1); }
   if (forte || Math.random() < (G.corrida ? 0.04 : 0.25)) G.txt.push({ x, y: 9, z, txt: '-' + fmt(d), cor: forte ? '#ffd84a' : '#fff', t: 0, grande: forte });
 }
 // ponto onde está a horda mais perto da muralha (ou o chefe)
@@ -1928,7 +1942,7 @@ function desenharFx(dt) {
     if (G.fila > 0) { const p = C.tela(0, 3, ZSPAWN); if (p) { gfx.font = '20px Titulo, sans-serif'; gfx.textAlign = 'center'; gfx.lineWidth = 4; gfx.strokeStyle = '#0f2f6a'; gfx.strokeText(`+${fmt(G.fila)}`, p[0], p[1]); gfx.fillStyle = '#8ac8ff'; gfx.fillText(`+${fmt(G.fila)}`, p[0], p[1]); } }
   }
   for (const t of G.txt) { t.t += dt; const p = C.tela(t.x, t.y + t.t * 3, t.z); if (!p) continue; gfx.globalAlpha = Math.max(0, 1 - Math.max(0, t.t - 0.5) / 0.5);
-    const tx = tr(t.txt); gfx.font = `${t.grande ? 34 : 24}px Titulo, sans-serif`; gfx.textAlign = 'center'; gfx.lineWidth = 5; gfx.strokeStyle = 'rgba(0,0,0,.7)'; gfx.strokeText(tx, p[0], p[1]); gfx.fillStyle = t.cor; gfx.fillText(tx, p[0], p[1]); gfx.globalAlpha = 1; }
+    const tx = tr(t.txt), pop = t.t < 0.1 ? 0.6 + t.t * 9 : Math.max(1, 1.5 - (t.t - 0.1) * 2.5); gfx.font = `${Math.round((t.grande ? 34 : 24) * pop)}px Titulo, sans-serif`; gfx.textAlign = 'center'; gfx.lineWidth = 5; gfx.strokeStyle = 'rgba(0,0,0,.7)'; gfx.strokeText(tx, p[0], p[1]); gfx.fillStyle = t.cor; gfx.fillText(tx, p[0], p[1]); gfx.globalAlpha = 1; }
   G.txt = G.txt.filter(t => t.t < 1);
   const B = G.banner;
   if (B) { B.t += dt; const k = Math.min(1, B.t / 0.18), s = k < 1 ? 0.4 + 0.9 * k : 1 + 0.08 * Math.max(0, 1 - (B.t - 0.18) * 4), a = Math.max(0, 1 - Math.max(0, B.t - 1.1) / 0.4);

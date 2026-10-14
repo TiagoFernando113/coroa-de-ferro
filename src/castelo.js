@@ -71,7 +71,7 @@ function criarInimigo(tipo, n) {
   const T = TIPOS[tipo], hp = Math.round(hpBase(n) * T.hp), x = (Math.random() * 2 - 1) * 13;
   const u = { tipo, x, z: Z_INICIO - Math.random() * 6, hp, max: hp, vel: T.vel * (0.9 + Math.random() * 0.2), golpe: T.golpe * (1 + n * 0.08), ph: Math.random() * 6, ax: x, raio: tipo === 'orc' ? 0.8 : T.h * 0.35, alt: T.h || 2, escudo: T.escudo || 0, curaT: 2 };
   if (T.m || tipo === 'chefe') { const m = T.m || CHEFES[Math.floor(n / 10 - 1) % CHEFES.length][0], v = C.personagem(m, [], 1);
-    v.raiz.scale.setScalar(T.h / (C.alturaModelo(m) * C.ESC_PERS)); v.tocar('Gallop'); u.v = v; u.y = T.voa ? 3 : 0; }
+    u.esc = T.h / (C.alturaModelo(m) * C.ESC_PERS); v.raiz.scale.setScalar(u.esc); v.tocar('Gallop'); u.v = v; u.y = T.voa ? 3 : 0; }
   return u;
 }
 // ---- partida ----
@@ -120,16 +120,17 @@ function usarMagia(k) {
 function ferir(u, d, forte) {
   if (u.morto) return; if (u.escudo > 0) { u.escudo--; u.flash = 0.12; K.txt.push({ x: u.x, y: u.alt + 1, z: u.z, txt: u.escudo ? 'BLOQUEOU' : 'ESCUDO QUEBROU!', cor: '#8ac8ff', t: 0 }); return; }
   if (u.tipo === 'chefe') d *= K.multChefe; if (K.crit && Math.random() < K.crit) { d *= 3; forte = true; }
-  u.hp -= d; u.flash = 0.12; if (u.v || forte) K.txt.push({ x: u.x, y: (u.alt || 2) + 1 + (u.y || 0), z: u.z, txt: fmt(d), cor: forte ? '#ffd84a' : '#fff', t: 0 });
+  u.hp -= d; u.flash = 0.12; u.punch = 0.12; if (u.v || forte) K.txt.push({ x: u.x, y: (u.alt || 2) + 1 + (u.y || 0), z: u.z, txt: fmt(d), cor: forte ? '#ffd84a' : '#fff', t: 0 });
   if (u.hp <= 0) { u.morto = true; K.mortos++;
-    if (u.v) { u.v.tocar('Death', { loop: false }); u.tm = 0; C.faiscas(u.x, 2, u.z, 0xff6a4a, u.tipo === 'chefe' ? 80 : 20, 8); if (u.tipo === 'chefe') { sfx('vitoria'); C.camera.tremor = 1; K.banner = { txt: 'CHEFE DERROTADO!', cor: '#ffd84a', t: 0 }; } }
+    if (u.v) { u.v.tocar('Death', { loop: false }); u.tm = 0; C.impacto(u.x, (u.y || 0) + u.alt * 0.5, u.z, 0xff6a4a, u.tipo === 'chefe' ? 3 : 1.6); C.faiscas(u.x, 2, u.z, 0xff6a4a, u.tipo === 'chefe' ? 80 : 20, 8); if (u.tipo === 'chefe') { sfx('vitoria'); C.camera.tremor = 1; K.banner = { txt: 'CHEFE DERROTADO!', cor: '#ffd84a', t: 0 }; } }
     else voar('vm', u.x, u.z, (Math.random() - 0.5) * 4, 6 + Math.random() * 3, -4); }
 }
 function alvoDe(d) { let m = null, md = 1e9; for (const u of K.inim) { if (u.morto) continue; const dz = Z_DEF - u.z; if (dz > d.alc) continue; const dist = Math.hypot(u.x - d.x, dz) - (u.tipo === 'chefe' ? 30 : u.tipo === 'gigante' ? 12 : 0); if (dist < md) { md = dist; m = u; } } return m; }
 export function passo(dt0) {
   if (!K) return; const dt = dt0 * (K.estado === 'fim' ? 1 : K.vel), tt = C.tempo();
   for (const d of K.def) d.v.mixer.update(dt);
-  for (const u of K.inim) if (u.v) { u.v.mixer.update(dt); u.flash = Math.max(0, (u.flash || 0) - dt); u.v.brilho(u.flash > 0 ? 0.5 : 0); if (u.morto) { u.tm += dt; if (u.tm > 1.2) u.v.raiz.visible = false; } }
+  for (const u of K.inim) if (u.v) { u.v.mixer.update(dt); u.flash = Math.max(0, (u.flash || 0) - dt); u.v.brilho(u.flash > 0 ? 0.5 : 0);
+    u.punch = Math.max(0, (u.punch || 0) - dt); if (u.esc && !u.morto) u.v.raiz.scale.setScalar(u.esc * (1 + 0.14 * u.punch / 0.12)); if (u.morto) { u.tm += dt; if (u.tm > 1.2) u.v.raiz.visible = false; } }
   if (K.estado !== 'fim') luta(dt);
   // desenha orcs (instâncias) e posiciona os modelos
   desenharTropas('vm', K.inim.filter(u => !u.v && !u.morto), 0, tt); passoVoo(dt);
@@ -165,8 +166,9 @@ function luta(dt) {
       if (!a.morto) { ferir(a, s.d.dano * K.cartas * (s.d.classe === 'lutador' && a.z > -22 ? 1.6 : 1)); if (s.d.classe === 'tanque') a.lentoT = 1.5;
         if (s.d.area) for (const u of K.inim) if (u !== a && !u.morto && Math.hypot(u.x - a.x, u.z - a.z) < s.d.area * 1.5) ferir(u, s.d.dano * 0.6);
         for (let k = 0, ult = a; k < s.d.perf; k++) { const n = K.inim.find(u => !u.morto && u !== ult && u.z < ult.z && Math.abs(u.x - ult.x) < 3); if (!n) break; ferir(n, s.d.dano * 0.7); ult = n; }
-        if (s.d.area) C.faiscas(a.x, 1.5, a.z, s.d.cor, 6, 3); }
+        C.impacto(a.x, (a.y || 0) + (a.alt || 2) * 0.5, a.z, s.d.cor, s.d.area ? 1 : a.v ? 0.6 : 0.35); }
       continue; }
+    if (Math.random() < 0.5) C.faiscas(s.x, s.y, s.z, s.d.cor, 1, 0.3); // rastro
     s.x += dx / dist * p; s.y += dy / dist * p; s.z += dz / dist * p; s.o.position.set(s.x, s.y, s.z); }
   K.tiros = K.tiros.filter(s => !s.fim);
   // meteoros
@@ -213,7 +215,7 @@ export function desenharFx(g, dt) {
   for (const u of K.inim) { if (u.morto || !u.v) continue; const p = C.tela(u.x, (u.y || 0) + u.alt + 0.8, u.z); if (!p) continue; const w = u.tipo === 'chefe' ? 90 : 40;
     g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(p[0] - w / 2 - 2, p[1] - 2, w + 4, 9); g.fillStyle = u.tipo === 'chefe' ? '#ff4a3a' : '#e8803a'; g.fillRect(p[0] - w / 2, p[1], w * u.hp / u.max, 5); }
   for (const t of K.txt) { t.t += dt; const p = C.tela(t.x, t.y + t.t * 3, t.z); if (!p) continue; g.globalAlpha = Math.max(0, 1 - t.t / 0.7);
-    g.font = '16px Titulo, sans-serif'; g.textAlign = 'center'; g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,.7)'; g.strokeText(t.txt, p[0], p[1]); g.fillStyle = t.cor; g.fillText(t.txt, p[0], p[1]); g.globalAlpha = 1; }
+    const pop = t.t < 0.1 ? 0.6 + t.t * 9 : Math.max(1, 1.5 - (t.t - 0.1) * 2.5); g.font = `${Math.round((t.cor === '#ffd84a' ? 22 : 16) * pop)}px Titulo, sans-serif`; g.textAlign = 'center'; g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,.7)'; g.strokeText(t.txt, p[0], p[1]); g.fillStyle = t.cor; g.fillText(t.txt, p[0], p[1]); g.globalAlpha = 1; }
   K.txt = K.txt.filter(t => t.t < 0.7);
   const B = K.banner;
   if (B) { B.t += dt; const k = Math.min(1, B.t / 0.18), s = k < 1 ? 0.4 + 0.9 * k : 1, a = Math.max(0, 1 - Math.max(0, B.t - (B.sub ? 2 : 1.1)) / 0.4);

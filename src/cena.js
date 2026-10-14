@@ -634,8 +634,9 @@ export function arco(x, z, ang, raio, arcoGraus, cor = 0xffffff) { // rastro de 
   const m = new THREE.Mesh(g, MAT_ADD(cor)); m.rotation.x = -Math.PI / 2; m.rotation.z = -ang + Math.PI / 2; m.position.set(x, 1.0 + chao(x, z), z);
   m.material.opacity = 0.55; scene.add(m); efeitos.push({ o: m, t: 0, dur: 0.2, tipo: 'fade' });
 }
+const GEO_ANEL_ONDA = new THREE.RingGeometry(0.85, 1, 40);
 export function onda(x, z, raio, cor = 0xffffff, dur = 0.4) { // anel que expande
-  const m = new THREE.Mesh(new THREE.RingGeometry(0.85, 1, 40), MAT_ADD(cor)); m.rotation.x = -Math.PI / 2; m.position.set(x, 0.15 + chao(x, z), z);
+  const m = new THREE.Mesh(GEO_ANEL_ONDA, MAT_ADD(cor)); m.rotation.x = -Math.PI / 2; m.position.set(x, 0.15 + chao(x, z), z);
   scene.add(m); efeitos.push({ o: m, t: 0, dur, tipo: 'onda', raio });
 }
 // aviso no chão que enche até o impacto (inimigo = vermelho, herói = azul)
@@ -702,6 +703,16 @@ export function faiscas(x, y, z, cor, n = 10, forca = 3) {
   }
 }
 
+// ---- impactos de luta: clarão que estoura + faíscas + anel no chão ----
+export function clarao(x, y, z, cor = 0xffffff, tam = 1.4, dur = 0.16) {
+  const m = new THREE.Mesh(GEO_BOLA, MAT_ADD(cor)); m.position.set(x, y + chao(x, z), z); m.scale.setScalar(tam * 0.35); scene.add(m);
+  efeitos.push({ o: m, t: 0, dur, tipo: 'clarao', tam });
+}
+export function impacto(x, y, z, cor = 0xffffff, forca = 1) {
+  clarao(x, y, z, cor, 1.1 + 0.6 * forca, 0.14 + 0.05 * forca); clarao(x, y, z, 0xffffff, 0.6 + 0.3 * forca, 0.1);
+  faiscas(x, y, z, cor, Math.round(6 + 6 * forca), 3 + 2 * forca);
+  if (forca >= 1) onda(x, z, 1.6 + 1.4 * forca, cor, 0.22 + 0.06 * forca);
+}
 // ---------------- câmera e quadro ----------------
 export const camera = { yaw: Math.PI, pitch: 0.72, dist: 12, alvo: new THREE.Vector3(), tremor: 0, suave: 10 };
 const olharTmp = new THREE.Vector3();
@@ -716,7 +727,8 @@ export function quadro(dt, foco) {
     if (e.tipo === 'onda') { e.o.scale.setScalar(0.3 + k * e.raio); e.o.material.opacity = Math.max(0, 0.9 * (1 - k)); }
     if (e.tipo === 'aviso') { if (e.eixo === 'z') e.cheio.scale.set(1, 1, Math.min(1, k)); else e.cheio.scale.setScalar(Math.min(1, k)); }
     if (e.tipo === 'poca') e.o.material.opacity = (k > 0.85 ? (1 - k) / 0.15 : 1) * (0.35 + 0.12 * Math.sin(e.t * 6));
-    if (k >= 1 || e.morto) { scene.remove(e.o); efeitos.splice(i, 1); }
+    if (e.tipo === 'clarao') { e.o.scale.setScalar(e.tam * (0.35 + 0.65 * Math.min(1, k * 2.2))); e.o.material.opacity = Math.max(0, 0.95 * (1 - k) ** 1.5); }
+    if (k >= 1 || e.morto) { scene.remove(e.o); if (e.o.isMesh && e.o.material?.dispose) e.o.material.dispose(); efeitos.splice(i, 1); }
   }
   // partículas
   let n = 0;

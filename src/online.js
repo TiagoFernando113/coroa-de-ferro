@@ -39,6 +39,7 @@ export const arenaResultado = comConta((codigo, venceu) => rpc('ponte_arena_resu
 export const arenaDefesas = comConta(() => rpc('ponte_arena_defesas', id()));
 export const arenaTop = () => rpc('ponte_arena_top', { p_limite: 50, p_id: S.online?.id || null });
 export const botsTick = () => rpc('ponte_bots_tick');
+export const claInfo = id => rpc('ponte_cla_info', { p_cla: id });
 export const placar = () => rpc('ponte_placar', { p_id: S.online?.id || null });
 export const placarLista = cat => rpc('ponte_placar_lista', { p_cat: cat, p_id: S.online?.id || null, p_limite: 50 });
 export const cqRival = comConta(forca => rpc('ponte_cq_rival', { ...id(), p_forca: forca }));

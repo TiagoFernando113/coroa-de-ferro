@@ -929,3 +929,5 @@ input{font:inherit;user-select:text;-webkit-user-select:text}
 #plEu{position:sticky;bottom:0;z-index:3;margin-top:-70px}
 #plEu .plFixo{position:static;margin:0;padding:8px 0 4px;background:linear-gradient(rgba(255,248,236,0),var(--creme) 35%)}
 .plLista{padding-bottom:84px}
+.jClaVer .lista{max-height:50vh;overflow:auto;margin:8px 0}.jClaVer .linha{gap:8px}
+.jClaVer .linha .plMini{flex:0 0 44px;width:44px;height:44px}.jClaVer .linha .nomeBtn{flex:1;min-width:0;text-align:left}

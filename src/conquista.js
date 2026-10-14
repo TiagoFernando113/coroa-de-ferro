@@ -78,10 +78,14 @@ export function limpar() {
 }
 // ---- batalha ----
 function ferir(alvo, dano, de) {
-  if (alvo.morto) return; alvo.hp -= dano; alvo.flash = 0.15;
-  if (!Q.sem3d) Q.txt.push({ x: alvo.x + (Math.random() - 0.5), y: alvo.alt + 0.5, z: alvo.z, txt: fmt(dano), cor: alvo.lado ? '#fff' : '#ff8a7a', t: 0 });
+  if (alvo.morto) return; alvo.hp -= dano; alvo.flash = 0.15; alvo.punch = 0.14;
+  // empurrãozinho para trás (sente o golpe)
+  if (de && !Q.sem3d) { const dx = alvo.x - de.x, dz = alvo.z - de.z, d = Math.hypot(dx, dz) || 1; alvo.x += dx / d * 0.35; alvo.z += dz / d * 0.35; }
+  const forte = dano >= alvo.max * 0.12;
+  if (!Q.sem3d) Q.txt.push({ x: alvo.x + (Math.random() - 0.5), y: alvo.alt + 0.5, z: alvo.z, txt: fmt(dano), cor: forte ? '#ffd84a' : alvo.lado ? '#fff' : '#ff8a7a', t: 0, forte });
   if (alvo.hp <= 0) { alvo.hp = 0; alvo.morto = true; alvo.tm = 0;
-    if (alvo.v) { alvo.v.tocar('Death', { loop: false, fade: 0.1 }); C.faiscas(alvo.x, 1.5, alvo.z, alvo.lado ? 0xff6a4a : 0x6ab8ff, 22, 6); som('pancada', 0.4); } }
+    if (alvo.v) { alvo.v.tocar('Death', { loop: false, fade: 0.1 }); const cor = alvo.lado ? 0xff6a4a : 0x6ab8ff; C.impacto(alvo.x, 1.5, alvo.z, cor, 2); C.faiscas(alvo.x, 1.5, alvo.z, 0xffffff, 14, 7);
+      C.camera.tremor = Math.max(C.camera.tremor, alvo.chefe ? 0.8 : 0.3); som('pancada', 0.5); } }
 }
 function golpear(u) {
   const a = u.alvo; if (!a || a.morto) return;
@@ -95,6 +99,7 @@ export function passo(dt0) {
   if (!Q) return; const dt = dt0 * (Q.estado === 'luta' ? Q.vel : 1), cn = C.obterCena();
   for (const u of Q.us) if (u.v) {
     u.v.mixer.update(dt); u.flash = Math.max(0, u.flash - dt); u.v.brilho(u.flash > 0 ? 0.5 : 0);
+    u.punch = Math.max(0, (u.punch || 0) - dt); u.v.raiz.scale.setScalar(u.esc * (1 + 0.16 * u.punch / 0.14));
     if (u.morto) { u.tm += dt; if (u.tm > 1.4) { const k = Math.min(1, (u.tm - 1.4) / 0.8); u.v.raiz.position.y = -k * 3; u.anel.visible = false; if (k >= 1) u.v.raiz.visible = false; } }
   }
   if (Q.estado === 'luta') luta(dt);
@@ -102,7 +107,8 @@ export function passo(dt0) {
   // tiros em arco
   for (const t of Q.tiros) { t.k += dt * 28 / t.d; const k = Math.min(1, t.k), ax = t.a.x, az = t.a.z;
     t.o.position.set(t.x + (ax - t.x) * k, t.y0 + Math.sin(Math.PI * k) * Math.min(5, t.d * 0.25), t.z + (az - t.z) * k);
-    if (k >= 1) { t.fim = true; cn.remove(t.o); ferir(t.a, t.dano, t.u); C.faiscas(ax, 1.5, az, PETS[base(t.u.k)].cor || 0xffffff, 6, 3); } }
+    if (!t.fim && Math.random() < 0.7) C.faiscas(t.o.position.x, t.o.position.y, t.o.position.z, PETS[base(t.u.k)].cor || 0xffffff, 1, 0.4); // rastro
+    if (k >= 1) { t.fim = true; cn.remove(t.o); ferir(t.a, t.dano, t.u); C.impacto(ax, 1.5, az, PETS[base(t.u.k)].cor || 0xffffff, 0.7); } }
   Q.tiros = Q.tiros.filter(t => !t.fim);
 }
 function luta(dt) {
@@ -121,7 +127,8 @@ function luta(dt) {
   // não se amontoam
   for (let i = 0; i < vivos.length; i++) for (let j = i + 1; j < vivos.length; j++) { const a = vivos[i], b = vivos[j], dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz) || 0.01, m = a.raio + b.raio;
     if (d < m) { const p = (m - d) / 2; a.x -= dx / d * p; a.z -= dz / d * p; b.x += dx / d * p; b.z += dz / d * p; } }
-  for (const g of Q.golpes) if ((g.t -= dt) <= 0) { g.fim = true; if (!g.u.morto) { ferir(g.a, g.dano, g.u); if (!Q.sem3d && g.u.classe !== 'atirador') C.faiscas(g.a.x, 1.6, g.a.z, 0xffffff, 5, 3); } }
+  for (const g of Q.golpes) if ((g.t -= dt) <= 0) { g.fim = true; if (!g.u.morto) { ferir(g.a, g.dano, g.u);
+    if (!Q.sem3d && g.u.classe !== 'atirador') { const ang = Math.atan2(g.a.x - g.u.x, g.a.z - g.u.z); C.arco(g.a.x, g.a.z, ang, 2.4, 150, g.u.lado ? 0xffb0a0 : 0xfff2c0); C.impacto(g.a.x, 1.6, g.a.z, g.u.classe === 'tanque' ? 0xffd27a : 0xffffff, g.u.classe === 'tanque' ? 1.2 : 0.8); } } }
   Q.golpes = Q.golpes.filter(g => !g.fim);
   const vivosL = l => Q.us.some(u => u.lado === l && !u.morto);
   if (!vivosL(1)) acabar(true); else if (!vivosL(0)) acabar(false); else if (Q.t > 90) acabar(false);
@@ -219,7 +226,7 @@ export function desenharFx(g, dt) {
     const R = RARIDADES[PETS[base(u.k)].r], e = est(u.k), txt = `${e ? `★${e} ` : ''}Nv.${u.nvVis}`;
     g.font = '13px Titulo, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'bottom'; g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,.75)'; const tt = tr(txt); g.strokeText(tt, p[0], y - 3); g.fillStyle = e ? ESTRELAS[e].cor : R.cor === '#9aa3ad' ? '#fff' : R.cor; g.fillText(tt, p[0], y - 3); }
   for (const t of Q.txt) { t.t += dt; const p = C.tela(t.x, t.y + t.t * 3, t.z); if (!p) continue; g.globalAlpha = Math.max(0, 1 - Math.max(0, t.t - 0.4) / 0.4);
-    g.font = `${t.grande ? 34 : 18}px Titulo, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineWidth = 4; g.strokeStyle = 'rgba(0,0,0,.7)'; g.strokeText(tr(t.txt), p[0], p[1]); g.fillStyle = t.cor; g.fillText(tr(t.txt), p[0], p[1]); g.globalAlpha = 1; }
+    const pop = t.t < 0.1 ? 0.6 + t.t * 9 : Math.max(1, 1.5 - (t.t - 0.1) * 2.5); g.font = `${Math.round((t.grande ? 34 : t.forte ? 26 : 18) * pop)}px Titulo, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineWidth = 4; g.strokeStyle = 'rgba(0,0,0,.7)'; g.strokeText(tr(t.txt), p[0], p[1]); g.fillStyle = t.cor; g.fillText(tr(t.txt), p[0], p[1]); g.globalAlpha = 1; }
   Q.txt = Q.txt.filter(t => t.t < 0.8);
   const B = Q.banner;
   if (B) { B.t += dt; const k = Math.min(1, B.t / 0.18), s = k < 1 ? 0.4 + 0.9 * k : 1, a = Math.max(0, 1 - Math.max(0, B.t - 1.1) / 0.4);
