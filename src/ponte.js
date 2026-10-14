@@ -6,12 +6,12 @@ import * as C from './cena.js';
 import { HABILIDADES, fase as dadosFase, tiros, vidaMuralha, escudo, fmt, UPGRADES } from './dados.js';
 import { S, salvar, fimDeSemana, mudouDesdeBackup, backupFeito, darCartas, comprar, BAUS, MAX_BAUS, ganharBau, abrirBau, cartasPara, CARTAS, DIARIO, diarioPronto, diaDoPresente, pegarDiario } from './meta.js';
 import { visualPadrao } from './aparencia.js';
-import { ico, som, $, alternarSom, estaMudo } from './util.js';
+import { ico, som, $, alternarSom, estaMudo, voarMoedas, flashTela, contarAte } from './util.js';
 import { tema, sfx, intensidade } from './musica.js';
 import * as ON from './online.js';
 import { HEROIS, heroiAtual } from './herois.js';
 import { criarTropas, desenharTropas, voar, passoVoo, limparTropas } from './tropas.js';
-import { PETS, RARIDADES, CLASSES, OVOS, BONUS as BONUS_PET, ESTRELAS, MAX_EQUIPE, MAX_NV, MAX_EST, base, est, qtd, temPet, modeloDe, tinta, atributos, forca, forcaEquipe, custoNivel, subirNivel, juntar, equipar, equiparMelhores, chocar, bonusPet, bonusEquipe, txtBonus, lucroOcioso, GOLPES, golpe, cdGolpe, forcaGolpe } from './pets.js';
+import { PETS, RARIDADES, CLASSES, OVOS, BONUS as BONUS_PET, ESTRELAS, MAX_EQUIPE, MAX_NV, MAX_EST, base, est, qtd, temPet, modeloDe, tinta, atributos, forca, forcaEquipe, custoNivel, subirNivel, juntar, equipar, equiparMelhores, chocar, bonusPet, bonusEquipe, txtBonus, lucroOcioso, coletarOcioso, GOLPES, golpe, cdGolpe, forcaGolpe } from './pets.js';
 import * as CQ from './conquista.js';
 import * as CT from './castelo.js';
 import { MEDALHAS, NIVEIS_MEDALHA, nivelMedalha, pegas, medalhasProntas, premioMedalha, pegarMedalha } from './perfil.js';
@@ -415,9 +415,28 @@ export function abrirLobby() {
   iniciarFase(S.fase); desenharLobby();
   if (!diarioVisto && diarioPronto()) { diarioVisto = true; setTimeout(mostrarDiario, 900); }
   else setTimeout(coletarPremios, 1200);
+  if (!resumoFeito) { resumoFeito = true; const fora = Date.now() - (S.vistoT || Date.now()); if (fora > 20 * 60e3) setTimeout(() => mostrarResumo(fora), 1500); }
+  marcarVisto();
   setTimeout(enviarPerfil, 2500); setTimeout(() => salvarDefesa().catch(() => {}), 5000); setTimeout(() => { backupNuvem(!nuvemT); if (S.temSenha == null && S.online?.codigo) ON.temSenha().then(t => { S.temSenha = !!t; salvar(); }).catch(() => {}); }, 4000);
 }
-let diarioVisto = false;
+let diarioVisto = false, resumoFeito = false;
+const marcarVisto = () => { S.vistoT = Date.now(); salvar(); };
+setInterval(() => { if (S && tela) marcarVisto(); }, 60e3);
+// ---- bem-vindo de volta: o que aconteceu enquanto a pessoa estava fora ----
+async function mostrarResumo(fora, tentativas = 0) {
+  if (tela !== 'lobby') return; if (!$('#janela').hidden) { if (tentativas < 30) setTimeout(() => mostrarResumo(fora, tentativas + 1), 1000); return; }
+  let def = 0; try { if (S.online?.codigo) def = (await ON.arenaDefesas() || []).filter(d => d.novo).length; } catch (e) {}
+  const L = lucroOcioso(), baus = S.baus.length, miss = prontas(), h = Math.floor(fora / 3600e3), m = Math.floor(fora / 60e3) % 60;
+  if (!L && !baus && !miss && !def) return;
+  const item = (icone, txt, extra = '') => `<div class="rsItem">${ico(icone)}<span>${txt}</span>${extra}</div>`;
+  const j = $('#janela'); if (!j.hidden || tela !== 'lobby') return; j.hidden = false; sfx('brilho');
+  j.innerHTML = `<div class="jOnline jResumo"><h2>${ico('presente')} Bem-vindo de volta!</h2><p class="sub">Você ficou fora ${h ? `${h}h ` : ''}${m}min</p>
+    ${L ? item('ouro', `Lucro ocioso: <b>${fmt(L)}</b> moedas`, `<button class="btn amarelo peq" data-a="rsColetar">Coletar</button>`) : ''}
+    ${baus ? item('bau', `${baus} baú${baus > 1 ? 's' : ''} para abrir`) : ''}
+    ${miss ? item('missoes', `${miss} missão${miss > 1 ? 'ões' : ''} pronta${miss > 1 ? 's' : ''} para pegar`) : ''}
+    ${def ? item('pata', `${def} jogador${def > 1 ? 'es' : ''} enfrentou${def > 1 ? 'aram' : ''} sua equipe na Conquista`) : ''}
+    <button class="btn verde grande" data-a="fecharJanela">Vamos lá!</button></div>`;
+}
 // ---- lobby: cena 3D atrás do herói, card da fase, JOGAR, baús e abas embaixo ----
 let abaLobby = 'home';
 const ABAS = [['home', 'Batalha', 'h_triplo'], ['up', 'Melhorias', 'raio'], ['cartas', 'Heróis', 'herois'], ['pets', 'Pets', 'pata'], ['cla', 'Clã', 'escudo'], ['rank', 'Ranking', 'rank']];
@@ -993,7 +1012,19 @@ function mostrarPerfil() {
 // ---- nuvem: backup automático (sem o segredo da conta) a cada 60 s se algo mudou ----
 let nuvemT = 0; try { nuvemT = +localStorage.getItem('ponte_nuvem') || 0; } catch (e) {}
 let enviandoNuvem = false;
+// a conta foi recuperada em outro celular: o segredo deste ficou velho e nada mais salva na nuvem
+let avisouConta = false;
+addEventListener('contaInvalida', () => { if (!S) return; S.contaInvalida = true; salvar(); if (avisouConta) return; avisouConta = true; setTimeout(avisoConta, 600); });
+function avisoConta() {
+  const j = $('#janela'); if (!j.hidden && !j.querySelector('.jConta')) { setTimeout(avisoConta, 2000); return; } j.hidden = false; som('erro');
+  j.innerHTML = `<div class="jOnline jConta"><h2>${ico('cadeado')} Conta aberta em outro celular</h2>
+    <p class="ctNome" data-nt>${ico('herois')} ${esc(S.online?.apelido || '')}</p><p>Sua conta foi recuperada em outro aparelho. Este celular não salva mais na nuvem.</p>
+    <p>Para continuar com ela aqui, recupere com seu código e senha (o progresso da nuvem vem junto).</p>
+    <button class="btn roxo grande" data-a="contaRecuperar">${ico('girar')} Recuperar conta</button>
+    <button class="btn azul" data-a="contaNova">Criar conta nova neste celular</button><button class="fSo" data-a="fecharJanela">Depois</button></div>`;
+}
 function backupNuvem(forcar) {
+  if (S.contaInvalida) return Promise.resolve();
   if (enviandoNuvem || (!forcar && !mudouDesdeBackup())) return Promise.resolve();
   const { online, ...dados } = S; enviandoNuvem = true;
   return ON.saveEnviar(dados).then(() => { backupFeito(); nuvemT = Date.now(); try { localStorage.setItem('ponte_nuvem', nuvemT); } catch (e) {} }).catch(() => {}).finally(() => { enviandoNuvem = false; });
@@ -1020,7 +1051,7 @@ async function acaoConta(a, b) {
     if (b.dataset.certeza !== '1') { b.dataset.certeza = '1'; b.textContent = tr('Toque de novo para confirmar'); return; }
     b.disabled = true;
     try { const r = await ON.recuperar(c, v); const novo = r.dados && typeof r.dados === 'object' ? r.dados : { v: 1, fase: 1, moedas: 0, up: {}, melhor: 0 };
-      novo.online = { id: r.id, segredo: r.segredo, apelido: r.apelido, codigo: r.codigo }; novo.temSenha = true;
+      novo.online = { id: r.id, segredo: r.segredo, apelido: r.apelido, codigo: r.codigo }; novo.temSenha = true; novo.contaInvalida = false;
       localStorage.setItem('ponte_v1', JSON.stringify(novo)); try { localStorage.setItem('ponte_nuvem', Date.now()); } catch (er) {}
       msg('Progresso recuperado! Reiniciando...', true); setTimeout(() => location.reload(), 900); }
     catch (er) { b.disabled = false; b.dataset.certeza = ''; b.textContent = tr('Recuperar'); msg(er.message); } }
@@ -1124,6 +1155,10 @@ function clique(e) {
   if (b.dataset.up) { if (comprar(b.dataset.up)) { som('compra'); desenharLobby(); } else som('erro'); }
   if (a === 'jogar') { som('confirma'); comecarFase(); }
   if (a === 'modos') { som('clique'); mostrarModos(); return; }
+  if (a === 'contaRecuperar') { som('clique'); mostrarPerfil(); setTimeout(() => { const d = document.querySelector('#janela details'); if (d) { d.open = true; d.scrollIntoView({ block: 'center' }); } }, 300); return; }
+  if (a === 'contaNova') { if (b.dataset.certeza !== '1') { b.dataset.certeza = '1'; b.textContent = tr('Toque de novo para confirmar'); som('clique'); return; }
+    S.online = null; S.contaInvalida = false; S.temSenha = null; S.arena = null; salvar(); avisouConta = false; ON.garantir().then(() => { sfx('vitoria'); mostrarPerfil(); }).catch(() => {}); return; }
+  if (a === 'rsColetar') { const q = b.getBoundingClientRect(), m = coletarOcioso(); if (m > 0) { sfx('vitoria'); desenharLobby(); voarMoedas('.lbTopo .pilula.ouro', 12, { x: q.left + q.width / 2, y: q.top + q.height / 2 }); } b.disabled = true; b.textContent = tr('Coletado!'); return; }
   if (a === 'infinito') { if (S.melhor < 3) { som('erro'); return; } som('confirma'); comecarFase(true); }
   if (a === 'denovoInf') { som('confirma'); comecarFase(true); }
   if (a === 'sair') { som('fechar'); G?.dupla?.canal?.enviar('sair', {}); $('#janela').hidden = true; abrirLobby(); }
@@ -1158,7 +1193,7 @@ function clique(e) {
   if (b.dataset.oferta) { const r = comprarOferta(+b.dataset.oferta); if (!r) { som('erro'); return; } if (r.cheio) { som('erro'); b.textContent = tr('Baús cheios'); return; }
     som('compra'); sfx('vitoria'); mostrarLoja(); if (tela === 'lobby') { recriarPetsLobby(); desenharLobby(); } }
   if (b.dataset.mm) { som('clique'); modoMissao = b.dataset.mm; mostrarMissoes(); }
-  if (b.dataset.missao) { const [sem, i] = b.dataset.missao.split(':'), r = pegarMissao(sem === 's', +i); if (!r) { som('erro'); return; } sfx('vitoria'); som('moedas'); mostrarMissoes(); if (tela === 'lobby') desenharLobby(); }
+  if (b.dataset.missao) { const [sem, i] = b.dataset.missao.split(':'), r = pegarMissao(sem === 's', +i); if (!r) { som('erro'); return; } sfx('vitoria'); som('moedas'); { const q = b.getBoundingClientRect(); setTimeout(() => voarMoedas('.lbTopo .pilula.ouro', 8, { x: q.left + q.width / 2, y: q.top + q.height / 2 }), 50); } mostrarMissoes(); if (tela === 'lobby') desenharLobby(); }
   if (b.dataset.passe) { const r = pegarNivel(+b.dataset.passe); if (!r) { som('erro'); return; } if (r.cheio) { som('erro'); b.textContent = tr('Baús cheios'); return; } sfx('vitoria'); mostrarMissoes(); if (tela === 'lobby') desenharLobby(); }
   if (a === 'config') { som('clique'); mostrarConfig(); return; }
   if (b.dataset.qual) { const q = b.dataset.qual; try { localStorage.setItem('guilda_q', q); } catch (e) {} if (q === 'baixa') C.modoLeve(); som('clique'); mostrarConfig(q !== 'baixa' && q !== C.qualidadeAtual()); return; }
@@ -1266,7 +1301,7 @@ const ROLETA = [2, 3, 5, 3, 2];
 let roleta = null;
 function pararRoleta() {
   if (!roleta || roleta.parada) return; roleta.parada = true; const extra = roleta.ganho * (roleta.m - 1);
-  S.moedas += extra; salvar(); sfx('vitoria'); $('#fGanho').textContent = `+${fmt(roleta.ganho * roleta.m)}`; $('#fGanho').parentElement.classList.add('pulo');
+  S.moedas += extra; salvar(); sfx('vitoria'); contarAte($('#fGanho'), roleta.ganho * roleta.m, 800, '+', fmt, roleta.ganho); if (roleta.m > 1) { voarMoedas('#fGanho', 6 + 2 * roleta.m); flashTela('#ffd23a', 0.35); } $('#fGanho').parentElement.classList.add('pulo');
   $('#fBotoes').hidden = true; $('#fSeguir').hidden = false;
 }
 function terminarInf() {
@@ -1304,6 +1339,7 @@ function terminar(venceu) {
       <div id="fSeguir" ${venceu || G.dupla ? 'hidden' : ''}><button class="btn verde grande" data-a="proxima">${venceu ? `Fase ${S.fase} ${ico('seta')}` : 'Tentar de novo'}</button>
       <div class="fLinha"><button class="btn azul" data-a="lobbyUp">${ico('raio')} Melhorias</button><button class="btn cinza" data-a="lobby">${ico('guilda')} Menu</button></div></div></div>`;
     sfx(venceu ? 'vitoria' : 'derrota');
+    if (venceu) { flashTela('#ffe27a', 0.5); contarAte($('#fGanho'), ganho, 900, '+', fmt); setTimeout(() => voarMoedas('#fGanho', 12), 150); }
     atualizarRevanche();
     if (venceu && !G.dupla) { roleta = { ganho, t0: performance.now(), m: 2 }; const gira = () => { if (!roleta || roleta.parada) return;
       const k = (Math.sin((performance.now() - roleta.t0) / 1000 * 3.2 - Math.PI / 2) + 1) / 2; roleta.m = ROLETA[Math.min(ROLETA.length - 1, Math.floor(k * ROLETA.length))];
@@ -1598,7 +1634,7 @@ function passoJogo(dt) {
   $('#jChefeB').style.width = (100 * ch.hp / ch.max) + '%'; $('#jChefeT').textContent = `${fmt(Math.max(0, ch.hp))} / ${fmt(ch.max)}`;
   $('#jMuroB').style.width = (100 * Math.max(0, G.muro) / G.muroMax) + '%'; $('#jMuroT').textContent = `${Math.max(0, G.muro)} / ${G.muroMax}`;
   if (ch.hp <= 0 && G.inf) proximoChefe();
-  else if (ch.hp <= 0) { ch.v.tocar('Death', { loop: false, reinicia: true }); for (const v of G.vm) arremessar('vm', v, 0, ch.z, 14); G.vm = []; C.camera.tremor = 1;
+  else if (ch.hp <= 0) { flashTela('#fff', 0.6); ch.v.tocar('Death', { loop: false, reinicia: true }); for (const v of G.vm) arremessar('vm', v, 0, ch.z, 14); G.vm = []; C.camera.tremor = 1;
     G.lento = 1.6; C.faiscas(0, 6, ch.z, 0xffd84a, 120, 12); C.onda(0, ch.z, 16, 0xffd84a, 0.9); faixa('VITÓRIA!', '#ffd84a'); G.heroiV.tocar('Cheering'); terminar(true); }
   else if (ch.z >= ZMURO - 7) { G.muro = 0; C.camera.tremor = 1; faixa('O CHEFE DERRUBOU A MURALHA!', '#ff5a4a'); G.heroiV.tocar('Death_A', { loop: false, reinicia: true }); terminar(false); }
   else if (G.muro <= 0) { G.heroiV.tocar('Death_A', { loop: false, reinicia: true }); terminar(false); }
@@ -1718,7 +1754,7 @@ function passoCorrida(dt) {
   $('#jMoedas').textContent = fmt(S.moedas);
   $('#jChefeB').style.width = (100 * Math.max(0, ch.hp) / ch.max) + '%'; $('#jChefeT').textContent = `${fmt(Math.max(0, ch.hp))} / ${fmt(ch.max)}`;
   $('#jMuroB').style.width = (100 * Math.max(0, G.muro) / G.muroMax) + '%'; $('#jMuroT').textContent = `${Math.max(0, G.muro)} / ${G.muroMax}`;
-  if (ch.hp <= 0) { ch.v.tocar('Death', { loop: false, reinicia: true }); for (const v of G.vm) arremessar('vm', v, 0, ch.z, 14); G.vm = []; C.camera.tremor = 1;
+  if (ch.hp <= 0) { flashTela('#fff', 0.6); ch.v.tocar('Death', { loop: false, reinicia: true }); for (const v of G.vm) arremessar('vm', v, 0, ch.z, 14); G.vm = []; C.camera.tremor = 1;
     G.lento = 1.6; C.faiscas(0, 6, ch.z, 0xffd84a, 120, 12); faixa('VITÓRIA!', '#ffd84a'); G.heroiV.tocar('Cheering'); terminar(true); }
   else if (G.muro <= 0) { G.heroiV.tocar('Death_A', { loop: false, reinicia: true }); faixa('O HERÓI CAIU!', '#ff5a4a'); terminar(false); }
 }

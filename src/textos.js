@@ -271,6 +271,18 @@ const T = {
   'A cada # estágios vem um chefe com Ovo Mágico.': L('Every # stages a boss comes with a Magic Egg.', 'Cada # fases llega un jefe con Huevo Mágico.'),
   'Sua equipe também defende quando você está fora!': L('Your team also defends while you are away!', '¡Tu equipo también defiende cuando no estás!'),
   'Só # próxima fase': L('Only # next stage', 'Solo # próxima fase'), 'Volte para a fase # e fique mais forte para sempre': L('Go back to stage # and get stronger forever', 'Vuelve a la fase # y hazte más fuerte para siempre'),
+  // bem-vindo de volta
+  'Bem-vindo de volta!': L('Welcome back!', '¡Bienvenido de nuevo!'), 'Você ficou fora #h #min': L('You were away #h #min', 'Estuviste fuera #h #min'), 'Você ficou fora #min': L('You were away #min', 'Estuviste fuera #min'),
+  'Lucro ocioso: # moedas': L('Idle profit: # coins', 'Ganancia inactiva: # monedas'), 'Coletado!': L('Collected!', '¡Recogido!'),
+  '# baú para abrir': L('# chest to open', '# cofre para abrir'), '# baús para abrir': L('# chests to open', '# cofres para abrir'),
+  '# missão pronta para pegar': L('# mission ready to claim', '# misión lista para reclamar'), '# missões prontas para pegar': L('# missions ready to claim', '# misiones listas para reclamar'),
+  '# jogador enfrentou sua equipe na Conquista': L('# player faced your team in Conquest', '# jugador enfrentó a tu equipo en la Conquista'), '# jogadores enfrentaram sua equipe na Conquista': L('# players faced your team in Conquest', '# jugadores enfrentaron a tu equipo en la Conquista'),
+  'Vamos lá!': L('Let\'s go!', '¡Vamos!'),
+  // conta em outro celular
+  'Conta aberta em outro celular': L('Account opened on another phone', 'Cuenta abierta en otro móvil'),
+  'Sua conta foi recuperada em outro aparelho. Este celular não salva mais na nuvem.': L('Your account was recovered on another device. This phone no longer saves to the cloud.', 'Tu cuenta se recuperó en otro dispositivo. Este móvil ya no guarda en la nube.'),
+  'Para continuar com ela aqui, recupere com seu código e senha (o progresso da nuvem vem junto).': L('To keep using it here, recover it with your code and password (cloud progress comes along).', 'Para seguir con ella aquí, recupérala con tu código y contraseña (el progreso de la nube viene junto).'),
+  'Recuperar conta': L('Recover account', 'Recuperar cuenta'), 'Criar conta nova neste celular': L('Create a new account on this phone', 'Crear una cuenta nueva en este móvil'), 'Depois': L('Later', 'Después'),
 };
 export const TEXTOS = { en: {}, es: {} };
 for (const [k, v] of Object.entries(T)) { TEXTOS.en[k] = v.en; TEXTOS.es[k] = v.es; }

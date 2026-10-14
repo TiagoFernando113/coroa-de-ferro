@@ -10,7 +10,7 @@ async function rpc(fn, corpo = {}) {
   try {
     const r = await fetch(`https://${BASE}/rest/v1/rpc/${fn}`, { method: 'POST', headers: { apikey: CHAVE, 'Content-Type': 'application/json' }, body: JSON.stringify(corpo), signal: ctl.signal });
     const j = await r.json().catch(() => null);
-    if (!r.ok) throw new Error(j?.message || `erro ${r.status}`);
+    if (!r.ok) { const m = j?.message || `erro ${r.status}`; if (/segredo inválido/.test(m) && S.online?.codigo) dispatchEvent(new CustomEvent('contaInvalida')); throw new Error(m); }
     return j;
   } catch (e) { throw new Error(e.name === 'AbortError' || e.message === 'Failed to fetch' ? 'sem conexão' : e.message); }
   finally { clearTimeout(tempo); }
