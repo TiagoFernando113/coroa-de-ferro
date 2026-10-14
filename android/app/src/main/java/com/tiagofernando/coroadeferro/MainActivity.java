@@ -1,6 +1,8 @@
 package com.tiagofernando.coroadeferro;
 
 import android.app.Activity;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
@@ -53,6 +55,10 @@ public class MainActivity extends Activity {
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true); // o save do jogo fica no localStorage
         s.setCacheMode(WebSettings.LOAD_NO_CACHE);
+        web.addJavascriptInterface(new Avisos.Js(this), "Avisos"); // notificações locais
+        Avisos.criarCanal(this);
+        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED)
+            requestPermissions(new String[] { "android.permission.POST_NOTIFICATIONS" }, 1);
 
         web.setWebViewClient(new WebViewClient() {
             @Override

@@ -283,6 +283,10 @@ const T = {
   'Sua conta foi recuperada em outro aparelho. Este celular não salva mais na nuvem.': L('Your account was recovered on another device. This phone no longer saves to the cloud.', 'Tu cuenta se recuperó en otro dispositivo. Este móvil ya no guarda en la nube.'),
   'Para continuar com ela aqui, recupere com seu código e senha (o progresso da nuvem vem junto).': L('To keep using it here, recover it with your code and password (cloud progress comes along).', 'Para seguir con ella aquí, recupérala con tu código y contraseña (el progreso de la nube viene junto).'),
   'Recuperar conta': L('Recover account', 'Recuperar cuenta'), 'Criar conta nova neste celular': L('Create a new account on this phone', 'Crear una cuenta nueva en este móvil'), 'Depois': L('Later', 'Después'),
+  // notificações do celular
+  'Lucro ocioso cheio!': L('Idle profit is full!', '¡Ganancia inactiva llena!'), 'Seus pets juntaram # moedas. Venha coletar!': L('Your pets gathered # coins. Come collect!', 'Tus mascotas juntaron # monedas. ¡Ven a recogerlas!'),
+  'Presente diário pronto!': L('Daily gift ready!', '¡Regalo diario listo!'), 'Abra o jogo e pegue o presente de hoje.': L('Open the game and grab today\'s gift.', 'Abre el juego y toma el regalo de hoy.'),
+  'Os orcs estão atacando a ponte!': L('The orcs are attacking the bridge!', '¡Los orcos atacan el puente!'), 'Volte e defenda a ponte com seus pets.': L('Come back and defend the bridge with your pets.', 'Vuelve y defiende el puente con tus mascotas.'),
 };
 export const TEXTOS = { en: {}, es: {} };
 for (const [k, v] of Object.entries(T)) { TEXTOS.en[k] = v.en; TEXTOS.es[k] = v.es; }

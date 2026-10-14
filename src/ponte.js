@@ -11,7 +11,7 @@ import { tema, sfx, intensidade } from './musica.js';
 import * as ON from './online.js';
 import { HEROIS, heroiAtual } from './herois.js';
 import { criarTropas, desenharTropas, voar, passoVoo, limparTropas } from './tropas.js';
-import { PETS, RARIDADES, CLASSES, OVOS, BONUS as BONUS_PET, ESTRELAS, MAX_EQUIPE, MAX_NV, MAX_EST, base, est, qtd, temPet, modeloDe, tinta, atributos, forca, forcaEquipe, custoNivel, subirNivel, juntar, equipar, equiparMelhores, chocar, bonusPet, bonusEquipe, txtBonus, lucroOcioso, coletarOcioso, GOLPES, golpe, cdGolpe, forcaGolpe } from './pets.js';
+import { PETS, RARIDADES, CLASSES, OVOS, BONUS as BONUS_PET, ESTRELAS, MAX_EQUIPE, MAX_NV, MAX_EST, base, est, qtd, temPet, modeloDe, tinta, atributos, forca, forcaEquipe, custoNivel, subirNivel, juntar, equipar, equiparMelhores, chocar, bonusPet, bonusEquipe, txtBonus, lucroOcioso, coletarOcioso, tempoOcioso, lucroHora, MAX_OCIOSO, GOLPES, golpe, cdGolpe, forcaGolpe } from './pets.js';
 import * as CQ from './conquista.js';
 import * as CT from './castelo.js';
 import { MEDALHAS, NIVEIS_MEDALHA, nivelMedalha, pegas, medalhasProntas, premioMedalha, pegarMedalha } from './perfil.js';
@@ -420,6 +420,18 @@ export function abrirLobby() {
   setTimeout(enviarPerfil, 2500); setTimeout(() => salvarDefesa().catch(() => {}), 5000); setTimeout(() => { backupNuvem(!nuvemT); if (S.temSenha == null && S.online?.codigo) ON.temSenha().then(t => { S.temSenha = !!t; salvar(); }).catch(() => {}); }, 4000);
 }
 let diarioVisto = false, resumoFeito = false;
+// ---- notificações do celular (só no APK, que expõe window.Avisos): agenda ao sair, cancela ao voltar ----
+function agendarAvisos() {
+  const A = window.Avisos; if (!A || !S) return; cancelarAvisos();
+  try {
+    const falta = MAX_OCIOSO - tempoOcioso(); if (S.cq?.est > 1 && falta > 60e3) A.agendar(1, Math.round(falta / 1000), tr('Lucro ocioso cheio!'), tr(`Seus pets juntaram ${fmt(lucroHora() * 9)} moedas. Venha coletar!`));
+    const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(10, 0, 0, 0); A.agendar(2, Math.round((d - Date.now()) / 1000), tr('Presente diário pronto!'), tr('Abra o jogo e pegue o presente de hoje.'));
+    A.agendar(3, 26 * 3600, tr('Os orcs estão atacando a ponte!'), tr('Volte e defenda a ponte com seus pets.'));
+  } catch (e) {}
+}
+function cancelarAvisos() { const A = window.Avisos; if (!A) return; try { for (const id of [1, 2, 3]) A.cancelar(id); } catch (e) {} }
+{ const orig = window.__pausar; window.__pausar = p => { orig?.(p); if (p) agendarAvisos(); else cancelarAvisos(); }; }
+document.addEventListener('visibilitychange', () => { if (document.hidden) agendarAvisos(); else cancelarAvisos(); });
 const marcarVisto = () => { S.vistoT = Date.now(); salvar(); };
 setInterval(() => { if (S && tela) marcarVisto(); }, 60e3);
 // ---- bem-vindo de volta: o que aconteceu enquanto a pessoa estava fora ----
