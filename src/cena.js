@@ -539,6 +539,13 @@ const ROT_ARMA = { 'A:crossbow_1handed': [-Math.PI / 2, 0, 0], 'A:crossbow_2hand
 // escudos: de frente, em pé (com a ponta para baixo) no braço esquerdo
 for (const id of ['A:shield_round', 'A:shield_round_color', 'A:shield_round_barbarian', 'A:shield_badge', 'A:shield_badge_color', 'A:shield_square', 'A:shield_square_color',
   'A:shield_spikes', 'A:shield_spikes_color', 'W:shield_A', 'W:shield_B', 'W:shield_C']) ROT_ARMA[id] = [-Math.PI / 2, 0, -Math.PI / 2];
+// chapéu de mago com a aba mais estreita: visto de cima (na ponte) a aba original cobria o herói inteiro
+let geoAba = null;
+function abaMenor(g) {
+  if (geoAba) return geoAba; geoAba = g.clone(); geoAba.computeBoundingBox(); const b = geoAba.boundingBox, cx = (b.min.x + b.max.x) / 2, cz = (b.min.z + b.max.z) / 2, pos = geoAba.attributes.position;
+  for (let i = 0; i < pos.count; i++) { pos.setX(i, cx + (pos.getX(i) - cx) * 0.55); pos.setZ(i, cz + (pos.getZ(i) - cz) * 0.55); }
+  pos.needsUpdate = true; geoAba.computeBoundingSphere(); return geoAba;
+}
 export function heroi(v) {
   if (!H) prepararHerois();
   const raiz = new THREE.Group(), corpo = new THREE.Group(), rig = H.raizOsso.clone(true);
@@ -568,7 +575,7 @@ export function heroi(v) {
       const pt = H.partes[o + ':' + p]; if (!pt) continue;
       let mat = matsAtlas.get(pt.atlas.id);
       if (!mat) { mat = pt.mat.clone(); const t = texturaPintada(pt.atlas, nv, extra); if (t) mat.map = t; matsAtlas.set(pt.atlas.id, mat); mats.push(mat); }
-      const sm = new THREE.SkinnedMesh(pt.geo, mat); sm.bind(esq, pt.bind); sm.castShadow = true; sm.frustumCulled = false;
+      const sm = new THREE.SkinnedMesh(o === 'Mage' && p === 'Hat' ? abaMenor(pt.geo) : pt.geo, mat); sm.bind(esq, pt.bind); sm.castShadow = true; sm.frustumCulled = false;
       corpo.add(sm); malhas.push(sm);
     }
     const arco = /bow/.test(nv.arma || ''); // o arco vai na mão esquerda (as animações de arco puxam a corda com a direita)
