@@ -91,7 +91,55 @@ export const cancelar = () => S.online?.codigo ? rpc('ponte_cancelar', id()).cat
 export const procurando = () => rpc('ponte_procurando');
 
 // canal ao vivo da sala (Supabase Realtime, protocolo Phoenix): mensagens curtas entre os dois celulares
-export function conectarSala(sala, aoReceber) {
+// sala da dupla: tenta ligar os dois celulares direto (WebRTC, sem gastar o Supabase);
+// o Supabase só apresenta um ao outro e fica de reserva se a ligação direta não sair ou cair
+const STUN = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }, { urls: 'stun:stun.cloudflare.com:3478' }];
+const RAPIDOS = new Set(['s', 'h', 'pi', 'po']); // mensagens que podem se perder (a próxima corrige)
+export function conectarSala(sala, aoReceber, host = false) {
+  let pc = null, rel = null, rap = null, direto = false, fechado = false, pendentes = [], tentativas = 0, ofT = 0;
+  const ok = () => direto && rel?.readyState === 'open';
+  const receber = e => { let m; try { m = JSON.parse(e.data); } catch (er) { return; } if (Array.isArray(m)) aoReceber(m[0], m[1] || {}); };
+  const canal = (dc, rapido) => { dc.onmessage = receber;
+    if (!rapido) { dc.onopen = () => { direto = true; }; dc.onclose = () => { if (rel === dc) { direto = false; if (!fechado && host) setTimeout(() => { if (!direto && !fechado) oferta(); }, 1500); } }; }
+    return dc; };
+  const novaConexao = () => {
+    try { pc?.close(); } catch (e) {} direto = false; pendentes = [];
+    pc = new RTCPeerConnection({ iceServers: STUN });
+    pc.onicecandidate = e => { if (e.candidate) sb.enviar('rtc-ice', { c: e.candidate.toJSON() }); };
+    pc.ondatachannel = e => { if (e.channel.label === 'rap') rap = canal(e.channel, true); else rel = canal(e.channel, false); };
+    pc.onconnectionstatechange = () => { if (pc && ['failed', 'closed'].includes(pc.connectionState)) direto = false; };
+  };
+  const oferta = async () => { // só o host oferece
+    if (fechado || typeof RTCPeerConnection === 'undefined') return;
+    ofT = Date.now(); try { novaConexao(); rel = canal(pc.createDataChannel('rel'), false); rap = canal(pc.createDataChannel('rap', { ordered: false, maxRetransmits: 0 }), true);
+      await pc.setLocalDescription(await pc.createOffer()); sb.enviar('rtc-of', { d: pc.localDescription.toJSON() }); } catch (e) {}
+  };
+  const sinal = async (ev, p) => {
+    if (typeof RTCPeerConnection === 'undefined') return;
+    try {
+      if (ev === 'rtc-oi') { if (host) { if (!ok() && Date.now() - ofT > 5000) oferta(); } else if (!ok()) sb.enviar('rtc-oi', {}); }
+      if (ev === 'rtc-of' && !host && p.d) { novaConexao(); await pc.setRemoteDescription(p.d); await pc.setLocalDescription(await pc.createAnswer()); sb.enviar('rtc-re', { d: pc.localDescription.toJSON() });
+        for (const c of pendentes) await pc.addIceCandidate(c); pendentes = []; }
+      if (ev === 'rtc-re' && host && p.d && pc && !pc.remoteDescription) { await pc.setRemoteDescription(p.d); for (const c of pendentes) await pc.addIceCandidate(c); pendentes = []; }
+      if (ev === 'rtc-ice' && p.c && pc) { if (pc.remoteDescription) await pc.addIceCandidate(p.c); else pendentes.push(p.c); }
+    } catch (e) {}
+  };
+  const sb = salaSupabase(sala, (ev, p) => {
+    if (ev.startsWith('rtc-')) return sinal(ev, p);
+    if ((ev === '_reconectando' || ev === '_caiu') && ok()) return; // a ligação direta segue: ninguém caiu
+    if (ev === '_voltou' || ev === '_aberto') { if (ev === '_voltou') aoReceber(ev, p); if (!ok()) sb.enviar('rtc-oi', {}); return; }
+    aoReceber(ev, p);
+  });
+  // quem não recebeu a oferta pede de novo (o outro pode ter entrado depois)
+  const insistir = () => { if (fechado || ok() || tentativas++ >= 6) return; sb.enviar('rtc-oi', {}); setTimeout(insistir, 3000); }; setTimeout(insistir, 1500);
+  return {
+    enviar(ev, p) { if (ok()) { const dc = RAPIDOS.has(ev) && rap?.readyState === 'open' ? rap : rel; try { dc.send(JSON.stringify([ev, p])); return; } catch (e) {} } sb.enviar(ev, p); },
+    fechar() { fechado = true; direto = false; try { pc?.close(); } catch (e) {} pc = null; sb.fechar(); },
+    get aberto() { return ok() || sb.aberto; },
+    get direto() { return ok(); },
+  };
+}
+function salaSupabase(sala, aoReceber) {
   // sala de tempo real da dupla; se a internet oscilar, reconecta sozinha (até ~20 s) antes de desistir
   const topico = `realtime:ponte-${sala}`;
   let ws, ref = 0, batida = null, aberto = false, fila = [], fechado = false, tentativas = 0;
@@ -104,7 +152,7 @@ export function conectarSala(sala, aoReceber) {
     };
     ws.onmessage = e => {
       let d; try { d = JSON.parse(e.data); } catch (er) { return; }
-      if (d.event === 'phx_reply' && d.topic === topico && !aberto) { aberto = d.payload?.status === 'ok'; if (aberto) { if (tentativas) aoReceber('_voltou', {}); tentativas = 0; } for (const m of fila) mandar(m); fila = []; }
+      if (d.event === 'phx_reply' && d.topic === topico && !aberto) { aberto = d.payload?.status === 'ok'; if (aberto) { aoReceber(tentativas ? '_voltou' : '_aberto', {}); tentativas = 0; } for (const m of fila) mandar(m); fila = []; }
       if (d.event === 'broadcast' && d.payload) aoReceber(d.payload.event, d.payload.payload || {});
     };
     ws.onclose = () => { aberto = false; clearInterval(batida); if (fechado) return;

@@ -970,7 +970,7 @@ async function responderConvite(id, aceita) {
 function pararBusca() { if (busca) busca.ativo = false; busca = null; ON.cancelar(); }
 function comecarDupla(d) {
   const bot = !d.sala; comecarFase(false, { apelido: d.apelido || NOMES_BOT[Math.floor(Math.random() * NOMES_BOT.length)], bot, host: d.host, fase: d.fase || S.fase });
-  if (!bot) { G.dupla.canal = ON.conectarSala(d.sala, (ev, p) => receberDupla(ev, p)); esperarParceiro(); }
+  if (!bot) { G.dupla.canal = ON.conectarSala(d.sala, (ev, p) => receberDupla(ev, p), !!d.host); esperarParceiro(); }
 }
 // os dois começam juntos: cada um avisa "pronto" (com herói e pets) até ouvir o outro (no máximo 8 s esperando)
 const seguidor = () => G?.dupla && !G.dupla.bot && !G.dupla.host && !G.dupla.saiu; // a partida roda no host; o outro só desenha e controla o próprio herói
