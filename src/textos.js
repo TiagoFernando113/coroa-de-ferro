@@ -296,6 +296,7 @@ const T = {
   'Lucro ocioso:': L('Idle profit:', 'Ganancia inactiva:'),
   'ESPERANDO O PARCEIRO...': L('WAITING FOR PARTNER...', 'ESPERANDO AL COMPAÑERO...'), 'VALENDO!': L('GO!', '¡VAMOS!'),
   'RECONECTANDO...': L('RECONNECTING...', 'RECONECTANDO...'), 'CONECTADO!': L('CONNECTED!', '¡CONECTADO!'),
+  'Dano no chefe': L('Boss damage', 'Daño al jefe'), 'MVP:': L('MVP:', 'MVP:'), 'Você': L('You', 'Tú'),
 };
 export const TEXTOS = { en: {}, es: {} };
 for (const [k, v] of Object.entries(T)) { TEXTOS.en[k] = v.en; TEXTOS.es[k] = v.es; }

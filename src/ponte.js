@@ -392,6 +392,7 @@ function montarHud() {
       <div class="pilula guerra" id="jGuerra">${ico('forca')}<b id="jOuro"></b></div>
       <div id="jVagas"></div><div id="jMenuT" hidden></div>
       <div class="jChefe"><b id="jChefeN"></b><div class="barra vm"><i id="jChefeB"></i><span id="jChefeT"></span></div></div>
+      <div class="jEmojis" id="jEmojis" hidden>${['👍', '😂', '🔥', '😱'].map(e => `<button data-emo="${e}">${e}</button>`).join('')}</div>
       <div class="jPoderes"><button class="poder" data-pd="chuva">${ico('h_chuva')}<small>Chuva</small></button><button class="poder" data-pd="gigante">${ico('cav')}<small>Gigante</small></button></div>
       <div class="jMuro">${ico('escudo')}<div class="barra muro"><i id="jMuroB"></i><span id="jMuroT"></span></div></div>
       <p class="jDica" id="jDica">Arraste para mover · as flechas saem sozinhas</p>
@@ -983,6 +984,9 @@ function receberDupla(ev, p) {
   D.visto = performance.now();
   if (D.saiu && D.caiuRede && ev !== 'sair') { D.saiu = false; D.caiuRede = false; if (!G.fim) faixa(`${D.apelido.toUpperCase()} VOLTOU!`, '#7aff8a'); }
   if (ev === 'pd' && !G.fim && !G.espera) { poderDoParceiro(p.id); return; }
+  if (ev === 'pi') { D.canal?.enviar('po', { t: p.t }); return; }
+  if (ev === 'po') { D.ping = Math.round(performance.now() - p.t); return; }
+  if (ev === 'em') { (D.balao ||= []).push({ e: String(p.e).slice(0, 4), t: 0 }); sfx('brilho'); return; }
   if (ev === 'h') { D.px = -p.x; D.pv = -(p.vx || 0); D.pt = performance.now(); D.alvo = Math.max(-MEIA + 2.5, Math.min(MEIA - 2.5, -p.x)); // o parceiro aparece espelhado (do outro lado)
     if (p.hr && HEROIS[p.hr] && p.hr !== D.hr) { D.hr = p.hr; const pos = D.v.raiz.position.clone(); D.v.remover(); D.v = C.heroi(HEROIS[p.hr].visual); D.v.raiz.scale.setScalar(2.4); D.v.raiz.rotation.y = Math.PI; D.v.raiz.position.copy(pos); D.v.tocar('Idle_A'); } }
   if (ev === 'd' && D.host && p.t > D.dano) { const k = p.t - D.dano; D.dano = p.t; if (!G.fim) { G.chefe.hp -= k; G.chefe.flash = 0.06; } }
@@ -998,8 +1002,9 @@ function passoDupla(dt) {
   } else if (D.canal) {
     if (D.tEnvio <= 0) { const vx = (G.heroi.x - (D.xAnt ?? G.heroi.x)) / 0.1; D.xAnt = G.heroi.x; D.tEnvio = 0.1; D.canal.enviar('h', { x: +G.heroi.x.toFixed(2), vx: +vx.toFixed(2), hr: S.heroi });
       if (!D.host && D.meuDano !== D.danoEnviado && (D.tDano -= 0.16) <= 0) { D.tDano = 0.25; D.danoEnviado = D.meuDano; D.canal.enviar('d', { t: D.meuDano }); }
-      if (D.host && !G.espera && (D.tC = (D.tC || 0) - 0.16) <= 0) { D.tC = 0.25; const ch = G.chefe; D.canal.enviar('c', { hp: Math.round(ch.hp), z: +ch.z.toFixed(2), dg: D.dano }); }
+      if (D.host && !G.espera && (D.tC = (D.tC || 0) - 0.16) <= 0) { D.tC = 0.25; const ch = G.chefe; D.canal.enviar('c', { hp: Math.round(ch.hp), z: +ch.z.toFixed(2), dg: D.dano, dh: Math.round(D.meuDano) }); }
       if (D.reforco >= 1 && (D.tRef -= 0.16) <= 0) { D.tRef = 1; D.canal.enviar('r', { n: Math.floor(D.reforco) }); D.reforco -= Math.floor(D.reforco); } }
+    if ((D.tPing = (D.tPing ?? 1) - dt) <= 0) { D.tPing = 2; D.canal.enviar('pi', { t: performance.now() }); }
     if (!D.saiu && D.visto && performance.now() - D.visto > 8000) { D.saiu = true; D.caiuRede = true; faixa(`${D.apelido.toUpperCase()} DESCONECTOU`, '#ff9a3a'); }
     // prevê o movimento do parceiro entre uma mensagem e outra (anda liso mesmo com atraso)
     if (D.pt) { const ad = Math.min(0.25, (performance.now() - D.pt) / 1000); D.alvo = Math.max(-MEIA + 2.5, Math.min(MEIA - 2.5, D.px + D.pv * ad)); }
@@ -1019,6 +1024,12 @@ const GEO_ORBE = new THREE.SphereGeometry(0.45, 10, 8), GEO_ADAGA = new THREE.Bo
 function projetilHeroi(tipo, cor) {
   const geo = tipo === 'orbe' || tipo === 'fogo' ? GEO_ORBE : tipo === 'adaga' ? GEO_ADAGA : tipo === 'virote' ? GEO_VIROTE : GEO_FLECHA;
   const o = new THREE.Mesh(geo, matP(cor)); if (tipo === 'fogo') o.scale.setScalar(1.3); return o;
+}
+// tela final da dupla: dano de cada um no chefe e o MVP
+function placarDupla() {
+  const D = G.dupla, eu = Math.round(D.meuDano || 0), ele = Math.round(D.host ? D.dano || 0 : D.c?.dh || 0), tot = Math.max(1, eu + ele), mvpEu = eu >= ele;
+  const linha = (nome, v, mvp, cls) => `<div class="dpLinha ${cls}"><b data-nt>${mvp ? ico('coroa') : ''}${esc(nome)}</b><div class="dpBarra"><i style="width:${100 * v / tot}%"></i></div><em>${fmt(v)}</em></div>`;
+  return `<div class="dpPlacar"><small>Dano no chefe</small>${linha(S.online?.apelido || 'Você', eu, mvpEu, 'eu')}${linha(D.apelido, ele, !mvpEu, 'ele')}<p class="dpMvp">${ico('coroa')} MVP: <b data-nt>${esc(mvpEu ? (S.online?.apelido || 'Você') : D.apelido)}</b></p></div>`;
 }
 function fimDupla(venceu) { const D = G.dupla; if (D?.canal) D.canal.enviar('f', { v: venceu }); }
 // ---- jogar de novo com o mesmo parceiro: os dois precisam aceitar ----
@@ -1214,6 +1225,7 @@ function clique(e) {
   if (b.dataset.up) { if (comprar(b.dataset.up)) { som('compra'); desenharLobby(); } else som('erro'); }
   if (a === 'jogar') { som('confirma'); comecarFase(); }
   if (a === 'modos') { som('clique'); mostrarModos(); return; }
+  if (b.dataset.emo) { const D = G?.dupla; if (!D || (D.emoT && performance.now() - D.emoT < 1200)) return; D.emoT = performance.now(); (D.balao ||= []).push({ e: b.dataset.emo, t: 0, eu: true }); D.canal?.enviar('em', { e: b.dataset.emo }); som('clique'); return; }
   if (b.dataset.claVer) { som('clique'); verCla(b.dataset.claVer); return; }
   if (a === 'contaRecuperar') { som('clique'); mostrarPerfil(); setTimeout(() => { const d = document.querySelector('#janela details'); if (d) { d.open = true; d.scrollIntoView({ block: 'center' }); } }, 300); return; }
   if (a === 'contaNova') { if (b.dataset.certeza !== '1') { b.dataset.certeza = '1'; b.textContent = tr('Toque de novo para confirmar'); som('clique'); return; }
@@ -1331,6 +1343,7 @@ function comecarFase(inf = false, dupla = null) {
   $('.jPoderes').hidden = !!G.corrida;
 
   if (G.dupla) faixa(`EM DUPLA COM ${G.dupla.apelido.toUpperCase()}!`, '#8ae0ff');
+  const em = $('#jEmojis'); if (em) em.hidden = !G.dupla || G.dupla.bot;
   else { const g0 = G; ON.ajudaAuto(G.n).then(r => { if (G !== g0 || !r) return; setTimeout(() => { if (G !== g0 || G.fim) return; G.fila = Math.min(maxFila(), G.fila + r.soldados);
       faixa(`${r.apelido.toUpperCase()}${r.cla ? ' (CLÃ)' : ''} VEIO AJUDAR! +${r.soldados}`, '#8ae0ff'); sfx('brilho'); }, 5000); }).catch(() => {}); }
   $('#jDica').textContent = G.rotas > 1 ? 'Duas rotas! Seus soldados vão pelo lado do herói' : 'Arraste para mover · toque nas vagas para construir torres';
@@ -1392,6 +1405,7 @@ function terminar(venceu) {
       <p>${venceu ? `${G.chefe.nome} foi derrotado!` : 'Melhore o exército e tente de novo.'}${G.dupla ? ` <b>Em dupla com ${esc(G.dupla.apelido)}: +50% moedas</b>` : ''}</p>
       <div class="ganho">${ico('ouro')}<b id="fGanho">+${fmt(ganho)}</b></div>
       ${venceu ? `<div class="fBau">${bau ? `${bauHtml(bau, 'mini')}<b>${BAUS[bau].nome}!</b>` : `<small>Espaços de baú cheios: abra seus baús!</small>`}</div>` : ''}
+      ${G.dupla && !G.dupla.bot ? placarDupla() : ''}
       ${G.dupla ? `<div id="fDupla"><button class="btn verde grande" data-a="revanche">${ico('herois')} Jogar de novo com ${esc(G.dupla.apelido)}</button><p id="rvTxt" class="pos"></p>
         <button class="btn azul" data-a="sairDupla">Sair</button></div>` : venceu ? `<div class="roleta">${ROLETA.map(m => `<span class="m${m}">x${m}</span>`).join('')}<i id="rAgulha"></i></div>
       <div id="fBotoes"><button class="btn amarelo grande" data-a="roleta">${ico('ouro')} Pegar <b id="rMult">x2</b></button>
@@ -1963,6 +1977,13 @@ function nomeParceiro() {
   const D = G.dupla; if (!D || tela !== 'jogo') return; const p = C.tela(D.x, 7.5, ZH); if (!p) return;
   gfx.font = '16px Titulo, sans-serif'; gfx.textAlign = 'center'; gfx.textBaseline = 'middle'; gfx.lineWidth = 4; gfx.strokeStyle = '#0f2f6a';
   const t = D.saiu ? `${D.apelido} (saiu)` : D.apelido; gfx.strokeText(t, p[0], p[1]); gfx.fillStyle = D.saiu ? '#aab' : '#8ae0ff'; gfx.fillText(t, p[0], p[1]);
+  if (!D.bot && !D.saiu) { // sinal da conexão: verde, amarelo ou vermelho, com o ping
+    const w = gfx.measureText(t).width, x = p[0] + w / 2 + 10, ms = D.ping ?? null, cor = ms == null ? '#aab' : ms < 150 ? '#4ae86a' : ms < 350 ? '#ffd23a' : '#ff5a4a';
+    gfx.beginPath(); gfx.arc(x, p[1], 5, 0, 7); gfx.fillStyle = cor; gfx.fill(); gfx.lineWidth = 2; gfx.strokeStyle = '#0f2f6a'; gfx.stroke();
+    if (ms != null) { gfx.font = '11px Titulo, sans-serif'; gfx.textAlign = 'left'; gfx.lineWidth = 3; gfx.strokeText(`${ms}ms`, x + 8, p[1]); gfx.fillStyle = cor; gfx.fillText(`${ms}ms`, x + 8, p[1]); } }
+  for (const b of D.balao || []) { b.t += 1 / 60; const q = C.tela(b.eu ? G.heroi.x : D.x, 9 + b.t * 1.5, ZH); if (!q) continue; gfx.globalAlpha = Math.max(0, 1 - Math.max(0, b.t - 1.6) / 0.5);
+    gfx.font = `${Math.round(38 * (b.t < 0.12 ? 0.5 + b.t * 4.2 : 1))}px sans-serif`; gfx.textAlign = 'center'; gfx.fillText(b.e, q[0], q[1]); gfx.globalAlpha = 1; }
+  if (D.balao) D.balao = D.balao.filter(b => b.t < 2.1);
 }
 function desenharFx(dt) {
   gfx.clearRect(0, 0, innerWidth, innerHeight); if (!G) return;

@@ -931,3 +931,18 @@ input{font:inherit;user-select:text;-webkit-user-select:text}
 .plLista{padding-bottom:84px}
 .jClaVer .lista{max-height:50vh;overflow:auto;margin:8px 0}.jClaVer .linha{gap:8px}
 .jClaVer .linha .plMini{flex:0 0 44px;width:44px;height:44px}.jClaVer .linha .nomeBtn{flex:1;min-width:0;text-align:left}
+/* ---- dupla: emojis e placar final ---- */
+.jEmojis{position:absolute;right:10px;top:calc(max(10px,env(safe-area-inset-top)) + 150px);display:flex;flex-direction:column;gap:6px;z-index:2}
+.jEmojis button{width:44px;height:44px;border-radius:50%;font-size:24px;background:rgba(10,30,60,.55);border:2px solid rgba(255,255,255,.6)}
+.jEmojis button:active{transform:scale(.9)}
+.dpPlacar{margin:6px 0 10px;padding:8px 10px;border-radius:14px;background:#fff;border:2px solid var(--creme2);text-align:left}
+.dpPlacar > small{color:var(--suave);font-size:12px}
+.dpLinha{display:grid;grid-template-columns:90px 1fr auto;gap:8px;align-items:center;margin:4px 0}
+.dpLinha b{font-family:var(--fT);font-weight:400;font-size:14px;display:flex;align-items:center;gap:3px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.dpLinha b .ico{width:16px;height:16px;color:#f2b51a;flex:none}
+.dpBarra{height:12px;border-radius:6px;background:#efe3c8;overflow:hidden}
+.dpLinha.eu .dpBarra i{display:block;height:100%;background:linear-gradient(#7ac8ff,#2a6ae8)}
+.dpLinha.ele .dpBarra i{display:block;height:100%;background:linear-gradient(#ffb07a,#e8701a)}
+.dpLinha em{font-style:normal;font-family:var(--fT);font-size:14px}
+.dpMvp{margin:6px 0 0;display:flex;align-items:center;justify-content:center;gap:4px;font-family:var(--fT);color:#c8801a}
+.dpMvp .ico{width:18px;height:18px}
