@@ -960,7 +960,13 @@ async function responderConvite(id, aceita) {
 function pararBusca() { if (busca) busca.ativo = false; busca = null; ON.cancelar(); }
 function comecarDupla(d) {
   const bot = !d.sala; comecarFase(false, { apelido: d.apelido || NOMES_BOT[Math.floor(Math.random() * NOMES_BOT.length)], bot, host: d.host, fase: d.fase || S.fase });
-  if (!bot) G.dupla.canal = ON.conectarSala(d.sala, (ev, p) => receberDupla(ev, p));
+  if (!bot) { G.dupla.canal = ON.conectarSala(d.sala, (ev, p) => receberDupla(ev, p)); esperarParceiro(); }
+}
+// os dois começam juntos: cada um avisa "pronto" até ouvir o outro (no máximo 8 s esperando)
+const seguidor = () => G?.dupla && !G.dupla.bot && !G.dupla.host && !G.dupla.saiu; // o host manda no chefe; o outro segue
+function esperarParceiro() {
+  const D = G.dupla; G.espera = 8; faixa('ESPERANDO O PARCEIRO...', '#8ae0ff');
+  const tick = () => { if (G?.dupla !== D || !G.espera) return; D.canal?.enviar('pronto', {}); setTimeout(tick, 700); }; tick();
 }
 function receberDupla(ev, p) {
   const D = G?.dupla; if (!D) return;
@@ -968,10 +974,14 @@ function receberDupla(ev, p) {
   if (ev === 'sair') { D.saiu = true; if (!G.fim) faixa(`${D.apelido.toUpperCase()} SAIU`, '#ff9a3a'); atualizarRevanche(); return; }
   if (ev === 'rv') { D.rvParc = true; if (G.fim) { sfx('brilho'); atualizarRevanche(); tentarRevanche(); } }
   if (ev === 'go') { if (D.rvEu) iniciarRevanche(p.fase); return; }
+  if (ev === 'pronto') { if (G.espera) { D.canal?.enviar('pronto', {}); G.espera = 0; faixa('VALENDO!', '#7aff8a'); } }
+  if (ev === 'c' && !D.host) { D.c = p; return; } // estado do chefe vindo do host
+  if (ev === 'pulo' && !D.host && !G.fim) { const ch = G.chefe; if (!ch.pulo) { ch.pulo = { t: 0, z0: ch.z, z1: p.z1 }; C.aviso(0, p.z1 + 4, 11, 0.9, 0xff3322); faixa('CUIDADO: SALTO!', '#ff9a3a'); } return; }
+  if (ev === 'hab' && !D.host && !G.fim) { const ch = G.chefe; if (!(ch.avisoHab > 0)) iniciarHab(ch); return; }
   D.visto = performance.now();
   if (ev === 'h') { D.alvo = Math.max(-MEIA + 2.5, Math.min(MEIA - 2.5, -p.x)); // o parceiro aparece espelhado (do outro lado)
     if (p.hr && HEROIS[p.hr] && p.hr !== D.hr) { D.hr = p.hr; const pos = D.v.raiz.position.clone(); D.v.remover(); D.v = C.heroi(HEROIS[p.hr].visual); D.v.raiz.scale.setScalar(2.4); D.v.raiz.rotation.y = Math.PI; D.v.raiz.position.copy(pos); D.v.tocar('Idle_A'); } }
-  if (ev === 'd' && p.t > D.dano) { const k = p.t - D.dano; D.dano = p.t; if (!G.fim) { G.chefe.hp -= k; G.chefe.flash = 0.06; } }
+  if (ev === 'd' && D.host && p.t > D.dano) { const k = p.t - D.dano; D.dano = p.t; if (!G.fim) { G.chefe.hp -= k; G.chefe.flash = 0.06; } }
   if (ev === 'r' && p.n > 0 && !G.fim) { G.fila = Math.min(maxFila(), G.fila + p.n); G.txt.push({ x: D.x, y: 5, z: ZSPAWN, txt: `+${p.n} ${D.apelido}`, cor: '#8ae0ff', t: 0, grande: p.n >= 10 }); }
   if (ev === 'f') { D.fim = p.v ? 'v' : 'd'; if (G.fim) atualizarRevanche(); if (p.v && !G.fim) G.chefe.hp = 0; else if (!p.v && !G.fim) faixa(`${D.apelido.toUpperCase()} CAIU! AGUENTE!`, '#ff5a4a'); }
 }
@@ -983,9 +993,13 @@ function passoDupla(dt) {
     if (Math.random() < dt * 0.25) receberDupla('r', { n: 3 + Math.floor(Math.random() * (6 + G.n)) });
   } else if (D.canal) {
     if (D.tEnvio <= 0) { D.tEnvio = 0.16; D.canal.enviar('h', { x: +G.heroi.x.toFixed(2), hr: S.heroi });
-      if (D.meuDano !== D.danoEnviado && (D.tDano -= 0.16) <= 0) { D.tDano = 0.5; D.danoEnviado = D.meuDano; D.canal.enviar('d', { t: D.meuDano }); }
+      if (!D.host && D.meuDano !== D.danoEnviado && (D.tDano -= 0.16) <= 0) { D.tDano = 0.25; D.danoEnviado = D.meuDano; D.canal.enviar('d', { t: D.meuDano }); }
+      if (D.host && !G.espera && (D.tC = (D.tC || 0) - 0.16) <= 0) { D.tC = 0.25; const ch = G.chefe; D.canal.enviar('c', { hp: Math.round(ch.hp), z: +ch.z.toFixed(2), dg: D.dano }); }
       if (D.reforco >= 1 && (D.tRef -= 0.16) <= 0) { D.tRef = 1; D.canal.enviar('r', { n: Math.floor(D.reforco) }); D.reforco -= Math.floor(D.reforco); } }
     if (!D.saiu && D.visto && performance.now() - D.visto > 8000) { D.saiu = true; faixa(`${D.apelido.toUpperCase()} DESCONECTOU`, '#ff9a3a'); }
+    // quem segue: vida e posição do chefe iguais às do host (o próprio dano ainda não confirmado fica descontado)
+    if (seguidor() && D.c && !G.fim) { const ch = G.chefe, alvo = D.c.hp - Math.max(0, D.meuDano - (D.c.dg || 0));
+      ch.hp = Math.min(ch.max, alvo); if (!ch.pulo && !ch.inv) ch.z += (D.c.z - ch.z) * Math.min(1, dt * 5); }
   }
   // herói do parceiro e as flechas dele (derrubam orcs da pista do meio)
   D.x += (D.alvo - D.x) * Math.min(1, dt * 8); D.v.raiz.position.x = D.x; D.v.mixer.update(dt);
@@ -1444,6 +1458,7 @@ function limparVm() { let n = 0; G.vm = G.vm.filter(v => { if (!v.morto) return 
     if (G.reviver && Math.random() < G.reviver && G.az.length < MAXU) { G.az.push(novoAzul(v.x, v.z, v.x)); if (Math.random() < 0.2) C.faiscas(v.x, 1.5, v.z, 0x9aff9a, 6, 3); } } return false; }); G.ouro += n; }
 function passoJogo(dt) {
   if (G.corrida) return passoCorrida(dt);
+  if (G.espera > 0) { G.espera -= dt; if (G.espera <= 0) { G.espera = 0; faixa('VALENDO!', '#7aff8a'); } passoDupla(dt); return; }
   G.t += dt; const h = G.heroi, ch = G.chefe;
   // herói anda e atira
   h.x += (h.alvo - h.x) * Math.min(1, dt * 14);
@@ -1613,7 +1628,8 @@ function passoJogo(dt) {
   if (ch.furia || ch.hab === 'salto') {
     if (ch.furia && Math.random() < dt * 4) C.faiscas((Math.random() - 0.5) * 6, 4 + Math.random() * 6, ch.z, 0xff4a2a, 3, 2);
     G.puloT -= dt;
-    if (G.puloT <= 0 && !ch.pulo && G.t > 8) { G.puloT = ch.hab === 'salto' ? (ch.furia ? 7 : 10) : 11; const z1 = Math.min(ch.z + 10, ZMURO - 8); ch.pulo = { t: 0, z0: ch.z, z1 }; C.aviso(0, z1 + 4, 11, 0.9, 0xff3322); faixa('CUIDADO: SALTO!', '#ff9a3a'); }
+    if (G.puloT <= 0 && !ch.pulo && G.t > 8 && !seguidor()) { G.puloT = ch.hab === 'salto' ? (ch.furia ? 7 : 10) : 11; const z1 = Math.min(ch.z + 10, ZMURO - 8); ch.pulo = { t: 0, z0: ch.z, z1 }; C.aviso(0, z1 + 4, 11, 0.9, 0xff3322); faixa('CUIDADO: SALTO!', '#ff9a3a');
+      if (G.dupla?.host) G.dupla.canal?.enviar('pulo', { z1 }); }
     if (ch.pulo) { const P = ch.pulo; P.t += dt; const k = Math.min(1, P.t / 0.9); ch.z = P.z0 + (P.z1 - P.z0) * k; ch.y = Math.sin(Math.PI * k) * 9;
       if (k >= 1) { ch.pulo = null; ch.y = 0; const zc = ch.z + 4; C.onda(0, zc, 13, 0xff7a2a, 0.6); C.faiscas(0, 1, zc, 0xc8a878, 70, 10); C.camera.tremor = 1.2; G.punch = 1; som('pancada');
         for (const a of G.az) if (Math.hypot(a.x, a.z - zc) < 11) { a.morto = true; arremessar(a.tipo, a, 0, zc, 16); } G.az = G.az.filter(a => !a.morto); if (G.gigante && Math.abs(G.gigante.z - zc) < 12) G.gigante.hp -= 30; } }
@@ -1807,13 +1823,7 @@ const frenteAzul = () => { let z = ZSPAWN; for (const a of G.az) if (a.z < z) z 
 function passoHabilidade(dt) {
   const ch = G.chefe; if (!ch.hab || ch.hab === 'salto' || G.t < 6) return;
   if (ch.avisoHab > 0) { ch.avisoHab -= dt; if (ch.avisoHab <= 0) efeitoHabilidade(ch.hab); }
-  else if ((ch.habT -= dt) <= 0 && !ch.pulo) { ch.habT = ch.furia ? 8 : 11; ch.avisoHab = 1.2; ch.v.tocar('Attack2', { loop: false, reinicia: true });
-    faixa(`${ch.nome.split(',')[0].toUpperCase()} ${AVISOS_HAB[ch.hab]}`, '#ff9a3a');
-    if (ch.hab === 'investida') ch.alvoInv = Math.min(ch.z + 16, ZMURO - 8), C.avisoLinha(0, ch.z + 3, 0, ch.alvoInv - ch.z + 4, 10, 1.2);
-    if (ch.hab === 'chamas') { ch.zFogo = Math.max(ch.z + 8, Math.min(frenteAzul() - 2, ZMURO - 10)); C.aviso(0, ch.zFogo, 7, 1.2, 0xff5a1a); }
-    if (ch.hab === 'gelo') C.aviso(G.heroi.x, ZH, 4, 1.2, 0x6ab8ff);
-    if (ch.hab === 'laser') { ch.laserX = Math.max(-MEIA + 3, Math.min(MEIA - 3, G.heroi.x)); C.avisoLinha(ch.laserX, ch.z + 3, 0, ZH - ch.z, 5, 1.2, 0x9aff3a); }
-    if (ch.hab === 'lingua') C.avisoLinha(0, ch.z + 3, 0, Math.max(6, frenteAzul() - ch.z), 7, 1.2, 0xff6aa0); }
+  else if ((ch.habT -= dt) <= 0 && !ch.pulo && !seguidor()) { iniciarHab(ch); if (G.dupla?.host) G.dupla.canal?.enviar('hab', {}); }
   // efeitos que duram
   if (ch.inv) { const I = ch.inv; I.t += dt; const k = Math.min(1, I.t / 0.6); const z0 = ch.z; ch.z = I.z0 + (I.z1 - I.z0) * k;
     for (const a of G.az) if (!a.morto && a.z > z0 && a.z < ch.z + 6 && Math.abs(a.x) < 6) { a.morto = true; arremessar(a.tipo, a, a.x, ch.z, 14); }
@@ -1826,6 +1836,15 @@ function passoHabilidade(dt) {
   if (ch.escudoT > 0) { ch.escudoT -= dt; ch.bolha.position.set(0, 6 + ch.y, ch.z); ch.bolha.scale.setScalar(9 + Math.sin(G.t * 8) * 0.4); if (ch.escudoT <= 0) { cena.remove(ch.bolha); ch.bolha = null; faixa('ESCUDO QUEBROU!', '#8ae0ff'); } }
   if (ch.curaT > 0) { const k = Math.min(dt, ch.curaT); ch.curaT -= dt; ch.hp = Math.min(ch.max, ch.hp + ch.max * 0.035 * k); if (Math.random() < dt * 25) C.faiscas((Math.random() - 0.5) * 6, 3 + Math.random() * 6, ch.z, 0x6aff6a, 2, 2); }
   if (G.congelado > 0) { G.congelado -= dt; G.tonto = Math.max(G.tonto, 0.05); if (Math.random() < dt * 12) C.faiscas(G.heroi.x, 3, ZH, 0xbfe8ff, 2, 2); G.brilhoH = Math.max(G.brilhoH, 0.4); }
+}
+function iniciarHab(ch) {
+  ch.habT = ch.furia ? 8 : 11; ch.avisoHab = 1.2; ch.v.tocar('Attack2', { loop: false, reinicia: true });
+    faixa(`${ch.nome.split(',')[0].toUpperCase()} ${AVISOS_HAB[ch.hab]}`, '#ff9a3a');
+    if (ch.hab === 'investida') ch.alvoInv = Math.min(ch.z + 16, ZMURO - 8), C.avisoLinha(0, ch.z + 3, 0, ch.alvoInv - ch.z + 4, 10, 1.2);
+    if (ch.hab === 'chamas') { ch.zFogo = Math.max(ch.z + 8, Math.min(frenteAzul() - 2, ZMURO - 10)); C.aviso(0, ch.zFogo, 7, 1.2, 0xff5a1a); }
+    if (ch.hab === 'gelo') C.aviso(G.heroi.x, ZH, 4, 1.2, 0x6ab8ff);
+    if (ch.hab === 'laser') { ch.laserX = Math.max(-MEIA + 3, Math.min(MEIA - 3, G.heroi.x)); C.avisoLinha(ch.laserX, ch.z + 3, 0, ZH - ch.z, 5, 1.2, 0x9aff3a); }
+    if (ch.hab === 'lingua') C.avisoLinha(0, ch.z + 3, 0, Math.max(6, frenteAzul() - ch.z), 7, 1.2, 0xff6aa0); 
 }
 function efeitoHabilidade(hab) {
   const ch = G.chefe;
