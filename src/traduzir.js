@@ -1,6 +1,6 @@
-// Tradução das mensagens do chat do clã (só deste jogo): MyMemory (grátis, sem chave) e, se falhar, o tradutor público do Google.
+// Tradução das mensagens do chat do clã (só deste jogo): tradutor público do Google (melhor com gíria) e, se falhar, MyMemory.
 // Só traduz quando o jogador toca em "Traduzir"; a primeira tradução de cada mensagem fica salva no servidor para os próximos.
-const CHAVE = 'ponte_trad', MAX = 300;
+const CHAVE = 'ponte_trad2', MAX = 300;
 let cache = {};
 try { cache = JSON.parse(localStorage.getItem(CHAVE)) || {}; } catch (e) {}
 const pendentes = {};
@@ -34,7 +34,7 @@ export function traduzir(id, txt, para = idioma()) {
   if (!precisa(txt)) return Promise.resolve(null);
   return pendentes[k] ||= (async () => {
     let r = null;
-    try { r = await memory(txt, para); } catch (e) { try { r = await google(txt, para); } catch (e2) { return null; } }
+    try { r = await google(txt, para); } catch (e) { try { r = await memory(txt, para); } catch (e2) { return null; } }
     const v = !r || !r.tr || curto(r.de) === curto(para) || r.tr.trim().toLowerCase() === txt.trim().toLowerCase() ? null : { de: curto(r.de), tr: r.tr };
     guardar(k, v); return v;
   })().finally(() => { delete pendentes[k]; });

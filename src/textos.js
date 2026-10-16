@@ -293,6 +293,7 @@ const T = {
   'Individual': L('Individual', 'Individual'), 'Rank': L('Rank', 'Rango'), 'Jogador': L('Player', 'Jugador'), 'Valor': L('Value', 'Valor'), 'Nível': L('Level', 'Nivel'),
   'fase': L('stage', 'fase'), 'estágio': L('stage', 'fase'), 'onda': L('wave', 'oleada'), 'Ninguém ainda.': L('Nobody yet.', 'Nadie aún.'),
   'Pedir para entrar': L('Request to join', 'Pedir para entrar'), 'Entrar no clã': L('Join clan', 'Unirse al clan'),
+  'Lucro ocioso:': L('Idle profit:', 'Ganancia inactiva:'),
 };
 export const TEXTOS = { en: {}, es: {} };
 for (const [k, v] of Object.entries(T)) { TEXTOS.en[k] = v.en; TEXTOS.es[k] = v.es; }
