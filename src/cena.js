@@ -628,6 +628,10 @@ export function remover(o) { scene.remove(o); }
 
 // ---------------- efeitos ----------------
 const efeitos = [];
+// dupla: o host grava os efeitos que cria para o parceiro ver os mesmos (o parceiro repete com repetirFx)
+let gancho = null;
+export const ganchoFx = f => { gancho = f; };
+export function repetirFx(k, a) { const f = { f: faiscas, o: onda, a: aviso, l: avisoLinha, x: feixe, c: clarao, i: impacto }[k]; if (f) f(...a); }
 const MAT_ADD = c => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.9, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
 export function arco(x, z, ang, raio, arcoGraus, cor = 0xffffff) { // rastro de golpe
   const th = arcoGraus * Math.PI / 180, g = new THREE.RingGeometry(raio * 0.72, raio, 24, 1, -th / 2, th);
@@ -636,11 +640,13 @@ export function arco(x, z, ang, raio, arcoGraus, cor = 0xffffff) { // rastro de 
 }
 const GEO_ANEL_ONDA = new THREE.RingGeometry(0.85, 1, 40);
 export function onda(x, z, raio, cor = 0xffffff, dur = 0.4) { // anel que expande
+  gancho?.('o', [x, z, raio, cor, dur]);
   const m = new THREE.Mesh(GEO_ANEL_ONDA, MAT_ADD(cor)); m.rotation.x = -Math.PI / 2; m.position.set(x, 0.15 + chao(x, z), z);
   scene.add(m); efeitos.push({ o: m, t: 0, dur, tipo: 'onda', raio });
 }
 // aviso no chão que enche até o impacto (inimigo = vermelho, herói = azul)
 export function aviso(x, z, raio, dur, cor = 0xff3322) {
+  gancho?.('a', [x, z, raio, dur, cor]);
   const g = new THREE.Group(), base = new THREE.MeshBasicMaterial({ color: cor, transparent: true, opacity: 0.22, depthWrite: false });
   const disco = new THREE.Mesh(new THREE.CircleGeometry(1, 36), base); const cheio = new THREE.Mesh(new THREE.CircleGeometry(1, 36), base.clone());
   const anel = new THREE.Mesh(new THREE.RingGeometry(0.94, 1, 48), new THREE.MeshBasicMaterial({ color: cor, transparent: true, opacity: 0.85, depthWrite: false }));
@@ -657,6 +663,7 @@ function avisoForma(geo, x, z, ang, dur, cor, eixo) {
   const e = { o: g, t: 0, dur, tipo: 'aviso', cheio, eixo }; efeitos.push(e); return e;
 }
 export function avisoLinha(x, z, ang, comp, larg, dur, cor = 0xff3322) {
+  gancho?.('l', [x, z, ang, comp, larg, dur, cor]);
   return avisoForma(new THREE.PlaneGeometry(larg, comp).rotateX(-Math.PI / 2).translate(0, 0, comp / 2), x, z, ang, dur, cor, 'z');
 }
 export function avisoCone(x, z, ang, raio, abertura, dur, cor = 0xff3322) {
@@ -692,10 +699,12 @@ function criarPontos() {
 const corTmp = new THREE.Color();
 // feixe de luz entre dois pontos (raio em cadeia)
 export function feixe(x1, z1, x2, z2, cor = 0xc9a0ff) {
+  gancho?.('x', [x1, z1, x2, z2, cor]);
   const d = Math.hypot(x2 - x1, z2 - z1), m = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.25, d), MAT_ADD(cor));
   m.position.set((x1 + x2) / 2, 1.8 + chao((x1 + x2) / 2, (z1 + z2) / 2), (z1 + z2) / 2); m.rotation.y = Math.atan2(x2 - x1, z2 - z1); scene.add(m); efeitos.push({ o: m, t: 0, dur: 0.3, tipo: 'fade' });
 }
 export function faiscas(x, y, z, cor, n = 10, forca = 3) {
+  gancho?.('f', [x, y, z, cor, n, forca]);
   corTmp.set(cor); if (qualidade === 'baixa') n = Math.ceil(n / 2);
   for (let i = 0; i < n && part.length < MAXP; i++) {
     const a = Math.random() * 6.28, v = forca * (0.4 + Math.random());
@@ -705,13 +714,16 @@ export function faiscas(x, y, z, cor, n = 10, forca = 3) {
 
 // ---- impactos de luta: clarão que estoura + faíscas + anel no chão ----
 export function clarao(x, y, z, cor = 0xffffff, tam = 1.4, dur = 0.16) {
+  gancho?.('c', [x, y, z, cor, tam, dur]);
   const m = new THREE.Mesh(GEO_BOLA, MAT_ADD(cor)); m.position.set(x, y + chao(x, z), z); m.scale.setScalar(tam * 0.35); scene.add(m);
   efeitos.push({ o: m, t: 0, dur, tipo: 'clarao', tam });
 }
 export function impacto(x, y, z, cor = 0xffffff, forca = 1) {
+  const g = gancho; g?.('i', [x, y, z, cor, forca]); gancho = null; // as partes do impacto não se gravam de novo
   clarao(x, y, z, cor, 1.1 + 0.6 * forca, 0.14 + 0.05 * forca); clarao(x, y, z, 0xffffff, 0.6 + 0.3 * forca, 0.1);
   faiscas(x, y, z, cor, Math.round(6 + 6 * forca), 3 + 2 * forca);
   if (forca >= 1) onda(x, z, 1.6 + 1.4 * forca, cor, 0.22 + 0.06 * forca);
+  gancho = g;
 }
 // ---------------- câmera e quadro ----------------
 export const camera = { yaw: Math.PI, pitch: 0.72, dist: 12, alvo: new THREE.Vector3(), tremor: 0, suave: 10 };
