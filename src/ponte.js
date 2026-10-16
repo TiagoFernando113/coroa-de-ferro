@@ -1098,10 +1098,11 @@ function passoConvidado(dt) {
 }
 function passoDupla(dt) {
   const D = G.dupla; if (!D) return; D.tEnvio -= dt; D.tTiro -= dt;
-  if (D.bot) { // parceiro do computador: anda, atira, causa dano e manda reforços
-    D.tBot -= dt; if (D.tBot <= 0) { D.tBot = 2 + Math.random() * 3; D.alvo = (Math.random() - 0.5) * 2 * (MEIA - 3); }
-    D.danoBot += dt * G.chefe.max * 0.004 * (G.t > 4 ? 1 : 0); if (D.danoBot >= 1) { const k = Math.floor(D.danoBot); D.danoBot -= k; G.chefe.hp -= k; D.danoP = (D.danoP || 0) + k; }
-    if (Math.random() < dt * 0.25) { const n = 3 + Math.floor(Math.random() * (6 + G.n)); G.fila = Math.min(maxFila(), G.fila + n); G.txt.push({ x: D.x, y: 5, z: ZSPAWN, txt: `+${n} ${D.apelido}`, cor: '#8ae0ff', t: 0, grande: n >= 10 }); }
+  if (D.bot) { // parceiro do computador: joga na mesma ponte (pilhas quando dá, orcs quando apertam) e usa o poder
+    D.tr ??= G.tiro; D.nf ??= G.nFlechas; D.pf ??= G.perfura;
+    D.tBot -= dt; if (D.tBot <= 0) { D.tBot = 2 + Math.random() * 3; const perigo = G.vm.some(v => v.z > ZMURO - 30), lados = [0, 1].filter(k => G.pistas[k].length);
+      D.alvo = !perigo && lados.length && Math.random() < 0.7 ? (lados[Math.floor(Math.random() * lados.length)] ? 1 : -1) * XL : (Math.random() - 0.5) * 2 * (XC - 1); }
+    if (!G.pausa && (D.tPoder = (D.tPoder ?? 12) - dt) <= 0 && G.vm.length > 8) { D.tPoder = 16 + Math.random() * 8; poderDoParceiro(HEROIS[D.hr]?.poder?.id || 'chuva'); }
   } else if (D.canal) {
     if (D.host) { if ((D.tFoto = (D.tFoto ?? 0) - dt) <= 0) { D.tFoto = 0.15; D.canal.enviar('s', fotoDupla()); } }
     else if (D.tEnvio <= 0) { const vx = (G.heroi.x - (D.xAnt ?? G.heroi.x)) / 0.1; D.xAnt = G.heroi.x; D.tEnvio = 0.1;
@@ -1115,8 +1116,6 @@ function passoDupla(dt) {
   // herói do parceiro e os pets dele: no host as flechas valem de verdade; no outro celular são só o visual
   D.x += (D.alvo - D.x) * Math.min(1, dt * 12); D.v.raiz.position.x = D.x; D.v.mixer.update(dt);
   const atira = !D.saiu && !G.pausa && !G.espera && D.fim !== 'd';
-  if (D.bot) { if (atira && D.tTiro <= 0) { D.tTiro = 0.4; D.v.tocar('Ranged_Magic_Shoot', { loop: false, reinicia: true });
-    const A = HEROIS[D.hr]?.ataque, o = A ? projetilHeroi(A.proj, A.cor) : new THREE.Mesh(GEO_FLECHA, MAT_FLECHA_P); o.position.set(D.x, 2.6, ZH - 1); cena.add(o); G.flechas.push({ x: D.x, z: ZH - 1, o, parc: true, perf: 0, dano: 1 }); } return; }
   if (atira && !D.tn && D.tTiro <= 0) { const H = HEROIS[D.hr] || HEROIS.lyra, A = H.ataque, nf = Math.max(1, Math.min(8, D.nf || 1)); D.tTiro = 1 / Math.max(0.3, D.tr || 1.5);
     D.v.tocar(D.v.tem(H.tiro) ? H.tiro : 'Ranged_Bow_Release', { loop: false, reinicia: true, vel: Math.max(1.2, (D.tr || 1.5) * 0.6) });
     for (let k = 0; k < nf; k++) { const x = D.x + (k - (nf - 1) / 2) * 1.1, o = projetilHeroi(A.proj, A.cor); o.position.set(x, 2.6, ZH - 1); cena.add(o);
@@ -1128,7 +1127,6 @@ function passoDupla(dt) {
       G.flechas.push({ x: p.x, z: ZH + p.dz - 1, o, dano: p.dano, perf: 0, area: 0, proj: 'orbe', dono: true }); p.v.tocar('Attack', { loop: false, reinicia: true }); p.atk = 0.5; }
     if ((p.atk -= dt) <= 0) p.v.tocar(anda ? 'Gallop' : 'Idle'); });
 }
-const MAT_FLECHA_P = new THREE.MeshBasicMaterial({ color: 0x8ae0ff });
 // projéteis de cada herói (materiais em cache por cor)
 const MATS_P = {}, matP = c => MATS_P[c] ||= new THREE.MeshBasicMaterial({ color: c });
 const GEO_ORBE = new THREE.SphereGeometry(0.45, 10, 8), GEO_ADAGA = new THREE.BoxGeometry(0.12, 0.12, 1.1), GEO_VIROTE = new THREE.CylinderGeometry(0.1, 0.1, 1.6, 5).rotateX(Math.PI / 2);
@@ -1535,7 +1533,7 @@ function terminar(venceu) {
       <p>${venceu ? `${G.chefe.nome} foi derrotado!` : 'Melhore o exército e tente de novo.'}${G.dupla ? ` <b>Em dupla com ${esc(G.dupla.apelido)}: +50% moedas</b>` : ''}</p>
       <div class="ganho">${ico('ouro')}<b id="fGanho">+${fmt(ganho)}</b></div>
       ${venceu ? `<div class="fBau">${bau ? `${bauHtml(bau, 'mini')}<b>${BAUS[bau].nome}!</b>` : `<small>Espaços de baú cheios: abra seus baús!</small>`}</div>` : ''}
-      ${G.dupla && !G.dupla.bot ? placarDupla() : ''}
+      ${G.dupla ? placarDupla() : ''}
       ${G.dupla ? `<div id="fDupla"><button class="btn verde grande" data-a="revanche">${ico('herois')} Jogar de novo com ${esc(G.dupla.apelido)}</button><p id="rvTxt" class="pos"></p>
         <button class="btn azul" data-a="sairDupla">Sair</button></div>` : venceu ? `<div class="roleta">${ROLETA.map(m => `<span class="m${m}">x${m}</span>`).join('')}<i id="rAgulha"></i></div>
       <div id="fBotoes"><button class="btn amarelo grande" data-a="roleta">${ico('ouro')} Pegar <b id="rMult">x2</b></button>
@@ -1826,7 +1824,6 @@ function passoFlechas(dt, vis, grade, K) {
     if (f.morta) continue; f.z -= (f.proj === 'orbe' ? 70 : 95) * dt; f.o.position.z = f.z; if (f.proj === 'adaga') f.o.rotation.x += dt * 25;
     const ax = Math.abs(f.x);
     if (f.z < ZLANE && ax > DIV - 0.9 && ax < DIV + 0.9) { f.morta = true; continue; } // bateu na divisória
-    if (f.parc && (ax >= DIV + 0.9 || f.z <= ch.z + 3)) { if (f.z < ZLANE || f.z <= ch.z + 3) f.morta = true; continue; }
     if (ax >= DIV + 0.9) { // pista lateral: acerta a primeira pilha
       const p = G.pistas[f.x < 0 ? 0 : 1], b = p[0];
       if (b && f.z <= b.z + 2) { f.morta = true; if (vis) C.faiscas(b.mesh.position.x + (Math.random() - 0.5) * 6, 2, b.z + 1.5, 0xffffff, 3, 2); else acertarBloco(b, p, f.x < 0 ? -1 : 1, f.dano || 1, f.dono); }
@@ -2151,8 +2148,9 @@ function acertarBloco(b, pista, lado, dano = 1, parc = false) {
     som('pancada', 0.5); C.faiscas(b.mesh.position.x, 2, b.z, 0x8a5a2b, 40, 7); C.camera.tremor = 0.3;
   } else if (b.hp > dano) { // pilha resistente: encolhe a cada flechada
     b.hp -= dano; b.mesh.scale.y = 0.45 + 0.55 * b.hp / b.hpMax; b.mesh.position.y = 1.2 * b.mesh.scale.y; C.faiscas(b.mesh.position.x + (Math.random() - 0.5) * 6, 2, b.z + 1.5, 0xffffff, 3, 2); return;
-  } else if (b.tipo === 'poder' && parc && G.dupla && !G.dupla.bot) { // flecha do parceiro: o bônus é dele
-    G.dupla.canal?.enviar('bn', { p: b.p }); C.faiscas(b.mesh.position.x, 2, b.z + 1, 0xc88aff, 40, 7);
+  } else if (b.tipo === 'poder' && parc && G.dupla) { // flecha do parceiro: o bônus é dele
+    const D = G.dupla; if (D.bot) { if (b.p === 'flecha') D.nf = Math.min(G.flechasMax, (D.nf || 1) + 1); else D.tr = Math.min(G.tiroMax, (D.tr || 1.5) * 1.35); } else D.canal?.enviar('bn', { p: b.p });
+    C.faiscas(b.mesh.position.x, 2, b.z + 1, 0xc88aff, 40, 7); C.faiscas(D.x, 3, ZH, 0xc88aff, 30, 5);
   } else if (b.tipo === 'poder') {
     poderPilha(b.p); C.faiscas(b.mesh.position.x, 2, b.z + 1, 0xc88aff, 40, 7);
   } else {
