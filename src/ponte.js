@@ -218,7 +218,7 @@ function redesenharBarreira(b) {
   g.fillStyle = '#6a4220'; g.fillRect(0, 0, 256, 96); g.fillStyle = '#8a5a2b'; for (let i = 0; i < 4; i++) g.fillRect(4, 4 + i * 23, 248, 19);
   g.fillStyle = '#7a7f86'; g.fillRect(0, 0, 18, 96); g.fillRect(238, 0, 18, 96);
   g.font = '64px Titulo, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineWidth = 8; g.strokeStyle = 'rgba(0,0,0,.6)';
-  g.strokeText(b.hp, 128, 52); g.fillStyle = '#fff'; g.fillText(b.hp, 128, 52); b.tex.needsUpdate = true;
+  const t = String(Math.max(0, Math.ceil(b.hp))); g.strokeText(t, 128, 52); g.fillStyle = '#fff'; g.fillText(t, 128, 52); b.tex.needsUpdate = true;
 }
 
 // eventos de fase (a partir da fase 3, ~70% das fases): mudam o clima e as regras
