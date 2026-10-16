@@ -801,12 +801,12 @@ export function tingirOuro(raiz, clonar = true, cor = 0xffd23a) { // pets com es
   const c = new THREE.Color(cor), em = c.clone().multiplyScalar(0.2);
   raiz.traverse(o => { if (!o.isMesh) return; if (clonar) o.material = o.material.clone(); o.material.color?.lerp(c, 0.45); o.material.emissive?.copy(em); });
 }
-export function retrato(nome, { cor = null, tam = 160 } = {}) {
-  const k = nome + (cor ?? '') + tam; if (retratos[k]) return retratos[k];
+export function retrato(nome, { cor = null, tam = 160, anim = 'Idle', tempo = 0.4 } = {}) {
+  const k = nome + (cor ?? '') + tam + anim + tempo; if (retratos[k]) return retratos[k];
   const gltf = modelos[nome]; if (!gltf || !renderer) return '';
   const cn = new THREE.Scene(); cn.add(new THREE.HemisphereLight(0xffffff, 0x6a5a8a, 2.2)); const l = new THREE.DirectionalLight(0xffffff, 2.4); l.position.set(3, 6, 8); cn.add(l);
   const corpo = SkeletonUtils.clone(gltf.scene); cn.add(corpo); if (cor != null) tingirOuro(corpo, true, cor);
-  const ida = gltf.animations.find(a => a.name === 'Idle'); if (ida) { const mx = new THREE.AnimationMixer(corpo); mx.clipAction(ida).play(); mx.update(0.4); }
+  const ida = gltf.animations.find(a => a.name === anim) || gltf.animations.find(a => a.name === 'Idle'); if (ida) { const mx = new THREE.AnimationMixer(corpo); mx.clipAction(ida).play(); mx.update(tempo); }
   corpo.rotation.y = 0.45;
   const b = caixaPose(corpo), c = b.getCenter(new THREE.Vector3()), s = b.getSize(new THREE.Vector3()), r = Math.max(s.y, s.x * 0.9) * 0.62;
   const cm = new THREE.PerspectiveCamera(30, 1, 0.1, 100), d = r / Math.tan(Math.PI / 12);

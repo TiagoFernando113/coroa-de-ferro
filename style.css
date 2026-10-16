@@ -946,3 +946,10 @@ input{font:inherit;user-select:text;-webkit-user-select:text}
 .dpLinha em{font-style:normal;font-family:var(--fT);font-size:14px}
 .dpMvp{margin:6px 0 0;display:flex;align-items:center;justify-content:center;gap:4px;font-family:var(--fT);color:#c8801a}
 .dpMvp .ico{width:18px;height:18px}
+/* figurinhas da dupla */
+.jEmojis .emoAbrir{width:50px;height:50px;border-radius:50%;background:linear-gradient(#ffd27a,#e8901a);border:3px solid #fff;box-shadow:0 3px 0 #8a4a14;display:grid;place-items:center;font-size:0}
+.jEmojis .emoAbrir .ico{width:28px;height:28px;color:#fff}
+.emoPainel{position:absolute;right:58px;top:0;display:grid;grid-template-columns:repeat(3,72px);gap:6px;padding:8px;border-radius:16px;background:rgba(255,248,236,.96);border:3px solid #fff;box-shadow:0 6px 16px rgba(0,0,0,.35)}
+.emoPainel button{width:72px;height:auto!important;border-radius:12px!important;background:#fff!important;border:2px solid var(--creme2)!important;display:flex;flex-direction:column;align-items:center;padding:2px;font-size:0}
+.emoPainel img{width:56px;height:56px;object-fit:contain}
+.emoPainel small{font-family:var(--fT);font-size:11px;color:#5a2e08;white-space:nowrap}
