@@ -92,23 +92,29 @@ export const procurando = () => rpc('ponte_procurando');
 
 // canal ao vivo da sala (Supabase Realtime, protocolo Phoenix): mensagens curtas entre os dois celulares
 export function conectarSala(sala, aoReceber) {
+  // sala de tempo real da dupla; se a internet oscilar, reconecta sozinha (até ~20 s) antes de desistir
   const topico = `realtime:ponte-${sala}`;
-  let ws, ref = 0, batida = null, aberto = false, fila = [];
+  let ws, ref = 0, batida = null, aberto = false, fila = [], fechado = false, tentativas = 0;
   const mandar = m => { if (ws?.readyState === 1) ws.send(JSON.stringify({ ...m, ref: String(++ref) })); };
-  ws = new WebSocket(`wss://${BASE}/realtime/v1/websocket?apikey=${CHAVE}&vsn=1.0.0`);
-  ws.onopen = () => {
-    mandar({ topic: topico, event: 'phx_join', payload: { config: { broadcast: { self: false }, presence: { key: '' }, private: false } } });
-    batida = setInterval(() => mandar({ topic: 'phoenix', event: 'heartbeat', payload: {} }), 25000);
+  const abrir = () => {
+    ws = new WebSocket(`wss://${BASE}/realtime/v1/websocket?apikey=${CHAVE}&vsn=1.0.0`);
+    ws.onopen = () => {
+      mandar({ topic: topico, event: 'phx_join', payload: { config: { broadcast: { self: false }, presence: { key: '' }, private: false } } });
+      clearInterval(batida); batida = setInterval(() => mandar({ topic: 'phoenix', event: 'heartbeat', payload: {} }), 25000);
+    };
+    ws.onmessage = e => {
+      let d; try { d = JSON.parse(e.data); } catch (er) { return; }
+      if (d.event === 'phx_reply' && d.topic === topico && !aberto) { aberto = d.payload?.status === 'ok'; if (aberto) { if (tentativas) aoReceber('_voltou', {}); tentativas = 0; } for (const m of fila) mandar(m); fila = []; }
+      if (d.event === 'broadcast' && d.payload) aoReceber(d.payload.event, d.payload.payload || {});
+    };
+    ws.onclose = () => { aberto = false; clearInterval(batida); if (fechado) return;
+      if (tentativas < 8) { tentativas++; if (tentativas === 1) aoReceber('_reconectando', {}); setTimeout(() => { if (!fechado) abrir(); }, Math.min(4000, 600 * tentativas)); }
+      else aoReceber('_caiu', {}); };
   };
-  ws.onmessage = e => {
-    let d; try { d = JSON.parse(e.data); } catch (er) { return; }
-    if (d.event === 'phx_reply' && d.topic === topico && !aberto) { aberto = d.payload?.status === 'ok'; for (const m of fila) mandar(m); fila = []; }
-    if (d.event === 'broadcast' && d.payload) aoReceber(d.payload.event, d.payload.payload || {});
-  };
-  ws.onclose = () => { aberto = false; clearInterval(batida); aoReceber('_caiu', {}); };
+  abrir();
   return {
     enviar(ev, p) { const m = { topic: topico, event: 'broadcast', payload: { type: 'broadcast', event: ev, payload: p } }; if (aberto) mandar(m); else if (fila.length < 20) fila.push(m); },
-    fechar() { clearInterval(batida); ws.onclose = null; try { ws.close(); } catch (e) {} },
+    fechar() { fechado = true; clearInterval(batida); if (ws) ws.onclose = null; try { ws.close(); } catch (e) {} },
     get aberto() { return aberto; },
   };
 }

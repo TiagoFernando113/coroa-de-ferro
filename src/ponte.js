@@ -970,6 +970,8 @@ function esperarParceiro() {
 }
 function receberDupla(ev, p) {
   const D = G?.dupla; if (!D) return;
+  if (ev === '_reconectando') { if (!G.fim) faixa('RECONECTANDO...', '#ffd84a'); return; }
+  if (ev === '_voltou') { if (!G.fim) faixa('CONECTADO!', '#7aff8a'); return; }
   if (ev === '_caiu') { if (!D.saiu) { D.saiu = true; if (!G.fim) faixa(`${D.apelido.toUpperCase()} SAIU`, '#ff9a3a'); atualizarRevanche(); } return; }
   if (ev === 'sair') { D.saiu = true; if (!G.fim) faixa(`${D.apelido.toUpperCase()} SAIU`, '#ff9a3a'); atualizarRevanche(); return; }
   if (ev === 'rv') { D.rvParc = true; if (G.fim) { sfx('brilho'); atualizarRevanche(); tentarRevanche(); } }
@@ -979,7 +981,9 @@ function receberDupla(ev, p) {
   if (ev === 'pulo' && !D.host && !G.fim) { const ch = G.chefe; if (!ch.pulo) { ch.pulo = { t: 0, z0: ch.z, z1: p.z1 }; C.aviso(0, p.z1 + 4, 11, 0.9, 0xff3322); faixa('CUIDADO: SALTO!', '#ff9a3a'); } return; }
   if (ev === 'hab' && !D.host && !G.fim) { const ch = G.chefe; if (!(ch.avisoHab > 0)) iniciarHab(ch); return; }
   D.visto = performance.now();
-  if (ev === 'h') { D.alvo = Math.max(-MEIA + 2.5, Math.min(MEIA - 2.5, -p.x)); // o parceiro aparece espelhado (do outro lado)
+  if (D.saiu && D.caiuRede && ev !== 'sair') { D.saiu = false; D.caiuRede = false; if (!G.fim) faixa(`${D.apelido.toUpperCase()} VOLTOU!`, '#7aff8a'); }
+  if (ev === 'pd' && !G.fim && !G.espera) { poderDoParceiro(p.id); return; }
+  if (ev === 'h') { D.px = -p.x; D.pv = -(p.vx || 0); D.pt = performance.now(); D.alvo = Math.max(-MEIA + 2.5, Math.min(MEIA - 2.5, -p.x)); // o parceiro aparece espelhado (do outro lado)
     if (p.hr && HEROIS[p.hr] && p.hr !== D.hr) { D.hr = p.hr; const pos = D.v.raiz.position.clone(); D.v.remover(); D.v = C.heroi(HEROIS[p.hr].visual); D.v.raiz.scale.setScalar(2.4); D.v.raiz.rotation.y = Math.PI; D.v.raiz.position.copy(pos); D.v.tocar('Idle_A'); } }
   if (ev === 'd' && D.host && p.t > D.dano) { const k = p.t - D.dano; D.dano = p.t; if (!G.fim) { G.chefe.hp -= k; G.chefe.flash = 0.06; } }
   if (ev === 'r' && p.n > 0 && !G.fim) { G.fila = Math.min(maxFila(), G.fila + p.n); G.txt.push({ x: D.x, y: 5, z: ZSPAWN, txt: `+${p.n} ${D.apelido}`, cor: '#8ae0ff', t: 0, grande: p.n >= 10 }); }
@@ -992,17 +996,19 @@ function passoDupla(dt) {
     D.danoBot += dt * G.chefe.max * 0.004 * (G.t > 4 ? 1 : 0); if (D.danoBot >= 1) { const k = Math.floor(D.danoBot); D.danoBot -= k; G.chefe.hp -= k; }
     if (Math.random() < dt * 0.25) receberDupla('r', { n: 3 + Math.floor(Math.random() * (6 + G.n)) });
   } else if (D.canal) {
-    if (D.tEnvio <= 0) { D.tEnvio = 0.16; D.canal.enviar('h', { x: +G.heroi.x.toFixed(2), hr: S.heroi });
+    if (D.tEnvio <= 0) { const vx = (G.heroi.x - (D.xAnt ?? G.heroi.x)) / 0.1; D.xAnt = G.heroi.x; D.tEnvio = 0.1; D.canal.enviar('h', { x: +G.heroi.x.toFixed(2), vx: +vx.toFixed(2), hr: S.heroi });
       if (!D.host && D.meuDano !== D.danoEnviado && (D.tDano -= 0.16) <= 0) { D.tDano = 0.25; D.danoEnviado = D.meuDano; D.canal.enviar('d', { t: D.meuDano }); }
       if (D.host && !G.espera && (D.tC = (D.tC || 0) - 0.16) <= 0) { D.tC = 0.25; const ch = G.chefe; D.canal.enviar('c', { hp: Math.round(ch.hp), z: +ch.z.toFixed(2), dg: D.dano }); }
       if (D.reforco >= 1 && (D.tRef -= 0.16) <= 0) { D.tRef = 1; D.canal.enviar('r', { n: Math.floor(D.reforco) }); D.reforco -= Math.floor(D.reforco); } }
-    if (!D.saiu && D.visto && performance.now() - D.visto > 8000) { D.saiu = true; faixa(`${D.apelido.toUpperCase()} DESCONECTOU`, '#ff9a3a'); }
+    if (!D.saiu && D.visto && performance.now() - D.visto > 8000) { D.saiu = true; D.caiuRede = true; faixa(`${D.apelido.toUpperCase()} DESCONECTOU`, '#ff9a3a'); }
+    // prevê o movimento do parceiro entre uma mensagem e outra (anda liso mesmo com atraso)
+    if (D.pt) { const ad = Math.min(0.25, (performance.now() - D.pt) / 1000); D.alvo = Math.max(-MEIA + 2.5, Math.min(MEIA - 2.5, D.px + D.pv * ad)); }
     // quem segue: vida e posição do chefe iguais às do host (o próprio dano ainda não confirmado fica descontado)
     if (seguidor() && D.c && !G.fim) { const ch = G.chefe, alvo = D.c.hp - Math.max(0, D.meuDano - (D.c.dg || 0));
       ch.hp = Math.min(ch.max, alvo); if (!ch.pulo && !ch.inv) ch.z += (D.c.z - ch.z) * Math.min(1, dt * 5); }
   }
   // herói do parceiro e as flechas dele (derrubam orcs da pista do meio)
-  D.x += (D.alvo - D.x) * Math.min(1, dt * 8); D.v.raiz.position.x = D.x; D.v.mixer.update(dt);
+  D.x += (D.alvo - D.x) * Math.min(1, dt * 12); D.v.raiz.position.x = D.x; D.v.mixer.update(dt);
   if (!D.saiu && D.fim !== 'd' && D.tTiro <= 0) { D.tTiro = 0.4; D.v.tocar('Ranged_Magic_Shoot', { loop: false, reinicia: true });
     const A = HEROIS[D.hr]?.ataque, o = A ? projetilHeroi(A.proj, A.cor) : new THREE.Mesh(GEO_FLECHA, MAT_FLECHA_P); o.position.set(D.x, 2.6, ZH - 1); cena.add(o); G.flechas.push({ x: D.x, z: ZH - 1, o, parc: true, perf: 0, dano: 1 }); }
 }
@@ -1646,11 +1652,12 @@ function passoJogo(dt) {
     if (c.t >= 0.75 && !c.feito) { c.feito = true; let n = 0;
       if (c.o && c.tipo !== 'portal') cena.remove(c.o);
       const nv = G.pd.chuva.nv, raio = c.tipo === 'barril' ? 9 + 0.6 * (nv - 1) : c.tipo === 'portal' ? 11 + 0.6 * (nv - 1) : c.tipo === 'meteoro' ? 9 : 7.5 + 0.5 * (nv - 1);
-      if (c.tipo === 'meteoro') { ferirChefe(Math.round(ch.max * (0.08 + 0.01 * (nv - 1))), 0, ch.z + 3, true); C.faiscas(0, 2, c.z, 0xff6a1a, 90, 12); C.camera.tremor = 1.2; G.punch = 1; som('pancada'); }
+      const fc = c.parc ? () => {} : ferirChefe;
+      if (c.tipo === 'meteoro') { fc(Math.round(ch.max * (0.08 + 0.01 * (nv - 1))), 0, ch.z + 3, true); C.faiscas(0, 2, c.z, 0xff6a1a, 90, 12); C.camera.tremor = 1.2; G.punch = 1; som('pancada'); }
       if (c.tipo === 'barril') { C.faiscas(0, 2, c.z, 0xff9a3a, 70, 11); C.faiscas(0, 2, c.z, 0x6a5a4a, 30, 6); som('pancada'); }
       if (c.tipo === 'portal') C.faiscas(0, 1, c.z, 0xb04aff, 60, 8);
       for (const v of G.vm) if (Math.hypot(v.x, v.z - c.z) < raio) { v.morto = true; n++; arremessar('vm', v, 0, c.z, 9); } limparVm();
-      if (c.tipo !== 'meteoro' && Math.abs(ch.z + 3 - c.z) < 9) ferirChefe(Math.round(ch.max * (0.05 + 0.008 * (G.pd.chuva.nv - 1))), 0, ch.z + 3, true);
+      if (c.tipo !== 'meteoro' && Math.abs(ch.z + 3 - c.z) < 9) fc(Math.round(ch.max * (0.05 + 0.008 * (G.pd.chuva.nv - 1))), 0, ch.z + 3, true);
       if (!c.tipo) C.faiscas(0, 1, c.z, 0xffd84a, 50, 8); C.camera.tremor = Math.max(C.camera.tremor, 0.5); som('pancada', 0.5);
       if (n) G.txt.push({ x: 0, y: 5, z: c.z, txt: `${n} derrotados!`, cor: '#ffd84a', t: 0, grande: true }); }
     if (c.tipo === 'portal' && c.t > 0.75) { const k = Math.max(0, 1 - (c.t - 0.75) / 0.6); c.o.scale.setScalar(12 * k + 0.01); }
@@ -1882,41 +1889,52 @@ const GEO_TORNADO = new THREE.ConeGeometry(2.6, 7, 12, 1, true).rotateX(Math.PI)
 function poderHeroi(id) {
   const ch = G.chefe, nv = G.pd.chuva.nv, h = G.heroi;
   if (id === 'barril') { const z = zDaHorda(), o = new THREE.Mesh(GEO_BARRIL, MAT_BARRIL); o.position.set(h.x, 3, ZH); cena.add(o);
-    G.chuvas.push({ t: 0, z, fl: [], tipo: 'barril', o, x0: h.x }); faixa('BARRIL EXPLOSIVO!', '#ff9a3a'); G.heroiV.tocar('Throw', { loop: false, reinicia: true }); }
+    G.chuvas.push({ t: 0, z, fl: [], tipo: 'barril', o, x0: h.x, parc: !!G.efParc }); faixa('BARRIL EXPLOSIVO!', '#ff9a3a'); animHeroi().tocar('Throw', { loop: false, reinicia: true }); }
   if (id === 'meteoro') { const z = ch.z + 3, o = new THREE.Mesh(GEO_METEORO, MAT_METEORO); o.position.set(0, 60, z + 10); cena.add(o);
-    G.chuvas.push({ t: 0, z, fl: [], tipo: 'meteoro', o }); faixa('METEORO!', '#ff6a1a'); G.heroiV.tocar('Ranged_Magic_Summon', { loop: false, reinicia: true }); sfx('magia'); }
+    G.chuvas.push({ t: 0, z, fl: [], tipo: 'meteoro', o, parc: !!G.efParc }); faixa('METEORO!', '#ff6a1a'); animHeroi().tocar('Ranged_Magic_Summon', { loop: false, reinicia: true }); sfx('magia'); }
   if (id === 'portal') { const z = zDaHorda(), o = new THREE.Mesh(GEO_PORTAL, MAT_PORTAL); o.position.set(0, 0.4, z); o.scale.setScalar(0.1); cena.add(o);
-    G.chuvas.push({ t: 0, z, fl: [], tipo: 'portal', o }); faixa('PORTAL SOMBRIO!', '#c88aff'); G.heroiV.tocar('Ranged_Magic_Spellcasting_Long', { loop: false, reinicia: true }); sfx('magia'); }
+    G.chuvas.push({ t: 0, z, fl: [], tipo: 'portal', o, parc: !!G.efParc }); faixa('PORTAL SOMBRIO!', '#c88aff'); animHeroi().tocar('Ranged_Magic_Spellcasting_Long', { loop: false, reinicia: true }); sfx('magia'); }
   if (id === 'rugido') { // empurra os orcs para trás e os deixa lentos (com medo)
     for (const v of G.vm) { v.z -= 10 + 2 * nv; v.luta = null; } for (const a of G.az) a.luta = null;
-    ch.z -= 3; G.medoT = 4 + 0.5 * nv; C.camera.tremor = 1; G.punch = 1; C.faiscas(h.x, 3, ZH - 3, 0xff9a3a, 60, 10);
-    faixa('RUGIDO! OS ORCS RECUAM!', '#ff9a3a'); G.heroiV.tocar('Cheering', { loop: false, reinicia: true }); som('pancada'); }
+    if (!G.efParc) ch.z -= 3; G.medoT = 4 + 0.5 * nv; C.camera.tremor = 1; G.punch = 1; C.faiscas(h.x, 3, ZH - 3, 0xff9a3a, 60, 10);
+    faixa('RUGIDO! OS ORCS RECUAM!', '#ff9a3a'); animHeroi().tocar('Cheering', { loop: false, reinicia: true }); som('pancada'); }
   if (id === 'escudo') { G.invT = 5 + 0.5 * nv; if (!G.escudoO) { G.escudoO = new THREE.Mesh(new THREE.BoxGeometry(MEIA * 2, 7, 1.2), new THREE.MeshBasicMaterial({ color: 0xffe27a, transparent: true, opacity: 0.35, depthWrite: false })); G.escudoO.position.set(0, 3.5, ZMURO - 0.6); cena.add(G.escudoO); }
-    G.escudoO.visible = true; C.faiscas(0, 4, ZMURO, 0xffe27a, 60, 8); faixa('ESCUDO SAGRADO!', '#ffe27a'); G.heroiV.tocar('Cheering', { loop: false, reinicia: true }); sfx('magia'); }
+    G.escudoO.visible = true; C.faiscas(0, 4, ZMURO, 0xffe27a, 60, 8); faixa('ESCUDO SAGRADO!', '#ffe27a'); animHeroi().tocar('Cheering', { loop: false, reinicia: true }); sfx('magia'); }
   if (id === 'tempestade') { // raios nos orcs mais perto da muralha e um no chefe
     const alvos = G.vm.filter(v => !v.morto).sort((a, b) => b.z - a.z).slice(0, 16 + 2 * nv); let n = 0;
     for (const v of alvos) { v.morto = true; G.mortesVm++; n++; if (n <= 12) C.onda(v.x, v.z, 2.2, 0x7ac8ff, 0.35); voar('vm', v.x, v.z, (Math.random() - 0.5) * 6, 10, -3); if (n % 3 === 0) C.faiscas(v.x, 2, v.z, 0x7ac8ff, 6, 5); }
-    ferirChefe(Math.round(ch.max * (0.03 + 0.005 * (nv - 1))), 0, ch.z + 3, true); C.onda(0, ch.z + 3, 6, 0x7ac8ff, 0.5); C.faiscas(0, 6, ch.z + 3, 0x7ac8ff, 40, 8); limparVm();
-    C.camera.tremor = 0.8; G.punch = 1; faixa('TEMPESTADE DE RAIOS!', '#7ac8ff'); G.heroiV.tocar('Ranged_Magic_Summon', { loop: false, reinicia: true }); sfx('magia'); som('pancada'); }
+    if (!G.efParc) ferirChefe(Math.round(ch.max * (0.03 + 0.005 * (nv - 1))), 0, ch.z + 3, true); C.onda(0, ch.z + 3, 6, 0x7ac8ff, 0.5); C.faiscas(0, 6, ch.z + 3, 0x7ac8ff, 40, 8); limparVm();
+    C.camera.tremor = 0.8; G.punch = 1; faixa('TEMPESTADE DE RAIOS!', '#7ac8ff'); animHeroi().tocar('Ranged_Magic_Summon', { loop: false, reinicia: true }); sfx('magia'); som('pancada'); }
   if (id === 'tornado') { const o = new THREE.Mesh(GEO_TORNADO, MAT_TORNADO), x = Math.max(-XC, Math.min(XC, h.x)); o.position.set(x, 0, ZSPAWN); cena.add(o);
-    G.tornados.push({ o, x, z: ZSPAWN }); faixa('TORNADO DE LÂMINAS!', '#e8f0ff'); G.heroiV.tocar('Throw', { loop: false, reinicia: true }); sfx('magia'); }
+    G.tornados.push({ o, x, z: ZSPAWN }); faixa('TORNADO DE LÂMINAS!', '#e8f0ff'); animHeroi().tocar('Throw', { loop: false, reinicia: true }); sfx('magia'); }
 }
 function usarPoder(k) {
   if (!G || G.fim || tela !== 'jogo') return; const P = G.pd[k]; if (P.cd > 0) { som('erro'); return; }
   P.cd = P.max; const ch = G.chefe; if (G.tut) G.tut.poder = true;
+  if (G.dupla && !G.dupla.bot) G.dupla.canal?.enviar('pd', { id: k === 'chuva' ? G.heroiDef.poder.id : 'gigante' });
   if (k === 'chuva' && G.heroiDef.poder.id !== 'chuva') { poderHeroi(G.heroiDef.poder.id); G.brilhoH = 1; som('confirma'); return; }
-  if (k === 'chuva') { // cai em cima dos vermelhos mais perto da muralha (ou no chefe)
-    const z = zDaHorda();
-    const c = { t: 0, z, fl: [] };
-    for (let i = 0; i < 26; i++) { const o = new THREE.Mesh(GEO_FLECHA, MAT_FLECHA), a = Math.random() * 6.28, r = Math.sqrt(Math.random()) * 7, y0 = 30 + Math.random() * 15;
-      o.rotation.x = -Math.PI / 2; o.position.set(Math.cos(a) * r, y0, z + Math.sin(a) * r); cena.add(o); c.fl.push({ o, y0, atraso: Math.random() * 0.2 }); }
-    G.chuvas.push(c); faixa('CHUVA DE FLECHAS!', '#8ac8ff'); G.heroiV.tocar('Ranged_Bow_Release', { loop: false, reinicia: true }); sfx('arco');
-  } else {
+  if (k === 'chuva') soltarChuva(); else {
     const v = C.heroi(visualPadrao('cav')); v.raiz.scale.setScalar(4.2); v.raiz.rotation.y = Math.PI; const gx = G.rotas > 1 ? ladoHeroi() * 2.4 : 0; v.raiz.position.set(gx, 0, ZSPAWN);
     G.gigante?.v.remover(); G.gigante = { v, x: gx, z: ZSPAWN, hp: (40 + 4 * G.n) * (1 + 0.25 * (G.pd.gigante.nv - 1)), t: 0, estado: 'anda', golpe: 0 };
     C.faiscas(0, 3, ZSPAWN, 0x8ac8ff, 40, 7); faixa('GIGANTE ALIADO!', '#8ac8ff'); sfx('magia'); C.camera.tremor = 0.5;
   }
   G.brilhoH = 1; som('confirma');
+}
+// poder usado pelo parceiro: o efeito aparece aqui também e limpa os orcs desta tela (o dano no chefe já vem pela vida sincronizada)
+function poderDoParceiro(id) {
+  const D = G.dupla; G.efParc = true;
+  try { if (id === 'chuva') soltarChuva(); else if (id !== 'gigante') poderHeroi(id); } finally { G.efParc = false; }
+  G.txt.push({ x: D.x, y: 7, z: ZH, txt: D.apelido, cor: '#8ae0ff', t: 0, grande: true });
+}
+const animHeroi = () => (G.efParc && G.dupla?.v ? G.dupla.v : G.heroiV);
+function soltarChuva() { // cai em cima dos vermelhos mais perto da muralha (ou no chefe)
+  {
+    const z = zDaHorda();
+    const c = { t: 0, z, fl: [], parc: !!G.efParc };
+    for (let i = 0; i < 26; i++) { const o = new THREE.Mesh(GEO_FLECHA, MAT_FLECHA), a = Math.random() * 6.28, r = Math.sqrt(Math.random()) * 7, y0 = 30 + Math.random() * 15;
+      o.rotation.x = -Math.PI / 2; o.position.set(Math.cos(a) * r, y0, z + Math.sin(a) * r); cena.add(o); c.fl.push({ o, y0, atraso: Math.random() * 0.2 }); }
+    G.chuvas.push(c); faixa('CHUVA DE FLECHAS!', '#8ac8ff'); animHeroi().tocar('Ranged_Bow_Release', { loop: false, reinicia: true }); sfx('arco');
+  }
 }
 function acertarBloco(b, pista, lado, dano = 1) {
   if (b.tipo === 'barreira') {

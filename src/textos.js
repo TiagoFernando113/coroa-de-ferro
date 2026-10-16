@@ -295,6 +295,7 @@ const T = {
   'Pedir para entrar': L('Request to join', 'Pedir para entrar'), 'Entrar no clã': L('Join clan', 'Unirse al clan'),
   'Lucro ocioso:': L('Idle profit:', 'Ganancia inactiva:'),
   'ESPERANDO O PARCEIRO...': L('WAITING FOR PARTNER...', 'ESPERANDO AL COMPAÑERO...'), 'VALENDO!': L('GO!', '¡VAMOS!'),
+  'RECONECTANDO...': L('RECONNECTING...', 'RECONECTANDO...'), 'CONECTADO!': L('CONNECTED!', '¡CONECTADO!'),
 };
 export const TEXTOS = { en: {}, es: {} };
 for (const [k, v] of Object.entries(T)) { TEXTOS.en[k] = v.en; TEXTOS.es[k] = v.es; }
