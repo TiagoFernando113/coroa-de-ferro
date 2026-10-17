@@ -279,6 +279,35 @@ function aplicarBonusPets() {
 }
 // pets da equipe (até 3) andam atrás do herói e atiram junto
 const POS_PET = [[-3.4, 2.6], [3.4, 2.6], [0, 4.6]];
+// ---- parceiro do computador: desvia, defende a muralha, pega as melhores pilhas e ajuda o jogador ----
+const limX = (x, m = MEIA - 2.5) => Math.max(-m, Math.min(m, x));
+function valorPilha(b) { // quanto vale quebrar a pilha da frente (por golpe necessário)
+  const v = b.tipo === 'vezes' ? 20 + Math.min(150, G.az.length) * (b.valor - 1) : b.tipo === 'poder' ? 30 : b.tipo === 'barreira' ? 3 : b.valor;
+  return v / Math.max(1, b.hp || 1);
+}
+function alvoBot(D) {
+  const ch = G.chefe, h = G.heroi;
+  for (const pd of G.pedras) if (pd.t > 0.25 && Math.abs(D.x - pd.x) < 4.5) return limX(pd.x + (D.x >= pd.x ? 6 : -6)); // pedra vindo: sai de baixo
+  if (ch.avisoHab > 0 && ch.hab === 'laser' && Math.abs(D.x - (ch.laserX ?? 99)) < 3.5) return limX(ch.laserX + (D.x >= ch.laserX ? 6 : -6));
+  const perto = G.vm.filter(v => v.z > ZMURO - 30), media = l => l.reduce((s, v) => s + v.x, 0) / l.length;
+  if (perto.length >= 4 || (perto.length && G.muro < G.muroMax * 0.5)) return limX(media(perto), XC - 0.8); // orcs chegando: defende no meio
+  const ladoJog = Math.abs(h.x) > DIV ? (h.x < 0 ? 0 : 1) : -1; let melhor = -1, nota = 0;
+  for (const k of [0, 1]) { const b = G.pistas[k][0]; if (!b) continue; const n = valorPilha(b) * (k === ladoJog ? 0.4 : 1); if (n > nota) { nota = n; melhor = k; } } // o jogador já cuida de uma pista: pega a outra
+  if (melhor >= 0 && (ladoJog < 0 || G.vm.length < 30) && G.fila < 300) return (melhor ? 1 : -1) * XL;
+  return G.vm.length ? limX(media(G.vm), XC - 0.8) : limX(D.x * 0.5, XC - 0.8);
+}
+function botUsaPoder(D) {
+  const id = HEROIS[D.hr]?.poder?.id || 'chuva', ch = G.chefe, perto = G.vm.filter(v => v.z > ZMURO - 30).length;
+  const usar = id === 'meteoro' ? ch.hp > ch.max * 0.05 : id === 'escudo' ? perto >= 6 || G.muro < G.muroMax * 0.4 : id === 'rugido' ? perto >= 8 : perto >= 6 || G.vm.length > 25;
+  if (usar) poderDoParceiro(id); return usar;
+}
+function falaBot(D) { // figurinhas como um jogador de verdade
+  const fala = e => { (D.balao ||= []).push({ e, t: 0 }); sfx('brilho'); };
+  if (!D.f0 && G.t > 2.5) { D.f0 = 1; fala(Math.random() < 0.5 ? 'bora' : 'top'); }
+  if (!D.f1 && G.muro < G.muroMax * 0.35) { D.f1 = 1; fala('socorro'); }
+  if (!D.f2 && G.chefe.furia) { D.f2 = 1; fala('ajuda'); }
+  if (D.resp && (D.resp.t -= 1 / 60) <= 0) { fala(D.resp.e); D.resp = null; }
+}
 function criarPetsHeroi() {
   G.petsV = S.equipe.slice(0, 3).map((k, i) => { const v = petVisual(k), D = PETS[base(k)]; return { k, v, x: POS_PET[i][0], dz: POS_PET[i][1], cd: 1 + i * 0.4, cor: D.cor || 0xffe08a, dano: 1 + (D.r >= 2 ? 1 : 0) + est(k), cad: D.c === 'atirador' ? 1.1 : 1.6, gcd: golpe(k) ? cdGolpe(k) * 0.5 : null }; });
 }
@@ -1100,9 +1129,9 @@ function passoDupla(dt) {
   const D = G.dupla; if (!D) return; D.tEnvio -= dt; D.tTiro -= dt;
   if (D.bot) { // parceiro do computador: joga na mesma ponte (pilhas quando dá, orcs quando apertam) e usa o poder
     D.tr ??= G.tiro; D.nf ??= G.nFlechas; D.pf ??= G.perfura;
-    D.tBot -= dt; if (D.tBot <= 0) { D.tBot = 2 + Math.random() * 3; const perigo = G.vm.some(v => v.z > ZMURO - 30), lados = [0, 1].filter(k => G.pistas[k].length);
-      D.alvo = !perigo && lados.length && Math.random() < 0.7 ? (lados[Math.floor(Math.random() * lados.length)] ? 1 : -1) * XL : (Math.random() - 0.5) * 2 * (XC - 1); }
-    if (!G.pausa && (D.tPoder = (D.tPoder ?? 12) - dt) <= 0 && G.vm.length > 8) { D.tPoder = 16 + Math.random() * 8; poderDoParceiro(HEROIS[D.hr]?.poder?.id || 'chuva'); }
+    if ((D.tBot -= dt) <= 0) { D.tBot = 0.5 + Math.random() * 0.5; D.alvo = alvoBot(D); }
+    if (!G.pausa && (D.tPoder = (D.tPoder ?? 10) - dt) <= 0) { D.tPoder = 1; if (botUsaPoder(D)) D.tPoder = 15 + Math.random() * 6; }
+    falaBot(D);
   } else if (D.canal) {
     if (D.host) { if ((D.tFoto = (D.tFoto ?? 0) - dt) <= 0) { D.tFoto = 0.15; D.canal.enviar('s', fotoDupla()); } }
     else if (D.tEnvio <= 0) { const vx = (G.heroi.x - (D.xAnt ?? G.heroi.x)) / 0.1; D.xAnt = G.heroi.x; D.tEnvio = 0.1;
@@ -1346,7 +1375,8 @@ function clique(e) {
   if (a === 'jogar') { som('confirma'); comecarFase(); }
   if (a === 'modos') { som('clique'); mostrarModos(); return; }
   if (a === 'emoAbrir') { const pn = $('#emoPainel'); if (pn.hidden) pn.innerHTML = Object.keys(FIGURINHAS).map(k => `<button data-emo="${k}"><img src="${imgFigurinha(k).src}" alt=""><small>${tr(FIGURINHAS[k].txt)}</small></button>`).join(''); pn.hidden = !pn.hidden; som('clique'); return; }
-  if (b.dataset.emo) { $('#emoPainel').hidden = true; const D = G?.dupla; if (!D || (D.emoT && performance.now() - D.emoT < 1200)) return; D.emoT = performance.now(); (D.balao ||= []).push({ e: b.dataset.emo, t: 0, eu: true }); D.canal?.enviar('em', { e: b.dataset.emo }); som('clique'); return; }
+  if (b.dataset.emo) { $('#emoPainel').hidden = true; const D = G?.dupla; if (!D || (D.emoT && performance.now() - D.emoT < 1200)) return; D.emoT = performance.now(); (D.balao ||= []).push({ e: b.dataset.emo, t: 0, eu: true }); D.canal?.enviar('em', { e: b.dataset.emo }); som('clique');
+    if (D.bot && !D.resp && Math.random() < 0.8) D.resp = { t: 1 + Math.random(), e: { socorro: 'bora', ajuda: 'bora', gg: 'gg', kkk: 'kkk', bora: 'top', top: 'gg' }[b.dataset.emo] || 'top' }; return; }
   if (b.dataset.claVer) { som('clique'); verCla(b.dataset.claVer); return; }
   if (a === 'contaRecuperar') { som('clique'); mostrarPerfil(); setTimeout(() => { const d = document.querySelector('#janela details'); if (d) { d.open = true; d.scrollIntoView({ block: 'center' }); } }, 300); return; }
   if (a === 'contaNova') { if (b.dataset.certeza !== '1') { b.dataset.certeza = '1'; b.textContent = tr('Toque de novo para confirmar'); som('clique'); return; }
@@ -1471,7 +1501,7 @@ function comecarFase(inf = false, dupla = null) {
   $('.jPoderes').hidden = !!G.corrida;
 
   if (G.dupla) faixa(`EM DUPLA COM ${G.dupla.apelido.toUpperCase()}!`, '#8ae0ff');
-  const em = $('#jEmojis'); if (em) em.hidden = !G.dupla || G.dupla.bot;
+  const em = $('#jEmojis'); if (em) em.hidden = !G.dupla;
   else { const g0 = G; ON.ajudaAuto(G.n).then(r => { if (G !== g0 || !r) return; setTimeout(() => { if (G !== g0 || G.fim) return; G.fila = Math.min(maxFila(), G.fila + r.soldados);
       faixa(`${r.apelido.toUpperCase()}${r.cla ? ' (CLÃ)' : ''} VEIO AJUDAR! +${r.soldados}`, '#8ae0ff'); sfx('brilho'); }, 5000); }).catch(() => {}); }
   $('#jDica').textContent = G.rotas > 1 ? 'Duas rotas! Seus soldados vão pelo lado do herói' : 'Arraste para mover · toque nas vagas para construir torres';
@@ -1636,7 +1666,7 @@ function passoJogo(dt) {
   G.semRec = true; passoMeteoros(dt); G.semRec = false;
   // o chefe joga pedras no herói: um círculo avisa onde cai, arraste para desviar
   if (G.t > 8 && (G.pedraT -= dt) <= 0) { G.pedraT = Math.max(3.5, 8 - 0.25 * G.n) * (ch.furia ? 0.65 : 1);
-    const D = G.dupla, ax = D && !D.bot && !D.saiu && Math.random() < 0.5 ? D.x : h.x, x = Math.max(-MEIA + 3, Math.min(MEIA - 3, ax + (Math.random() - 0.5) * 4)), dur = 1.4;
+    const D = G.dupla, ax = D && !D.saiu && Math.random() < 0.5 ? D.x : h.x, x = Math.max(-MEIA + 3, Math.min(MEIA - 3, ax + (Math.random() - 0.5) * 4)), dur = 1.4;
     criarPedra(x, dur); C.aviso(x, ZH, 3.6, dur, 0xff3322); fxDupla('pe', [x, dur]); ch.v.tocar('Attack2', { loop: false, reinicia: true }); }
   G.semRec = true; passoPedras(dt); G.semRec = false;
   if (G.autoChuva && G.pd.chuva.cd <= 0 && G.vm.length > 8) usarPoder('chuva');
@@ -1787,7 +1817,7 @@ function passoPedras(dt, vis) {
     if (k >= 1) { pd.fim = true; cena.remove(pd.o); C.faiscas(pd.x, 1, ZH, 0xc8a878, 40, 8); C.camera.tremor = Math.max(C.camera.tremor, 0.5); som('pancada', 0.6);
       if (Math.abs(h.x - pd.x) < 3.6) { G.tonto = 1.6; if (!vis) G.muro--; G.heroiV.tocar('Hit_A', { loop: false, reinicia: true }); faixa('ATORDOADO!', '#ff9a3a'); C.faiscas(h.x, 5, ZH, 0xffff6a, 20, 4); }
       else if (Math.abs(h.x - pd.x) < 9) G.txt.push({ x: h.x, y: 6, z: ZH, txt: 'Desviou!', cor: '#8aff8a', t: 0, loc: 1 });
-      if (!vis && D && !D.bot && !D.saiu && Math.abs(D.x - pd.x) < 3.6) G.muro--; } }
+      if (!vis && D && !D.saiu && Math.abs(D.x - pd.x) < 3.6) { G.muro--; if (D.bot) { D.tn = true; setTimeout(() => { D.tn = false; }, 1600); } } } }
   G.pedras = G.pedras.filter(p => !p.fim);
 }
 // tiros das torres e dos arqueiros (no parceiro da dupla só o visual)
