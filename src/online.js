@@ -156,7 +156,7 @@ function salaSupabase(sala, aoReceber) {
       if (d.event === 'broadcast' && d.payload) aoReceber(d.payload.event, d.payload.payload || {});
     };
     ws.onclose = () => { aberto = false; clearInterval(batida); if (fechado) return;
-      if (tentativas < 8) { tentativas++; if (tentativas === 1) aoReceber('_reconectando', {}); setTimeout(() => { if (!fechado) abrir(); }, Math.min(4000, 600 * tentativas)); }
+      if (tentativas < 30) { tentativas++; if (tentativas === 1) aoReceber('_reconectando', {}); setTimeout(() => { if (!fechado) abrir(); }, Math.min(4000, 600 * tentativas)); }
       else aoReceber('_caiu', {}); };
   };
   abrir();

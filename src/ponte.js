@@ -505,6 +505,7 @@ export function abrirLobby() {
   iniciarFase(S.fase); desenharLobby();
   if (!diarioVisto && diarioPronto()) { diarioVisto = true; setTimeout(mostrarDiario, 900); }
   else setTimeout(coletarPremios, 1200);
+  if (!resumoFeito && S.duplaViva) setTimeout(oferecerVolta, 800);
   if (!resumoFeito) { resumoFeito = true; const fora = Date.now() - (S.vistoT || Date.now()); if (fora > 20 * 60e3) setTimeout(() => mostrarResumo(fora), 1500); }
   marcarVisto();
   setTimeout(enviarPerfil, 2500); setTimeout(() => salvarDefesa().catch(() => {}), 5000); setTimeout(() => ON.botsTick().catch(() => {}), 7000); setTimeout(() => { backupNuvem(!nuvemT); if (S.temSenha == null && S.online?.codigo) ON.temSenha().then(t => { S.temSenha = !!t; salvar(); }).catch(() => {}); }, 4000);
@@ -1176,6 +1177,14 @@ function pararBusca() { if (busca) busca.ativo = false; busca = null; ON.cancela
 function comecarDupla(d) {
   const bot = !d.sala; comecarFase(false, { apelido: d.apelido || NOMES_BOT[Math.floor(Math.random() * NOMES_BOT.length)], bot, host: d.host, fase: d.fase || S.fase });
   if (!bot) { G.dupla.canal = ON.conectarSala(d.sala, (ev, p) => receberDupla(ev, p), !!d.host); esperarParceiro(); }
+  // quem entrou na sala do outro guarda a sala: se o app fechar, dá para voltar para a mesma partida
+  if (!bot && !d.host) { S.duplaViva = { sala: d.sala, apelido: d.apelido, fase: d.fase, t: Date.now() }; salvar(); } else if (S.duplaViva) { delete S.duplaViva; salvar(); }
+}
+function oferecerVolta() { // abriu o jogo de novo com uma dupla ainda rolando
+  const V = S.duplaViva; if (!V) return; if (Date.now() - V.t > 3 * 60e3) { delete S.duplaViva; salvar(); return; }
+  const j = $('#janela'); j.hidden = false; sfx('brilho');
+  j.innerHTML = `<div class="jOnline jDupla"><h2>${ico('herois')} Partida em andamento</h2><p>Sua dupla com <b data-nt>${esc(V.apelido || '')}</b> ainda está rolando.</p>
+    <button class="btn verde grande" data-a="voltarDupla">${ico('seta')} Voltar para a partida</button><button class="fSo" data-a="largarDupla">Sair da partida</button></div>`;
 }
 // os dois começam juntos: cada um avisa "pronto" (com herói e pets) até ouvir o outro (no máximo 8 s esperando)
 const seguidor = () => G?.dupla && !G.dupla.bot && !G.dupla.host && !G.dupla.saiu; // a partida roda no host; o outro só desenha e controla o próprio herói
@@ -1207,7 +1216,7 @@ function receberDupla(ev, p) {
     if (!G.fim) { if (p.v) vitoriaFx(); else derrotaFx(); terminar(!!p.v); } else atualizarRevanche(); return; }
   if (G.fim) return;
   if (ev === 'h' || ev === 's') seguirParceiro(D, p);
-  if (ev === 's' && !D.host) aplicarFoto(D, p);
+  if (ev === 's' && !D.host) { aplicarFoto(D, p); if (G.espera) { G.espera = 0; faixa(D.voltando ? 'DE VOLTA À PARTIDA!' : 'VALENDO!', '#7aff8a'); } }
   if (ev === 'pd' && !G.espera) { poderDoParceiro(p.id); return; }
   if (ev === 'tor' && D.host) { construir(p.i, p.tipo); return; }
   if (ev === 'gp' && D.host) { const pp = D.pets?.find(q => q.k === p.k); if (pp) { G.efParc = true; try { golpePonte(pp); } finally { G.efParc = false; } } return; }
@@ -1312,7 +1321,7 @@ function passoDupla(dt) {
     if (D.host) { if ((D.tFoto = (D.tFoto ?? 0) - dt) <= 0) { D.tFoto = 0.15; D.canal.enviar('s', fotoDupla()); } }
     else if (D.tEnvio <= 0) { const vx = (G.heroi.x - (D.xAnt ?? G.heroi.x)) / 0.1; D.xAnt = G.heroi.x; D.tEnvio = 0.1;
       D.canal.enviar('h', { x: r1(G.heroi.x), vx: r1(vx), hr: S.heroi, tr: r1(G.tiro), nf: G.nFlechas, pf: G.perfura, tn: G.tonto > 0 || G.congelado > 0 ? 1 : 0 }); }
-    if ((D.tPing = (D.tPing ?? 1) - dt) <= 0) { D.tPing = 2; D.canal.enviar('pi', { t: performance.now() }); }
+    if ((D.tPing = (D.tPing ?? 1) - dt) <= 0) { D.tPing = 2; D.canal.enviar('pi', { t: performance.now() }); if (S.duplaViva && !D.host) { S.duplaViva.t = Date.now(); salvar(); } }
     if (!D.saiu && D.visto && performance.now() - D.visto > 8000) { D.saiu = true; D.caiuRede = true; faixa(`${D.apelido.toUpperCase()} DESCONECTOU`, '#ff9a3a'); }
     // prevê o movimento do parceiro entre uma mensagem e outra (anda liso mesmo com atraso)
     if (D.pt) { const ad = Math.min(0.25, (performance.now() - D.pt) / 1000); D.alvo = Math.max(-MEIA + 2.5, Math.min(MEIA - 2.5, D.px + D.pv * ad)); }
@@ -1595,7 +1604,7 @@ function clique(e) {
   if (a === 'rsColetar') { const q = b.getBoundingClientRect(), m = coletarOcioso(); if (m > 0) { sfx('vitoria'); desenharLobby(); voarMoedas('.lbTopo .pilula.ouro', 12, { x: q.left + q.width / 2, y: q.top + q.height / 2 }); } b.disabled = true; b.textContent = tr('Coletado!'); return; }
   if (a === 'infinito') { som('confirma'); comecarFase(true); }
   if (a === 'denovoInf') { som('confirma'); comecarFase(true); }
-  if (a === 'sair') { som('fechar'); G?.dupla?.canal?.enviar('sair', {}); $('#janela').hidden = true; abrirLobby(); }
+  if (a === 'sair') { som('fechar'); G?.dupla?.canal?.enviar('sair', {}); if (S.duplaViva) { delete S.duplaViva; salvar(); } $('#janela').hidden = true; abrirLobby(); }
   if (a === 'proxima') { som('confirma'); comecarFase(); }
   if (a === 'lobby') { som('clique'); abrirLobby(); }
   if (a === 'lobbyUp') { som('clique'); abrirLobby(); abaLobby = 'up'; desenharLobby(); }
@@ -1647,7 +1656,9 @@ function clique(e) {
   if (a === 'ajustesAvisos') { window.App?.ajustesAvisos(); }
   if (a === 'testarAviso') { try { window.Avisos.agendar(9, 5, tr('Teste de aviso'), tr('Os avisos do jogo estão funcionando!')); } catch (e) {} b.textContent = tr('Chega em 5 segundos...'); som('confirma'); }
   if (a === 'revanche') pedirRevanche();
-  if (a === 'sairDupla') { som('fechar'); G?.dupla?.canal?.enviar('sair', {}); abrirLobby(); }
+  if (a === 'voltarDupla') { const V = S.duplaViva; $('#janela').hidden = true; if (!V) return; som('confirma'); comecarDupla({ sala: V.sala, apelido: V.apelido, fase: V.fase, host: false }); G.dupla.voltando = true; faixa('VOLTANDO PARA A PARTIDA...', '#8ae0ff'); return; }
+  if (a === 'largarDupla') { som('fechar'); delete S.duplaViva; salvar(); $('#janela').hidden = true; return; }
+  if (a === 'sairDupla') { som('fechar'); G?.dupla?.canal?.enviar('sair', {}); if (S.duplaViva) { delete S.duplaViva; salvar(); } abrirLobby(); }
   if (a === 'cancelarDupla') { som('fechar'); pararBusca(); $('#janela').hidden = true; }
   if (a === 'fecharJanela') { som('fechar'); $('#janela').hidden = true; if (tela === 'lobby') desenharLobby(); }
   if (a === 'pegarDiario') { const D = DIARIO[diaDoPresente()];
@@ -1775,7 +1786,7 @@ function terminarInf() {
 }
 function danoNoCla() { const d = G.danoTotal || 0; if (d > 0 && S.online?.codigo) ON.claDano(d).then(r => { if (r?.caiu) setTimeout(coletarPremios, 500); }).catch(() => {}); }
 function terminar(venceu) {
-  if (G.fim) return; danoNoCla(); fimDupla(venceu); if (G.inf) return terminarInf(); G.fim = venceu ? 'v' : 'd'; tela = 'fim';
+  if (G.fim) return; if (S.duplaViva) delete S.duplaViva; danoNoCla(); fimDupla(venceu); if (G.inf) return terminarInf(); G.fim = venceu ? 'v' : 'd'; tela = 'fim';
   const ganho = Math.round((venceu ? G.F.moedas + Math.floor(G.az.length / 4) : G.F.moedas * 0.25) * (G.dupla ? 1.5 : 1) * (1 + ((bonusEquipe().moedas || 0) + bonusRenasc(S.renasc || 0).moedas) / 100) * (G.multMoedas || 1) * (fimDeSemana() ? 2 : 1));
   S.moedas += ganho; evento('orcs', G.mortesVm); if (venceu) { evento('fases'); evento('chefes'); } let bau = null; if (venceu) { bau = ganharBau(G.n); if (!G.dupla || G.n === S.fase) { S.fase++; mapaAndar = S.fase; } S.melhor = Math.max(S.melhor, G.n); } salvar();
   setTimeout(() => {

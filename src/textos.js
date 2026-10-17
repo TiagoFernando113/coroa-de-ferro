@@ -339,6 +339,8 @@ const T = {
   'Confirmar': L('Confirm', 'Confirmar'), 'Escolher depois': L('Choose later', 'Elegir después'), 'Bem-vindo,': L('Welcome,', 'Bienvenido,'),
   'PRÊMIO!': L('REWARD!', '¡PREMIO!'), 'Código resgatado!': L('Code redeemed!', '¡Código canjeado!'), 'Pegar!': L('Collect!', '¡Recoger!'),
   'Nova versão! Toque para atualizar': L('New version! Tap to update', '¡Nueva versión! Toca para actualizar'),
+  'Partida em andamento': L('Match in progress', 'Partida en curso'), 'Sua dupla com': L('Your duo with', 'Tu dúo con'), 'ainda está rolando.': L('is still going.', 'sigue en curso.'),
+  'Voltar para a partida': L('Back to the match', 'Volver a la partida'), 'Sair da partida': L('Leave the match', 'Salir de la partida'), 'VOLTANDO PARA A PARTIDA...': L('REJOINING THE MATCH...', 'VOLVIENDO A LA PARTIDA...'), 'DE VOLTA À PARTIDA!': L('BACK IN THE MATCH!', '¡DE VUELTA EN LA PARTIDA!'),
 };
 export const TEXTOS = { en: {}, es: {} };
 for (const [k, v] of Object.entries(T)) { TEXTOS.en[k] = v.en; TEXTOS.es[k] = v.es; }

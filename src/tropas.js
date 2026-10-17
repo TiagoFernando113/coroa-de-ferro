@@ -90,11 +90,12 @@ const base = new THREE.Matrix4(), m1 = new THREE.Matrix4(), m2 = new THREE.Matri
 // lista: unidades {x, z, ph, luta, tipo}; rotY: para onde olham. Azuis são separados pelo tipo.
 const cont = {};
 export function desenharTropas(t, lista, rotY, tempo) {
+  const leve = C.qualidadeAtual() === 'baixa'; // Leve: desenha até 140 de cada tipo (o contador continua mostrando todos)
   const tipos = t === 'vm' ? ['vm'] : ['az', 'arco', 'lanca', 'mago'];
   for (const k of tipos) cont[k] = 0;
   for (const u of lista) {
     const k = t === 'vm' ? 'vm' : u.tipo || 'az', M = T[k], i = cont[k];
-    if (i >= M.max) continue; cont[k]++;
+    if (i >= (leve ? Math.min(M.max, 140) : M.max)) continue; cont[k]++;
     const fase = tempo * 9 + u.ph, luta = u.luta, pulo = luta ? 0 : Math.abs(Math.sin(fase)) * 0.18;
     e.set(luta ? 0.12 : 0.06, rotY + (luta ? Math.sin(tempo * 20 + u.ph) * 0.15 : 0), 0); q.setFromEuler(e);
     base.compose(v3.set(u.x, pulo, u.z), q, s3); M.corpo.setMatrixAt(i, base);
@@ -108,7 +109,7 @@ export function desenharTropas(t, lista, rotY, tempo) {
 }
 // soldado derrubado: sai voando girando e some
 export function voar(t, x, z, vx, vy, vz) {
-  if (voando.length >= MAXV * 2) return;
+  if (voando.length >= (C.qualidadeAtual() === 'baixa' ? 60 : MAXV * 2)) return;
   voando.push({ t, x, y: 0.9, z, vx, vy, vz, rx: Math.random() * 6, rz: Math.random() * 6, gx: (Math.random() - 0.5) * 16, gz: (Math.random() - 0.5) * 16, vida: 0, chao: false });
 }
 export function passoVoo(dt) {

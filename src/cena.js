@@ -22,7 +22,7 @@ export const definirChao = f => { fnChao = f; };
 export function iniciar(canvas, q) {
   qualidade = q || 'media';
   renderer = new THREE.WebGLRenderer({ canvas, antialias: qualidade !== 'baixa', powerPreference: 'high-performance' });
-  renderer.setPixelRatio(Math.min(devicePixelRatio, qualidade === 'alta' ? 2 : qualidade === 'media' ? 1.5 : 1));
+  renderer.setPixelRatio(qualidade === 'baixa' ? 0.8 : Math.min(devicePixelRatio, qualidade === 'alta' ? 2 : 1.5)); // Leve: imagem um pouco menor (bem mais rápido em celular simples)
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.shadowMap.enabled = qualidade !== 'baixa';
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -44,7 +44,7 @@ export function iniciar(canvas, q) {
 // celular fraco: menos pixels, sem sombras e metade das partículas (sem recarregar)
 export function modoLeve() {
   if (qualidade === 'baixa') return; qualidade = 'baixa';
-  renderer.setPixelRatio(1); renderer.shadowMap.enabled = false; sol.castShadow = false;
+  renderer.setPixelRatio(0.8); renderer.shadowMap.enabled = false; sol.castShadow = false;
   scene.traverse(o => { if (o.material) for (const m of [].concat(o.material)) m.needsUpdate = true; }); medir();
 }
 function medir() {
