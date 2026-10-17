@@ -238,11 +238,13 @@ function aplicarClima() { // devolve o céu da fase (depois do mapa do menu)
   if (G.evento === 'nevoa') { C.ceu(0xc8d2dc); C.neblina(45, 150); }
 }
 // ---- mapa de ilhas do menu: arrasta para o lado para ver as fases ----
-let climaMapa = false, mapaCam = null, mapaVel = 0, arrastoMapa = null;
+let climaMapa = false, mapaCam = null, mapaVel = 0, arrastoMapa = null, mapaAndar = 0; // mapaAndar: fase nova para o herói atravessar até ela
 const mapaVisivel = () => tela === 'lobby';
 function vistaMapa(dt) {
   if (!climaMapa) { climaMapa = true; C.diaNoite(0); C.ceu(0x9ad8f8); C.neblina(170, 470); }
-  MP.montarMapa(cena, { atual: S.fase, biomas: BIOMAS, biomaDe, chefeDe: n => dadosFase(n).chefe.modelo, heroi: heroiAtual(S).visual, heroiK: S.heroi, texAgua });
+  MP.montarMapa(cena, { atual: S.fase, biomas: BIOMAS, biomaDe, chefeDe: n => dadosFase(n).chefe.modelo, heroi: heroiAtual(S).visual, heroiK: S.heroi, texAgua, andar: mapaAndar === S.fase });
+  if (mapaAndar === S.fase) { mapaAndar = 0; mapaCam = MP.xDaFase(S.fase - 1); }
+  const ax = MP.andando(); if (ax != null) { mapaCam += (ax - mapaCam) * Math.min(1, dt * 4); mapaVel = 0; }
   const x0 = MP.xDaFase(Math.max(1, S.fase - 5)), x1 = MP.xDaFase(S.fase + 7);
   if (mapaCam == null) mapaCam = MP.xDaFase(S.fase);
   if (!arrastoMapa) { mapaCam += mapaVel * dt; mapaVel *= Math.pow(0.04, dt); }
@@ -1743,7 +1745,7 @@ function danoNoCla() { const d = G.danoTotal || 0; if (d > 0 && S.online?.codigo
 function terminar(venceu) {
   if (G.fim) return; danoNoCla(); fimDupla(venceu); if (G.inf) return terminarInf(); G.fim = venceu ? 'v' : 'd'; tela = 'fim';
   const ganho = Math.round((venceu ? G.F.moedas + Math.floor(G.az.length / 4) : G.F.moedas * 0.25) * (G.dupla ? 1.5 : 1) * (1 + ((bonusEquipe().moedas || 0) + bonusRenasc(S.renasc || 0).moedas) / 100) * (G.multMoedas || 1) * (fimDeSemana() ? 2 : 1));
-  S.moedas += ganho; evento('orcs', G.mortesVm); if (venceu) { evento('fases'); evento('chefes'); } let bau = null; if (venceu) { bau = ganharBau(G.n); if (!G.dupla || G.n === S.fase) S.fase++; S.melhor = Math.max(S.melhor, G.n); } salvar();
+  S.moedas += ganho; evento('orcs', G.mortesVm); if (venceu) { evento('fases'); evento('chefes'); } let bau = null; if (venceu) { bau = ganharBau(G.n); if (!G.dupla || G.n === S.fase) { S.fase++; mapaAndar = S.fase; } S.melhor = Math.max(S.melhor, G.n); } salvar();
   setTimeout(() => {
     $('#jogo').hidden = true; const f = $('#fim'); f.hidden = false;
     f.innerHTML = `<div class="fimCaixa ${venceu ? 'vit' : 'der'}"><h2>${venceu ? 'VITÓRIA!' : 'A muralha caiu!'}</h2>
@@ -1808,7 +1810,7 @@ export function passo(dt0) {
   const lobby = tela === 'lobby';
   if (lobby) { vistaMapa(dt0); foco.x = mapaCam; foco.z = MP.MAPA.z + 6; } else { if (climaMapa && G) { climaMapa = false; aplicarClima(); } const r = $('#mapaRot'); if (r) r.hidden = true; }
   distCam += ((final ? 62 : corre ? 82 : 106) - distCam) * Math.min(1, dt0 * 2);
-  C.camera.yaw = Math.PI; C.camera.pitch = lobby ? 0.6 : 0.9; C.camera.dist = lobby ? 108 : distCam - (G ? G.punch * 7 : 0); C.camera.altura = lobby ? MP.MAPA.y + 1 : 0; C.camera.suave = lobby ? 12 : final ? 2.5 : 4;
+  C.camera.yaw = Math.PI; C.camera.pitch = lobby ? 0.6 : 0.9; C.camera.dist = lobby ? 122 : distCam - (G ? G.punch * 7 : 0); C.camera.altura = lobby ? MP.MAPA.y + 1 : 0; C.camera.suave = lobby ? 12 : final ? 2.5 : 4;
   if (G && tela === 'jogo') { posicionarVagas(); passoTutorial(dt0); }
   if (window.__ov) { Object.assign(C.camera, window.__ov.cam); Object.assign(foco, window.__ov.foco); } // para testes
   C.quadro(dt, foco);
