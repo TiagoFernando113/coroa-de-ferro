@@ -36,6 +36,8 @@ export const mapaMarchar = comConta((slot, cam, dur, alvo = null, tipo = null) =
 export const mapaTipo = comConta((slot, tipo) => rpc('ponte_mapa_tipo', { ...id(), p_slot: slot, p_tipo: tipo }));
 export const mapaRecuar = comConta((slot, cam, dur) => rpc('ponte_mapa_recuar', { ...id(), p_slot: slot, p_cam: cam, p_dur: dur }));
 export const mapaLidos = comConta(() => rpc('ponte_mapa_lidos', id()));
+export const mapaCastelos = comConta(lista => rpc('ponte_mapa_castelos', { ...id(), p_lista: lista }));
+export const mapaBandeira = comConta((slot, x, y, cam, dur) => rpc('ponte_mapa_bandeira', { ...id(), p_slot: slot, p_x: x, p_y: y, p_cam: cam, p_dur: dur }));
 export const mapaBots = comConta(ordens => rpc('ponte_mapa_bots', { ...id(), p_ordens: ordens }));
 
 export const enviarRecorde = comConta((pontos, chefes) => rpc('ponte_enviar_recorde', { ...id(), p_pontos: pontos, p_chefes: chefes }));

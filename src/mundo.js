@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import * as C from './cena.js';
-import { S } from './meta.js';
+import { S, salvar } from './meta.js';
 import { HEROIS } from './herois.js';
 import { fmt } from './dados.js';
 import { desenharTropas } from './tropas.js';
@@ -127,7 +127,7 @@ function bandeira(cor) { // mastro + pano na cor do clã
 // ---- abrir / fechar ----
 export function abrir(container, opcoes) {
   el = container; op = opcoes; el.hidden = false; gerarMapa();
-  K = { ex: new Map(), bat: new Map(), clas: [], castelos: [], livresSitios: [], dif: 0, sel: null, prev: null, zoom: 95, cam: null, toques: new Map(), arrasto: null, tPoll: 0, carregou: false, txt: [], erro: '' };
+  K = { ex: new Map(), bat: new Map(), bandeiras: [], flags: new Map(), clas: [], castelos: [], livresSitios: [], dif: 0, sel: null, prev: null, zoom: 95, cam: null, toques: new Map(), arrasto: null, tPoll: 0, carregou: false, txt: [], erro: '' };
   C.ceu(0x9ad8f8); C.neblina(180, 520); C.diaNoite(0);
   el.innerHTML = `<div class="muTopo"><button class="lSair" data-mu="sair">${ico('fechar')}</button><b>${tr('Mapa de Guerra')}</b><small id="muOn"></small></div>
     <div class="muAviso" id="muAviso">${tr('Carregando o mapa...')}</div>
@@ -135,7 +135,7 @@ export function abrir(container, opcoes) {
   ligarToque(); atualizar(true);
 }
 export function fechar() {
-  if (K) { for (const e of K.ex.values()) limparEx(e); for (const g of K.cena || []) cn().remove(g); if (K.linha) cn().remove(K.linha); desenharTropas('az', [], 0, 0); desenharTropas('vm', [], 0, 0); }
+  if (K) { for (const e of K.ex.values()) limparEx(e); for (const g of K.cena || []) cn().remove(g); if (K.linha) cn().remove(K.linha); if (K.terr) cn().remove(K.terr); for (const f of K.flags.values()) cn().remove(f.o); desenharTropas('az', [], 0, 0); desenharTropas('vm', [], 0, 0); }
   desligarToque(); K = null; if (el) { el.hidden = true; el.innerHTML = ''; }
 }
 function limparEx(e) { if (e.flag) cn().remove(e.flag); e.v?.remover(); if (e.linha) cn().remove(e.linha); }
@@ -153,6 +153,8 @@ async function atualizar() {
       if (!e) { e = { ...d }; K.ex.set(d.id, e); } else if (!(e.eu && e.local && e.t0 > d.t0 + 0.5)) Object.assign(e, d, { local: false }); // a ordem que acabei de dar vale até o servidor confirmar
       e.base = baseDe(e); }
     for (const [id, e] of K.ex) if (!vistos.has(id)) { limparEx(e); K.ex.delete(id); }
+    K.bandeiras = r.bandeiras || []; atualizarTerritorio();
+    if (!K.castEnviado) { K.castEnviado = true; const faltam = K.castelos.filter(c => c.mx == null).map(c => ({ id: c.id, x: Math.floor(c.x), y: Math.floor(c.y) })); if (faltam.length) ON.mapaCastelos(faltam).catch(() => {}); }
     for (const b of r.batalhas) if (!K.bat.has(b.id)) { K.bat.set(b.id, { ...b, visto: -1 }); const a = K.ex.get(b.a), d = K.ex.get(b.b); if (a?.eu || d?.eu) { som('pancada'); toast(tr('Batalha!')); } }
     else Object.assign(K.bat.get(b.id), { fim: b.fim, recuou: b.recuou, linha: b.linha });
     for (const [id, b] of K.bat) if (!r.batalhas.some(q => q.id === id) && agora() > b.fim + 6) K.bat.delete(id);
@@ -178,13 +180,17 @@ function darOrdensBots(ids) { // bots andam pelo mapa e às vezes atacam outro e
   for (const id of ids.slice(0, 4)) { const e = K.ex.get(id); if (!e) continue; const p = posicao(e), r = Math.random(); let alvo = null, alvoEx = null;
     if (r < 0.3) { let dm = 14; for (const o of K.ex.values()) { if (o === e || (o.cla != null && o.cla === e.cla) || o.tropas <= 0 || emBatalha(o)) continue; const q = posicao(o); if (naBase(o, q)) continue;
       const d = Math.hypot(q.x - p.x, q.y - p.y); if (d < dm) { dm = d; alvoEx = o; alvo = [q.x, q.y]; } } }
+    let flag = null;
+    if (!alvo && e.cla != null && oficial(e) && Math.random() < 0.35) { const pts = [...K.bandeiras.filter(f => f.cla === e.cla).map(f => [f.x, f.y]), ...K.castelos.filter(c => c.id === e.cla).map(c => [Math.floor(c.x), Math.floor(c.y)])];
+      for (let k = 0; k < 10 && pts.length && !flag; k++) { const [bx, by] = pts[Math.floor(Math.random() * pts.length)], a = Math.random() * 6.28, d = 6 + Math.random() * 2.5, x = Math.round(bx + Math.cos(a) * d), y = Math.round(by + Math.sin(a) * d);
+        if (!pontoBandeira(e.cla, x, y)) { flag = [x, y]; alvo = [x + 0.5, y + 0.5]; } } }
     for (let k = 0; k < 12 && !alvo; k++) { let x, y;
       if (r < 0.45 && K.castelos.length) { const c = K.castelos[Math.floor(Math.random() * K.castelos.length)]; x = c.x + (Math.random() - 0.5) * 6; y = c.y + (Math.random() - 0.5) * 6; }
       else if (r < 0.6 || e.tropas < (e.cap || 100) * 0.4) { [x, y] = e.base; }
       else { x = p.x + (Math.random() - 0.5) * 22; y = p.y + (Math.random() - 0.5) * 22; }
       if (livre(Math.floor(x), Math.floor(y))) alvo = [x, y]; }
     if (!alvo) continue; const cam = caminho([p.x, p.y], alvo); if (!cam || cam.length < 2) continue;
-    const dur = comprimento(cam) / VEL; ordens.push({ id, cam, dur, alvo: alvoEx?.id ?? null }); Object.assign(e, { cam, t0: agora(), t1: agora() + dur, alvo: alvoEx?.id ?? null }); }
+    const dur = comprimento(cam) / VEL; ordens.push({ id, cam, dur, alvo: alvoEx?.id ?? null, ...(flag ? { b: flag } : {}) }); if (flag) K.bandeiras.push({ id: -Date.now() - id, cla: e.cla, x: flag[0], y: flag[1], pronta: agora() + dur + 45 }); Object.assign(e, { cam, t0: agora(), t1: agora() + dur, alvo: alvoEx?.id ?? null }); }
   if (ordens.length) ON.mapaBots(ordens).catch(() => {});
 }
 async function enviar(e, cam, alvoId) {
@@ -209,6 +215,57 @@ function atacar(e, a, quieto) {
 async function recuar(e) {
   const p = posicao(e), cam = caminho([p.x, p.y], e.base); som('fechar');
   try { await ON.mapaRecuar(e.slot, cam || [[p.x, p.y]], cam ? comprimento(cam) / VEL : 0); toast(tr('Recuando!')); setTimeout(atualizar, 300); } catch (er) { toast(er.message); }
+}
+
+// ---- território e bandeiras do clã (como as bandeiras de aliança do RoK) ----
+const CUSTO_BANDEIRA = 300;
+const oficial = e => e.cargo === 'lider' || e.cargo === 'colider'; // bandeira é trabalho do líder e do colíder (como no RoK)
+function donoTile(tx, ty, t = agora()) { // igual ao servidor: bandeira pronta (raio 4) ou castelo (raio 5)
+  for (const f of K.bandeiras) if (f.pronta <= t && Math.abs(f.x - tx) <= 4 && Math.abs(f.y - ty) <= 4) return f.cla;
+  for (const c of K.castelos) if (Math.abs(Math.floor(c.x) - tx) <= 5 && Math.abs(Math.floor(c.y) - ty) <= 5) return c.id;
+  return null;
+}
+const corCla = id => CORES_CLA[(K.clas.find(c => c.id === id)?.cor || 0) % 8];
+function atualizarTerritorio() {
+  K.bandeiras.sort((a, b) => a.id - b.id); const t = agora(), sig = K.bandeiras.map(f => `${f.id}${f.pronta <= t ? '+' : '-'}`).join() + '|' + K.castelos.map(c => c.id).join();
+  if (sig === K.terrSig) return; K.terrSig = sig;
+  // área pintada na cor do clã e a borda mais forte
+  const dono = new Array(N * N); for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) dono[y * N + x] = donoTile(x, y, t);
+  const pos = [], cor = [], lp = [], lc = [], c3 = new THREE.Color(), q = (x, y) => [wx(x), wz(y)];
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { const d = dono[y * N + x]; if (d == null) continue; c3.set(corCla(d));
+    if (MAPA.at(x, y) !== AGUA) { const [x0, z0] = q(x, y), [x1, z1] = q(x + 1, y + 1); pos.push(x0, 0.08, z0, x1, 0.08, z0, x1, 0.08, z1, x0, 0.08, z0, x1, 0.08, z1, x0, 0.08, z1); for (let k = 0; k < 6; k++) cor.push(c3.r, c3.g, c3.b); }
+    for (const [dx, dy, ax, ay, bx, by] of [[1, 0, 1, 0, 1, 1], [-1, 0, 0, 0, 0, 1], [0, 1, 0, 1, 1, 1], [0, -1, 0, 0, 1, 0]]) { const a = x + dx, b = y + dy, o = a >= 0 && b >= 0 && a < N && b < N ? dono[b * N + a] : null;
+      if (o !== d) { const [p0, r0] = q(x + ax, y + ay), [p1, r1] = q(x + bx, y + by); lp.push(p0, 0.15, r0, p1, 0.15, r1); lc.push(c3.r, c3.g, c3.b, c3.r, c3.g, c3.b); } } }
+  if (K.terr) cn().remove(K.terr); K.terr = new THREE.Group();
+  if (pos.length) { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(cor, 3));
+    K.terr.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.4, depthWrite: false }))); }
+  if (lp.length) { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(lp, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(lc, 3)); K.terr.add(new THREE.LineSegments(g, new THREE.LineBasicMaterial({ vertexColors: true }))); }
+  cn().add(K.terr);
+  // bandeiras: mastro alto com o pano do clã; em construção fica com andaime e meio transparente
+  const vivas = new Set(K.bandeiras.map(f => f.id));
+  for (const [id, f] of K.flags) if (!vivas.has(id) || f.pronta !== (K.bandeiras.find(b => b.id === id).pronta <= t)) { cn().remove(f.o); K.flags.delete(id); }
+  for (const b of K.bandeiras) { if (K.flags.has(b.id)) continue; const pronta = b.pronta <= t, g = new THREE.Group(), al = pronta ? 1 : 0.55;
+    const m = (geo, c, x, y, z) => { const o = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: c, transparent: !pronta, opacity: al, side: THREE.DoubleSide })); o.position.set(x, y, z); o.castShadow = true; g.add(o); return o; };
+    m(new THREE.CylinderGeometry(1.1, 1.4, 0.8, 8), 0x8f8a84, 0, 0.4, 0); m(new THREE.CylinderGeometry(0.12, 0.12, 7, 6), 0x5a3a1a, 0, 3.5, 0); m(new THREE.PlaneGeometry(2.6, 1.6), corCla(b.cla), 1.35, 5.9, 0);
+    if (!pronta) for (const [x, z] of [[-1.2, -1.2], [1.2, -1.2], [-1.2, 1.2], [1.2, 1.2]]) m(new THREE.BoxGeometry(0.15, 4, 0.15), 0xb08a5a, x, 2, z);
+    g.position.set(wx(b.x + 0.5), 0, wz(b.y + 0.5)); cn().add(g); K.flags.set(b.id, { o: g, pronta }); }
+}
+function pontoBandeira(cla, tx, ty) { // as mesmas regras do servidor, para avisar na hora
+  if (!livre(tx, ty)) return 'Não dá para ir aí';
+  if (K.bandeiras.some(f => Math.max(Math.abs(f.x - tx), Math.abs(f.y - ty)) < 4)) return 'muito perto de outra bandeira';
+  const d = donoTile(tx, ty, agora() + 1e6); if (d != null && d !== cla) return 'território inimigo';
+  const c = K.castelos.find(q => q.id === cla);
+  if (!K.bandeiras.some(f => f.cla === cla && Math.max(Math.abs(f.x - tx), Math.abs(f.y - ty)) <= 9) && !(c && Math.max(Math.abs(Math.floor(c.x) - tx), Math.abs(Math.floor(c.y) - ty)) <= 10)) return 'longe do território do clã';
+  return null;
+}
+async function erguerBandeira(e, alvo, cam) {
+  const tx = Math.floor(alvo[0]), ty = Math.floor(alvo[1]), erro = pontoBandeira(e.cla, tx, ty);
+  if (erro) { som('erro'); toast(tr(erro)); return; }
+  if ((S.moedas || 0) < CUSTO_BANDEIRA) { som('erro'); toast(`${tr('Precisa de')} ${CUSTO_BANDEIRA} ${tr('moedas')}`); return; }
+  const dur = comprimento(cam) / VEL;
+  try { const r = await ON.mapaBandeira(e.slot, tx, ty, cam, dur); if (r) { som('erro'); toast(tr(r)); return; }
+    S.moedas -= CUSTO_BANDEIRA; salvar(); Object.assign(e, { cam, t0: agora(), t1: agora() + dur, local: true, alvo: null }); sfx('vitoria'); toast(tr('Bandeira em construção!')); atualizar(); }
+  catch (er) { toast(tr(er.message)); }
 }
 
 // ---- interface ----
@@ -246,7 +303,9 @@ function tocar(sx, sy) {
   if (!livre(Math.floor(alvo[0]), Math.floor(alvo[1]))) { som('erro'); toast(tr('Não dá para ir aí')); return; }
   const p = posicao(e), cam = caminho([p.x, p.y], alvo); if (!cam) { som('erro'); toast(tr('Não dá para chegar lá')); return; }
   K.prev = { e, alvo, cam }; mostrarLinha(cam, 0xffffff); som('clique');
-  const c = $('#muConf'); c.hidden = false; c.innerHTML = `<button class="btn verde" data-mu="marchar">${ico('seta')} ${tr('Marchar')} · ${tempoTxt(comprimento(cam) / VEL)}</button><button class="btn cinza peq" data-mu="cancelar">${ico('fechar')}</button>`;
+  const c = $('#muConf'); c.hidden = false; c.innerHTML = `<button class="btn verde" data-mu="marchar">${ico('seta')} ${tr('Marchar')} · ${tempoTxt(comprimento(cam) / VEL)}</button>
+    ${e.cla != null && oficial(e) ? `<button class="btn amarelo" data-mu="bandeira">${ico('bandeira')} ${CUSTO_BANDEIRA}${ico('ouro')}</button>` : ''}<button class="btn cinza peq" data-mu="cancelar">${ico('fechar')}</button>
+    ${e.cla == null ? `<small class="muSemCla">${tr('Entre num clã para erguer bandeiras')}</small>` : !oficial(e) ? `<small class="muSemCla">${tr('Só o líder e o colíder erguem bandeiras')}</small>` : ''}`;
 }
 function mostrarLinha(cam, cor) {
   if (K.linha) cn().remove(K.linha); const pts = cam.map(p => new THREE.Vector3(wx(p[0]), 0.35, wz(p[1])));
@@ -272,6 +331,7 @@ export function clique(b) {
   if (a === 'recuar') { const e = meus().find(q => q.slot === +b.dataset.slot); if (e) recuar(e); return; }
   if (a === 'atacar') { const e = meus().find(q => q.slot === +b.dataset.slot), alvo = K.ex.get(+b.dataset.alvo); $('#muInfo').hidden = true; if (e && alvo) { K.sel = e.id; atacar(e, alvo); } return; }
   if (a === 'cancelar') { K.prev = null; $('#muConf').hidden = true; if (K.linha) { cn().remove(K.linha); K.linha = null; } som('fechar'); return; }
+  if (a === 'bandeira' && K.prev) { const { e, alvo, cam } = K.prev; K.prev = null; $('#muConf').hidden = true; if (K.linha) { cn().remove(K.linha); K.linha = null; } erguerBandeira(e, alvo, cam); return; }
   if (a === 'marchar' && K.prev) { const { e, alvo } = K.prev; K.prev = null; $('#muConf').hidden = true; if (K.linha) { cn().remove(K.linha); K.linha = null; } marchar(e, alvo); return; }
   if (ex) selecionar(+ex);
 }
@@ -307,7 +367,7 @@ export function passo(dt) {
   if ((K.tPoll -= dt) <= 0) { K.tPoll = 4; atualizar(); }
   if (!K.carregou) return;
   if (K.cam) { K.cam.x = Math.max(wx(0), Math.min(wx(N), K.cam.x)); K.cam.z = Math.max(wz(0) + 10, Math.min(wz(N) + 18, K.cam.z)); }
-  passoBatalhas();
+  passoBatalhas(); if ((K.tTerr = (K.tTerr || 0) - dt) <= 0) { K.tTerr = 1; atualizarTerritorio(); }
   const az = [], vm = [], meuCla = meus()[0]?.cla;
   for (const e of K.ex.values()) {
     const p = posicao(e), x = wx(p.x), z = wz(p.y), amigo = e.eu || (meuCla != null && e.cla === meuCla), b = emBatalha(e), n0 = tropasAgora(e);
@@ -340,6 +400,8 @@ export function desenharFx(g, dt) {
     if (b || !e.eu) { const w = 40, f = Math.max(0, n0 / Math.max(1, e.cap || n0)); g.fillStyle = 'rgba(0,0,0,.55)'; g.fillRect(q[0] - w / 2 - 1, q[1] + 6, w + 2, 6); g.fillStyle = e.eu ? '#4ae86a' : '#ff5a4a'; g.fillRect(q[0] - w / 2, q[1] + 7, w * f, 4);
       g.font = '10px Titulo, sans-serif'; g.fillStyle = '#fff'; g.strokeText(fmt(n0), q[0], q[1] + 22); g.fillText(fmt(n0), q[0], q[1] + 22); }
     if (K.sel === e.id) { g.strokeStyle = '#ffd84a'; g.lineWidth = 3; g.beginPath(); g.arc(q[0], q[1] + 26, 18, 0, 7); g.stroke(); g.strokeStyle = 'rgba(0,0,0,.65)'; } }
+  for (const b of K.bandeiras) { const falta = b.pronta - agora(); if (falta <= 0 || b.id < 0) continue; const q = C.tela(wx(b.x + 0.5), 8, wz(b.y + 0.5)); if (!q) continue;
+    g.font = '12px Titulo, sans-serif'; const t = `${tr('Construindo')} ${tempoTxt(falta)}`; g.strokeText(t, q[0], q[1]); g.fillStyle = '#ffd84a'; g.fillText(t, q[0], q[1]); }
   for (const t of K.txt) { t.t += dt; const p = C.tela(t.x, t.y + t.t * 3, t.z); if (!p) continue; g.globalAlpha = Math.max(0, 1 - t.t / 1); g.font = `${t.grande ? 18 : 14}px Titulo, sans-serif`; g.strokeText(t.txt, p[0], p[1]); g.fillStyle = t.cor; g.fillText(t.txt, p[0], p[1]); g.globalAlpha = 1; }
   K.txt = K.txt.filter(t => t.t < 1);
 }
