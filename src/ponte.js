@@ -58,7 +58,7 @@ function novoAzul(x, z, ax, extra) { const tipo = extra?.tipo || tipoNovo(), u =
 const ladoHeroi = () => G.heroi.x < -0.5 ? -1 : G.heroi.x > 0.5 ? 1 : (Math.random() < 0.5 ? -1 : 1);
 
 let G = null;                // partida atual
-export const ondeEsta = () => tela + (G && tela === 'jogo' ? ` f${G.n}${G.inf ? ' inf' : ''}${G.dupla ? ' dupla' : ''}${G.tut ? ' tut' : ''}` : '');
+export const ondeEsta = () => (tela === 'lobby' ? `menu ${abaLobby}` : tela) + (G && tela === 'jogo' ? ` f${G.n}${G.inf ? ' inf' : ''}${G.dupla ? ' dupla' : ''}${G.tut ? ' tut' : ''}` : '');
 let tela = 'lobby';          // 'lobby' | 'jogo' | 'fim'
 let foco = { x: 0, z: -30 };
 
