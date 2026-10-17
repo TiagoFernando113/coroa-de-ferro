@@ -644,11 +644,14 @@ input{font:inherit;user-select:text;-webkit-user-select:text}
   background:var(--creme);border:3px solid var(--madeira);box-shadow:0 5px 0 var(--madeira),0 10px 20px rgba(0,0,0,.35);text-align:center;font-family:var(--fT);font-size:17px;color:var(--tinta)}
 .tutBalao.entra{animation:tutEntra .35s cubic-bezier(.2,1.6,.4,1)}
 @keyframes tutEntra{from{transform:translateX(-50%) scale(.6);opacity:0}}
-.tutMao{position:absolute;width:56px;height:56px;margin:-4px 0 0 -14px;color:#fff;filter:drop-shadow(0 3px 3px rgba(0,0,0,.6));animation:tutToca 1s ease-in-out infinite}
-.tutMao .ico{width:56px;height:56px;transform:rotate(-20deg)}
+.tutMao{position:absolute;width:52px;height:70px;margin:-1.5px 0 0 -18.5px;transform-origin:18.5px 1.5px;filter:drop-shadow(0 4px 4px rgba(0,0,0,.45));animation:tutToca 1.1s ease-in-out infinite;pointer-events:none}
+.tutMao svg{display:block;width:52px;height:70px}
+.tutMao .maoOnda{position:absolute;left:18.5px;top:1.5px;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;border:3px solid #fff;opacity:0;animation:maoOnda 1.1s ease-out infinite}
 .tutMao.arrasta{animation:tutArrasta 1.8s ease-in-out infinite}
-@keyframes tutToca{50%{transform:translate(6px,10px) scale(.9)}}
-@keyframes tutArrasta{0%,100%{transform:translateX(-90px)}50%{transform:translateX(90px)}}
+.tutMao.arrasta .maoOnda{display:none}
+@keyframes tutToca{0%,100%{transform:rotate(-14deg) translate(7px,16px)}45%,55%{transform:rotate(-14deg) translate(0,0) scale(.92)}}
+@keyframes maoOnda{0%,45%{transform:scale(.2);opacity:0}50%{opacity:1}100%{transform:scale(1.25);opacity:0}}
+@keyframes tutArrasta{0%,100%{transform:rotate(-14deg) translateX(-90px)}50%{transform:rotate(-14deg) translateX(90px)}}
 /* ---- perfil ---- */
 .avatarBtn{position:relative;width:44px;height:44px;border-radius:50%;background:radial-gradient(#fff6e3,#d8b880);border:3px solid #ffd23a;box-shadow:0 3px 0 #7a4a08;flex:none;padding:0;overflow:visible}
 .avatarBtn img{width:100%;height:100%;object-fit:contain;border-radius:50%}

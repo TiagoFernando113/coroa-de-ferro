@@ -434,7 +434,7 @@ function montarHud() {
       <div class="jPoderes"><button class="poder" data-pd="chuva">${ico('h_chuva')}<small>Chuva</small></button><button class="poder" data-pd="gigante">${ico('cav')}<small>Gigante</small></button></div>
       <div class="jMuro">${ico('escudo')}<div class="barra muro"><i id="jMuroB"></i><span id="jMuroT"></span></div></div>
       <p class="jDica" id="jDica">Arraste para mover · as flechas saem sozinhas</p>
-      <div id="tut" hidden><p class="tutBalao"></p><div class="tutMao">${ico('mao')}</div></div></div>
+      <div id="tut" hidden><p class="tutBalao"></p><div class="tutMao">${MAO}</div></div></div>
     <div id="fim" hidden></div><div id="conq" hidden></div><div id="castelo" hidden></div><div id="janela" hidden></div>`;
   fx = document.createElement('canvas'); fx.id = 'fx'; document.body.append(fx); gfx = fx.getContext('2d');
   const medir = () => { fx.width = innerWidth * devicePixelRatio; fx.height = innerHeight * devicePixelRatio; gfx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0); };
@@ -536,7 +536,7 @@ function proximaLiberacao() { // comemora o que abriu (uma coisa por vez, só no
 }
 function comecarGuia(id) {
   const passos = PASSOS_LIB[id]; if (!passos) return; fecharGuia();
-  const el = document.createElement('div'); el.id = 'guia'; el.innerHTML = `<div class="guiaFuro"></div><div class="guiaMao tutMao">${ico('mao')}</div><div class="guiaBalao"><p></p><div><button class="guiaPular">${tr('Pular')}</button><button class="guiaOk btn verde peq">${tr('Entendi')}</button></div></div>`;
+  const el = document.createElement('div'); el.id = 'guia'; el.innerHTML = `<div class="guiaFuro"></div><div class="guiaMao tutMao">${MAO}</div><div class="guiaBalao"><p></p><div><button class="guiaPular">${tr('Pular')}</button><button class="guiaOk btn verde peq">${tr('Entendi')}</button></div></div>`;
   document.body.appendChild(el); guia = { id, passos, i: -1, el, t0: performance.now() }; avancarGuia();
   el.querySelector('.guiaPular').onclick = () => { som('fechar'); fecharGuia(); };
   el.querySelector('.guiaOk').onclick = () => { som('clique'); avancarGuia(); };
@@ -559,6 +559,8 @@ function fecharGuia() { guia?.el.remove(); guia = null; }
 // tocou no alvo do passo: segue para o próximo (o toque continua valendo para o jogo)
 document.addEventListener('click', e => { const g = guia; if (!g || !g.alvoEl) return; if (g.alvoEl.contains(e.target)) setTimeout(avancarGuia, 350); }, true);
 setInterval(proximaLiberacao, 1200);
+// mãozinha dos tutoriais: luva de desenho; a ponta do dedo fica exatamente no ponto (o círculo marca o toque)
+const MAO = `<i class="maoOnda"></i><svg viewBox="0 0 62 84" aria-hidden="true"><path d="M22 3.5c3.6 0 6.5 2.9 6.5 6.5v23.2l2.4-.4c3.3-.5 6.3 1.6 6.9 4.8l.1.7 1.6-.3c3.2-.5 6.2 1.6 6.8 4.7l.1.7 1.3-.2c3.3-.4 6.2 1.9 6.5 5.2l1.1 11.8c.9 9.9-5.6 18.9-15.2 21L31 79.5h-3.6c-6.7 0-12.8-3.8-15.8-9.8L3.3 53.4c-1.7-3.4 0-7.5 3.6-8.6 2.7-.8 5.6.2 7.2 2.5l1.4 2V10c0-3.6 2.9-6.5 6.5-6.5z" fill="#fff" stroke="#3a1e08" stroke-width="3.6" stroke-linejoin="round"/><path d="M28.5 34v12.5M37.9 38.2v10.3M46.8 43v8.5" stroke="#3a1e08" stroke-width="2.6" stroke-linecap="round" fill="none" opacity=".3"/><path d="M17.5 66c3 6 8 9 14 9" stroke="#d8c8b8" stroke-width="3" stroke-linecap="round" fill="none"/></svg>`;
 const ABAS = [['home', 'Batalha', 'h_triplo'], ['up', 'Melhorias', 'raio'], ['cartas', 'Heróis', 'herois'], ['pets', 'Pets', 'pata'], ['cla', 'Clã', 'escudo'], ['rank', 'Ranking', 'rank']];
 // ---- renascer: volta para a fase 1 com bônus permanentes ----
 const reqRenascer = () => 20 + 10 * (S.renasc || 0);
