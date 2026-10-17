@@ -26,7 +26,8 @@ export function iniciarQuedas(fn) {
   onde = fn;
   // primeira vez neste aparelho: avisa a sala de novos jogadores (no Discord)
   if (!S.instalado) instalou(window.VERSAO | 0, aparelho(), navigator.language || '').then(() => { S.instalado = 1; salvar(); }).catch(() => {});
-  addEventListener('error', e => reportar('js', e.message || 'erro', (e.error?.stack || '') + `\n@${e.filename}:${e.lineno}:${e.colno}` + memoria()));
+  // "Script error." sem arquivo vem de script de fora (extensão/bloqueador do Safari): não tem o que consertar
+  addEventListener('error', e => !e.filename && /^Script error\.?$/.test(e.message || '') ? null : reportar('js', e.message || 'erro', (e.error?.stack || '') + `\n@${e.filename}:${e.lineno}:${e.colno}` + memoria()));
   addEventListener('unhandledrejection', e => { const r = e.reason; if (/sem conexão|segredo|nome_espera/.test(r?.message || '')) return; reportar('promessa', r?.message || String(r), (r?.stack || '') + memoria()); });
   // queda registrada pelo Android (WebView morreu ou erro do Java)
   try { const q = window.App?.queda?.(); if (q) reportar('android', q.split('\n')[0], q, ''); } catch (e) {}
