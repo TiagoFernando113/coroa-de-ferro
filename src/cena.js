@@ -159,7 +159,9 @@ export function instancias(m, lista) { // lista: [{x, y, z, ry, s}]
   });
   scene.add(g); return g;
 }
-export function removerGrupo(g) { if (!g) return; scene.remove(g); g.traverse(c => { if (c.isInstancedMesh) c.dispose(); }); }
+export function removerGrupo(g) { if (!g) return; scene.remove(g); g.traverse(c => { if (c.isInstancedMesh) c.dispose(); else if (c.isMesh) c.geometry.dispose(); }); } // peças juntadas têm geometria própria (o material é das peças, fica)
+// tira da cena e libera da memória de vídeo tudo que foi criado só para este grupo (geometrias, materiais e texturas)
+export function descartar(g) { if (!g) return; g.parent?.remove(g); g.traverse(c => { if (!c.isMesh && !c.isLine && !c.isPoints) return; c.geometry?.dispose(); for (const m of [].concat(c.material || [])) { m.map?.dispose(); m.dispose(); } }); }
 // tamanho de uma peça (caixa no chão, sem escala): meia-largura em x e z e o centro
 const dims = {};
 export function dimPeca(m) {
@@ -381,10 +383,15 @@ export function personagem(nome, armas = [], esc = 1) {
       atual = a; nomeAtual = n;
     },
     get anim() { return nomeAtual; },
-    remover() { scene.remove(raiz); mixer.stopAllAction(); },
+    remover() { scene.remove(raiz); mixer.stopAllAction(); liberar(raiz, mats); },
     brilho(v) { if (v === P._b) return; P._b = v; for (const m of mats) m.emissive?.setScalar(v); },
   };
   return P;
+}
+// personagem que saiu de cena: solta a textura dos ossos e os materiais copiados (as texturas do atlas são compartilhadas)
+function liberar(raiz, mats) {
+  const vistos = new Set(); raiz.traverse(o => { if (o.isSkinnedMesh && !vistos.has(o.skeleton)) { vistos.add(o.skeleton); o.skeleton.dispose(); } });
+  for (const m of mats) m.dispose();
 }
 // ---------------- heróis modulares (peças misturáveis + cores) ----------------
 // Todos os aventureiros usam o mesmo esqueleto (mesma pose de bind, só a ordem dos ossos muda):
@@ -454,6 +461,7 @@ export function zonasDe(v) {
 }
 const parteDe = p => ({ Head: 'cab', Helmet: 'cha', HelmetVisor: 'cha', BearHat: 'cha', Hat: 'cha', Mask: 'mas', Body: 'tro', ArmLeft: 'bra', ArmRight: 'bra', LegLeft: 'per', LegRight: 'per', Cape: 'capa', Quiver: 'cos' }[p]);
 // textura pintada de um atlas para um visual (null = cores originais)
+const TEX_PINTADA = new Map();
 function texturaPintada(at, v, extra) {
   const trocas = [];
   for (let idx = 0; idx < 32; idx++) {
@@ -462,6 +470,9 @@ function texturaPintada(at, v, extra) {
     if (c) trocas.push([idx, deHex(c)]);
   }
   if (!trocas.length) return null;
+  // a mesma pintura é reaproveitada (antes cada herói criado fazia uma textura nova e o celular ficava sem memória)
+  const chaveT = at.id + '|' + trocas.map(([i, c]) => i + ':' + c.join(',')).join(';'); if (TEX_PINTADA.has(chaveT)) return TEX_PINTADA.get(chaveT);
+  if (TEX_PINTADA.size > 24) { for (const t of TEX_PINTADA.values()) t.dispose(); TEX_PINTADA.clear(); }
   const img = new ImageData(new Uint8ClampedArray(at.dados.data), TX, TX), d = img.data;
   for (const [idx, [R, G, B]] of trocas) {
     const cx = idx % 8, cy = Math.floor(idx / 8), m = at.media[idx], lm = lum(...m);
@@ -471,7 +482,7 @@ function texturaPintada(at, v, extra) {
     }
   }
   const cv = document.createElement('canvas'); cv.width = cv.height = TX; cv.getContext('2d').putImageData(img, 0, 0);
-  const t = new THREE.CanvasTexture(cv); t.flipY = false; t.colorSpace = THREE.SRGBColorSpace; t.magFilter = THREE.LinearFilter; return t;
+  const t = new THREE.CanvasTexture(cv); t.flipY = false; t.colorSpace = THREE.SRGBColorSpace; t.magFilter = THREE.LinearFilter; TEX_PINTADA.set(chaveT, t); return t;
 }
 
 // ---------------- acessórios de raça: orelhas, barba, chifres, presas, rabo, asas, auréola ----------------
@@ -604,7 +615,7 @@ export function heroi(v) {
       atual = a; nomeAtual = n;
     },
     get anim() { return nomeAtual; },
-    remover() { scene.remove(raiz); mixer.stopAllAction(); },
+    remover() { scene.remove(raiz); mixer.stopAllAction(); liberar(raiz, mats); },
     brilho(x) { if (x === P._b) return; P._b = x; for (const m of mats) m.emissive?.setScalar(x); },
   };
   return P;

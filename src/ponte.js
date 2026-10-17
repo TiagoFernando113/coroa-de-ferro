@@ -120,7 +120,7 @@ const corTmp = new THREE.Color();
 function comCor(g, c) { corTmp.set(c); const n = g.attributes.position.count, a = new Float32Array(n * 3); for (let i = 0; i < n; i++) { a[i * 3] = corTmp.r; a[i * 3 + 1] = corTmp.g; a[i * 3 + 2] = corTmp.b; } g.setAttribute('color', new THREE.BufferAttribute(a, 3)); return g; }
 function montarCenario(bi) {
   if (bi === biomaAtual) return; biomaAtual = bi; const B = BIOMAS[bi];
-  if (cenGrupo) cena.remove(cenGrupo); if (cenEstat) C.removerGrupo(cenEstat);
+  if (cenGrupo) C.descartar(cenGrupo); if (cenEstat) C.removerGrupo(cenEstat); // o cenário antigo sai da memória de vídeo (antes ficava lá e o celular fechava o jogo)
   cenGrupo = new THREE.Group(); cena.add(cenGrupo); const add = m => { cenGrupo.add(m); return m; };
   C.ceu(B.ceu); C.neblina(...B.nevoa); MAT_PEDRA.color.set(B.ponte[0]); MAT_MURO.color.set(B.ponte[1]);
   let sd = 7; const r = () => ((sd = (sd * 16807) % 2147483647) / 2147483647), sorteio = l => l[Math.floor(r() * l.length)];
@@ -213,6 +213,8 @@ function criarPortao(p) {
   const pn = new THREE.Mesh(GEO_PAINEL, mat); pn.position.y = 3.6; g.add(pn); p.painel = pn;
   g.position.set(0, 0, p.z); cena.add(g); p.o = g; p.ganho = 0; p.tt = 0; p.pulso = 0;
 }
+function tirarBloco(b) { cena.remove(b.mesh); for (const m of [].concat(b.mesh.material)) if (![MAT_LADO_AZUL, MAT_LADO_AMAR, MAT_MADEIRA, MAT_ROXO].includes(m)) m.dispose(); b.tex?.dispose(); } // os materiais compartilhados ficam
+function tirarPortao(p) { cena.remove(p.o); p.o.traverse(o => { if (o.isMesh && o.material !== MAT_POSTE) o.material.dispose(); }); }
 function criarBloco(b, lado) {
   const x = lado * XL;
   if (b.tipo === 'barreira') {
@@ -423,7 +425,7 @@ function proximoChefe() {
   if (ch.bolha) cena.remove(ch.bolha); for (const fg of G.fogos) cena.remove(fg.o); G.fogos = []; G.congelado = 0;
   ch.v.remover(); G.F = F; G.t = 0; G.proxEscolha = 14; G.ondaT = 16; G.puloT = 0; G.golpePend = 0; intensidade(1);
   criarChefe(F); G.chefe.hp = G.chefe.max = Math.round(F.chefe.hp * (1 + 0.25 * G.chefesMortos)); $('#jChefeN').textContent = G.chefe.nome; $('#jN').textContent = `∞ · ${G.chefesMortos + 1}`;
-  for (const p of G.portoes) cena.remove(p.o); G.portoes = [];
+  for (const p of G.portoes) tirarPortao(p); G.portoes = [];
   for (const p0 of F.portoes) { const p = { ...p0, z: ZLANE - 2 - p0.i * PASSO }; criarPortao(p); G.portoes.push(p); }
   G.ouro += 30; G.muro = Math.min(G.muroMax, G.muro + Math.ceil(G.muroMax * 0.25));
   faixa(`CHEFE ${G.chefesMortos} DERROTADO!`, '#ffd84a'); G.txt.push({ x: 0, y: 8, z: -40, txt: '+1000', cor: '#ffd84a', t: 0, grande: true });
@@ -462,9 +464,9 @@ function escolherBonus(k) {
 const pontosInf = () => G.chefesMortos * 1000 + G.mortesVm;
 function limparFase() {
   if (!G) return;
-  for (const p of G.pistas) for (const b of p) cena.remove(b.mesh);
+  for (const p of G.pistas) for (const b of p) tirarBloco(b);
   for (const f of G.flechas) cena.remove(f.o);
-  for (const p of G.portoes) cena.remove(p.o);
+  for (const p of G.portoes) tirarPortao(p);
   G.chefe?.v.remover(); G.heroiV?.remover(); G.gigante?.v.remover(); for (const p of G.petsV || []) p.v.remover();
   if (G.dupla) { G.dupla.v.remover(); for (const p of G.dupla.pets || []) p.v.remover(); if (!G.dupla.manter) G.dupla.canal?.fechar(); }
   for (const c of G.chuvas) for (const f of c.fl) cena.remove(f.o);
@@ -474,6 +476,7 @@ function limparFase() {
   for (const v of G.vagas) { cena.remove(v.base); if (v.o) cena.remove(v.o); }
   for (const s of G.tiros) cena.remove(s.o); for (const m of G.meteoros || []) cena.remove(m.o);
   if (G.forquilha) cena.remove(G.forquilha);
+  for (const k in texCache) { texCache[k].dispose(); delete texCache[k]; } // rótulos das pilhas e portões da fase
   limparTropas(); G = null;
 }
 
@@ -1296,7 +1299,7 @@ function aplicarFoto(D, p) {
   if (p.pz && !D.pz && !G.escolhendo) faixa('ESPERANDO O PARCEIRO...', '#8ae0ff'); D.pz = p.pz;
   // pilhas (só somem pela frente) e portões
   for (let k = 0; k < 2; k++) { const pista = G.pistas[k], len = p.pi[2 * k], hpF = p.pi[2 * k + 1];
-    while (pista.length > len) { const b = pista.shift(); cena.remove(b.mesh); C.faiscas(b.mesh.position.x, 2, b.z + 1, b.tipo === 'vezes' ? 0x4aff6a : b.tipo === 'poder' ? 0xc88aff : b.tipo === 'barreira' ? 0x8a5a2b : 0x5aa8ff, 24, 6); if (b.tipo === 'barreira') som('pancada', 0.5); }
+    while (pista.length > len) { const b = pista.shift(); tirarBloco(b); C.faiscas(b.mesh.position.x, 2, b.z + 1, b.tipo === 'vezes' ? 0x4aff6a : b.tipo === 'poder' ? 0xc88aff : b.tipo === 'barreira' ? 0x8a5a2b : 0x5aa8ff, 24, 6); if (b.tipo === 'barreira') som('pancada', 0.5); }
     const b = pista[0]; if (b && hpF && hpF !== b.hp) { b.hp = hpF; if (b.tipo === 'barreira') redesenharBarreira(b); else { b.mesh.scale.y = 0.45 + 0.55 * b.hp / b.hpMax; b.mesh.position.y = 1.2 * b.mesh.scale.y; } } }
   G.portoes.forEach((q, i) => { if (p.po & 1 << i && !q.quebrado) { q.quebrado = true; cena.remove(q.o); } });
   // torres
@@ -1717,7 +1720,7 @@ function atualizarVagas() {
 }
 function montarTorre(v) {
   if (v.o) cena.remove(v.o); v.o = null; const T = TORRES[v.tipo]; if (!T) return;
-  v.o = C.objeto(T.modelo, T.esc * (1 + 0.12 * (v.nv - 1))); v.o.position.set(v.x, 0, v.z); v.o.rotation.y = Math.PI; v.o.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  v.o = C.objeto(T.modelo, T.esc * (1 + 0.12 * (v.nv - 1))); v.o.position.set(v.x, 0, v.z); v.o.rotation.y = Math.PI / 2; // os modelos de balista e catapulta apontam para +x v.o.traverse(o => { if (o.isMesh) o.castShadow = true; });
 }
 function tocarVaga(i) {
   const v = G.vagas[i]; if (!v || G.fim) return;
@@ -1961,7 +1964,7 @@ function passoJogo(dt) {
     p.tt -= dt;
     if (p.ganho > 0 && p.tt <= 0) { G.txt.push({ x: (Math.random() - 0.5) * 4, y: 6, z: p.z, txt: '+' + fmt(p.ganho), cor: '#8ae0ff', t: 0, grande: true }); p.ganho = 0; p.tt = 0.35; sfx('nota', 6 + Math.floor(Math.random() * 4)); }
     // o chefe passa por cima e quebra o portão
-    if (ch.z + 4 >= p.z) { p.quebrado = true; cena.remove(p.o); C.faiscas(0, 3, p.z, 0x8ae0ff, 50, 8); C.camera.tremor = 0.6; som('pancada'); faixaT('O CHEFE QUEBROU O PORTÃO!', '#ff9a3a'); }
+    if (ch.z + 4 >= p.z) { p.quebrado = true; tirarPortao(p); C.faiscas(0, 3, p.z, 0x8ae0ff, 50, 8); C.camera.tremor = 0.6; som('pancada'); faixaT('O CHEFE QUEBROU O PORTÃO!', '#ff9a3a'); }
   }
   if (novos.length) G.az.push(...novos);
   // grade dos vermelhos por faixa de z (para choques e flechas)
@@ -2008,7 +2011,7 @@ function passoJogo(dt) {
     let alvo = null, za = -1e9; for (const u of G.vm) if (!u.morto && u.z > za && Math.hypot(u.x - v.x, u.z - v.z) < T.alcance) { za = u.z; alvo = u; }
     const noChefe = !alvo && Math.hypot(v.x, ch.z + 3 - v.z) < T.alcance + 6; if (!alvo && !noChefe) continue;
     v.cd = T.cad[v.nv - 1]; const tx = alvo ? alvo.x : 0, tz = alvo ? alvo.z : ch.z + 3;
-    v.o.rotation.y = Math.atan2(tx - v.x, tz - v.z) + Math.PI;
+    v.o.rotation.y = Math.atan2(v.z - tz, tx - v.x);
     const o = new THREE.Mesh(v.tipo === 'balista' ? GEO_FLECHA : GEO_PEDRA, v.tipo === 'balista' ? MAT_FLECHA : MAT_PEDRA_T); o.position.set(v.x, 2.5, v.z); cena.add(o);
     if (v.tipo === 'balista') o.lookAt(tx, 1.2, tz), o.rotateY(Math.PI);
     G.tiros.push({ o, tipo: v.tipo, nv: v.nv, x0: v.x, z0: v.z, tx, tz, alvo, t: 0, dur: v.tipo === 'balista' ? 0.18 : 0.8 }); fxDupla('t', [v.i, v.tipo === 'balista' ? 0 : 1, v.nv, tx, tz]);
@@ -2108,7 +2111,7 @@ function passoTiros(dt, vis) {
 }
 function tiroVis(a) { // tiro de torre/arqueiro que o host mandou
   const [i, cat, nv, tx, tz, ax, az] = a, v = G.vagas[i], x0 = v ? v.x : ax, z0 = v ? v.z : az;
-  if (v?.o) v.o.rotation.y = Math.atan2(tx - v.x, tz - v.z) + Math.PI;
+  if (v?.o) v.o.rotation.y = Math.atan2(v.z - tz, tx - v.x);
   const o = new THREE.Mesh(cat ? GEO_PEDRA : GEO_FLECHA, cat ? MAT_PEDRA_T : MAT_FLECHA); o.position.set(x0, 2.5, z0); if (!cat) { o.lookAt(tx, 1.2, tz); o.rotateY(Math.PI); if (!v) o.scale.setScalar(0.6); } cena.add(o);
   G.tiros.push({ o, tipo: cat ? 'catapulta' : 'balista', nv, x0, z0, tx, tz, alvo: null, erra: true, t: 0, dur: cat ? 0.8 : v ? 0.18 : 0.22 });
 }
@@ -2456,7 +2459,7 @@ function acertarBloco(b, pista, lado, dano = 1, parc = false) {
     if (b.tipo === 'vezes') { faixaT('EXÉRCITO DOBRADO!', '#7aff8a'); G.punch = 1; }
     else if (b.valor >= 50) { faixaT(b.valor >= 99 ? 'MEGA!' : 'INCRÍVEL!', '#ffd84a'); G.punch = 0.8; }
   }
-  cena.remove(b.mesh); pista.splice(pista.indexOf(b), 1); if (G.tut) G.tut.pilhas++;
+  tirarBloco(b); pista.splice(pista.indexOf(b), 1); if (G.tut) G.tut.pilhas++;
 }
 function poderPilha(p) { // pilha roxa: flecha extra ou tiro mais rápido para o herói que acertou
   if (p === 'flecha') { const m = G.nFlechas >= G.flechasMax; G.nFlechas = Math.min(G.flechasMax, G.nFlechas + 1); faixa(m ? 'FLECHAS NO MÁXIMO' : 'FLECHA EXTRA!', '#c88aff'); }

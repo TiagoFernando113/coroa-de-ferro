@@ -10,7 +10,7 @@ import * as Q from './queda.js';
 
 window.VERSAO = VERSAO;
 let qualidade = 'media';
-try { qualidade = localStorage.getItem('guilda_q') || 'media'; } catch (e) {}
+try { qualidade = localStorage.getItem('guilda_q') || ((navigator.deviceMemory || 8) <= 4 ? 'baixa' : 'media'); } catch (e) {} // celular com pouca memória já começa no modo leve
 
 async function baixar(url, prog) {
   const resp = await fetch(url), total = +resp.headers.get('content-length') || 0;

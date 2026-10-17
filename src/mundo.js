@@ -135,10 +135,10 @@ export function abrir(container, opcoes) {
   ligarToque(); atualizar(true);
 }
 export function fechar() {
-  if (K) { for (const e of K.ex.values()) limparEx(e); for (const g of K.cena || []) cn().remove(g); if (K.linha) cn().remove(K.linha); if (K.terr) cn().remove(K.terr); for (const f of K.flags.values()) cn().remove(f.o); desenharTropas('az', [], 0, 0); desenharTropas('vm', [], 0, 0); }
+  if (K) { for (const e of K.ex.values()) limparEx(e); if (K.cena) { C.descartar(K.cena[0]); C.removerGrupo(K.cena[1]); } C.descartar(K.linha); C.descartar(K.terr); for (const f of K.flags.values()) C.descartar(f.o); desenharTropas('az', [], 0, 0); desenharTropas('vm', [], 0, 0); }
   desligarToque(); K = null; if (el) { el.hidden = true; el.innerHTML = ''; }
 }
-function limparEx(e) { if (e.flag) cn().remove(e.flag); e.v?.remover(); if (e.linha) cn().remove(e.linha); }
+function limparEx(e) { C.descartar(e.flag); e.v?.remover(); C.descartar(e.linha); }
 
 // ---- servidor ----
 function minhasTropas() { const up = S.up || {}; return Math.round(60 + 30 * (up.exercito || 0) + 8 * (up.vida || 0) + (S.equipe || []).length * 15); }
@@ -236,14 +236,14 @@ function atualizarTerritorio() {
     if (MAPA.at(x, y) !== AGUA) { const [x0, z0] = q(x, y), [x1, z1] = q(x + 1, y + 1); pos.push(x0, 0.08, z0, x1, 0.08, z0, x1, 0.08, z1, x0, 0.08, z0, x1, 0.08, z1, x0, 0.08, z1); for (let k = 0; k < 6; k++) cor.push(c3.r, c3.g, c3.b); }
     for (const [dx, dy, ax, ay, bx, by] of [[1, 0, 1, 0, 1, 1], [-1, 0, 0, 0, 0, 1], [0, 1, 0, 1, 1, 1], [0, -1, 0, 0, 1, 0]]) { const a = x + dx, b = y + dy, o = a >= 0 && b >= 0 && a < N && b < N ? dono[b * N + a] : null;
       if (o !== d) { const [p0, r0] = q(x + ax, y + ay), [p1, r1] = q(x + bx, y + by); lp.push(p0, 0.15, r0, p1, 0.15, r1); lc.push(c3.r, c3.g, c3.b, c3.r, c3.g, c3.b); } } }
-  if (K.terr) cn().remove(K.terr); K.terr = new THREE.Group();
+  C.descartar(K.terr); K.terr = new THREE.Group();
   if (pos.length) { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(cor, 3));
     K.terr.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.4, depthWrite: false }))); }
   if (lp.length) { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(lp, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(lc, 3)); K.terr.add(new THREE.LineSegments(g, new THREE.LineBasicMaterial({ vertexColors: true }))); }
   cn().add(K.terr);
   // bandeiras: mastro alto com o pano do clã; em construção fica com andaime e meio transparente
   const vivas = new Set(K.bandeiras.map(f => f.id));
-  for (const [id, f] of K.flags) if (!vivas.has(id) || f.pronta !== (K.bandeiras.find(b => b.id === id).pronta <= t)) { cn().remove(f.o); K.flags.delete(id); }
+  for (const [id, f] of K.flags) if (!vivas.has(id) || f.pronta !== (K.bandeiras.find(b => b.id === id).pronta <= t)) { C.descartar(f.o); K.flags.delete(id); }
   for (const b of K.bandeiras) { if (K.flags.has(b.id)) continue; const pronta = b.pronta <= t, g = new THREE.Group(), al = pronta ? 1 : 0.55;
     const m = (geo, c, x, y, z) => { const o = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: c, transparent: !pronta, opacity: al, side: THREE.DoubleSide })); o.position.set(x, y, z); o.castShadow = true; g.add(o); return o; };
     m(new THREE.CylinderGeometry(1.1, 1.4, 0.8, 8), 0x8f8a84, 0, 0.4, 0); m(new THREE.CylinderGeometry(0.12, 0.12, 7, 6), 0x5a3a1a, 0, 3.5, 0); m(new THREE.PlaneGeometry(2.6, 1.6), corCla(b.cla), 1.35, 5.9, 0);
@@ -308,7 +308,7 @@ function tocar(sx, sy) {
     ${e.cla == null ? `<small class="muSemCla">${tr('Entre num clã para erguer bandeiras')}</small>` : !oficial(e) ? `<small class="muSemCla">${tr('Só o líder e o colíder erguem bandeiras')}</small>` : ''}`;
 }
 function mostrarLinha(cam, cor) {
-  if (K.linha) cn().remove(K.linha); const pts = cam.map(p => new THREE.Vector3(wx(p[0]), 0.35, wz(p[1])));
+  C.descartar(K.linha); const pts = cam.map(p => new THREE.Vector3(wx(p[0]), 0.35, wz(p[1])));
   K.linha = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineDashedMaterial({ color: cor, dashSize: 1.2, gapSize: 0.8 })); K.linha.computeLineDistances(); cn().add(K.linha);
 }
 function mostrarRelatorios(lista) { // relatório de batalha (como o "battle report" do RoK)
@@ -330,9 +330,9 @@ export function clique(b) {
   if (a === 'relOk') { som('clique'); $('#muRel').hidden = true; return; }
   if (a === 'recuar') { const e = meus().find(q => q.slot === +b.dataset.slot); if (e) recuar(e); return; }
   if (a === 'atacar') { const e = meus().find(q => q.slot === +b.dataset.slot), alvo = K.ex.get(+b.dataset.alvo); $('#muInfo').hidden = true; if (e && alvo) { K.sel = e.id; atacar(e, alvo); } return; }
-  if (a === 'cancelar') { K.prev = null; $('#muConf').hidden = true; if (K.linha) { cn().remove(K.linha); K.linha = null; } som('fechar'); return; }
-  if (a === 'bandeira' && K.prev) { const { e, alvo, cam } = K.prev; K.prev = null; $('#muConf').hidden = true; if (K.linha) { cn().remove(K.linha); K.linha = null; } erguerBandeira(e, alvo, cam); return; }
-  if (a === 'marchar' && K.prev) { const { e, alvo } = K.prev; K.prev = null; $('#muConf').hidden = true; if (K.linha) { cn().remove(K.linha); K.linha = null; } marchar(e, alvo); return; }
+  if (a === 'cancelar') { K.prev = null; $('#muConf').hidden = true; C.descartar(K.linha); K.linha = null; som('fechar'); return; }
+  if (a === 'bandeira' && K.prev) { const { e, alvo, cam } = K.prev; K.prev = null; $('#muConf').hidden = true; C.descartar(K.linha); K.linha = null; erguerBandeira(e, alvo, cam); return; }
+  if (a === 'marchar' && K.prev) { const { e, alvo } = K.prev; K.prev = null; $('#muConf').hidden = true; C.descartar(K.linha); K.linha = null; marchar(e, alvo); return; }
   if (ex) selecionar(+ex);
 }
 // arrastar = mover a câmera; dois dedos (ou a roda do mouse) = zoom; tocar = escolher
@@ -383,8 +383,8 @@ export function passo(dt) {
     const n = Math.min(9, 2 + Math.ceil(n0 / 60)), s = Math.sin(e.dir), c = Math.cos(e.dir), lista = amigo ? az : vm, tipo = SOLD[e.tipo] || 'az';
     for (let i = 0; i < n; i++) { const fila = 1 + Math.floor(i / 3), col = (i % 3) - 1, ox = col * 1.1, oz = b ? 0.9 + (fila - 1) * 0.9 : -fila * 1.15 - (e.v ? 0.4 : -0.8);
       lista.push({ x: x + ox * c + oz * s, z: z - ox * s + oz * c, ph: e.id * 1.7 + i * 0.9 + (p.anda ? 0 : 99), ry: e.dir, tipo, luta: !!b }); }
-    if (e.eu && p.anda) { if (e.linhaCam !== e.cam) { if (e.linha) cn().remove(e.linha); const pts = e.cam.map(q => new THREE.Vector3(wx(q[0]), 0.3, wz(q[1]))); e.linha = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineDashedMaterial({ color: e.alvo ? 0xff5a4a : 0xffd84a, dashSize: 1, gapSize: 0.7 })); e.linha.computeLineDistances(); cn().add(e.linha); e.linhaCam = e.cam; } }
-    else if (e.linha) { cn().remove(e.linha); e.linha = null; e.linhaCam = null; }
+    if (e.eu && p.anda) { if (e.linhaCam !== e.cam) { C.descartar(e.linha); const pts = e.cam.map(q => new THREE.Vector3(wx(q[0]), 0.3, wz(q[1]))); e.linha = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineDashedMaterial({ color: e.alvo ? 0xff5a4a : 0xffd84a, dashSize: 1, gapSize: 0.7 })); e.linha.computeLineDistances(); cn().add(e.linha); e.linhaCam = e.cam; } }
+    else if (e.linha) { C.descartar(e.linha); e.linha = null; e.linhaCam = null; }
   }
   desenharTropas('az', az, 0, t); desenharTropas('vm', vm, 0, t);
   if ((K.tCards = (K.tCards || 0) - dt) <= 0) { K.tCards = 0.5; for (const e of meus()) { const m = document.querySelector(`[data-mu-t="${e.id}"]`), nn = document.querySelector(`[data-mu-n="${e.id}"]`); if (nn) nn.textContent = fmt(tropasAgora(e));
