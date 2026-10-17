@@ -357,6 +357,7 @@ const T = {
   'Tiro rápido: o herói atira mais vezes. Flechas por tiro: mais flechas de uma vez. Exército: mais soldados no começo. Muralha: mais vida. Escudos: soldados sobrevivem às lutas.': L('Fast shot: the hero shoots more often. Arrows per shot: more arrows at once. Army: more soldiers at the start. Wall: more health. Shields: soldiers survive fights.', 'Tiro rápido: el héroe dispara más. Flechas por tiro: más flechas a la vez. Ejército: más soldados al inicio. Muralla: más vida. Escudos: los soldados sobreviven a las peleas.'),
   'As tropas (arqueiros, lanceiros e magos) também sobem com cartas e entram na batalha junto com os soldados.': L('Troops (archers, spearmen and mages) also level up with cards and join the battle with your soldiers.', 'Las tropas (arqueros, lanceros y magos) también suben con cartas y entran en la batalla con los soldados.'),
   'Complete missões para ganhar moedas e subir no passe de prêmios! Novas missões chegam todo dia e toda semana.': L('Complete missions to earn coins and climb the prize pass! New missions arrive every day and every week.', '¡Completa misiones para ganar monedas y subir en el pase de premios! Llegan misiones nuevas cada día y cada semana.'),
+  'Pular tutorial': L('Skip tutorial', 'Saltar tutorial'),
 };
 export const TEXTOS = { en: {}, es: {} };
 for (const [k, v] of Object.entries(T)) { TEXTOS.en[k] = v.en; TEXTOS.es[k] = v.es; }

@@ -321,7 +321,7 @@ export function iniciarFase(n, inf = false, semCorrida = false) {
 // bônus dos pets da equipe na ponte
 const assinaturaPets = () => S.equipe.map(k => k + S.pets[base(k)]?.nv).join();
 function aplicarBonusPets() {
-  const B = { ...bonusEquipe() }, R = bonusRenasc(S.renasc || 0); for (const k in R) B[k] = (B[k] || 0) + R[k];
+  const B = liberado('pets') ? { ...bonusEquipe() } : {}, R = bonusRenasc(S.renasc || 0); for (const k in R) B[k] = (B[k] || 0) + R[k];
   const f = t => (B[t] || 0) / 100; G.bonusPets = B; G.assinatura = assinaturaPets();
   G.fila += Math.round((G.fila + 20) * f('soldados')); G.tiro *= 1 + f('tiro'); G.tiroMax *= 1 + f('tiro');
   G.muroMax = G.muro = Math.round(G.muroMax * (1 + f('muralha'))); G.multPilha *= 1 + f('pilhas'); G.escudo = Math.min(0.8, G.escudo + f('escudo'));
@@ -360,6 +360,7 @@ function falaBot(D) { // figurinhas como um jogador de verdade
   if (D.resp && (D.resp.t -= 1 / 60) <= 0) { fala(D.resp.e); D.resp = null; }
 }
 function criarPetsHeroi() {
+  if (!liberado('pets')) { G.petsV = []; return; } // pets só aparecem depois que o jogador os libera
   G.petsV = S.equipe.slice(0, 3).map((k, i) => { const v = petVisual(k), D = PETS[base(k)]; return { k, v, x: POS_PET[i][0], dz: POS_PET[i][1], cd: 1 + i * 0.4, cor: D.cor || 0xffe08a, dano: 1 + (D.r >= 2 ? 1 : 0) + est(k), cad: D.c === 'atirador' ? 1.1 : 1.6, gcd: golpe(k) ? cdGolpe(k) * 0.5 : null }; });
 }
 function petVisual(k) {
@@ -547,8 +548,8 @@ async function mostrarResumo(fora, tentativas = 0) {
 let abaLobby = 'home';
 // ---- liberação aos poucos: cada parte do jogo abre ao vencer uma fase, com um tutorial curto ----
 const LIBERA = [ // [id, fase vencida, nome, ícone, frase]
-  ['baus', 1, 'Baús', 'bau', 'Vença fases para ganhar baús cheios de prêmios'],
-  ['up', 2, 'Melhorias', 'raio', 'Use suas moedas para deixar o exército mais forte'],
+  ['up', 1, 'Melhorias', 'raio', 'Use suas moedas para deixar o exército mais forte'],
+  ['baus', 2, 'Baús', 'bau', 'Vença fases para ganhar baús cheios de prêmios'],
   ['pets', 3, 'Pets', 'pata', 'Pets lutam do seu lado e dão bônus na batalha'],
   ['cartas', 4, 'Heróis', 'herois', 'Cada herói tem um ataque e um poder diferente'],
   ['missoes', 5, 'Missões', 'missoes', 'Complete missões para ganhar moedas e prêmios'],
@@ -1592,6 +1593,8 @@ function clique(e) {
       .catch(e => { b.disabled = false; som('erro'); er.textContent = tr(e.message); const d = document.querySelector('[data-a=nomeDepois]'); if (d) d.hidden = false; }); return; }
   if (a === 'pegarPremio') { const q = document.querySelector('#pcMoedas')?.getBoundingClientRect(); $('#janela').hidden = true; sfx('vitoria'); som('moedas');
     if (q) voarMoedas('.lbTopo .pilula.ouro', 14, { x: q.left + q.width / 2, y: q.top + q.height / 2 }); if (tela === 'lobby') desenharLobby(); return; }
+  if (a === 'tutOk') { if (G?.tut) { G.tut.okClicado = true; som('clique'); } return; }
+  if (a === 'tutPular') { if (G?.tut) { som('fechar'); fimTutorial(); } return; }
   if (a === 'verNovo') { som('confirma'); $('#janela').hidden = true; abaLobby = 'home'; desenharLobby(); setTimeout(() => comecarGuia(b.dataset.novo), 250); return; }
   if (a === 'som') { alternarSom(); som('clique'); if ($('#janela .jConfig')) mostrarConfig(); else desenharLobby(); }
   if (b.dataset.abaLobby) { som('clique'); abaLobby = b.dataset.abaLobby; desenharLobby(); }
@@ -1746,31 +1749,34 @@ function comecarFase(inf = false, dupla = null) {
 }
 // ---- tutorial da primeira partida: balão com dica + mãozinha apontando ----
 const naTela = sel => { const e = document.querySelector(sel); if (!e || e.offsetParent === null || e.style.display === 'none') return null; const r = e.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; };
-const PASSOS_TUT = [ // pular: passo que não faz sentido agora (ex.: não tem pilha roxa) é saltado
+const PASSOS_TUT = [ // info: pausa o jogo e espera o "Entendi"; pausa: o jogo espera a ação; pular: passo que não faz sentido agora é saltado
   { txt: 'Arraste o dedo para mover o herói', ok: T => Math.abs(G.heroi.x - T.x0) > 6, alvo: () => ({ arrasta: true }) },
   { txt: 'As flechas saem sozinhas. Mire nas pilhas: +N dá soldados e x2 dobra o seu exército!', ok: T => T.pilhas >= 2, alvo: () => { const b = G.pistas.flat().sort((a, c) => c.z - a.z)[0]; return b && C.tela(b.mesh.position.x, 3, b.z); } },
-  { txt: 'Pilha roxa é bônus do herói: FLECHA +1 atira mais flechas e RÁPIDO atira mais depressa', ok: T => T.t > 6, pular: () => !G.pistas.some(p => p.slice(0, 4).some(b => b.tipo === 'poder')),
+  { txt: 'Pilha roxa é bônus do herói: FLECHA +1 atira mais flechas e RÁPIDO atira mais depressa', info: true, pular: () => !G.pistas.some(p => p.slice(0, 4).some(b => b.tipo === 'poder')),
     alvo: () => { const b = G.pistas.flatMap(p => p.slice(0, 4)).find(b => b.tipo === 'poder'); return b && C.tela(b.mesh.position.x, 3, b.z); } },
-  { txt: 'Seus soldados (azul) marcham sozinhos e lutam com os orcs (vermelho). Quanto mais soldados, melhor!', ok: T => T.t > 5, alvo: () => G.az[0] && C.tela(G.az[0].x, 2, G.az[0].z) },
-  { txt: 'Orc que chega na muralha tira vida dela. Se a muralha cair, você perde!', ok: T => T.t > 5, alvo: () => naTela('#jMuroB') },
-  { txt: 'Orcs derrotados dão ouro: toque no + ao lado da ponte para construir uma torre', ok: T => T.torre || G.menuVaga != null || T.t > 14, alvo: () => naTela('.vaga.pode') || naTela('.vaga'), quando: () => G.ouro >= 25 },
-  { txt: 'Balista: tiro rápido em um orc. Catapulta: mais lenta, mas acerta vários de uma vez. Escolha uma!', ok: T => T.torre || T.t > 10, pular: T => T.torre || G.menuVaga == null, alvo: () => naTela('#jMenuT button') },
-  { txt: 'Toque de novo na torre (quando tiver ouro) para subir de nível até ★★★: ela fica mais forte!', ok: T => T.t > 6, pular: T => !T.torre, alvo: () => { const v = G.vagas.find(q => q.tipo); return v && C.tela(v.x, 1.5, v.z); } },
-  { txt: 'O botão de poder acende quando está pronto: toque para usar o poder do seu herói!', ok: T => T.poder || T.t > 10, alvo: () => naTela('[data-pd=chuva]'), quando: () => G.pd.chuva.cd <= 0 },
-  { txt: 'O Gigante aliado avança derrubando orcs e luta com o chefe. Use quando os orcs apertarem!', ok: T => T.t > 7, alvo: () => naTela('[data-pd=gigante]'), quando: () => G.pd.gigante.cd <= 0 },
-  { txt: 'Derrote o chefe no fim da ponte antes que ele chegue na muralha. Boa sorte!', ok: T => T.t > 5, alvo: () => C.tela(0, 8, G.chefe.z) },
+  { txt: 'Seus soldados (azul) marcham sozinhos e lutam com os orcs (vermelho). Quanto mais soldados, melhor!', info: true, alvo: () => G.az[0] && C.tela(G.az[0].x, 2, G.az[0].z) },
+  { txt: 'Orc que chega na muralha tira vida dela. Se a muralha cair, você perde!', info: true, alvo: () => naTela('#jMuroB') },
+  { txt: 'Orcs derrotados dão ouro: toque no + ao lado da ponte para construir uma torre', pausa: true, ok: T => T.torre || G.menuVaga != null, alvo: () => naTela('.vaga.pode') || naTela('.vaga'), quando: () => G.ouro >= 25 },
+  { txt: 'Balista: tiro rápido em um orc. Catapulta: mais lenta, mas acerta vários de uma vez. Escolha uma!', pausa: true, ok: T => T.torre, pular: T => T.torre || G.menuVaga == null, alvo: () => naTela('#jMenuT button') },
+  { txt: 'Toque de novo na torre (quando tiver ouro) para subir de nível até ★★★: ela fica mais forte!', info: true, pular: T => !T.torre, alvo: () => { const v = G.vagas.find(q => q.tipo); return v && C.tela(v.x, 1.5, v.z); } },
+  { txt: 'O botão de poder acende quando está pronto: toque para usar o poder do seu herói!', pausa: true, ok: T => T.poder, alvo: () => naTela('[data-pd=chuva]'), quando: () => G.pd.chuva.cd <= 0 },
+  { txt: 'O Gigante aliado avança derrubando orcs e luta com o chefe. Use quando os orcs apertarem!', info: true, alvo: () => naTela('[data-pd=gigante]'), quando: () => G.pd.gigante.cd <= 0 },
+  { txt: 'Derrote o chefe no fim da ponte antes que ele chegue na muralha. Boa sorte!', info: true, alvo: () => C.tela(0, 8, G.chefe.z) },
 ];
+function fimTutorial() { G.tut = null; G.tutPausa = false; S.tut = true; salvar(); const el = $('#tut'); if (el) el.hidden = true; }
 function passoTutorial(dt) {
-  const T = G?.tut, el = $('#tut'); if (!T || G.fim) { if (el) el.hidden = true; return; }
-  const P = PASSOS_TUT[T.passo]; if (!P) { G.tut = null; S.tut = true; salvar(); el.hidden = true; return; }
+  const T = G?.tut, el = $('#tut'); if (!T || G.fim) { if (el) el.hidden = true; if (G) G.tutPausa = false; return; }
+  const P = PASSOS_TUT[T.passo]; if (!P) return fimTutorial();
   if (P.pular?.(T)) { T.passo++; T.t = 0; return; }
-  if (P.quando && !P.quando()) { el.hidden = true; return; }
-  T.t += dt; el.hidden = false;
-  if (el.dataset.passo !== String(T.passo)) { el.dataset.passo = T.passo; el.querySelector('.tutBalao').textContent = tr(P.txt); el.querySelector('.tutBalao').classList.remove('entra'); void el.offsetWidth; el.querySelector('.tutBalao').classList.add('entra'); }
+  if (G.pausa || (P.quando && !P.quando())) { el.hidden = true; G.tutPausa = false; return; } // escolhendo bônus ou esperando a hora certa
+  T.t += dt; el.hidden = false; G.tutPausa = !!(P.info || P.pausa); el.classList.toggle('parado', G.tutPausa);
+  if (el.dataset.passo !== String(T.passo)) { el.dataset.passo = T.passo; const bl = el.querySelector('.tutBalao');
+    bl.innerHTML = `<span>${esc(tr(P.txt))}</span><span class="tutBts">${P.info ? `<button class="btn verde peq" data-a="tutOk">${tr('Entendi')}</button>` : ''}<button class="tutPular" data-a="tutPular">${tr('Pular tutorial')}</button></span>`;
+    bl.classList.remove('entra'); void el.offsetWidth; bl.classList.add('entra'); }
   const a = P.alvo(), mao = el.querySelector('.tutMao');
   if (a?.arrasta) { mao.hidden = false; mao.className = 'tutMao arrasta'; mao.style.left = innerWidth / 2 + 'px'; mao.style.top = innerHeight * 0.8 + 'px'; }
   else if (a) { mao.hidden = false; mao.className = 'tutMao'; mao.style.left = a[0] + 'px'; mao.style.top = a[1] + 'px'; } else mao.hidden = true;
-  if (P.ok(T)) { T.passo++; T.t = 0; sfx('brilho'); }
+  if (P.ok?.(T) || T.okClicado) { T.passo++; T.t = 0; T.okClicado = false; G.tutPausa = false; sfx('brilho'); }
 }
 const ROLETA = [2, 3, 5, 3, 2];
 let roleta = null;
@@ -1832,7 +1838,7 @@ export function passo(dt0) {
   let dt = dt0; if (G && G.lento > 0) { G.lento -= dt0; dt = dt0 * 0.25; }
   const t = C.tempo();
   if (tela === 'conq' || tela === 'castelo') { // Conquista (pets lutam sozinhos) e Castelo (defesa da muralha)
-    MP.mostrarMapa(false); const M = tela === 'conq' ? CQ : CT; if (tela === 'conq') { CQ.passo(dt0); passoVoo(dt0); } else CT.passo(dt0); const V = M.vista(); foco.x = V.foco.x; foco.z = V.foco.z;
+    MP.mostrarMapa(false); { const r = $('#mapaRot'); if (r) r.hidden = true; } const M = tela === 'conq' ? CQ : CT; if (tela === 'conq') { CQ.passo(dt0); passoVoo(dt0); } else CT.passo(dt0); const V = M.vista(); foco.x = V.foco.x; foco.z = V.foco.z;
     C.camera.yaw = V.yaw; C.camera.pitch = V.pitch; C.camera.dist = V.dist; C.camera.altura = 0; C.camera.suave = 2.5;
     if (texAgua) texAgua.offset.y += dt0 * 0.03;
     if (window.__ov) { Object.assign(C.camera, window.__ov.cam); Object.assign(foco, window.__ov.foco); }
@@ -1840,7 +1846,7 @@ export function passo(dt0) {
   }
   if (G) {
     G.heroiV.mixer.update(dt); passoPetsHeroi(dt, tela === 'jogo' && !G.fim && !G.pausa && !G.corrida);
-    if (tela === 'jogo' && !G.fim && !G.pausa) passoJogo(dt);
+    if (tela === 'jogo' && !G.fim && !G.pausa && !G.tutPausa) passoJogo(dt);
     else if (tela === 'jogo' && !G.fim && G.dupla) passoDupla(dt); // escolhendo bônus: a dupla continua conectada
     else if (G.fim === 'v') { G.chefe.v.mixer.update(dt); }
     else G.chefe.v.mixer.update(dt);
@@ -1902,7 +1908,7 @@ function passoJogo(dt) {
   if (G.inf) G.pistas.forEach((p, k) => { if (p.length >= 6) return; const F = dadosFase(G.n + Math.floor(Math.random() * 3)), l = k ? F.dir : F.esq;
       for (let i = 0; i < 10; i++) novoBloco(blocoInf(l[i + 8], k), k, (p.length ? p[p.length - 1].z : ZLANE) - PASSO - 6, F.duro + G.chefesMortos); });
   // hora de escolher um bônus
-  if (G.t >= G.proxEscolha && !ch.pulo) { G.proxEscolha = G.t + 22 + 4 * G.escolhas; abrirEscolha(); }
+  if (G.t >= G.proxEscolha && !ch.pulo && !G.tut) { G.proxEscolha = G.t + 22 + 4 * G.escolhas; abrirEscolha(); }
   // evento: meteoros caem na ponte e acertam azuis e vermelhos
   if (G.evento === 'meteoros' && G.t > 6 && (G.metT -= dt) <= 0) { G.metT = Math.max(2.6, 5 - 0.05 * G.n);
     const x = (Math.random() * 2 - 1) * (MEIA - 4), z = ZSPAWN - 8 - Math.random() * Math.max(10, ZSPAWN - 8 - (ch.z + 20));

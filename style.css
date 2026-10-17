@@ -1029,3 +1029,12 @@ input{font:inherit;user-select:text;-webkit-user-select:text}
   background:linear-gradient(#5ae86a,#2ab84a);color:#fff;font-family:var(--fT);font-size:15px;box-shadow:0 4px 0 #1a7a2a,0 8px 16px rgba(0,0,0,.3);animation:versaoPula 1.4s ease-in-out infinite;white-space:nowrap}
 @keyframes versaoPula{50%{transform:translate(-50%,-5px)}}
 .btnVersao .ico{width:18px;height:18px}
+/* créditos da capa sempre embaixo, sem cobrir os botões */
+#titulo{padding-bottom:calc(max(10px, env(safe-area-inset-bottom)) + 44px)}
+#titulo > .cred{position:absolute;left:0;right:0;bottom:max(10px, env(safe-area-inset-bottom));text-align:center}
+/* tutorial da batalha: botões no balão (Entendi / Pular tutorial) */
+#tut .tutBalao{pointer-events:auto;display:flex;flex-direction:column;align-items:center;gap:8px}
+.tutBts{display:flex;align-items:center;justify-content:center;gap:14px}
+.tutBts .btn{margin:0;min-width:110px}
+.tutPular{background:none;border:0;color:var(--suave);font-family:var(--fT);font-size:13px;text-decoration:underline;padding:4px}
+#tut.parado::before{content:'';position:fixed;inset:0;background:rgba(6,10,24,.35);pointer-events:none}
