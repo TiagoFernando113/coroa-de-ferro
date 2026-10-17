@@ -44,7 +44,9 @@ async function comecar() {
   requestAnimationFrame(laco);
   const entrar = () => { const b = document.createElement('button'); b.className = 'btn verde grande'; b.textContent = 'Defender a ponte';
     b.onclick = () => { som('confirma'); $('#titulo').classList.add('sai'); setTimeout(() => $('#titulo').remove(), 600); };
-    $('.tMenu').innerHTML = ''; $('.tMenu').append(b); };
+    $('.tMenu').innerHTML = ''; $('.tMenu').append(b);
+    // iPhone no Safari: ensina a instalar como app (Compartilhar → Adicionar à Tela de Início)
+    if (/iP(hone|ad|od)/.test(navigator.userAgent) && !navigator.standalone) { const d = document.createElement('p'); d.className = 'dicaIos'; d.innerHTML = 'Para instalar: toque em <b>Compartilhar</b> ⬆️ e depois em <b>Adicionar à Tela de Início</b>'; $('.tMenu').append(d); } };
   // primeira vez: escolher o idioma
   if (idiomaEscolhido()) entrar();
   else { $('.tMenu').innerHTML = `<p class="tIdiomaT" data-nt>🌎 Idioma · Language</p><div class="idiomas" data-nt>${IDIOMAS.map(([k, n, f]) => `<button class="btn azul" data-idioma="${k}"><span class="flag">${f}</span>${n}</button>`).join('')}</div>`;
@@ -56,3 +58,5 @@ function avisoLeve() {
   const d = document.createElement('div'); d.className = 'toast'; d.textContent = 'Modo leve ligado para o jogo rodar melhor'; document.body.append(d); setTimeout(() => d.remove(), 3500);
 }
 comecar();
+// versão web (iPhone/navegador): vira app instalável; no app Android os arquivos já vêm de dentro dele
+if ('serviceWorker' in navigator && !window.App && location.protocol === 'https:' && location.hostname !== 'coroa.app') navigator.serviceWorker.register('sw.js').catch(() => {});
