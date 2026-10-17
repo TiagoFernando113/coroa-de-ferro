@@ -7,7 +7,7 @@ import { HABILIDADES, fase as dadosFase, tiros, vidaMuralha, escudo, fmt, UPGRAD
 import { S, salvar, fimDeSemana, mudouDesdeBackup, backupFeito, darCartas, comprar, BAUS, MAX_BAUS, ganharBau, abrirBau, cartasPara, CARTAS, DIARIO, diarioPronto, diaDoPresente, pegarDiario } from './meta.js';
 import { visualPadrao } from './aparencia.js';
 import { ico, som, $, alternarSom, estaMudo, voarMoedas, flashTela, contarAte } from './util.js';
-import { tema, sfx, intensidade } from './musica.js';
+import { tema, sfx, intensidade, somFigurinha } from './musica.js';
 import * as ON from './online.js';
 import { HEROIS, heroiAtual } from './herois.js';
 import { criarTropas, desenharTropas, voar, passoVoo, limparTropas } from './tropas.js';
@@ -302,7 +302,7 @@ function botUsaPoder(D) {
   if (usar) poderDoParceiro(id); return usar;
 }
 function falaBot(D) { // figurinhas como um jogador de verdade
-  const fala = e => { D.balao = (D.balao || []).filter(x => x.eu); D.balao.push({ e, t: 0 }); sfx('brilho'); };
+  const fala = e => { D.balao = (D.balao || []).filter(x => x.eu); D.balao.push({ e, t: 0 }); somFigurinha(e); };
   if (!D.f0 && G.t > 2.5) { D.f0 = 1; fala(Math.random() < 0.5 ? 'bora' : 'top'); }
   if (!D.f1 && G.muro < G.muroMax * 0.35) { D.f1 = 1; fala('socorro'); }
   if (!D.f2 && G.chefe.furia) { D.f2 = 1; fala('ajuda'); }
@@ -1025,7 +1025,7 @@ function receberDupla(ev, p) {
   if (D.saiu && D.caiuRede && ev !== 'sair') { D.saiu = false; D.caiuRede = false; if (!G.fim) faixa(`${D.apelido.toUpperCase()} VOLTOU!`, '#7aff8a'); }
   if (ev === 'pi') { D.canal?.enviar('po', { t: p.t }); return; }
   if (ev === 'po') { D.ping = Math.round(performance.now() - p.t); return; }
-  if (ev === 'em') { if (FIGURINHAS[p.e]) { D.balao = (D.balao || []).filter(x => x.eu); D.balao.push({ e: p.e, t: 0 }); sfx('brilho'); } return; }
+  if (ev === 'em') { if (FIGURINHAS[p.e]) { D.balao = (D.balao || []).filter(x => x.eu); D.balao.push({ e: p.e, t: 0 }); somFigurinha(p.e); } return; }
   if (ev === 'f' && !D.host) { // o host terminou a partida: mesmo resultado para os dois
     D.fim = p.v ? 'v' : 'd'; if (p.dp != null) { D.meuDano = p.dp; D.danoP = p.dh; G.danoTotal = p.dp; }
     if (!G.fim) { if (p.v) vitoriaFx(); else derrotaFx(); terminar(!!p.v); } else atualizarRevanche(); return; }
@@ -1389,7 +1389,7 @@ function clique(e) {
   if (a === 'jogar') { som('confirma'); comecarFase(); }
   if (a === 'modos') { som('clique'); mostrarModos(); return; }
   if (a === 'emoAbrir') { const pn = $('#emoPainel'); if (pn.hidden) pn.innerHTML = Object.keys(FIGURINHAS).map(k => `<button data-emo="${k}"><img src="${imgFigurinha(k)}" alt=""><small>${tr(FIGURINHAS[k].txt)}</small></button>`).join(''); pn.hidden = !pn.hidden; som('clique'); return; }
-  if (b.dataset.emo) { $('#emoPainel').hidden = true; const D = G?.dupla; if (!D || (D.emoT && performance.now() - D.emoT < 1200)) return; D.emoT = performance.now(); D.balao = (D.balao || []).filter(x => !x.eu); D.balao.push({ e: b.dataset.emo, t: 0, eu: true }); D.canal?.enviar('em', { e: b.dataset.emo }); som('clique');
+  if (b.dataset.emo) { $('#emoPainel').hidden = true; const D = G?.dupla; if (!D || (D.emoT && performance.now() - D.emoT < 1200)) return; D.emoT = performance.now(); D.balao = (D.balao || []).filter(x => !x.eu); D.balao.push({ e: b.dataset.emo, t: 0, eu: true }); D.canal?.enviar('em', { e: b.dataset.emo }); somFigurinha(b.dataset.emo);
     if (D.bot && !D.resp && Math.random() < 0.8) D.resp = { t: 1 + Math.random(), e: { socorro: 'bora', ajuda: 'bora', gg: 'gg', kkk: 'kkk', bora: 'top', top: 'gg' }[b.dataset.emo] || 'top' }; return; }
   if (b.dataset.claVer) { som('clique'); verCla(b.dataset.claVer); return; }
   if (a === 'contaRecuperar') { som('clique'); mostrarPerfil(); setTimeout(() => { const d = document.querySelector('#janela details'); if (d) { d.open = true; d.scrollIntoView({ block: 'center' }); } }, 300); return; }

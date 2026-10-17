@@ -111,3 +111,17 @@ export function sfx(n, k = 0) {
   if (n === 'medalha') { [[72, 0], [79, 0.1], [84, 0.2], [88, 0.3]].forEach(([m, d]) => osc('triangle', hz(m + transp), a + d, 0.5, 0.09, eco, 0.002)); osc('sine', hz(96 + transp), a + 0.3, 0.8, 0.05, eco, 0.002); }
   if (n === 'derrota') { [[64, 0], [63, 0.25], [62, 0.5], [57, 0.75]].forEach(([m, d]) => osc('triangle', hz(m), a + d, 0.6, 0.1, mestre, 0.01)); }
 }
+// sons das figurinhas da dupla (curtinhos e engraçados)
+export function somFigurinha(k) {
+  if (!ctx || mudo) return; const a = ctx.currentTime;
+  const desliza = (tipo, f0, f1, t, dur, v) => { const o = osc(tipo, f0, t, dur, v, mestre, 0.005); o.frequency.exponentialRampToValueAtTime(f1, t + dur); return o; };
+  if (k === 'gg') { [[72, 0], [76, 0.09], [79, 0.18]].forEach(([m, d]) => osc('square', hz(m), a + d, 0.12, 0.06, mestre, 0.003)); [72, 76, 79, 84].forEach(m => osc('triangle', hz(m), a + 0.27, 0.6, 0.05, eco, 0.003)); }
+  if (k === 'bora') { barulho(a, 0.25, 0.18, 'bandpass', 1200, 0.7, mestre).frequency.exponentialRampToValueAtTime(3500, a + 0.22); osc('square', hz(67), a + 0.18, 0.1, 0.07, mestre); osc('square', hz(74), a + 0.3, 0.22, 0.07, mestre); }
+  if (k === 'socorro') { const o = desliza('sine', 1300, 260, a, 0.7, 0.1); const lfo = ctx.createOscillator(), lg = ctx.createGain(); lfo.frequency.value = 9; lg.gain.value = 40; lfo.connect(lg).connect(o.frequency); lfo.start(a); lfo.stop(a + 0.75); }
+  if (k === 'ajuda') { [0, 0.16, 0.42, 0.58].forEach((d, i) => osc('square', i % 2 ? 660 : 880, a + d, 0.12, 0.05, mestre, 0.003)); }
+  if (k === 'toma') { bumbo(a, 0.9); barulho(a, 0.12, 0.3, 'lowpass', 1400, 1, mestre); desliza('square', 900, 120, a + 0.02, 0.18, 0.05); }
+  if (k === 'facil') { [0, 0.14, 0.28].forEach((d, i) => desliza('triangle', 300 + i * 120, 520 + i * 120, a + d, 0.09, 0.08)); }
+  if (k === 'kkk') { for (let i = 0; i < 6; i++) { const t = a + i * 0.11, f = 620 - i * 25; desliza('square', f, f * 0.82, t, 0.08, 0.045); barulho(t, 0.06, 0.05, 'bandpass', 2200, 2, mestre); } }
+  if (k === 'top') { const o = desliza('sine', 180, 820, a, 0.35, 0.1); const lfo = ctx.createOscillator(), lg = ctx.createGain(); lfo.frequency.value = 18; lg.gain.value = 60; lfo.connect(lg).connect(o.frequency); lfo.start(a); lfo.stop(a + 0.4);
+    [0, 4, 7, 12].forEach((s, i) => osc('triangle', hz(84 + s), a + 0.32 + i * 0.05, 0.25, 0.05, eco, 0.002)); }
+}
