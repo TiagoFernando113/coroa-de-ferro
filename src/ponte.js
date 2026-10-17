@@ -1696,7 +1696,7 @@ function clique(e) {
   if (b.dataset.vaga) tocarVaga(+b.dataset.vaga);
   if (b.dataset.cq) CQ.clique(b);
   if (b.dataset.ct || b.dataset.magia) CT.clique(b);
-  if (b.dataset.mu || b.dataset.muEx) MU.clique(b);
+  if (b.dataset.mu || b.dataset.muEx || b.dataset.muTipo) MU.clique(b);
   if (a === 'conquista') { som('confirma'); abrirConquista(); }
   if (a === 'castelo') { som('confirma'); abrirCastelo(); }
   if (b.dataset.ovo) abrirOvo(b.dataset.ovo);

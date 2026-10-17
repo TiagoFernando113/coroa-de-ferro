@@ -8,7 +8,7 @@ import { S } from './meta.js';
 import { HEROIS } from './herois.js';
 import { fmt } from './dados.js';
 import { desenharTropas } from './tropas.js';
-import { ico, som, $ } from './util.js';
+import { ico, som, $, flashTela } from './util.js';
 import { sfx } from './musica.js';
 import { t as tr } from './i18n.js';
 import * as ON from './online.js';
@@ -127,11 +127,11 @@ function bandeira(cor) { // mastro + pano na cor do clã
 // ---- abrir / fechar ----
 export function abrir(container, opcoes) {
   el = container; op = opcoes; el.hidden = false; gerarMapa();
-  K = { ex: new Map(), clas: [], castelos: [], livresSitios: [], dif: 0, sel: null, prev: null, zoom: 95, cam: null, toques: new Map(), arrasto: null, tPoll: 0, carregou: false, txt: [], erro: '' };
+  K = { ex: new Map(), bat: new Map(), clas: [], castelos: [], livresSitios: [], dif: 0, sel: null, prev: null, zoom: 95, cam: null, toques: new Map(), arrasto: null, tPoll: 0, carregou: false, txt: [], erro: '' };
   C.ceu(0x9ad8f8); C.neblina(180, 520); C.diaNoite(0);
   el.innerHTML = `<div class="muTopo"><button class="lSair" data-mu="sair">${ico('fechar')}</button><b>${tr('Mapa de Guerra')}</b><small id="muOn"></small></div>
     <div class="muAviso" id="muAviso">${tr('Carregando o mapa...')}</div>
-    <div class="muConf" id="muConf" hidden></div><div class="muInfo" id="muInfo" hidden></div><div class="muExs" id="muExs"></div>`;
+    <div class="muConf" id="muConf" hidden></div><div class="muInfo" id="muInfo" hidden></div><div class="muExs" id="muExs"></div><div class="cqJanela" id="muRel" hidden></div>`;
   ligarToque(); atualizar(true);
 }
 export function fechar() {
@@ -142,7 +142,7 @@ function limparEx(e) { if (e.flag) cn().remove(e.flag); e.v?.remover(); if (e.li
 
 // ---- servidor ----
 function minhasTropas() { const up = S.up || {}; return Math.round(60 + 30 * (up.exercito || 0) + 8 * (up.vida || 0) + (S.equipe || []).length * 15); }
-async function atualizar(primeira) {
+async function atualizar() {
   if (!K || K.buscando) return; K.buscando = true;
   try {
     const r = await ON.mapaEstado(S.heroi || 'lyra', minhasTropas()); if (!K) return;
@@ -150,55 +150,97 @@ async function atualizar(primeira) {
     if (!K.carregou || JSON.stringify(r.clas) !== K.clasSig) { K.clasSig = JSON.stringify(r.clas); K.clas = r.clas; bases(); if (!K.carregou) { K.cena = montarTerreno(); } }
     const vistos = new Set();
     for (const d of r.exercitos) { vistos.add(d.id); let e = K.ex.get(d.id);
-      if (!e) { e = { ...d }; K.ex.set(d.id, e); } else if (!(e.eu && e.local && e.t0 > d.t0)) Object.assign(e, d); // a ordem que acabei de dar vale até o servidor confirmar
+      if (!e) { e = { ...d }; K.ex.set(d.id, e); } else if (!(e.eu && e.local && e.t0 > d.t0 + 0.5)) Object.assign(e, d, { local: false }); // a ordem que acabei de dar vale até o servidor confirmar
       e.base = baseDe(e); }
     for (const [id, e] of K.ex) if (!vistos.has(id)) { limparEx(e); K.ex.delete(id); }
-    if (!K.carregou) { K.carregou = true; $('#muAviso').hidden = true; const m = [...K.ex.values()].find(e => e.eu); if (m) { const p = posicao(m); K.cam = { x: wx(p.x), z: wz(p.y) + 10 }; } }
+    for (const b of r.batalhas) if (!K.bat.has(b.id)) { K.bat.set(b.id, { ...b, visto: -1 }); const a = K.ex.get(b.a), d = K.ex.get(b.b); if (a?.eu || d?.eu) { som('pancada'); toast(tr('Batalha!')); } }
+    else Object.assign(K.bat.get(b.id), { fim: b.fim, recuou: b.recuou, linha: b.linha });
+    for (const [id, b] of K.bat) if (!r.batalhas.some(q => q.id === id) && agora() > b.fim + 6) K.bat.delete(id);
+    if (!K.carregou) { K.carregou = true; $('#muAviso').hidden = true; const m = meus()[0]; if (m) { const p = posicao(m); K.cam = { x: wx(p.x), z: wz(p.y) + 10 }; } }
     $('#muOn').textContent = `${[...K.ex.values()].filter(e => !e.bot).length / 2 | 0} ${tr('jogadores')} · ${[...K.ex.values()].filter(e => e.bot).length} bots`;
-    darOrdensBots(r.livres || []); cards();
+    perseguir(); darOrdensBots(r.livres || []); cards();
+    if (r.relatorios?.length) mostrarRelatorios(r.relatorios);
   } catch (e) { if (K) { K.erro = e.message; const a = $('#muAviso'); if (a && !K.carregou) a.textContent = tr('Sem conexão com o mapa') + ' 😢'; } }
   finally { if (K) K.buscando = false; }
 }
-function darOrdensBots(ids) { // bots andam pelo mapa: às vezes perto de casa, às vezes rumo a outro castelo
+const emBatalha = e => { for (const b of K.bat.values()) if ((b.a === e.id || b.b === e.id) && agora() < b.fim + 0.5) return b; return null; };
+const naBase = (e, p = posicao(e)) => Math.hypot(p.x - e.base[0], p.y - e.base[1]) < 2.5;
+function tropasAgora(e) { // durante a batalha, a contagem vem da linha do tempo da luta
+  const b = emBatalha(e); if (!b) return e.tropas; const k = Math.max(0, Math.min(b.linha.length - 1, Math.floor(agora() - b.t0)));
+  return b.linha[k][b.a === e.id ? 0 : 1];
+}
+function perseguir() { // RoK: quem ataca segue o alvo; se ele andou, refaz o caminho até onde ele está
+  for (const e of meus()) { if (!e.alvo || emBatalha(e)) continue; const a = K.ex.get(e.alvo); if (!a) continue; const pa = posicao(a), fim = e.cam?.[e.cam.length - 1];
+    if (fim && Math.hypot(fim[0] - pa.x, fim[1] - pa.y) > 1.5 && !posicao(e).fim) atacar(e, a, true); }
+}
+function darOrdensBots(ids) { // bots andam pelo mapa e às vezes atacam outro exército que está fora de casa
   const ordens = [];
-  for (const id of ids.slice(0, 4)) { const e = K.ex.get(id); if (!e) continue; const p = posicao(e), r = Math.random(); let alvo = null;
+  for (const id of ids.slice(0, 4)) { const e = K.ex.get(id); if (!e) continue; const p = posicao(e), r = Math.random(); let alvo = null, alvoEx = null;
+    if (r < 0.3) { let dm = 14; for (const o of K.ex.values()) { if (o === e || (o.cla != null && o.cla === e.cla) || o.tropas <= 0 || emBatalha(o)) continue; const q = posicao(o); if (naBase(o, q)) continue;
+      const d = Math.hypot(q.x - p.x, q.y - p.y); if (d < dm) { dm = d; alvoEx = o; alvo = [q.x, q.y]; } } }
     for (let k = 0; k < 12 && !alvo; k++) { let x, y;
-      if (r < 0.2 && K.castelos.length) { const c = K.castelos[Math.floor(Math.random() * K.castelos.length)]; x = c.x + (Math.random() - 0.5) * 6; y = c.y + (Math.random() - 0.5) * 6; }
-      else if (r < 0.4) { [x, y] = e.base; }
+      if (r < 0.45 && K.castelos.length) { const c = K.castelos[Math.floor(Math.random() * K.castelos.length)]; x = c.x + (Math.random() - 0.5) * 6; y = c.y + (Math.random() - 0.5) * 6; }
+      else if (r < 0.6 || e.tropas < (e.cap || 100) * 0.4) { [x, y] = e.base; }
       else { x = p.x + (Math.random() - 0.5) * 22; y = p.y + (Math.random() - 0.5) * 22; }
       if (livre(Math.floor(x), Math.floor(y))) alvo = [x, y]; }
     if (!alvo) continue; const cam = caminho([p.x, p.y], alvo); if (!cam || cam.length < 2) continue;
-    const dur = comprimento(cam) / VEL; ordens.push({ id, cam, dur }); Object.assign(e, { cam, t0: agora(), t1: agora() + dur }); }
+    const dur = comprimento(cam) / VEL; ordens.push({ id, cam, dur, alvo: alvoEx?.id ?? null }); Object.assign(e, { cam, t0: agora(), t1: agora() + dur, alvo: alvoEx?.id ?? null }); }
   if (ordens.length) ON.mapaBots(ordens).catch(() => {});
 }
-async function marchar(e, alvo) {
-  const p = posicao(e), cam = caminho([p.x, p.y], alvo); if (!cam || cam.length < 2) { som('erro'); toast(tr('Não dá para chegar lá')); return; }
-  const dur = comprimento(cam) / VEL; Object.assign(e, { cam, t0: agora(), t1: agora() + dur, local: true }); sfx('brilho'); som('confirma');
-  try { const t0 = await ON.mapaMarchar(e.slot, cam, dur); if (K && e.cam === cam) e.t0 = t0; } catch (er) { toast(er.message); }
+async function enviar(e, cam, alvoId) {
+  const dur = comprimento(cam) / VEL; Object.assign(e, { cam, t0: agora(), t1: agora() + dur, local: true, alvo: alvoId });
+  try { const t0 = await ON.mapaMarchar(e.slot, cam, dur, alvoId, e.tipo); if (K && e.cam === cam) e.t0 = t0; } catch (er) { toast(tr(er.message)); }
   cards();
+}
+function marchar(e, alvo) {
+  if (emBatalha(e)) { som('erro'); toast(tr('Em batalha! Use Recuar')); return; }
+  const p = posicao(e), cam = caminho([p.x, p.y], alvo); if (!cam || cam.length < 2) { som('erro'); toast(tr('Não dá para chegar lá')); return; }
+  sfx('brilho'); som('confirma'); enviar(e, cam, null);
+}
+function atacar(e, a, quieto) {
+  if (emBatalha(e)) { if (!quieto) { som('erro'); toast(tr('Em batalha! Use Recuar')); } return; }
+  if (e.tropas <= 0) { if (!quieto) { som('erro'); toast(tr('Sem tropas: espere os feridos se recuperarem')); } return; }
+  const p = posicao(e), q = posicao(a); let cam = null;
+  for (const [dx, dy] of [[0, 1.2], [1.2, 0], [-1.2, 0], [0, -1.2], [0.9, 0.9], [-0.9, 0.9], [0.9, -0.9], [-0.9, -0.9]]) { const x = q.x + dx, y = q.y + dy; if (livre(Math.floor(x), Math.floor(y))) { cam = caminho([p.x, p.y], [x, y]); if (cam) break; } }
+  if (!cam || cam.length < 2) { if (!quieto) { som('erro'); toast(tr('Não dá para chegar lá')); } return; }
+  if (!quieto) { sfx('vitoria'); toast(`${tr('Atacando')} ${a.nome}!`); }
+  enviar(e, cam, a.id);
+}
+async function recuar(e) {
+  const p = posicao(e), cam = caminho([p.x, p.y], e.base); som('fechar');
+  try { await ON.mapaRecuar(e.slot, cam || [[p.x, p.y]], cam ? comprimento(cam) / VEL : 0); toast(tr('Recuando!')); setTimeout(atualizar, 300); } catch (er) { toast(er.message); }
 }
 
 // ---- interface ----
 const corDe = e => e.cla != null ? CORES_CLA[(K.clas.find(c => c.id === e.cla)?.cor || 0) % 8] : 0xd8d8d8;
 const meus = () => [...K.ex.values()].filter(e => e.eu).sort((a, b) => a.slot - b.slot);
 const tempoTxt = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+const TIPOS = { esp: { nome: 'Espadachins', icone: 'h_lamina' }, arc: { nome: 'Arqueiros', icone: 'arq' }, lan: { nome: 'Lanceiros', icone: 'h_perfura' } };
+function estadoTxt(e) {
+  const p = posicao(e), b = emBatalha(e); if (b) return `<b class="muLuta">${tr('Em batalha!')}</b>`;
+  if (e.tropas <= 0) return tr('Derrotado: se recuperando');
+  if (p.anda) return `${e.alvo ? tr('Atacando') : tr('Marchando')} ${tempoTxt(p.falta)}`;
+  return naBase(e, p) ? tr('Na base') : tr('Parado');
+}
 function cards() {
   const b = $('#muExs'); if (!b) return; const H = HEROIS[S.heroi] || HEROIS.lyra;
-  b.innerHTML = meus().map(e => { const p = posicao(e), casa = Math.hypot(p.x - e.base[0], p.y - e.base[1]) < 1.5;
-    return `<button class="muEx ${K.sel === e.id ? 'sel' : ''}" data-mu-ex="${e.id}"><span class="muExI">${ico('herois')}</span><div><b>${tr('Exército')} ${e.slot + 1}</b><small>${H.nome} · ${fmt(e.tropas)} ${ico('forca')}</small>
-      <em data-mu-t="${e.id}">${p.anda ? `${tr('Marchando')} ${tempoTxt(p.falta)}` : casa ? tr('Na base') : tr('Parado')}</em></div></button>`; }).join('');
+  b.innerHTML = meus().map(e => { const T0 = TIPOS[e.tipo] || TIPOS.esp, bat = emBatalha(e), rec = (e.feridos || 0) + (e.mortos || 0);
+    return `<div class="muEx ${K.sel === e.id ? 'sel' : ''}"><button class="muExI" data-mu-tipo="${e.id}" title="${tr(T0.nome)}">${ico(T0.icone)}</button><button class="muExD" data-mu-ex="${e.id}"><b>${tr('Exército')} ${e.slot + 1} <small>${H.nome}</small></b>
+      <small>${ico('forca')} <span data-mu-n="${e.id}">${fmt(tropasAgora(e))}</span>/${fmt(e.cap || e.tropas)}${rec ? ` · <i class="muFer">+${fmt(rec)} ${tr('feridos')}</i>` : ''}</small>
+      <em data-mu-t="${e.id}">${estadoTxt(e)}</em></button>${bat ? `<button class="btn vermelho peq" data-mu="recuar" data-slot="${e.slot}">${tr('Recuar')}</button>` : ''}</div>`; }).join('');
 }
 function toast(t) { const a = $('#muAviso'); if (!a) return; a.hidden = false; a.textContent = t; clearTimeout(K.tToast); K.tToast = setTimeout(() => { if (K?.carregou) a.hidden = true; }, 1800); }
 function selecionar(id) {
   K.sel = K.sel === id ? null : id; K.prev = null; $('#muConf').hidden = true; $('#muInfo').hidden = true; som('clique');
-  const e = K.ex.get(K.sel); if (e) { const p = posicao(e); K.cam = { x: wx(p.x), z: wz(p.y) + 10 }; toast(tr('Toque no mapa para onde o exército vai')); } cards();
+  const e = K.ex.get(K.sel); if (e) { const p = posicao(e); K.cam = { x: wx(p.x), z: wz(p.y) + 10 }; toast(tr('Toque no mapa ou num inimigo')); } cards();
 }
 function tocar(sx, sy) {
-  // tocou num exército?
   let perto = null, dm = 34; for (const e of K.ex.values()) { const p = posicao(e), q = C.tela(wx(p.x), 1.5, wz(p.y)); if (!q) continue; const d = Math.hypot(q[0] - sx, q[1] - sy); if (d < dm) { dm = d; perto = e; } }
   if (perto?.eu) { selecionar(perto.id); return; }
-  if (perto) { const c = K.clas.find(q => q.id === perto.cla), i = $('#muInfo'); i.hidden = false; $('#muConf').hidden = true; som('clique');
-    i.innerHTML = `<b data-nt>${c ? `[${esc(c.tag)}] ` : ''}${esc(perto.nome)}</b><small>${fmt(perto.tropas)} ${tr('soldados')} · ${HEROIS[perto.heroi]?.nome || ''}</small><small class="muBreve">${tr('Ataques chegam na próxima etapa!')}</small>`; return; }
+  if (perto) { const c = K.clas.find(q => q.id === perto.cla), i = $('#muInfo'), amigo = meus()[0]?.cla != null && perto.cla === meus()[0].cla, T0 = TIPOS[perto.tipo] || TIPOS.esp; i.hidden = false; $('#muConf').hidden = true; som('clique');
+    i.innerHTML = `<b data-nt>${c ? `[${esc(c.tag)}] ` : ''}${esc(perto.nome)}</b><small>${ico(T0.icone)} ${fmt(tropasAgora(perto))} ${tr(T0.nome).toLowerCase()} · ${HEROIS[perto.heroi]?.nome || ''}</small>
+      ${amigo ? `<small>${tr('É do seu clã')}</small>` : emBatalha(perto) ? `<small class="muBreve">${tr('Já está em batalha')}</small>` : `<div class="muAtk">${meus().map(e => `<button class="btn vermelho peq" data-mu="atacar" data-slot="${e.slot}" data-alvo="${perto.id}" ${e.tropas <= 0 || emBatalha(e) ? 'disabled' : ''}>${ico('h_lamina')} ${tr('Atacar com')} ${e.slot + 1}</button>`).join('')}</div>
+      <small class="muDica">${tr('Espadachim vence arqueiro, arqueiro vence lanceiro, lanceiro vence espadachim')}</small>`}`; return; }
   const e = K.ex.get(K.sel); if (!e) { $('#muInfo').hidden = true; return; }
   const g = C.chaoEm(sx, sy); if (!g) return; const alvo = [(g.x - WX) / T + N / 2, (g.z - WZ) / T + N / 2];
   if (!livre(Math.floor(alvo[0]), Math.floor(alvo[1]))) { som('erro'); toast(tr('Não dá para ir aí')); return; }
@@ -210,13 +252,28 @@ function mostrarLinha(cam, cor) {
   if (K.linha) cn().remove(K.linha); const pts = cam.map(p => new THREE.Vector3(wx(p[0]), 0.35, wz(p[1])));
   K.linha = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineDashedMaterial({ color: cor, dashSize: 1.2, gapSize: 0.8 })); K.linha.computeLineDistances(); cn().add(K.linha);
 }
+function mostrarRelatorios(lista) { // relatório de batalha (como o "battle report" do RoK)
+  const j = $('#muRel'); if (!j) return; j.hidden = false; let venceu = false;
+  j.innerHTML = `<div class="cqFim muRelC"><h2>${ico('pergaminho')} ${tr('Relatório')}</h2>${lista.slice(-4).map(({ dados: d }) => {
+    if (d.tipo === 'fugiu') return `<div class="muRelL">${tr('Exército')} ${d.slot + 1}: <b data-nt>${esc(d.nome)}</b> ${tr('escapou antes do ataque')}</div>`;
+    venceu ||= d.venceu; const perdi = d.eu0 - d.eu1, matei = d.ele0 - d.ele1;
+    return `<div class="muRelL ${d.venceu ? 'vit' : 'der'}"><b>${d.venceu ? tr('VITÓRIA') : d.recuou ? tr('RECUO') : tr('DERROTA')}</b> · ${d.ataque ? tr('você atacou') : tr('você foi atacado por')} <b data-nt>${esc(d.contra)}</b>
+      <small>${tr('Exército')} ${d.slot + 1}: ${fmt(d.eu0)} → ${fmt(d.eu1)} (${tr('feridos')} ${fmt(Math.round(perdi * 0.8))}, ${tr('mortos')} ${fmt(perdi - Math.round(perdi * 0.8))})</small>
+      <small>${tr('Inimigos derrotados')}: ${fmt(matei)} · +${fmt(matei)} ${tr('pontos')}</small></div>`; }).join('')}
+    <button class="btn verde grande" data-mu="relOk">OK</button></div>`;
+  sfx(venceu ? 'vitoria' : 'derrota'); ON.mapaLidos().catch(() => {});
+}
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 export function clique(b) {
-  const a = b.dataset.mu, ex = b.dataset.muEx;
-  if (ex) { selecionar(+ex); return; }
-  if (a === 'sair') { som('fechar'); op.sair(); }
-  if (a === 'cancelar') { K.prev = null; $('#muConf').hidden = true; if (K.linha) { cn().remove(K.linha); K.linha = null; } som('fechar'); }
-  if (a === 'marchar' && K.prev) { const { e, alvo } = K.prev; K.prev = null; $('#muConf').hidden = true; if (K.linha) { cn().remove(K.linha); K.linha = null; } marchar(e, alvo); }
+  const a = b.dataset.mu, tp = b.dataset.muTipo, ex = b.dataset.muEx;
+  if (tp) { const e = K.ex.get(+tp); if (!e || emBatalha(e)) { som('erro'); return; } const ks = Object.keys(TIPOS); e.tipo = ks[(ks.indexOf(e.tipo) + 1) % ks.length]; som('clique'); toast(tr(TIPOS[e.tipo].nome)); ON.mapaTipo(e.slot, e.tipo).catch(() => {}); cards(); return; }
+  if (a === 'sair') { som('fechar'); op.sair(); return; }
+  if (a === 'relOk') { som('clique'); $('#muRel').hidden = true; return; }
+  if (a === 'recuar') { const e = meus().find(q => q.slot === +b.dataset.slot); if (e) recuar(e); return; }
+  if (a === 'atacar') { const e = meus().find(q => q.slot === +b.dataset.slot), alvo = K.ex.get(+b.dataset.alvo); $('#muInfo').hidden = true; if (e && alvo) { K.sel = e.id; atacar(e, alvo); } return; }
+  if (a === 'cancelar') { K.prev = null; $('#muConf').hidden = true; if (K.linha) { cn().remove(K.linha); K.linha = null; } som('fechar'); return; }
+  if (a === 'marchar' && K.prev) { const { e, alvo } = K.prev; K.prev = null; $('#muConf').hidden = true; if (K.linha) { cn().remove(K.linha); K.linha = null; } marchar(e, alvo); return; }
+  if (ex) selecionar(+ex);
 }
 // arrastar = mover a câmera; dois dedos (ou a roda do mouse) = zoom; tocar = escolher
 let toqueEl = null;
@@ -231,38 +288,59 @@ function ligarToque() { toqueEl = $('#toque'); toqueEl.addEventListener('pointer
 function desligarToque() { if (!toqueEl) return; for (const [ev, f] of [['pointerdown', dn], ['pointermove', mv], ['pointerup', up], ['pointercancel', up], ['wheel', roda]]) toqueEl.removeEventListener(ev, f); toqueEl = null; }
 
 // ---- laço ----
+const SOLD = { esp: 'az', arc: 'arco', lan: 'lanca' };
+function passoBatalhas() { // efeitos de cada segundo da luta: faíscas, números e a habilidade do comandante
+  for (const b of K.bat.values()) {
+    const a = K.ex.get(b.a), d = K.ex.get(b.b); if (!a || !d) continue; const k = Math.floor(agora() - b.t0);
+    if (k < 1 || k <= b.visto || k >= b.linha.length || agora() > b.fim) continue; b.visto = k;
+    const pa = posicao(a), pd = posicao(d), mx = wx((pa.x + pd.x) / 2), mz = wz((pa.y + pd.y) / 2), [ta, tb, ev] = b.linha[k], [ta0, tb0] = b.linha[k - 1];
+    C.faiscas(mx, 1.5, mz, 0xffe0a0, 8, 4);
+    if (ta0 - ta > 0) K.txt.push({ x: wx(pa.x), z: wz(pa.y), y: 4, txt: `-${ta0 - ta}`, cor: '#ff6a5a', t: 0 });
+    if (tb0 - tb > 0) K.txt.push({ x: wx(pd.x), z: wz(pd.y), y: 4, txt: `-${tb0 - tb}`, cor: '#ff6a5a', t: 0 });
+    for (const [bit, e, p] of [[1, a, pa], [2, d, pd]]) if (ev & bit) { const H = HEROIS[e.heroi] || HEROIS.lyra; C.onda(wx(p.x), wz(p.y), 6, 0xffd84a, 0.6); C.faiscas(wx(p.x), 3, wz(p.y), 0xffd84a, 30, 6);
+      K.txt.push({ x: wx(p.x), z: wz(p.y), y: 7, txt: `${H.poder?.nome || tr('Fúria')}!`, cor: '#ffd84a', t: 0, grande: true }); if (e.eu || (e === a ? d : a).eu) sfx('magia'); }
+    if (k === b.linha.length - 1 && (a.eu || d.eu)) { const euA = a.eu, ganhei = euA ? tb === 0 : ta === 0; if (ganhei) { sfx('vitoria'); flashTela('#ffe27a', 0.3); } setTimeout(atualizar, 1500); }
+  }
+}
 export function passo(dt) {
   if (!K) return; dt = Math.min(dt, 0.1); const t = C.tempo();
   if ((K.tPoll -= dt) <= 0) { K.tPoll = 4; atualizar(); }
   if (!K.carregou) return;
   if (K.cam) { K.cam.x = Math.max(wx(0), Math.min(wx(N), K.cam.x)); K.cam.z = Math.max(wz(0) + 10, Math.min(wz(N) + 18, K.cam.z)); }
+  passoBatalhas();
   const az = [], vm = [], meuCla = meus()[0]?.cla;
   for (const e of K.ex.values()) {
-    const p = posicao(e), x = wx(p.x), z = wz(p.y), amigo = e.eu || (meuCla != null && e.cla === meuCla);
+    const p = posicao(e), x = wx(p.x), z = wz(p.y), amigo = e.eu || (meuCla != null && e.cla === meuCla), b = emBatalha(e), n0 = tropasAgora(e);
+    let dir = p.dir; if (b) { const o = K.ex.get(b.a === e.id ? b.b : b.a); if (o) { const q = posicao(o); dir = Math.atan2(q.x - p.x, q.y - p.y); } }
     if (!e.flag) e.flag = bandeira(corDe(e));
-    e.dir = e.dir == null ? p.dir : e.dir + Math.atan2(Math.sin(p.dir - e.dir), Math.cos(p.dir - e.dir)) * Math.min(1, dt * 8);
-    e.flag.position.set(x - Math.sin(e.dir) * 1.6, 0, z - Math.cos(e.dir) * 1.6);
+    e.dir = e.dir == null ? dir : e.dir + Math.atan2(Math.sin(dir - e.dir), Math.cos(dir - e.dir)) * Math.min(1, dt * 8);
+    e.flag.position.set(x - Math.sin(e.dir) * 1.6, 0, z - Math.cos(e.dir) * 1.6); e.flag.visible = n0 > 0;
     if (e.eu && !e.v) { const H = HEROIS[S.heroi] || HEROIS.lyra; e.v = C.heroi(H.visual); e.v.raiz.scale.setScalar(1.6); }
-    if (e.v) { e.v.raiz.position.set(x, 0, z); e.v.raiz.rotation.y = e.dir; e.v.mixer.update(dt); const an = p.anda ? 'Running_A' : 'Idle_A'; if (e.anim !== an) { e.anim = an; e.v.tocar(an); } }
-    // soldados em fileiras atrás do comandante
-    const n = Math.min(9, 3 + Math.floor(e.tropas / 70)), s = Math.sin(e.dir), c = Math.cos(e.dir), lista = amigo ? az : vm;
-    for (let i = 0; i < n; i++) { const fila = 1 + Math.floor(i / 3), col = (i % 3) - 1, ox = col * 1.1, oz = -fila * 1.15 - (e.v ? 0.4 : -0.8);
-      lista.push({ x: x + ox * c + oz * s, z: z - ox * s + oz * c, ph: e.id * 1.7 + i * 0.9 + (p.anda ? 0 : 99), ry: e.dir, tipo: 'az' }); }
-    // caminho que falta (só os meus)
-    if (e.eu && p.anda) { if (e.linhaCam !== e.cam) { if (e.linha) cn().remove(e.linha); const pts = e.cam.map(q => new THREE.Vector3(wx(q[0]), 0.3, wz(q[1]))); e.linha = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineDashedMaterial({ color: 0xffd84a, dashSize: 1, gapSize: 0.7 })); e.linha.computeLineDistances(); cn().add(e.linha); e.linhaCam = e.cam; } }
+    if (e.v) { e.v.raiz.visible = n0 > 0 || p.anda; e.v.raiz.position.set(x, 0, z); e.v.raiz.rotation.y = e.dir; e.v.mixer.update(dt);
+      const an = b ? (Math.floor(t * 1.5) % 2 ? 'Melee_1H_Attack_Chop' : 'Idle_A') : p.anda ? 'Running_A' : 'Idle_A'; if (e.anim !== an) { e.anim = an; e.v.tocar(e.v.tem(an) ? an : 'Idle_A', b ? { loop: false, reinicia: true } : undefined); } }
+    // soldados em fileiras atrás do comandante (na batalha, na frente dele, lutando)
+    if (n0 <= 0) continue;
+    const n = Math.min(9, 2 + Math.ceil(n0 / 60)), s = Math.sin(e.dir), c = Math.cos(e.dir), lista = amigo ? az : vm, tipo = SOLD[e.tipo] || 'az';
+    for (let i = 0; i < n; i++) { const fila = 1 + Math.floor(i / 3), col = (i % 3) - 1, ox = col * 1.1, oz = b ? 0.9 + (fila - 1) * 0.9 : -fila * 1.15 - (e.v ? 0.4 : -0.8);
+      lista.push({ x: x + ox * c + oz * s, z: z - ox * s + oz * c, ph: e.id * 1.7 + i * 0.9 + (p.anda ? 0 : 99), ry: e.dir, tipo, luta: !!b }); }
+    if (e.eu && p.anda) { if (e.linhaCam !== e.cam) { if (e.linha) cn().remove(e.linha); const pts = e.cam.map(q => new THREE.Vector3(wx(q[0]), 0.3, wz(q[1]))); e.linha = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineDashedMaterial({ color: e.alvo ? 0xff5a4a : 0xffd84a, dashSize: 1, gapSize: 0.7 })); e.linha.computeLineDistances(); cn().add(e.linha); e.linhaCam = e.cam; } }
     else if (e.linha) { cn().remove(e.linha); e.linha = null; e.linhaCam = null; }
   }
   desenharTropas('az', az, 0, t); desenharTropas('vm', vm, 0, t);
-  if (Math.random() < 0.1) for (const e of meus()) { const m = document.querySelector(`[data-mu-t="${e.id}"]`); if (!m) continue; const p = posicao(e), casa = Math.hypot(p.x - e.base[0], p.y - e.base[1]) < 1.5; m.textContent = p.anda ? `${tr('Marchando')} ${tempoTxt(p.falta)}` : casa ? tr('Na base') : tr('Parado'); }
+  if ((K.tCards = (K.tCards || 0) - dt) <= 0) { K.tCards = 0.5; for (const e of meus()) { const m = document.querySelector(`[data-mu-t="${e.id}"]`), nn = document.querySelector(`[data-mu-n="${e.id}"]`); if (nn) nn.textContent = fmt(tropasAgora(e));
+    if (m) { const h = estadoTxt(e); if (m.innerHTML !== h) { m.innerHTML = h; if (!!emBatalha(e) !== !!document.querySelector(`[data-mu=recuar][data-slot="${e.slot}"]`)) cards(); } } } }
 }
 export function vista() { return { foco: K?.cam || { x: WX, z: WZ }, yaw: Math.PI, pitch: 0.95, dist: K?.zoom || 95 }; }
-export function desenharFx(g) {
+export function desenharFx(g, dt) {
   if (!K?.carregou) return; g.textAlign = 'center'; g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,.65)';
   for (const c of K.castelos) { const q = C.tela(wx(c.x), 13, wz(c.y)); if (!q || q[1] < 60) continue; g.font = '14px Titulo, sans-serif'; const t = `[${c.tag}] ${c.nome}`; g.strokeText(t, q[0], q[1]); g.fillStyle = '#' + CORES_CLA[(c.cor || 0) % 8].toString(16).padStart(6, '0'); g.fillText(t, q[0], q[1]); }
-  if (K.zoom > 130) return;
-  for (const e of K.ex.values()) { const p = posicao(e), q = C.tela(wx(p.x), 4.2, wz(p.y)); if (!q || q[1] < 60 || q[1] > innerHeight - 90) continue;
+  if (K.zoom <= 130) for (const e of K.ex.values()) { const p = posicao(e), q = C.tela(wx(p.x), 4.2, wz(p.y)), n0 = tropasAgora(e); if (!q || q[1] < 60 || q[1] > innerHeight - 90 || (n0 <= 0 && !p.anda)) continue; const b = emBatalha(e);
     if (e.eu) { g.fillStyle = '#ffd23a'; g.beginPath(); g.arc(q[0], q[1] - 4, 9, 0, 7); g.fill(); g.stroke(); g.font = '13px Titulo, sans-serif'; g.fillStyle = '#3a1a08'; g.fillText(e.slot + 1, q[0], q[1] + 1); g.strokeStyle = 'rgba(0,0,0,.65)'; }
     else { g.font = '11px Titulo, sans-serif'; g.strokeText(e.nome, q[0], q[1]); g.fillStyle = '#fff'; g.fillText(e.nome, q[0], q[1]); }
+    if (b || !e.eu) { const w = 40, f = Math.max(0, n0 / Math.max(1, e.cap || n0)); g.fillStyle = 'rgba(0,0,0,.55)'; g.fillRect(q[0] - w / 2 - 1, q[1] + 6, w + 2, 6); g.fillStyle = e.eu ? '#4ae86a' : '#ff5a4a'; g.fillRect(q[0] - w / 2, q[1] + 7, w * f, 4);
+      g.font = '10px Titulo, sans-serif'; g.fillStyle = '#fff'; g.strokeText(fmt(n0), q[0], q[1] + 22); g.fillText(fmt(n0), q[0], q[1] + 22); }
     if (K.sel === e.id) { g.strokeStyle = '#ffd84a'; g.lineWidth = 3; g.beginPath(); g.arc(q[0], q[1] + 26, 18, 0, 7); g.stroke(); g.strokeStyle = 'rgba(0,0,0,.65)'; } }
+  for (const t of K.txt) { t.t += dt; const p = C.tela(t.x, t.y + t.t * 3, t.z); if (!p) continue; g.globalAlpha = Math.max(0, 1 - t.t / 1); g.font = `${t.grande ? 18 : 14}px Titulo, sans-serif`; g.strokeText(t.txt, p[0], p[1]); g.fillStyle = t.cor; g.fillText(t.txt, p[0], p[1]); g.globalAlpha = 1; }
+  K.txt = K.txt.filter(t => t.t < 1);
 }
 window.__mu = { K: () => K, caminho, gerarMapa }; // testes
