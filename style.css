@@ -1024,3 +1024,4 @@ input{font:inherit;user-select:text;-webkit-user-select:text}
 .pcItem .ovoG{width:46px;height:56px}
 .pcItem .ovoG svg{width:100%;height:100%}
 @keyframes pcPula{to{opacity:1;transform:scale(1)}}
+.pcItem.bau .bau,.pcItem.bau > div:first-child{transform:scale(1.15)}

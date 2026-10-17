@@ -1547,15 +1547,16 @@ function premioCodigo(r) {
   const j = $('#janela'); j.hidden = false; flashTela('#ffe27a', 0.5); som('lendario');
   const itens = [r.moedas && `<div class="pcItem" style="--d:.25s">${ico('ouro')}<b id="pcMoedas">+0</b><small>${tr('moedas')}</small></div>`,
     r.comum && `<div class="pcItem" style="--d:.55s">${CQ.ovoHtml('comum')}<b>+${r.comum}</b><small>${tr('Ovo Comum')}</small></div>`,
-    r.magico && `<div class="pcItem" style="--d:.85s">${CQ.ovoHtml('magico')}<b>+${r.magico}</b><small>${tr('Ovo Mágico')}</small></div>`].filter(Boolean);
+    r.magico && `<div class="pcItem" style="--d:.85s">${CQ.ovoHtml('magico')}<b>+${r.magico}</b><small>${tr('Ovo Mágico')}</small></div>`,
+    BAUS[r.bau] && `<div class="pcItem bau" style="--d:1.1s">${bauHtml(r.bau, 'mini')}<b>+1</b><small>${tr(BAUS[r.bau].nome)}</small></div>`].filter(Boolean);
   j.innerHTML = `<div class="jOnline jNovo jPremio"><div class="novoRaios"></div><em class="novoTag">${tr('PRÊMIO!')}</em><h2>${ico('presente')} Código resgatado!</h2>
     <div class="pcItens">${itens.join('')}</div><button class="btn verde grande" data-a="pegarPremio">${ico('check')} Pegar!</button></div>`;
-  [250, 550, 850].slice(0, itens.length).forEach(t => setTimeout(() => sfx('brilho'), t));
+  [250, 550, 850, 1100].slice(0, itens.length).forEach(t => setTimeout(() => sfx('brilho'), t));
   if (r.moedas) setTimeout(() => contarAte($('#pcMoedas'), r.moedas, 900, '+', fmt), 300);
 }
 async function resgatarCodigo(b) {
   const i = $('#codTxt'), e = $('#codErro'), c = i.value.trim(); if (!c) return; b.disabled = true; e.textContent = '';
-  try { const r = await ON.resgatar(c); S.moedas += r.moedas || 0; S.ovos.comum += r.comum || 0; S.ovos.magico += r.magico || 0; salvar(); sfx('vitoria'); som('moedas');
+  try { const r = await ON.resgatar(c); S.moedas += r.moedas || 0; S.ovos.comum += r.comum || 0; S.ovos.magico += r.magico || 0; if (BAUS[r.bau]) S.baus.unshift({ tipo: r.bau, fase: Math.max(S.fase, S.melhor || 1) }); salvar(); sfx('vitoria'); som('moedas');
     i.value = ''; if (tela === 'lobby') desenharLobby(); premioCodigo(r); return; }
   catch (er) { e.className = 'erro'; e.textContent = er.message; som('erro'); }
   b.disabled = false;
