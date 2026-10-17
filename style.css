@@ -998,3 +998,19 @@ input{font:inherit;user-select:text;-webkit-user-select:text}
 .tMenu .idiomas{display:flex;flex-direction:column;gap:8px;width:min(260px,80vw)}
 .tMenu .idiomas .btn{margin:0;font-size:19px;display:flex;align-items:center;justify-content:center;gap:10px}
 .tMenu .idiomas .flag{font-size:24px}
+/* ---- mapa de ilhas do menu ---- */
+#mapaRot{position:fixed;inset:0;pointer-events:none;z-index:1}
+#lobby{z-index:2}
+.ilhaRot{position:absolute;transform:translate(-50%,-100%);display:flex;align-items:center;gap:3px;padding:3px 9px;border-radius:12px;font-family:var(--fT);color:#fff;white-space:nowrap;pointer-events:none}
+.ilhaRot .ico{width:16px;height:16px}
+.ilhaRot.feita{background:#3aa84a;border:2px solid #fff;box-shadow:0 3px 0 #1f6a2a}
+.ilhaRot.trav{background:rgba(30,40,70,.75);border:2px solid rgba(255,255,255,.6)}
+.ilhaRot b{font-size:17px}
+.ilhaRot.atual{pointer-events:auto;flex-direction:column;gap:0;padding:6px 14px 8px;border-radius:16px;background:linear-gradient(#ffd84a,#f0a81a);border:3px solid #fff;box-shadow:0 5px 0 #a86a0a,0 10px 18px rgba(0,0,0,.3);color:#5a2e08;animation:ilhaPula 1.6s ease-in-out infinite}
+.ilhaRot.atual small{font-size:11px;line-height:1}
+.ilhaRot.atual b{font-size:30px;line-height:1}
+.ilhaRot.atual em{font-style:normal;font-size:12px;display:flex;align-items:center;gap:3px}
+.ilhaRot.atual i{font-style:normal;font-size:11px;margin-top:3px;padding:1px 7px;border-radius:8px;background:var(--c);color:#fff;display:flex;align-items:center;gap:3px}
+@keyframes ilhaPula{50%{transform:translate(-50%,calc(-100% - 6px))}}
+.fdsChip{display:flex;align-items:center;gap:6px;margin:0 auto 8px;width:max-content;max-width:100%;padding:5px 12px;border-radius:14px;background:rgba(255,216,74,.95);border:2px solid #fff;font-size:13px;color:#5a2e08}
+.fdsChip .ico{width:18px;height:18px}

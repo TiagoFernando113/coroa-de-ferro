@@ -14,6 +14,7 @@ import { criarTropas, desenharTropas, voar, passoVoo, limparTropas } from './tro
 import { PETS, RARIDADES, CLASSES, OVOS, BONUS as BONUS_PET, ESTRELAS, MAX_EQUIPE, MAX_NV, MAX_EST, base, est, qtd, temPet, modeloDe, tinta, atributos, forca, forcaEquipe, custoNivel, subirNivel, juntar, equipar, equiparMelhores, chocar, bonusPet, bonusEquipe, txtBonus, lucroOcioso, coletarOcioso, tempoOcioso, lucroHora, MAX_OCIOSO, GOLPES, golpe, cdGolpe, forcaGolpe } from './pets.js';
 import * as CQ from './conquista.js';
 import * as CT from './castelo.js';
+import * as MP from './mapa.js';
 import { MEDALHAS, NIVEIS_MEDALHA, nivelMedalha, pegas, medalhasProntas, premioMedalha, pegarMedalha } from './perfil.js';
 import { ofertas, lojaDia, comprarOferta, temOferta } from './loja.js';
 import { TIPOS as TIPOS_MISSAO, PTS_NIVEL, NIVEIS_PASSE, atualizarMissoes, evento, prontas, pegarMissao, premioNivel, nivelPasse, pegarNivel, fimTemporada } from './missoes.js';
@@ -231,9 +232,45 @@ export const EVENTOS = {
 };
 export function eventoDaFase(n) { if (n < 3 || ((n * 2654435761) >>> 0) % 100 < 30) return null; const ks = Object.keys(EVENTOS); return ks[(n * 7 + 3) % ks.length]; }
 export const ehCorrida = () => false; // fase Corrida desligada (código guardado para uma versão futura)
+function aplicarClima() { // devolve o céu da fase (depois do mapa do menu)
+  const B = BIOMAS[biomaDe(G.n)]; C.diaNoite(0); C.ceu(B.ceu); C.neblina(...B.nevoa);
+  if (G.evento === 'noite') { C.diaNoite(0.47); C.ceu(0x141c34); C.neblina(140, 420); }
+  if (G.evento === 'nevoa') { C.ceu(0xc8d2dc); C.neblina(45, 150); }
+}
+// ---- mapa de ilhas do menu: arrasta para o lado para ver as fases ----
+let climaMapa = false, mapaCam = null, mapaVel = 0, arrastoMapa = null;
+const mapaVisivel = () => tela === 'lobby';
+function vistaMapa(dt) {
+  if (!climaMapa) { climaMapa = true; C.diaNoite(0); C.ceu(0x9ad8f8); C.neblina(170, 470); }
+  MP.montarMapa(cena, { atual: S.fase, biomas: BIOMAS, biomaDe, chefeDe: n => dadosFase(n).chefe.modelo, heroi: heroiAtual(S).visual, heroiK: S.heroi, texAgua });
+  const x0 = MP.xDaFase(Math.max(1, S.fase - 5)), x1 = MP.xDaFase(S.fase + 7);
+  if (mapaCam == null) mapaCam = MP.xDaFase(S.fase);
+  if (!arrastoMapa) { mapaCam += mapaVel * dt; mapaVel *= Math.pow(0.04, dt); }
+  if (mapaCam < x0) { mapaCam += (x0 - mapaCam) * Math.min(1, dt * 8); mapaVel = 0; } if (mapaCam > x1) { mapaCam += (x1 - mapaCam) * Math.min(1, dt * 8); mapaVel = 0; }
+  MP.passoMapa(dt); rotulosMapa();
+}
+function rotulosMapa() {
+  let el = $('#mapaRot'); const ver = tela === 'lobby' && abaLobby === 'home';
+  if (!el) { el = document.createElement('div'); el.id = 'mapaRot'; document.body.appendChild(el); }
+  el.hidden = !ver; if (!ver) return;
+  const ilhas = MP.ilhas(), k = ilhas.map(i => i.n).join() + '|' + S.fase;
+  if (el.dataset.k !== k) { el.dataset.k = k; const F = dadosFase(S.fase), E = eventoDaFase(S.fase) && EVENTOS[eventoDaFase(S.fase)];
+    el.innerHTML = ilhas.map(i => i.n < S.fase ? `<div class="ilhaRot feita" data-n="${i.n}">${ico('check')}<b>${i.n}</b></div>`
+      : i.n === S.fase ? `<button class="ilhaRot atual" data-a="jogar" data-n="${i.n}"><small>${tr('FASE')}</small><b>${i.n}</b><em>${ico('chefe')} ${F.chefe.nome}</em>${E ? `<i style="--c:${E.cor}">${ico(E.icone)} ${E.nome}</i>` : ''}</button>`
+      : `<div class="ilhaRot trav" data-n="${i.n}">${ico('cadeado')}<b>${i.n}</b></div>`).join(''); }
+  for (const r of el.children) { const i = ilhas.find(q => q.n === +r.dataset.n); if (!i) continue; const p = C.tela(i.x, i.y + (i.n === S.fase ? 9 : 5), i.z);
+    const on = p && p[0] > -80 && p[0] < innerWidth + 80; r.style.display = on ? '' : 'none'; if (on) { r.style.left = p[0] + 'px'; r.style.top = p[1] + 'px'; } }
+}
+document.addEventListener('pointerdown', e => {
+  if (tela !== 'lobby' || abaLobby !== 'home' || !$('#janela').hidden || guia || e.target.closest('button, input, .lbBase, .lbTopo, .lbNav, .lbFolha, #janela')) return;
+  arrastoMapa = { x0: e.clientX, c0: mapaCam ?? 0, xa: e.clientX, ta: performance.now() }; mapaVel = 0;
+});
+document.addEventListener('pointermove', e => { const A = arrastoMapa; if (!A) return; const k = MP.MAPA.D / (innerWidth * 0.6), now = performance.now();
+  mapaCam = A.c0 - (e.clientX - A.x0) * k; const dtm = Math.max(1, now - A.ta); mapaVel = -(e.clientX - A.xa) * k / (dtm / 1000); A.xa = e.clientX; A.ta = now; });
+document.addEventListener('pointerup', () => { if (arrastoMapa && performance.now() - arrastoMapa.ta > 80) mapaVel = 0; arrastoMapa = null; });
 export function iniciarFase(n, inf = false, semCorrida = false) {
   limparFase(); montarCenario(biomaDe(n));
-  { const B = BIOMAS[biomaDe(n)]; C.diaNoite(0); C.ceu(B.ceu); C.neblina(...B.nevoa); } // clima normal (o evento muda abaixo)
+  climaMapa = false; { const B = BIOMAS[biomaDe(n)]; C.diaNoite(0); C.ceu(B.ceu); C.neblina(...B.nevoa); } // clima normal (o evento muda abaixo)
   const F = dadosFase(n), up = S.up, corrida = !inf && !semCorrida && ehCorrida(n);
   for (const m of MUROS_PISTA) m.visible = !corrida;
   G = { F, n, t: 0, az: [], vm: [], flechas: [], txt: [], fila: 8 * up.exercito, acum: 0, cd: 0.5, pistas: [[], []], spawnVm: 0, golpePend: 0,
@@ -449,7 +486,7 @@ function montarHud() {
   $('#hud').addEventListener('click', clique);
 }
 export function abrirLobby() {
-  roleta = null; abaLobby = 'home';
+  roleta = null; abaLobby = 'home'; mapaCam = null; mapaVel = 0;
   tela = 'lobby'; $('#jogo').hidden = true; $('#fim').hidden = true; $('#lobby').hidden = false; tema('guilda');
   iniciarFase(S.fase); desenharLobby();
   if (!diarioVisto && diarioPronto()) { diarioVisto = true; setTimeout(mostrarDiario, 900); }
@@ -619,11 +656,8 @@ function desenharLobby() {
     <button class="redondo loja" data-a="loja">${ico('mercado')}${temOferta() ? '<i class="ponto"></i>' : ''}</button>${liberado('missoes') ? `<button class="redondo missoes" data-a="missoes">${ico('missoes')}${prontas() ? '<i class="ponto"></i>' : ''}</button>` : ''}<button class="redondo presente" data-a="diario">${ico('presente')}${diarioPronto() ? '<i class="ponto"></i>' : ''}</button><button class="redondo" data-a="config">${ico('config')}</button></div>`;
   let meio;
   if (abaLobby === 'home') meio = `
-    <div class="lbLogo"><small>Batalha da</small><h1>Ponte</h1></div>
-    <div class="lbFaseCard"><span class="fN ${ehCorrida(S.fase) ? 'corrida' : ''}"><small>${ehCorrida(S.fase) ? 'CORRIDA' : 'FASE'}</small><b>${S.fase}</b></span><span class="fInfo"><b>${ico('chefe')} ${F.chefe.nome}</b><small>${HABILIDADES[F.chefe.modelo]?.desc || ''} · ${BIOMAS[biomaDe(S.fase)].nome} · vida ${fmt(F.chefe.hp)}${O?.apelido ? ` · <span data-nt>${esc(O.apelido)}</span>` : ''}</small>
-      ${eventoDaFase(S.fase) ? (E => `<em class="fEvento" style="--c:${E.cor}">${ico(E.icone)}<b>${E.nome}:</b> ${E.desc}</em>`)(EVENTOS[eventoDaFase(S.fase)]) : ''}</span></div>
     <div class="lbBase">
-      ${fimDeSemana() ? `<div class="fdsFaixa">${ico('festa')}<span><b>Fim de semana dourado!</b><small>Moedas x2 · ovos com sorte x2 · guerra de clãs</small></span></div>` : ''}
+      ${fimDeSemana() ? `<div class="fdsChip">${ico('festa')}<b>Fim de semana dourado:</b> moedas x2</div>` : ''}
       <div class="baus" ${liberado('baus') ? '' : 'hidden'}>${Array.from({ length: MAX_BAUS }, (_, i) => { const b = S.baus[i];
         return b ? `<button class="slotBau" data-bau="${i}">${bauHtml(b.tipo, 'mini')}<small>Abrir!</small></button>` : `<div class="slotBau vazio">${ico('bau')}</div>`; }).join('')}</div>
       <div class="lbJogar">${['conquista', 'dupla', 'castelo', 'infinito'].some(liberado) ? `<button class="modo roxo modosBtn" data-a="modos">${ico('dado')}<small>Modos</small>${lucroOcioso() > 0 && liberado('conquista') ? '<i class="ponto"></i>' : ''}</button>`
@@ -1772,9 +1806,9 @@ export function passo(dt0) {
   foco.x = final ? 0 : (G ? G.heroi.x : 0) * 0.25; foco.z = final ? G.chefe.z + 14 : -42;
   if (corre && !final) { foco.x = G.heroi.x * 0.3; foco.z = G.corrida.cz - 22; G.heroiV.raiz.position.z = G.corrida.cz; }
   const lobby = tela === 'lobby';
-  if (lobby) { foco.x = Math.sin(t * 0.25) * 2; foco.z = -34; }
+  if (lobby) { vistaMapa(dt0); foco.x = mapaCam; foco.z = MP.MAPA.z + 6; } else { if (climaMapa && G) { climaMapa = false; aplicarClima(); } const r = $('#mapaRot'); if (r) r.hidden = true; }
   distCam += ((final ? 62 : corre ? 82 : 106) - distCam) * Math.min(1, dt0 * 2);
-  C.camera.yaw = Math.PI; C.camera.pitch = lobby ? 0.5 : 0.9; C.camera.dist = lobby ? 52 : distCam - (G ? G.punch * 7 : 0); C.camera.altura = lobby ? 2 : 0; C.camera.suave = final ? 2.5 : 4;
+  C.camera.yaw = Math.PI; C.camera.pitch = lobby ? 0.6 : 0.9; C.camera.dist = lobby ? 108 : distCam - (G ? G.punch * 7 : 0); C.camera.altura = lobby ? MP.MAPA.y + 1 : 0; C.camera.suave = lobby ? 12 : final ? 2.5 : 4;
   if (G && tela === 'jogo') { posicionarVagas(); passoTutorial(dt0); }
   if (window.__ov) { Object.assign(C.camera, window.__ov.cam); Object.assign(foco, window.__ov.foco); } // para testes
   C.quadro(dt, foco);
