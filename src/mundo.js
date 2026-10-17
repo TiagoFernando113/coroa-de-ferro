@@ -130,7 +130,7 @@ export function abrir(container, opcoes) {
   el = container; op = opcoes; el.hidden = false; gerarMapa();
   K = { ex: new Map(), bat: new Map(), bandeiras: [], flags: new Map(), clas: [], castelos: [], livresSitios: [], dif: 0, sel: null, prev: null, zoom: 95, cam: null, toques: new Map(), arrasto: null, tPoll: 0, carregou: false, txt: [], erro: '' };
   C.ceu(0x9ad8f8); C.neblina(180, 520); C.diaNoite(0);
-  el.innerHTML = `<div class="muTopo"><button class="lSair" data-mu="sair">${ico('fechar')}</button><b>${tr('Mapa de Guerra')}</b><small id="muOn"></small></div>
+  el.innerHTML = `<div class="muTopo"><button class="lSair" data-mu="sair">${ico('fechar')}</button><b>${tr('Mapa de Guerra')}</b><small id="muOn"></small><button class="muLigaB" data-mu="liga">🏆 <span id="muPts">${tr('Liga')}</span></button></div>
     <div class="muAviso" id="muAviso">${tr('Carregando o mapa...')}</div>
     <div class="muConf" id="muConf" hidden></div><div class="muInfo" id="muInfo" hidden></div><div class="muExs" id="muExs"></div><div class="cqJanela" id="muRel" hidden></div>`;
   ligarToque(); atualizar(true);
@@ -163,6 +163,7 @@ async function atualizar() {
     $('#muOn').textContent = `${[...K.ex.values()].filter(e => !e.bot).length / 2 | 0} ${tr('jogadores')} · ${[...K.ex.values()].filter(e => e.bot).length} bots`;
     perseguir(); darOrdensBots(r.livres || []); cards();
     if (r.relatorios?.length) mostrarRelatorios(r.relatorios);
+    if (agora() > (K.tLiga || 0)) { K.tLiga = agora() + 30; ON.liga().then(l => { if (!K) return; K.liga = l; const p = $('#muPts'); if (p) p.textContent = l.eu ? `${l.eu.pos}º · ${fmt(l.eu.pontos)}` : tr('Liga'); }).catch(() => {}); }
   } catch (e) { if (K) { K.erro = e.message; const a = $('#muAviso'); if (a && !K.carregou) a.textContent = tr('Sem conexão com o mapa') + ' 😢'; } }
   finally { if (K) K.buscando = false; }
 }
@@ -361,11 +362,28 @@ function mostrarRelatorios(lista) { // relatório de batalha (como o "battle rep
     <button class="btn verde grande" data-mu="relOk">OK</button></div>`;
   sfx(venceu ? 'vitoria' : 'derrota'); ON.mapaLidos().catch(() => {});
 }
+// ---- Liga da Guerra: pontos da semana (derrotar inimigos, cercar, conquistar castelo, erguer bandeira) ----
+async function abrirLiga(aba = K.abaLiga || 'jog') {
+  const j = $('#muRel'); if (!j) return; K.abaLiga = aba; j.hidden = false; som('clique');
+  if (!K.liga) j.innerHTML = `<div class="cqFim muRelC"><h2>🏆 ${tr('Liga da Guerra')}</h2><p>${tr('Carregando...')}</p></div>`;
+  try { K.liga = await ON.liga(); } catch (e) { if (!K.liga) { j.innerHTML = `<div class="cqFim muRelC"><h2>🏆 ${tr('Liga da Guerra')}</h2><p>${tr('Sem conexão com o mapa')} 😢</p><button class="btn verde grande" data-mu="relOk">OK</button></div>`; return; } }
+  if (!K || j.hidden) return; const l = K.liga, falta = Math.max(0, l.fim - agora()), d = Math.floor(falta / 86400), h = Math.floor(falta % 86400 / 3600), m = Math.floor(falta % 3600 / 60);
+  const lin = (x, nome) => `<div class="muLgL${x.eu ? ' eu' : ''}"><i>${x.pos <= 3 ? ['🥇', '🥈', '🥉'][x.pos - 1] : x.pos + 'º'}</i><b data-nt>${nome}</b><span>${fmt(x.pontos)}</span><em>${x.premio ? `${ico('ouro')}${fmt(x.premio)}` : ''}</em></div>`;
+  const lista = aba === 'jog' ? l.jogadores.map(x => lin(x, `${x.cla ? `[${esc(x.cla)}] ` : ''}${esc(x.nome)}`)).join('') : l.clas.map(x => lin(x, `[${esc(x.tag)}] ${esc(x.nome)}`)).join('');
+  const ps = l.passada?.jogadores?.length ? `<div class="muLgP">${tr('Campeões da semana passada')}: ${l.passada.jogadores.map((x, i) => `${['🥇', '🥈', '🥉'][i]} <b data-nt>${esc(x.nome)}</b>`).join(' ')}${l.passada.clas?.[0] ? ` · ${tr('Clã')}: <b data-nt>[${esc(l.passada.clas[0].tag)}]</b>` : ''}</div>` : '';
+  j.innerHTML = `<div class="cqFim muRelC muLiga"><h2>🏆 ${tr('Liga da Guerra')}</h2><small class="muLgT">${ico('relogio')} ${tr('Termina em')} ${d ? `${d}d ` : ''}${h}h ${m}min</small>
+    <div class="muLgEu">${l.eu ? `${tr('Você')}: <b>${l.eu.pos}º</b> · ${fmt(l.eu.pontos)} ${tr('pontos')}${l.eu.premio ? ` · ${ico('ouro')}${fmt(l.eu.premio)}` : ` · ${tr('faça 50 pontos para ganhar prêmio')}`}` : tr('Você ainda não pontuou nesta semana')}</div>
+    <div class="abas"><button class="${aba === 'jog' ? 'on' : ''}" data-mu="ligaJog">${tr('Jogadores')}</button><button class="${aba === 'cla' ? 'on' : ''}" data-mu="ligaCla">${ico('guilda')} ${tr('Clãs')}</button></div>
+    <div class="muLgLista">${lista || `<p>${tr('Ninguém pontuou ainda. Seja o primeiro!')}</p>`}</div>${ps}
+    <small class="muDica">${aba === 'jog' ? tr('Pontos: 1 por inimigo derrotado · cerco · 2000 por castelo · 150 por bandeira') : tr('Membros do clã no top 3 também ganham moedas')}</small>
+    <button class="btn verde grande" data-mu="relOk">OK</button></div>`;
+}
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 export function clique(b) {
   const a = b.dataset.mu, tp = b.dataset.muTipo, ex = b.dataset.muEx;
   if (tp) { const e = K.ex.get(+tp); if (!e || emBatalha(e)) { som('erro'); return; } const ks = Object.keys(TIPOS); e.tipo = ks[(ks.indexOf(e.tipo) + 1) % ks.length]; som('clique'); toast(tr(TIPOS[e.tipo].nome)); ON.mapaTipo(e.slot, e.tipo).catch(() => {}); cards(); return; }
   if (a === 'sair') { som('fechar'); op.sair(); return; }
+  if (a === 'liga' || a === 'ligaJog' || a === 'ligaCla') { abrirLiga(a === 'ligaCla' ? 'cla' : a === 'ligaJog' ? 'jog' : undefined); return; }
   if (a === 'relOk') { som('clique'); $('#muRel').hidden = true; return; }
   if (a === 'recuar') { const e = meus().find(q => q.slot === +b.dataset.slot); if (e) recuar(e); return; }
   if (a === 'cercar') { const e = meus().find(q => q.slot === +b.dataset.slot); $('#muInfo').hidden = true; if (e) { K.sel = e.id; cercar(e, b.dataset.tipo, +b.dataset.alvo); } return; }
