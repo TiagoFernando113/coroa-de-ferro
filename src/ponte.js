@@ -302,7 +302,7 @@ function botUsaPoder(D) {
   if (usar) poderDoParceiro(id); return usar;
 }
 function falaBot(D) { // figurinhas como um jogador de verdade
-  const fala = e => { (D.balao ||= []).push({ e, t: 0 }); sfx('brilho'); };
+  const fala = e => { D.balao = (D.balao || []).filter(x => x.eu); D.balao.push({ e, t: 0 }); sfx('brilho'); };
   if (!D.f0 && G.t > 2.5) { D.f0 = 1; fala(Math.random() < 0.5 ? 'bora' : 'top'); }
   if (!D.f1 && G.muro < G.muroMax * 0.35) { D.f1 = 1; fala('socorro'); }
   if (!D.f2 && G.chefe.furia) { D.f2 = 1; fala('ajuda'); }
@@ -1025,7 +1025,7 @@ function receberDupla(ev, p) {
   if (D.saiu && D.caiuRede && ev !== 'sair') { D.saiu = false; D.caiuRede = false; if (!G.fim) faixa(`${D.apelido.toUpperCase()} VOLTOU!`, '#7aff8a'); }
   if (ev === 'pi') { D.canal?.enviar('po', { t: p.t }); return; }
   if (ev === 'po') { D.ping = Math.round(performance.now() - p.t); return; }
-  if (ev === 'em') { if (FIGURINHAS[p.e]) { (D.balao ||= []).push({ e: p.e, t: 0 }); sfx('brilho'); } return; }
+  if (ev === 'em') { if (FIGURINHAS[p.e]) { D.balao = (D.balao || []).filter(x => x.eu); D.balao.push({ e: p.e, t: 0 }); sfx('brilho'); } return; }
   if (ev === 'f' && !D.host) { // o host terminou a partida: mesmo resultado para os dois
     D.fim = p.v ? 'v' : 'd'; if (p.dp != null) { D.meuDano = p.dp; D.danoP = p.dh; G.danoTotal = p.dp; }
     if (!G.fim) { if (p.v) vitoriaFx(); else derrotaFx(); terminar(!!p.v); } else atualizarRevanche(); return; }
@@ -1163,14 +1163,28 @@ function projetilHeroi(tipo, cor) {
   const geo = tipo === 'orbe' || tipo === 'fogo' ? GEO_ORBE : tipo === 'adaga' ? GEO_ADAGA : tipo === 'virote' ? GEO_VIROTE : GEO_FLECHA;
   const o = new THREE.Mesh(geo, matP(cor)); if (tipo === 'fogo') o.scale.setScalar(1.3); return o;
 }
-// figurinhas da dupla: pets do jogo em poses diferentes, com uma frase
+// figurinhas da dupla: animadas, com o herói de quem mandou (ou um pet aprontando) e uma frase
 const FIGURINHAS = {
-  gg: { pet: 'cao', anim: 'Attack2', t: 0.35, txt: 'GG!', cor: '#4ae86a' }, kkk: { pet: 'gato', anim: 'Attack', t: 0.3, txt: 'KKKK', cor: '#ffd23a' },
-  bora: { pet: 'dragao', anim: 'Attack', t: 0.4, txt: 'BORA!', cor: '#ff7a3a' }, socorro: { pet: 'gosma', anim: 'Death', t: 0.6, txt: 'SOCORRO!', cor: '#ff5a5a' },
-  ajuda: { pet: 'ninja', anim: 'Gallop', t: 0.2, txt: 'AJUDA AQUI!', cor: '#8ac8ff' }, top: { pet: 'alpaca', anim: 'Attack2', t: 0.4, txt: 'TOP!', cor: '#c88aff' },
+  gg: { heroi: 'Jump_Full_Short', txt: 'GG!', cor: '#4ae86a', fx: 'pulo' }, bora: { heroi: 'Melee_2H_Attack_Spin', txt: 'BORA!', cor: '#ff7a3a' },
+  socorro: { heroi: 'Death_A', txt: 'SOCORRO!', cor: '#ff5a5a', fx: 'treme' }, ajuda: { heroi: 'Waving', txt: 'AJUDA AQUI!', cor: '#8ac8ff' },
+  toma: { heroi: 'Melee_Unarmed_Attack_Kick', txt: 'TOMA!', cor: '#ff9a3a' }, facil: { heroi: 'Push_Ups', txt: 'FÁCIL!', cor: '#ffd23a' },
+  kkk: { pet: 'gato', anim: 'Idle_HitReact1', txt: 'KKKK', cor: '#ffd23a', fx: 'ri' }, top: { pet: 'dragao', anim: 'Gallop', txt: 'TOP!', cor: '#c88aff', fx: 'mortal' },
 };
+function quadrosFig(k, hr) { // quadros da animação (herói de quem mandou ou o pet)
+  const F = FIGURINHAS[k]; if (!F) return null; const H = HEROIS[hr] || HEROIS.lyra;
+  return F.heroi ? C.quadrosAnim(H.visual, F.heroi, { chave: 'h:' + (HEROIS[hr] ? hr : 'lyra') }) : C.quadrosAnim(modeloDe(F.pet), F.anim);
+}
 const imgsFig = {};
-const imgFigurinha = k => imgsFig[k] ||= Object.assign(new Image(), { src: C.retrato(modeloDe(FIGURINHAS[k].pet), { tam: 128, anim: FIGURINHAS[k].anim, tempo: FIGURINHAS[k].t }) });
+const imgFigurinha = k => imgsFig[k + S.heroi] ||= (quadrosFig(k, S.heroi)?.q[{ socorro: 8, toma: 5, gg: 3 }[k] ?? 2]?.toDataURL() || '');
+function desenharFigurinha(b, x, y, tam) { // quadro da vez + o movimento da figurinha (pulo, tremida, mortal)
+  const F = FIGURINHAS[b.e], A = b.quadros ||= quadrosFig(b.e, b.hr); if (!A?.q.length) return;
+  const im = A.q[Math.floor(b.t / A.dur * A.q.length) % A.q.length]; let dy = 0, dx = 0, rot = 0;
+  if (F.fx === 'pulo') dy = -Math.abs(Math.sin(b.t * 7)) * tam * 0.1;
+  if (F.fx === 'treme') dx = Math.sin(b.t * 70) * tam * 0.04;
+  if (F.fx === 'ri') rot = Math.sin(b.t * 14) * 0.35;
+  if (F.fx === 'mortal') { const ph = (b.t % 0.9) / 0.9; dy = -Math.sin(Math.PI * ph) * tam * 0.3; rot = -ph * Math.PI * 2; }
+  gfx.save(); gfx.translate(x + dx, y + dy); gfx.rotate(rot); gfx.drawImage(im, -tam * 0.5, -tam * 0.55, tam, tam); gfx.restore();
+}
 // tela final da dupla: dano de cada um no chefe e o MVP
 function placarDupla() {
   const D = G.dupla, eu = Math.round(D.meuDano || 0), ele = Math.round(D.danoP || 0), tot = Math.max(1, eu + ele), mvpEu = eu >= ele;
@@ -1374,8 +1388,8 @@ function clique(e) {
   if (b.dataset.up) { if (comprar(b.dataset.up)) { som('compra'); desenharLobby(); } else som('erro'); }
   if (a === 'jogar') { som('confirma'); comecarFase(); }
   if (a === 'modos') { som('clique'); mostrarModos(); return; }
-  if (a === 'emoAbrir') { const pn = $('#emoPainel'); if (pn.hidden) pn.innerHTML = Object.keys(FIGURINHAS).map(k => `<button data-emo="${k}"><img src="${imgFigurinha(k).src}" alt=""><small>${tr(FIGURINHAS[k].txt)}</small></button>`).join(''); pn.hidden = !pn.hidden; som('clique'); return; }
-  if (b.dataset.emo) { $('#emoPainel').hidden = true; const D = G?.dupla; if (!D || (D.emoT && performance.now() - D.emoT < 1200)) return; D.emoT = performance.now(); (D.balao ||= []).push({ e: b.dataset.emo, t: 0, eu: true }); D.canal?.enviar('em', { e: b.dataset.emo }); som('clique');
+  if (a === 'emoAbrir') { const pn = $('#emoPainel'); if (pn.hidden) pn.innerHTML = Object.keys(FIGURINHAS).map(k => `<button data-emo="${k}"><img src="${imgFigurinha(k)}" alt=""><small>${tr(FIGURINHAS[k].txt)}</small></button>`).join(''); pn.hidden = !pn.hidden; som('clique'); return; }
+  if (b.dataset.emo) { $('#emoPainel').hidden = true; const D = G?.dupla; if (!D || (D.emoT && performance.now() - D.emoT < 1200)) return; D.emoT = performance.now(); D.balao = (D.balao || []).filter(x => !x.eu); D.balao.push({ e: b.dataset.emo, t: 0, eu: true }); D.canal?.enviar('em', { e: b.dataset.emo }); som('clique');
     if (D.bot && !D.resp && Math.random() < 0.8) D.resp = { t: 1 + Math.random(), e: { socorro: 'bora', ajuda: 'bora', gg: 'gg', kkk: 'kkk', bora: 'top', top: 'gg' }[b.dataset.emo] || 'top' }; return; }
   if (b.dataset.claVer) { som('clique'); verCla(b.dataset.claVer); return; }
   if (a === 'contaRecuperar') { som('clique'); mostrarPerfil(); setTimeout(() => { const d = document.querySelector('#janela details'); if (d) { d.open = true; d.scrollIntoView({ block: 'center' }); } }, 300); return; }
@@ -1502,6 +1516,8 @@ function comecarFase(inf = false, dupla = null) {
 
   if (G.dupla) faixa(`EM DUPLA COM ${G.dupla.apelido.toUpperCase()}!`, '#8ae0ff');
   const em = $('#jEmojis'); if (em) em.hidden = !G.dupla;
+  if (G.dupla) { const D = G.dupla, ks = Object.keys(FIGURINHAS); let i = 0; // prepara as figurinhas aos poucos (sem travar a partida)
+    const prep = () => { if (G?.dupla !== D || i >= ks.length * 2) return; const k = ks[i % ks.length]; if (i < ks.length) imgFigurinha(k); else quadrosFig(k, D.hr); i++; setTimeout(prep, 400); }; setTimeout(prep, 1500); }
   else { const g0 = G; ON.ajudaAuto(G.n).then(r => { if (G !== g0 || !r) return; setTimeout(() => { if (G !== g0 || G.fim) return; G.fila = Math.min(maxFila(), G.fila + r.soldados);
       faixa(`${r.apelido.toUpperCase()}${r.cla ? ' (CLÃ)' : ''} VEIO AJUDAR! +${r.soldados}`, '#8ae0ff'); sfx('brilho'); }, 5000); }).catch(() => {}); }
   $('#jDica').textContent = G.rotas > 1 ? 'Duas rotas! Seus soldados vão pelo lado do herói' : 'Arraste para mover · toque nas vagas para construir torres';
@@ -2209,13 +2225,13 @@ function nomeParceiro() {
     const w = gfx.measureText(t).width, x = p[0] + w / 2 + 10, ms = D.ping ?? null, cor = ms == null ? '#aab' : ms < 150 ? '#4ae86a' : ms < 350 ? '#ffd23a' : '#ff5a4a';
     gfx.beginPath(); gfx.arc(x, p[1], 5, 0, 7); gfx.fillStyle = cor; gfx.fill(); gfx.lineWidth = 2; gfx.strokeStyle = '#0f2f6a'; gfx.stroke();
     if (ms != null) { gfx.font = '11px Titulo, sans-serif'; gfx.textAlign = 'left'; gfx.lineWidth = 3; gfx.strokeText(`${ms}ms`, x + 8, p[1]); gfx.fillStyle = cor; gfx.fillText(`${ms}ms`, x + 8, p[1]); } }
-  for (const b of D.balao || []) { b.t += 1 / 60; const q = C.tela(b.eu ? G.heroi.x : D.x, 9 + b.t * 1.5, ZH); if (!q) continue; gfx.globalAlpha = Math.max(0, 1 - Math.max(0, b.t - 1.6) / 0.5);
-    const F = FIGURINHAS[b.e]; if (F) { const esc2 = b.t < 0.15 ? 0.4 + b.t * 4 : 1, tam = 84 * esc2, im = imgFigurinha(b.e);
+  for (const b of D.balao || []) { b.t += 1 / 60; const q = C.tela(b.eu ? G.heroi.x : D.x, 9 + Math.min(b.t, 0.6) * 2, ZH); if (!q) continue; gfx.globalAlpha = Math.max(0, 1 - Math.max(0, b.t - 2.4) / 0.5);
+    const F = FIGURINHAS[b.e]; if (F) { const esc2 = b.t < 0.15 ? 0.4 + b.t * 4 : 1, tam = 92 * esc2; b.hr ||= b.eu ? S.heroi : D.hr;
       gfx.fillStyle = 'rgba(255,248,236,.95)'; gfx.strokeStyle = F.cor; gfx.lineWidth = 4; gfx.beginPath(); gfx.roundRect(q[0] - tam / 2, q[1] - tam / 2, tam, tam, 18 * esc2); gfx.fill(); gfx.stroke();
-      if (im.complete) gfx.drawImage(im, q[0] - tam * 0.45, q[1] - tam * 0.48, tam * 0.9, tam * 0.9);
+      desenharFigurinha(b, q[0], q[1], tam * 1.05);
       gfx.font = `${Math.round(17 * esc2)}px Titulo, sans-serif`; gfx.textAlign = 'center'; gfx.textBaseline = 'middle'; gfx.lineWidth = 4; gfx.strokeStyle = '#3a1a08'; const tx = tr(F.txt);
       gfx.strokeText(tx, q[0], q[1] + tam / 2 + 2); gfx.fillStyle = F.cor; gfx.fillText(tx, q[0], q[1] + tam / 2 + 2); } gfx.globalAlpha = 1; }
-  if (D.balao) D.balao = D.balao.filter(b => b.t < 2.1);
+  if (D.balao) D.balao = D.balao.filter(b => b.t < 2.9);
 }
 function desenharFx(dt) {
   gfx.clearRect(0, 0, innerWidth, innerHeight); if (!G) return;

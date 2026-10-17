@@ -820,6 +820,33 @@ export function tingirOuro(raiz, clonar = true, cor = 0xffd23a) { // pets com es
   const c = new THREE.Color(cor), em = c.clone().multiplyScalar(0.2);
   raiz.traverse(o => { if (!o.isMesh) return; if (clonar) o.material = o.material.clone(); o.material.color?.lerp(c, 0.45); o.material.emissive?.copy(em); });
 }
+// figurinha animada: quadros de uma animação do herói (fonte = visual) ou de um modelo (fonte = nome do pet)
+export function quadrosAnim(fonte, anim, { n = 12, tam = 112, cor = null, chave = '' } = {}) {
+  const k = 'qa:' + (chave || fonte) + anim + n + tam; if (retratos[k]) return retratos[k];
+  if (!renderer) return null;
+  const cn = new THREE.Scene(); cn.add(new THREE.HemisphereLight(0xffffff, 0x6a5a8a, 2.2)); const l = new THREE.DirectionalLight(0xffffff, 2.4); l.position.set(3, 6, 8); cn.add(l);
+  let obj, mixer, dur = 1, h = null;
+  if (typeof fonte === 'string') { const g = modelos[fonte]; if (!g) return null; obj = SkeletonUtils.clone(g.scene); if (cor != null) tingirOuro(obj, true, cor);
+    const clip = g.animations.find(a => a.name === anim) || g.animations.find(a => a.name === 'Idle'); mixer = new THREE.AnimationMixer(obj); if (clip) { mixer.clipAction(clip).play(); dur = clip.duration; } }
+  else { h = heroi(fonte); scene.remove(h.raiz); obj = h.raiz; h.tocar(anim, { fade: 0.001 }); mixer = h.mixer; dur = H.clips[anim]?.duration || 1; }
+  cn.add(obj); obj.rotation.y = 0.45;
+  const b = new THREE.Box3(); for (let i = 0; i < 6; i++) { mixer.setTime(0.01 + i * dur / 6); b.union(caixaPose(obj)); } mixer.setTime(0.01); // enquadra a animação inteira
+  const c = b.getCenter(new THREE.Vector3()), sz = b.getSize(new THREE.Vector3()), r = Math.max(sz.y, sz.x * 0.85) * 0.56;
+  const cm = new THREE.PerspectiveCamera(30, 1, 0.1, 100), d = r / Math.tan(Math.PI / 12); cm.position.set(c.x, c.y + r * 0.15, c.z + d); cm.lookAt(c.x, c.y, c.z);
+  const rt = new THREE.WebGLRenderTarget(tam, tam, { samples: 4 }); rt.texture.colorSpace = THREE.SRGBColorSpace;
+  const fundoAntes = renderer.getClearColor(new THREE.Color()), alfaAntes = renderer.getClearAlpha(), px = new Uint8Array(tam * tam * 4), q = [];
+  const srgb = v => Math.round(255 * (v <= 0.0031308 ? 12.92 * v : 1.055 * v ** (1 / 2.4) - 0.055));
+  for (let i = 0; i < n; i++) {
+    if (i) mixer.update(dur / n);
+    renderer.setRenderTarget(rt); renderer.setClearColor(0x000000, 0); renderer.clear(); renderer.render(cn, cm); renderer.readRenderTargetPixels(rt, 0, 0, tam, tam, px);
+    const cv = document.createElement('canvas'); cv.width = cv.height = tam; const g = cv.getContext('2d'), im = g.createImageData(tam, tam);
+    for (let y = 0; y < tam; y++) for (let x = 0; x < tam; x++) { const a0 = ((tam - 1 - y) * tam + x) * 4, o = (y * tam + x) * 4, al = px[a0 + 3];
+      if (!al) continue; for (let ci = 0; ci < 3; ci++) im.data[o + ci] = srgb(Math.min(1, px[a0 + ci] / al)); im.data[o + 3] = al; }
+    g.putImageData(im, 0, 0); q.push(cv);
+  }
+  renderer.setRenderTarget(null); renderer.setClearColor(fundoAntes, alfaAntes); rt.dispose(); h?.remover();
+  return (retratos[k] = { q, dur });
+}
 export function retrato(nome, { cor = null, tam = 160, anim = 'Idle', tempo = 0.4 } = {}) {
   const k = nome + (cor ?? '') + tam + anim + tempo; if (retratos[k]) return retratos[k];
   const gltf = modelos[nome]; if (!gltf || !renderer) return '';

@@ -298,7 +298,7 @@ const T = {
   'RECONECTANDO...': L('RECONNECTING...', 'RECONECTANDO...'), 'CONECTADO!': L('CONNECTED!', '¡CONECTADO!'),
   'Dano no chefe': L('Boss damage', 'Daño al jefe'), 'MVP:': L('MVP:', 'MVP:'), 'Você': L('You', 'Tú'),
   // figurinhas
-  'GG!': L('GG!', '¡GG!'), 'KKKK': L('LOL', 'JAJAJA'), 'BORA!': L('LET\'S GO!', '¡VAMOS!'), 'SOCORRO!': L('HELP!', '¡SOCORRO!'), 'AJUDA AQUI!': L('HELP ME!', '¡AYUDA AQUÍ!'), 'TOP!': L('AWESOME!', '¡GENIAL!'),
+  'GG!': L('GG!', '¡GG!'), 'KKKK': L('LOL', 'JAJAJA'), 'BORA!': L('LET\'S GO!', '¡VAMOS!'), 'SOCORRO!': L('HELP!', '¡SOCORRO!'), 'AJUDA AQUI!': L('HELP ME!', '¡AYUDA AQUÍ!'), 'TOP!': L('AWESOME!', '¡GENIAL!'), 'TOMA!': L('TAKE THAT!', '¡TOMA!'), 'FÁCIL!': L('EASY!', '¡FÁCIL!'),
 };
 export const TEXTOS = { en: {}, es: {} };
 for (const [k, v] of Object.entries(T)) { TEXTOS.en[k] = v.en; TEXTOS.es[k] = v.es; }
