@@ -526,6 +526,7 @@ const PASSOS_LIB = {
 let guia = null;
 function proximaLiberacao() { // comemora o que abriu (uma coisa por vez, só no menu e sem janela aberta)
   if (!S?.lib || S.lib.todos || tela !== 'lobby' || guia || !$('#janela').hidden) return;
+  if ((S.melhor || 0) >= 1 && !S.lib.nome && !S.online?.apelido) return pedirNome(); // depois da primeira vitória: escolher o nome
   const L = LIBERA.find(l => (S.melhor || 0) >= l[1] && !S.lib.visto[l[0]]); if (!L) return;
   const [id, , nome, icone, frase] = L; S.lib.visto[id] = 1; if (id === 'castelo') S.lib.visto.infinito = 1;
   if (id === 'pets') S.ovos.comum = (S.ovos.comum || 0) + 1; // primeiro ovo de presente
@@ -533,6 +534,16 @@ function proximaLiberacao() { // comemora o que abriu (uma coisa por vez, só no
   const j = $('#janela'); j.hidden = false; sfx('vitoria'); som('lendario');
   j.innerHTML = `<div class="jOnline jNovo"><div class="novoRaios"></div><em class="novoTag">${tr('NOVO!')}</em><div class="novoIco">${ico(icone)}</div><h2>${nome}</h2><p>${frase}</p>
     <button class="btn verde grande" data-a="verNovo" data-novo="${id}">${ico('check')} Ver agora</button></div>`;
+}
+// nome do jogador (aparece no ranking, no clã e na dupla), com sugestões no dado
+const NOME_A = ['Lobo', 'Dragão', 'Fênix', 'Sombra', 'Trovão', 'Falcão', 'Tigre', 'Raio', 'Corvo', 'Leão', 'Guerreiro', 'Mago', 'Ninja', 'Viking', 'Pirata', 'Titã'];
+const NOME_B = ['Sombrio', 'Veloz', 'Dourado', 'Feroz', 'Real', 'Azul', 'Bravo', 'Rei', 'BR', 'X', 'Supremo', 'Lendário'];
+const sugerirNome = () => { const r = l => l[Math.floor(Math.random() * l.length)]; let n = r(NOME_A) + r(NOME_B); if (Math.random() < 0.5) n += Math.floor(Math.random() * 90 + 10); return n.slice(0, 16); };
+function pedirNome() {
+  const j = $('#janela'); j.hidden = false; sfx('brilho');
+  j.innerHTML = `<div class="jOnline jNovo jNome"><div class="novoRaios"></div><div class="novoIco">${ico('coroa')}</div><h2>Como quer ser chamado?</h2><p>Seu nome aparece no ranking, no clã e na dupla</p>
+    <div class="nomeLinha"><input id="apelido1" maxlength="16" value="${esc(sugerirNome())}" autocomplete="off"><button class="btn azul peq" data-a="nomeSorte" aria-label="sortear">${ico('dado')}</button></div>
+    <p class="erro" id="nomeErro"></p><button class="btn verde grande" data-a="nomeOk">${ico('check')} Confirmar</button><button class="fSo" data-a="nomeDepois" hidden>Escolher depois</button></div>`;
 }
 function comecarGuia(id) {
   const passos = PASSOS_LIB[id]; if (!passos) return; fecharGuia();
@@ -1495,6 +1506,11 @@ function clique(e) {
   const b = e.target.closest('button'); if (!b) return; let a = b.dataset.a;
   if (b.dataset.trava) { som('erro'); toque(`${tr('Libera ao vencer a fase')} ${faseLibera(b.dataset.trava)}`); return; }
   if (b.dataset.modo) { if (!liberado(b.dataset.modo)) { som('erro'); toque(`${tr('Libera ao vencer a fase')} ${faseLibera(b.dataset.modo)}`); return; } $('#janela').hidden = true; a = b.dataset.modo; }
+  if (a === 'nomeSorte') { som('clique'); $('#apelido1').value = sugerirNome(); return; }
+  if (a === 'nomeDepois') { som('fechar'); S.lib.nome = 1; salvar(); $('#janela').hidden = true; return; }
+  if (a === 'nomeOk') { const ap = ($('#apelido1')?.value || '').trim(), er = $('#nomeErro'); if (ap.length < 2) { som('erro'); er.textContent = tr('Pelo menos 2 letras'); return; }
+    b.disabled = true; ON.registrar(ap).then(() => { S.lib.nome = 1; salvar(); sfx('vitoria'); $('#janela').hidden = true; desenharLobby(); toque(`${tr('Bem-vindo,')} ${ap}!`); })
+      .catch(e => { b.disabled = false; som('erro'); er.textContent = tr(e.message); const d = document.querySelector('[data-a=nomeDepois]'); if (d) d.hidden = false; }); return; }
   if (a === 'verNovo') { som('confirma'); $('#janela').hidden = true; abaLobby = 'home'; desenharLobby(); setTimeout(() => comecarGuia(b.dataset.novo), 250); return; }
   if (a === 'som') { alternarSom(); som('clique'); if ($('#janela .jConfig')) mostrarConfig(); else desenharLobby(); }
   if (b.dataset.abaLobby) { som('clique'); abaLobby = b.dataset.abaLobby; desenharLobby(); }

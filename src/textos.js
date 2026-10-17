@@ -334,6 +334,9 @@ const T = {
   'Na Dupla você joga junto com um amigo: chame pelo WhatsApp!': L('In Duo you play with a friend: invite them on WhatsApp!', 'En Dúo juegas con un amigo: ¡invítalo por WhatsApp!'),
   'No Castelo você defende a muralha de ondas cada vez mais fortes. E tem a Ponte sem fim também!': L('In Castle you defend the wall from stronger and stronger waves. And there\'s the Endless Bridge too!', 'En Castillo defiendes la muralla de oleadas cada vez más fuertes. ¡Y también está el Puente sin fin!'),
   'Toque em Clã': L('Tap Clan', 'Toca en Clan'), 'Num clã vocês atacam um chefe juntos e todos ganham prêmios!': L('In a clan you attack a boss together and everyone wins prizes!', '¡En un clan atacan a un jefe juntos y todos ganan premios!'),
+  // primeiro nome
+  'Como quer ser chamado?': L('What should we call you?', '¿Cómo quieres que te llamen?'), 'Seu nome aparece no ranking, no clã e na dupla': L('Your name shows in the ranking, clan and duo', 'Tu nombre aparece en el ranking, el clan y el dúo'),
+  'Confirmar': L('Confirm', 'Confirmar'), 'Escolher depois': L('Choose later', 'Elegir después'), 'Bem-vindo,': L('Welcome,', 'Bienvenido,'),
 };
 export const TEXTOS = { en: {}, es: {} };
 for (const [k, v] of Object.entries(T)) { TEXTOS.en[k] = v.en; TEXTOS.es[k] = v.es; }

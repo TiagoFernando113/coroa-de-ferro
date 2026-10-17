@@ -4,7 +4,8 @@ import { TEXTOS, PADROES } from './textos.js';
 export const IDIOMAS = [['pt-BR', 'Português', '🇧🇷'], ['en', 'English', '🇺🇸'], ['es', 'Español', '🇪🇸']];
 let lang = 'pt-BR';
 try { lang = localStorage.getItem('ponte_idioma') || ''; } catch (e) {}
-export const idiomaEscolhido = () => !!lang;
+const escolheu = !!lang; // primeira vez: ainda não escolheu (o padrão abaixo não conta)
+export const idiomaEscolhido = () => escolheu;
 if (!lang) lang = 'pt-BR';
 export const idiomaJogo = () => lang;
 export function mudarIdioma(l) { lang = l; try { localStorage.setItem('ponte_idioma', l); } catch (e) {} document.documentElement.lang = l; traduzirTudo(); }

@@ -988,3 +988,13 @@ input{font:inherit;user-select:text;-webkit-user-select:text}
 .jNovo h2{position:relative;justify-content:center}
 .jNovo p{position:relative;margin:4px 0 16px}
 .jNovo .btn{position:relative}
+.jNome .nomeLinha{position:relative;display:flex;gap:8px;align-items:stretch;margin:4px 0 2px}
+.jNome .nomeLinha input{flex:1;min-width:0;font-family:var(--fT);font-size:22px;text-align:center;padding:10px;border-radius:14px;border:3px solid var(--creme2)}
+.jNome .nomeLinha .btn{margin:0;width:56px;padding:0}
+.jNome .erro{position:relative;min-height:18px;margin:2px 0}
+/* primeira abertura: escolher o idioma */
+.tMenu:has(.tIdiomaT){flex-direction:column;gap:8px}
+.tIdiomaT{margin:0;font-family:var(--fT);font-size:20px;color:#fff;text-shadow:0 2px 0 rgba(0,0,0,.5)}
+.tMenu .idiomas{display:flex;flex-direction:column;gap:8px;width:min(260px,80vw)}
+.tMenu .idiomas .btn{margin:0;font-size:19px;display:flex;align-items:center;justify-content:center;gap:10px}
+.tMenu .idiomas .flag{font-size:24px}

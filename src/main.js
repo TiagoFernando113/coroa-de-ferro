@@ -45,7 +45,7 @@ async function comecar() {
     $('.tMenu').innerHTML = ''; $('.tMenu').append(b); };
   // primeira vez: escolher o idioma
   if (idiomaEscolhido()) entrar();
-  else { $('.tMenu').innerHTML = `<div class="idiomas" data-nt>${IDIOMAS.map(([k, n, f]) => `<button class="btn azul" data-idioma="${k}"><span class="flag">${f}</span>${n}</button>`).join('')}</div>`;
+  else { $('.tMenu').innerHTML = `<p class="tIdiomaT" data-nt>🌎 Idioma · Language</p><div class="idiomas" data-nt>${IDIOMAS.map(([k, n, f]) => `<button class="btn azul" data-idioma="${k}"><span class="flag">${f}</span>${n}</button>`).join('')}</div>`;
     $('.tMenu').onclick = e => { const b = e.target.closest('[data-idioma]'); if (!b) return; som('clique'); mudarIdioma(b.dataset.idioma); $('.tMenu').onclick = null; entrar(); }; }
   window.__C = C; window.__cam = C.camera; window.__G = _G; window.__sim = _sim; window.__construir = _construir; // para testes
 }
