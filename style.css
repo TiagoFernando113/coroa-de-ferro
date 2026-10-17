@@ -953,3 +953,9 @@ input{font:inherit;user-select:text;-webkit-user-select:text}
 .emoPainel button{width:72px;height:auto!important;border-radius:12px!important;background:#fff!important;border:2px solid var(--creme2)!important;display:flex;flex-direction:column;align-items:center;padding:2px;font-size:0}
 .emoPainel img{width:56px;height:56px;object-fit:contain}
 .emoPainel small{font-family:var(--fT);font-size:11px;color:#5a2e08;white-space:nowrap}
+/* dupla: menu, chamar amigo e código */
+.jDupla{display:flex;flex-direction:column;align-items:stretch;gap:10px}
+.jDupla .btn{width:100%}
+.codAmigo{font-family:var(--fT);font-size:46px;letter-spacing:8px;color:#5a2e08;background:#fff;border:3px dashed var(--creme2);border-radius:14px;padding:6px 0;text-align:center}
+.codAmigoIn{font-family:var(--fT);font-size:34px;letter-spacing:6px;text-align:center;padding:10px;border-radius:14px;border:3px solid var(--creme2);width:100%;box-sizing:border-box}
+.jDupla .radar{margin:0 auto}

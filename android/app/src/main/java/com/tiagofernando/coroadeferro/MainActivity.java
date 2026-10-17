@@ -1,7 +1,12 @@
 package com.tiagofernando.coroadeferro;
 
 import android.app.Activity;
+import android.app.NotificationManager;
+import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.net.Uri;
+import android.provider.Settings;
+import android.webkit.JavascriptInterface;
 import android.os.Build;
 import android.os.Bundle;
 import android.webkit.WebResourceRequest;
@@ -56,11 +61,19 @@ public class MainActivity extends Activity {
         s.setDomStorageEnabled(true); // o save do jogo fica no localStorage
         s.setCacheMode(WebSettings.LOAD_NO_CACHE);
         web.addJavascriptInterface(new Avisos.Js(this), "Avisos"); // notificações locais
+        web.addJavascriptInterface(new App(), "App"); // compartilhar convite, conferir avisos
         Avisos.criarCanal(this);
         if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED)
             requestPermissions(new String[] { "android.permission.POST_NOTIFICATIONS" }, 1);
 
         web.setWebViewClient(new WebViewClient() {
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest req) {
+                if (HOST.equals(req.getUrl().getHost())) return false;
+                try { startActivity(new Intent(Intent.ACTION_VIEW, req.getUrl())); } catch (Exception e) { }
+                return true; // links de fora (WhatsApp, download do app) abrem fora do jogo
+            }
+
             @Override
             public WebResourceResponse shouldInterceptRequest(WebView v, WebResourceRequest req) {
                 if (!HOST.equals(req.getUrl().getHost())) return null; // fontes etc. vêm da rede
@@ -79,6 +92,32 @@ public class MainActivity extends Activity {
         else web.loadUrl(INICIO);
 
         new Thread(this::procurarAtualizacao).start();
+    }
+
+    // ---- ponte com o JavaScript: window.App ----
+    class App {
+        @JavascriptInterface
+        public void compartilhar(String texto) {
+            runOnUiThread(() -> {
+                Intent i = new Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, texto);
+                try { startActivity(Intent.createChooser(i, "Chamar amigo")); } catch (Exception e) { }
+            });
+        }
+
+        @JavascriptInterface
+        public boolean avisosLigados() {
+            return getSystemService(NotificationManager.class).areNotificationsEnabled();
+        }
+
+        @JavascriptInterface
+        public void ajustesAvisos() {
+            runOnUiThread(() -> {
+                Intent i = Build.VERSION.SDK_INT >= 26
+                    ? new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName())
+                    : new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + getPackageName()));
+                try { startActivity(i); } catch (Exception e) { }
+            });
+        }
     }
 
     static String mime(String nome) {

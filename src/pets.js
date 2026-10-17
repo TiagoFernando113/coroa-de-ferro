@@ -137,7 +137,8 @@ export function chocar(tipo) {
 }
 // ---- lucro ocioso da Conquista ----
 export const MAX_OCIOSO = 9 * 3600e3;
-export const lucroHora = () => 40 + 18 * (S.cq.est - 1);
+// ~15% do que se ganha jogando a ponte por 1 h na fase atual; estágios da Conquista dão até +30%
+export const lucroHora = () => Math.round((60 + 36 * Math.max(1, S.fase || 1)) * (1 + Math.min(0.3, 0.003 * ((S.cq?.est || 1) - 1))));
 export const tempoOcioso = () => Math.min(MAX_OCIOSO, Math.max(0, Date.now() - S.cq.t));
 export const lucroOcioso = () => Math.floor(lucroHora() * tempoOcioso() / 3600e3);
 export function coletarOcioso() { const m = lucroOcioso(); S.moedas += m; S.cq.t = Date.now(); salvar(); return m; }

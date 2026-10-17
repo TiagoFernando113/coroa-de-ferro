@@ -98,7 +98,7 @@ const T = {
   'Estágio # conquistado!': L('Stage # conquered!', '¡Etapa # conquistada!'), 'Seus pets caíram!': L('Your pets fell!', '¡Tus mascotas cayeron!'), 'Lucro ocioso agora: #/h': L('Idle profit now: #/h', 'Ganancia inactiva ahora: #/h'),
   'Suba o nível dos pets, junte # iguais para um dourado ★ ou choque ovos.': L('Level up pets, merge # alike for a golden ★ or hatch eggs.', 'Sube de nivel, fusiona # iguales para un dorado ★ o eclosiona huevos.'),
   'Suba o nível dos pets, junte # iguais para uma estrela ★ ou choque ovos.': L('Level up pets, merge # alike for a star ★ or hatch eggs.', 'Sube de nivel, fusiona # iguales para una estrella ★ o eclosiona huevos.'),
-  '+# Ovo Comum!': L('+# Common Egg!', '¡+# Huevo Común!'), '#/h': L('#/h', '#/h'), 'máximo #h': L('max #h', 'máximo #h'), 'sobe a cada estágio': L('rises every stage', 'sube cada etapa'), '# Ovo Comum!': L('# Common Egg!', '¡# Huevo Común!'), '# Ovo Mágico!': L('# Magic Egg!', '¡# Huevo Mágico!'),
+  '+# Ovo Comum!': L('+# Common Egg!', '¡+# Huevo Común!'), '#/h': L('#/h', '#/h'), 'máximo #h': L('max #h', 'máximo #h'), 'sobe a cada estágio': L('rises every stage', 'sube cada etapa'), 'sobe com a fase e os estágios': L('rises with level and stages', 'sube con la fase y las etapas'), '# Ovo Comum!': L('# Common Egg!', '¡# Huevo Común!'), '# Ovo Mágico!': L('# Magic Egg!', '¡# Huevo Mágico!'),
   // online, clã, chat
   'Seu nome:': L('Your name:', 'Tu nombre:'), 'trocar': L('change', 'cambiar'), 'Seu apelido': L('Your nickname', 'Tu apodo'), 'Salvar': L('Save', 'Guardar'),
   'Esse nome aparece no ranking, no clã e na dupla.': L('This name shows in the ranking, clan and duo.', 'Este nombre aparece en el ranking, el clan y el dúo.'), 'Jogadores': L('Players', 'Jugadores'), 'Clãs': L('Clans', 'Clanes'),
@@ -299,6 +299,17 @@ const T = {
   'Dano no chefe': L('Boss damage', 'Daño al jefe'), 'MVP:': L('MVP:', 'MVP:'), 'Você': L('You', 'Tú'),
   // figurinhas
   'GG!': L('GG!', '¡GG!'), 'KKKK': L('LOL', 'JAJAJA'), 'BORA!': L('LET\'S GO!', '¡VAMOS!'), 'SOCORRO!': L('HELP!', '¡SOCORRO!'), 'AJUDA AQUI!': L('HELP ME!', '¡AYUDA AQUÍ!'), 'TOP!': L('AWESOME!', '¡GENIAL!'), 'TOMA!': L('TAKE THAT!', '¡TOMA!'), 'FÁCIL!': L('EASY!', '¡FÁCIL!'),
+  // dupla: chamar amigo / código, avisos
+  'Procurar parceiro': L('Find a partner', 'Buscar compañero'), 'Chamar amigo': L('Invite a friend', 'Invitar a un amigo'), 'Tenho um código': L('I have a code', 'Tengo un código'),
+  'Conectando...': L('Connecting...', 'Conectando...'), 'Bora jogar Batalha da Ponte em dupla comigo! No jogo, toque em Modos > Dupla > Tenho um código e digite:': L('Let\'s play Bridge Battle together! In the game, tap Modes > Duo > I have a code and type:', '¡Juguemos Batalla del Puente en dúo! En el juego, toca Modos > Dúo > Tengo un código y escribe:'),
+  'Baixe o jogo:': L('Get the game:', 'Descarga el juego:'), 'Mande a mensagem para seu amigo. Ele digita este código na Dupla:': L('Send the message to your friend. They type this code in Duo:', 'Envía el mensaje a tu amigo. Él escribe este código en Dúo:'),
+  'Mensagem copiada! Cole no WhatsApp. Seu amigo digita este código na Dupla:': L('Message copied! Paste it on WhatsApp. Your friend types this code in Duo:', '¡Mensaje copiado! Pégalo en WhatsApp. Tu amigo escribe este código en Dúo:'),
+  'Esperando seu amigo entrar...': L('Waiting for your friend...', 'Esperando a tu amigo...'), 'Enviar de novo': L('Send again', 'Enviar de nuevo'),
+  'Digite o código que seu amigo mandou': L('Type the code your friend sent', 'Escribe el código que te envió tu amigo'),
+  'Avisos': L('Notifications', 'Avisos'), 'Instale o app mais novo para receber avisos.': L('Install the newest app to get notifications.', 'Instala la app más nueva para recibir avisos.'), 'Baixar app': L('Download app', 'Descargar app'),
+  'Os avisos estão desligados no celular.': L('Notifications are turned off on your phone.', 'Los avisos están desactivados en el teléfono.'), 'Ligar avisos': L('Turn on notifications', 'Activar avisos'), 'Testar aviso': L('Test notification', 'Probar aviso'),
+  'Teste de aviso': L('Test notification', 'Aviso de prueba'), 'Os avisos do jogo estão funcionando!': L('Game notifications are working!', '¡Los avisos del juego funcionan!'), 'Chega em 5 segundos...': L('Arriving in 5 seconds...', 'Llega en 5 segundos...'),
+  'Baús esperando!': L('Chests waiting!', '¡Cofres esperando!'), 'Você tem # baús para abrir.': L('You have # chests to open.', 'Tienes # cofres para abrir.'),
 };
 export const TEXTOS = { en: {}, es: {} };
 for (const [k, v] of Object.entries(T)) { TEXTOS.en[k] = v.en; TEXTOS.es[k] = v.es; }

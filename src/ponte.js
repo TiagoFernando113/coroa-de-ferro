@@ -463,12 +463,15 @@ let diarioVisto = false, resumoFeito = false;
 function agendarAvisos() {
   const A = window.Avisos; if (!A || !S) return; cancelarAvisos();
   try {
-    const falta = MAX_OCIOSO - tempoOcioso(); if (S.cq?.est > 1 && falta > 60e3) A.agendar(1, Math.round(falta / 1000), tr('Lucro ocioso cheio!'), tr(`Seus pets juntaram ${fmt(lucroHora() * 9)} moedas. Venha coletar!`));
-    const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(10, 0, 0, 0); A.agendar(2, Math.round((d - Date.now()) / 1000), tr('Presente diário pronto!'), tr('Abra o jogo e pegue o presente de hoje.'));
-    A.agendar(3, 26 * 3600, tr('Os orcs estão atacando a ponte!'), tr('Volte e defenda a ponte com seus pets.'));
+    const falta = MAX_OCIOSO - tempoOcioso(); if (S.cq?.t && falta > 60e3) A.agendar(1, Math.round(falta / 1000), tr('Lucro ocioso cheio!'), tr(`Seus pets juntaram ${fmt(lucroHora() * 9)} moedas. Venha coletar!`));
+    // presente: hoje às 19h se ainda não pegou; senão amanhã às 10h
+    const d = new Date(); if (diarioPronto() && d.getHours() < 19) d.setHours(19, 0, 0, 0); else { d.setDate(d.getDate() + 1); d.setHours(10, 0, 0, 0); }
+    A.agendar(2, Math.round((d - Date.now()) / 1000), tr('Presente diário pronto!'), tr('Abra o jogo e pegue o presente de hoje.'));
+    if (S.baus.length) A.agendar(4, 3 * 3600, tr('Baús esperando!'), tr(`Você tem ${S.baus.length} baús para abrir.`));
+    A.agendar(3, 20 * 3600, tr('Os orcs estão atacando a ponte!'), tr('Volte e defenda a ponte com seus pets.'));
   } catch (e) {}
 }
-function cancelarAvisos() { const A = window.Avisos; if (!A) return; try { for (const id of [1, 2, 3]) A.cancelar(id); } catch (e) {} }
+function cancelarAvisos() { const A = window.Avisos; if (!A) return; try { for (const id of [1, 2, 3, 4]) A.cancelar(id); } catch (e) {} }
 { const orig = window.__pausar; window.__pausar = p => { orig?.(p); if (p) agendarAvisos(); else cancelarAvisos(); }; }
 document.addEventListener('visibilitychange', () => { if (document.hidden) agendarAvisos(); else cancelarAvisos(); });
 const marcarVisto = () => { S.vistoT = Date.now(); salvar(); };
@@ -625,6 +628,9 @@ function mostrarConfig(reabrir) {
     <h3>Som</h3><button class="btn ${estaMudo() ? 'cinza' : 'verde'}" data-a="som">${ico(estaMudo() ? 'mudo' : 'som')} ${estaMudo() ? 'Som desligado' : 'Som ligado'}</button>
     <h3>Gráficos</h3><div class="cfgQual">${[['baixa', 'Leve'], ['media', 'Normal'], ['alta', 'Bonito']].map(([k, n]) => `<button class="${q === k ? 'sel' : ''}" data-qual="${k}">${n}</button>`).join('')}</div>
     <small class="cfgDica">${reabrir ? 'Vale quando abrir o jogo de novo.' : 'Leve: roda melhor em celular simples.'}</small>
+    <h3>Avisos</h3>${!window.Avisos ? `<small class="cfgDica">Instale o app mais novo para receber avisos.</small><button class="btn azul peq" data-a="baixarApp">Baixar app</button>`
+      : window.App?.avisosLigados && !window.App.avisosLigados() ? `<small class="cfgDica">Os avisos estão desligados no celular.</small><button class="btn amarelo peq" data-a="ajustesAvisos">Ligar avisos</button>`
+      : `<button class="btn azul peq" data-a="testarAviso">${ico('som')} Testar aviso</button>`}
     <p class="cfgVer">Versão ${window.VERSAO || ''}</p><button class="fSo" data-a="fecharJanela">Fechar</button></div>`;
 }
 // ---- tela de modos: tudo que não é a campanha fica aqui (a tela inicial só tem JOGAR) ----
@@ -965,6 +971,41 @@ function procurarDupla() {
     setTimeout(passo, 2000);
   };
   passo();
+}
+// ---- dupla: procurar alguém, chamar um amigo (WhatsApp) ou entrar com o código do amigo ----
+const LINK_APP = 'https://github.com/TiagoFernando113/coroa-de-ferro/releases/latest';
+let esperaAmigo = null;
+function menuDupla() {
+  const j = $('#janela'); j.hidden = false;
+  j.innerHTML = `<div class="jOnline jDupla"><h2>${ico('herois')} Jogar em dupla</h2>
+    <button class="btn verde grande" data-a="procurarDupla">${ico('herois')} Procurar parceiro</button>
+    <button class="btn amarelo" data-a="chamarAmigo">${ico('festa')} Chamar amigo</button>
+    <button class="btn azul" data-a="temCodigo">Tenho um código</button>
+    <button class="fSo" data-a="fecharJanela">Fechar</button></div>`;
+}
+async function chamarAmigo() {
+  const j = $('#janela'); j.hidden = false; j.innerHTML = `<div class="jOnline"><h2>${ico('festa')} Chamar amigo</h2><p class="sub">Conectando...</p></div>`;
+  try { await ON.garantir(); } catch (e) { j.innerHTML = `<div class="jOnline"><p class="erro">${esc(e.message)}</p><button class="btn azul" data-a="fecharJanela">Fechar</button></div>`; som('erro'); return; }
+  const cod = S.online.codigo, txt = `${tr('Bora jogar Batalha da Ponte em dupla comigo! No jogo, toque em Modos > Dupla > Tenho um código e digite:')} ${cod}\n${tr('Baixe o jogo:')} ${LINK_APP}`;
+  let enviou = false; try { if (window.App?.compartilhar) { window.App.compartilhar(txt); enviou = true; } else if (navigator.share) { navigator.share({ text: txt }).catch(() => {}); enviou = true; } else await navigator.clipboard.writeText(txt); } catch (e) {}
+  j.innerHTML = `<div class="jOnline jDupla"><h2>${ico('festa')} Chamar amigo</h2><p class="sub">${enviou ? 'Mande a mensagem para seu amigo. Ele digita este código na Dupla:' : 'Mensagem copiada! Cole no WhatsApp. Seu amigo digita este código na Dupla:'}</p>
+    <div class="codAmigo" data-nt>${cod}</div><div class="radar"><i></i><i></i>${ico('herois')}</div><p id="amigoTxt">Esperando seu amigo entrar...</p>
+    <button class="btn amarelo" data-a="chamarAmigo">Enviar de novo</button><button class="btn azul" data-a="cancelarAmigo">Cancelar</button></div>`;
+  if (esperaAmigo) esperaAmigo.ativo = false; const e = esperaAmigo = { ativo: true, t0: Date.now() };
+  const passo = async () => { if (!e.ativo) return;
+    if (Date.now() - e.t0 > 10 * 60e3) { e.ativo = false; const t = $('#amigoTxt'); if (t) t.textContent = tr('Ninguém respondeu.'); return; }
+    try { const l = await ON.convites(), c = (l || []).find(x => !convitesVistos.has(x.id)); if (!e.ativo) return;
+      if (c) { convitesVistos.add(c.id); e.ativo = false; esperaAmigo = null; const r = await ON.conviteResponder(c.id, true);
+        if (r?.sala) { j.hidden = true; sfx('vitoria'); comecarDupla({ sala: r.sala, apelido: r.apelido, fase: r.fase, host: false }); return; } } } catch (er) {}
+    setTimeout(passo, 2500); };
+  setTimeout(passo, 1500);
+}
+function temCodigo() {
+  const j = $('#janela'); j.hidden = false;
+  j.innerHTML = `<div class="jOnline jDupla"><h2>${ico('herois')} Código do amigo</h2><p class="sub">Digite o código que seu amigo mandou</p>
+    <input id="codAmigo" class="codAmigoIn" inputmode="numeric" maxlength="8" placeholder="000000" autocomplete="off">
+    <button class="btn verde grande" data-a="entrarCodigo">Entrar</button><button class="fSo" data-a="dupla">Voltar</button></div>`;
+  setTimeout(() => $('#codAmigo')?.focus(), 100);
 }
 // ---- convite direto para a dupla ----
 let convite = null, convitesVistos = new Set();
@@ -1440,7 +1481,15 @@ function clique(e) {
   if (b.dataset.idioma) { som('clique'); mudarIdioma(b.dataset.idioma); if ($('#janela .jConfig')) mostrarConfig(); else $('#janela').hidden = true; desenharLobby(); }
   if (a === 'online') { som('clique'); mostrarOnline('rank'); }
   if (b.dataset.rk || b.dataset.cla || b.dataset.claPedir || b.dataset.cm || b.dataset.pedir || b.dataset.doar || ['trocarNome', 'salvarNome', 'voltarOnline', 'claCriar', 'claSair', 'chatEnviar', 'chatPedirAbrir'].includes(a) || b.dataset.trVer || b.dataset.trad) cliqueOnline(b);
-  if (a === 'dupla') { som('confirma'); procurarDupla(); }
+  if (a === 'dupla') { som('confirma'); menuDupla(); }
+  if (a === 'procurarDupla') { som('confirma'); procurarDupla(); }
+  if (a === 'chamarAmigo') { som('confirma'); chamarAmigo(); }
+  if (a === 'temCodigo') { som('confirma'); temCodigo(); }
+  if (a === 'entrarCodigo') { const c = ($('#codAmigo')?.value || '').replace(/\D/g, ''); if (c.length < 4) { som('erro'); return; } som('confirma'); convidarDupla(c, c); }
+  if (a === 'cancelarAmigo') { som('fechar'); if (esperaAmigo) esperaAmigo.ativo = false; esperaAmigo = null; $('#janela').hidden = true; }
+  if (a === 'baixarApp') { location.href = LINK_APP; }
+  if (a === 'ajustesAvisos') { window.App?.ajustesAvisos(); }
+  if (a === 'testarAviso') { try { window.Avisos.agendar(9, 5, tr('Teste de aviso'), tr('Os avisos do jogo estão funcionando!')); } catch (e) {} b.textContent = tr('Chega em 5 segundos...'); som('confirma'); }
   if (a === 'revanche') pedirRevanche();
   if (a === 'sairDupla') { som('fechar'); G?.dupla?.canal?.enviar('sair', {}); abrirLobby(); }
   if (a === 'cancelarDupla') { som('fechar'); pararBusca(); $('#janela').hidden = true; }

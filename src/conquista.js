@@ -196,7 +196,7 @@ function mostrarOcioso() {
   const j = $('#cqJanela'); j.hidden = false; const t = tempoOcioso(), L = lucroOcioso(), h = n => String(Math.floor(n)).padStart(2, '0');
   j.innerHTML = `<div class="cqFim ocioso"><h2>Lucro ocioso</h2><p>Tempo fora</p>
     <div class="cqBarra"><i style="width:${100 * t / MAX_OCIOSO}%"></i><span>${h(t / 3600e3)}:${h(t / 60e3 % 60)}:${h(t / 1e3 % 60)}${t >= MAX_OCIOSO ? ' (MÁX)' : ''}</span></div>
-    <p>${ico('ouro')} ${fmt(lucroHora())}/h · máximo 9h · sobe a cada estágio</p>
+    <p>${ico('ouro')} ${fmt(lucroHora())}/h · máximo 9h · sobe com a fase e os estágios</p>
     <div class="ganho">${ico('ouro')}<b>${fmt(L)}</b></div>
     <button class="btn verde grande" data-cq="coletar" ${L > 0 ? '' : 'disabled'}>Coletar</button><button class="btn azul" data-cq="fecharJ">Fechar</button></div>`;
 }
