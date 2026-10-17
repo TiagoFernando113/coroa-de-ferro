@@ -1,5 +1,6 @@
 // Música gerada por código (Web Audio), sem arquivos: bateria, baixo, acordes e uma melodia composta.
 // 'menu' é calmo; 'batalha' tem bateria cheia e o tema heroico (intensidade 2 = chefe furioso).
+import { RISADA } from './sons.js';
 let ctx = null, mestre = null, bus = null, eco = null, mudo = false, atual = null, prox = 0, passo = 0, timer = null, nivel = 1, ruido = null, transp = 0;
 const VOL = 0.55;
 const hz = m => 440 * 2 ** ((m - 69) / 12);
@@ -121,18 +122,15 @@ export function somFigurinha(k) {
   if (k === 'ajuda') { [0, 0.16, 0.42, 0.58].forEach((d, i) => osc('square', i % 2 ? 660 : 880, a + d, 0.12, 0.05, mestre, 0.003)); }
   if (k === 'toma') { bumbo(a, 0.9); barulho(a, 0.12, 0.3, 'lowpass', 1400, 1, mestre); desliza('square', 900, 120, a + 0.02, 0.18, 0.05); }
   if (k === 'facil') { [0, 0.14, 0.28].forEach((d, i) => desliza('triangle', 300 + i * 120, 520 + i * 120, a + d, 0.09, 0.08)); }
-  if (k === 'kkk') risada(a);
+  if (k === 'kkk') tocarAmostra('risada', RISADA, 0.8);
   if (k === 'top') { const o = desliza('sine', 180, 820, a, 0.35, 0.1); const lfo = ctx.createOscillator(), lg = ctx.createGain(); lfo.frequency.value = 18; lg.gain.value = 60; lfo.connect(lg).connect(o.frequency); lfo.start(a); lfo.stop(a + 0.4);
     [0, 4, 7, 12].forEach((s, i) => osc('triangle', hz(84 + s), a + 0.32 + i * 0.05, 0.25, 0.05, eco, 0.002)); }
 }
-// risada com "voz": sopro do H + vogal feita com filtros de formante (he-he-he-he)
-function risada(a, { f0 = 185, n = 6, vogal = [560, 1700, 2600], passo = 0.15, vol = 0.35 } = {}) {
-  for (let i = 0; i < n; i++) {
-    const t = a + i * passo, dur = i === n - 1 ? 0.22 : 0.1, f = f0 * (1 + 0.1 * Math.sin(i * 1.7)) * (1 - 0.025 * i);
-    barulho(t, 0.06, 0.12 * vol, 'bandpass', 1500, 0.7, mestre);
-    const src = ctx.createOscillator(), g = ctx.createGain(); src.type = 'sawtooth';
-    src.frequency.setValueAtTime(f * 1.1, t + 0.035); src.frequency.exponentialRampToValueAtTime(f * 0.88, t + 0.035 + dur); env(g, t + 0.035, 0.012, 0.9 * vol, dur); src.connect(g);
-    vogal.forEach((F, j) => { const bp = ctx.createBiquadFilter(), gg = ctx.createGain(); bp.type = 'bandpass'; bp.frequency.value = F; bp.Q.value = 6 + j * 3; gg.gain.value = [2.2, 1.2, 0.6][j]; g.connect(bp).connect(gg).connect(mestre); });
-    src.start(t + 0.035); src.stop(t + 0.035 + dur + 0.05);
-  }
+// som gravado (base64): decodifica uma vez e toca
+const amostras = {};
+function tocarAmostra(nome, b64, vol = 1) {
+  const tocar = buf => { const s = ctx.createBufferSource(), g = ctx.createGain(); s.buffer = buf; g.gain.value = vol; s.connect(g).connect(mestre); s.start(); };
+  if (amostras[nome]) { if (amostras[nome] !== 'carregando') tocar(amostras[nome]); return; }
+  amostras[nome] = 'carregando'; const bin = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+  ctx.decodeAudioData(bin.buffer).then(buf => { amostras[nome] = buf; tocar(buf); }).catch(() => { delete amostras[nome]; });
 }
