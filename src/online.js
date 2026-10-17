@@ -31,6 +31,7 @@ let garantindo = null;
 export function garantir() { if (S.online?.codigo) return Promise.resolve(); return garantindo ||= registrar().finally(() => { garantindo = null; }); }
 const id = () => ({ p_id: S.online.id, p_segredo: S.online.segredo });
 const comConta = fn => async (...a) => { await garantir(); return fn(...a); };
+export const instalou = comConta((versao, aparelho, idioma) => rpc('ponte_instalou', { ...id(), p_versao: versao, p_aparelho: aparelho, p_idioma: idioma }));
 export const mapaEstado = comConta((heroi, tropas) => rpc('ponte_mapa_estado', { ...id(), p_heroi: heroi, p_tropas: tropas }));
 export const mapaMarchar = comConta((slot, cam, dur, alvo = null, tipo = null) => rpc('ponte_mapa_marchar2', { ...id(), p_slot: slot, p_cam: cam, p_dur: dur, p_alvo: alvo, p_tipo: tipo }));
 export const mapaTipo = comConta((slot, tipo) => rpc('ponte_mapa_tipo', { ...id(), p_slot: slot, p_tipo: tipo }));

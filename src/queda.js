@@ -1,11 +1,12 @@
 // Relatório de quedas: erros do JS, WebView que morreu (Android) e jogo fechado no meio de uma fase.
 // Vai para a tabela ponte_erro (limitado no servidor) para descobrir por que o jogo fecha sozinho.
-import { erroReg } from './online.js';
+import { erroReg, instalou } from './online.js';
+import { S, salvar } from './meta.js';
 
 const VIVO = 'ponte_vivo';
 let onde = () => '', enviados = 0;
 const vistos = new Set();
-const aparelho = () => { const u = navigator.userAgent; return `${(u.match(/\(([^)]*)\)/) || [])[1] || ''} ${(u.match(/Chrome\/[\d]+/) || [''])[0]} mem=${navigator.deviceMemory || '?'} tela=${screen.width}x${screen.height} q=${lerLocal('guilda_q') || 'media'}`; };
+export const aparelho = () => { const u = navigator.userAgent; return `${(u.match(/\(([^)]*)\)/) || [])[1] || ''} ${(u.match(/Chrome\/[\d]+/) || [''])[0]} mem=${navigator.deviceMemory || '?'} tela=${screen.width}x${screen.height} q=${lerLocal('guilda_q') || 'media'}`; };
 const memoria = () => performance.memory ? ` heap=${Math.round(performance.memory.usedJSHeapSize / 1048576)}MB` : '';
 function lerLocal(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
 
@@ -18,6 +19,8 @@ export function reportar(tipo, msg, pilha = '', tela = onde()) {
 // fn() diz em que tela/fase o jogador está (ex.: 'jogo f12')
 export function iniciarQuedas(fn) {
   onde = fn;
+  // primeira vez neste aparelho: avisa a sala de novos jogadores (no Discord)
+  if (!S.instalado) instalou(window.VERSAO | 0, aparelho(), navigator.language || '').then(() => { S.instalado = 1; salvar(); }).catch(() => {});
   addEventListener('error', e => reportar('js', e.message || 'erro', (e.error?.stack || '') + `\n@${e.filename}:${e.lineno}:${e.colno}` + memoria()));
   addEventListener('unhandledrejection', e => { const r = e.reason; if (/sem conexão|segredo|nome_espera/.test(r?.message || '')) return; reportar('promessa', r?.message || String(r), (r?.stack || '') + memoria()); });
   // queda registrada pelo Android (WebView morreu ou erro do Java)
