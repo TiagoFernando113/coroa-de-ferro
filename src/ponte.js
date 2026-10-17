@@ -576,6 +576,8 @@ const PASSOS_LIB = {
   cla: [{ alvo: '[data-aba-lobby=cla]', txt: 'Toque em Clã' }, { txt: 'Num clã vocês atacam um chefe juntos e todos ganham prêmios!' }],
 };
 let guia = null;
+// venceu e abriu algo novo (ou falta escolher o nome): o jogador passa pelo menu antes da próxima fase
+const novidadePendente = () => !!S.lib && !S.lib.todos && ((S.melhor || 0) >= 1 && !S.lib.nome && !S.online?.apelido || LIBERA.some(l => (S.melhor || 0) >= l[1] && !S.lib.visto[l[0]]));
 function proximaLiberacao() { // comemora o que abriu (uma coisa por vez, só no menu e sem janela aberta)
   if (!S?.lib || S.lib.todos || tela !== 'lobby' || guia || !$('#janela').hidden) return;
   if ((S.melhor || 0) >= 1 && !S.lib.nome && !S.online?.apelido) return pedirNome(); // depois da primeira vitória: escolher o nome
@@ -603,7 +605,7 @@ function comecarGuia(id) {
   document.body.appendChild(el); guia = { id, passos, i: -1, el, t0: performance.now() }; avancarGuia();
   el.querySelector('.guiaPular').onclick = () => { som('fechar'); fecharGuia(); };
   el.querySelector('.guiaOk').onclick = () => { som('clique'); avancarGuia(); };
-  const loop = () => { if (!guia || guia.el !== el) return; posicionarGuia(); requestAnimationFrame(loop); }; loop();
+  const loop = () => { if (!guia || guia.el !== el) return; if (tela !== 'lobby') { fecharGuia(); return; } posicionarGuia(); requestAnimationFrame(loop); }; loop(); // saiu do menu: o tutorial fecha
 }
 function avancarGuia() {
   const g = guia; if (!g) return; g.i++; const P = g.passos[g.i]; if (!P) { fecharGuia(); sfx('brilho'); return; }
@@ -1605,7 +1607,7 @@ function clique(e) {
   if (a === 'infinito') { som('confirma'); comecarFase(true); }
   if (a === 'denovoInf') { som('confirma'); comecarFase(true); }
   if (a === 'sair') { som('fechar'); G?.dupla?.canal?.enviar('sair', {}); if (S.duplaViva) { delete S.duplaViva; salvar(); } $('#janela').hidden = true; abrirLobby(); }
-  if (a === 'proxima') { som('confirma'); comecarFase(); }
+  if (a === 'proxima') { som('confirma'); if (novidadePendente()) abrirLobby(); else comecarFase(); } // liberou algo: passa pelo menu para ver (um de cada vez)
   if (a === 'lobby') { som('clique'); abrirLobby(); }
   if (a === 'lobbyUp') { som('clique'); abrirLobby(); abaLobby = 'up'; desenharLobby(); }
   if (b.dataset.pd) usarPoder(b.dataset.pd);
@@ -1799,8 +1801,8 @@ function terminar(venceu) {
       ${G.dupla ? `<div id="fDupla"><button class="btn verde grande" data-a="revanche">${ico('herois')} Jogar de novo com ${esc(G.dupla.apelido)}</button><p id="rvTxt" class="pos"></p>
         <button class="btn azul" data-a="sairDupla">Sair</button></div>` : venceu ? `<div class="roleta">${ROLETA.map(m => `<span class="m${m}">x${m}</span>`).join('')}<i id="rAgulha"></i></div>
       <div id="fBotoes"><button class="btn amarelo grande" data-a="roleta">${ico('ouro')} Pegar <b id="rMult">x2</b></button>
-      <button class="fSo" data-a="proxima">Só +${fmt(ganho)}, próxima fase</button></div>` : ''}
-      <div id="fSeguir" ${venceu || G.dupla ? 'hidden' : ''}><button class="btn verde grande" data-a="proxima">${venceu ? `Fase ${S.fase} ${ico('seta')}` : 'Tentar de novo'}</button>
+      <button class="fSo" data-a="proxima">Só +${fmt(ganho)}, ${novidadePendente() ? 'ver novidade' : 'próxima fase'}</button></div>` : ''}
+      <div id="fSeguir" ${venceu || G.dupla ? 'hidden' : ''}><button class="btn verde grande" data-a="proxima">${venceu ? (novidadePendente() ? `${ico('presente')} Novidade liberada!` : `Fase ${S.fase} ${ico('seta')}`) : 'Tentar de novo'}</button>
       <div class="fLinha"><button class="btn azul" data-a="lobbyUp">${ico('raio')} Melhorias</button><button class="btn cinza" data-a="lobby">${ico('guilda')} Menu</button></div></div></div>`;
     sfx(venceu ? 'vitoria' : 'derrota');
     if (venceu) { flashTela('#ffe27a', 0.5); contarAte($('#fGanho'), ganho, 900, '+', fmt); setTimeout(() => voarMoedas('#fGanho', 12), 150); }
