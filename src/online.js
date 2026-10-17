@@ -88,7 +88,7 @@ export const chatDoar = comConta(msg => rpc('ponte_chat_doar', { ...id(), p_msg:
 export const doacoesReceber = comConta(() => rpc('ponte_doacoes_receber', id()));
 export const resgatar = comConta(codigo => rpc('ponte_resgatar', { ...id(), p_codigo: codigo }));
 // pareamento
-export const procurar = comConta((fase, modo = 'dupla') => rpc('ponte_procurar2', { ...id(), p_fase: fase, p_modo: modo }));
+export const procurar = comConta(fase => rpc('ponte_procurar', { ...id(), p_fase: fase }));
 export const cancelar = () => S.online?.codigo ? rpc('ponte_cancelar', id()).catch(() => {}) : Promise.resolve();
 export const procurando = () => rpc('ponte_procurando');
 

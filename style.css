@@ -1038,29 +1038,3 @@ input{font:inherit;user-select:text;-webkit-user-select:text}
 .tutBts .btn{margin:0;min-width:110px}
 .tutPular{background:none;border:0;color:var(--suave);font-family:var(--fT);font-size:13px;text-decoration:underline;padding:4px}
 #tut.parado::before{content:'';position:fixed;inset:0;background:rgba(6,10,24,.35);pointer-events:none}
-
-/* duelo 1x1 */
-.radar.duelo{color:#e8503a}.radar.duelo i{border-color:#ff7a5a}
-.dlTacas{display:flex;align-items:center;justify-content:center;gap:6px;font-family:var(--fT);font-size:26px;color:#ffd23a;margin:6px 0}.dlTacas .ico{width:30px;height:30px}
-.dlTacas em{font-style:normal;font-size:18px}.dlTacas.sobe em{color:#4ae86a}.dlTacas.desce em{color:#ff6a5a}
-/* duelo 1x1 (arena) */
-#duelo{position:absolute;inset:0;pointer-events:none}
-#duelo button,#duelo .duEsc,#duelo .cqJanela{pointer-events:auto}
-.duTopo{position:absolute;left:0;right:0;top:0;display:flex;gap:8px;align-items:center;padding:max(10px,env(safe-area-inset-top)) 10px 10px;background:linear-gradient(rgba(40,10,20,.55),transparent)}
-.duTopo > em{font-style:normal;font-family:var(--fT);font-size:22px;color:#fff;text-shadow:0 2px 0 #000a;min-width:52px;text-align:right}.duTopo > em.pouco{color:#ff6a5a;animation:pronto .8s infinite}
-.duVida{flex:1;min-width:0}.duVida b{display:block;font-family:var(--fT);font-weight:400;font-size:14px;color:#fff;text-shadow:0 1px 2px #000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.duVida .barra{margin-top:2px}.duVida .barra span .ico{width:12px;height:12px;vertical-align:-2px}
-.duTopo .duVida b{color:#ffb8a8}
-.duBaixo{position:absolute;left:12px;right:12px;bottom:max(12px,env(safe-area-inset-bottom));max-width:360px;margin:0 auto}
-.duBaixo .barra.muro i{background:linear-gradient(#7aff8a,#2a9a3a)}
-.duHabs{position:absolute;left:10px;top:calc(max(10px,env(safe-area-inset-top)) + 58px);display:flex;gap:4px;flex-wrap:wrap;max-width:60vw}
-.duHabs span{position:relative;width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:linear-gradient(#c88aff,#7a2ad8);color:#fff;box-shadow:0 2px 0 #3a0a7a}
-.duHabs span .ico{width:20px;height:20px}.duHabs span i{position:absolute;right:-3px;bottom:-3px;font-style:normal;font-family:var(--fT);font-size:11px;background:#ffd23a;color:#3a1a08;border-radius:6px;padding:0 3px}
-.duEsc{position:absolute;left:8px;right:8px;bottom:calc(max(12px,env(safe-area-inset-bottom)) + 50px);max-width:420px;margin:0 auto;text-align:center;animation:entra .3s cubic-bezier(.2,1.6,.4,1)}
-.duEsc p{font-family:var(--fT);font-size:18px;color:#fff;text-shadow:0 2px 0 #000a;margin:0 0 6px}.duEsc p b{color:#ffd84a}
-.duEsc > div{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
-.duEsc button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 4px;border-radius:14px;background:var(--creme);border:3px solid #7a2ad8;box-shadow:0 4px 0 #3a0a7a}
-.duEsc button .ico{width:30px;height:30px;color:#7a2ad8}.duEsc button b{font-family:var(--fT);font-weight:400;font-size:14px;color:#3a1a08}.duEsc button small{font-size:11px;color:#6a5040;line-height:1.15}
-.duJoy{position:absolute;width:96px;height:96px;margin:-48px 0 0 -48px;border-radius:50%;background:rgba(255,255,255,.18);border:3px solid rgba(255,255,255,.5);pointer-events:none!important}
-.duJoy i{position:absolute;left:50%;top:50%;width:40px;height:40px;margin:-20px 0 0 -20px;border-radius:50%;background:rgba(255,255,255,.85);box-shadow:0 2px 6px rgba(0,0,0,.3)}
-.duPts{display:inline-flex;gap:3px;vertical-align:middle;margin-left:4px}.duPts i{width:10px;height:10px;border-radius:50%;background:rgba(0,0,0,.4);border:1.5px solid #fff}.duPts i.on{background:#ffd23a;box-shadow:0 0 6px #ffd23a}

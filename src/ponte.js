@@ -16,7 +16,6 @@ import * as CQ from './conquista.js';
 import * as CT from './castelo.js';
 import * as MP from './mapa.js';
 import * as Q from './queda.js';
-import * as DU from './duelo.js';
 import { MEDALHAS, NIVEIS_MEDALHA, nivelMedalha, pegas, medalhasProntas, premioMedalha, pegarMedalha } from './perfil.js';
 import { ofertas, lojaDia, comprarOferta, temOferta } from './loja.js';
 import { TIPOS as TIPOS_MISSAO, PTS_NIVEL, NIVEIS_PASSE, atualizarMissoes, evento, prontas, pegarMissao, premioNivel, nivelPasse, pegarNivel, fimTemporada } from './missoes.js';
@@ -490,7 +489,7 @@ function montarHud() {
       <div class="jMuro">${ico('escudo')}<div class="barra muro"><i id="jMuroB"></i><span id="jMuroT"></span></div></div>
       <p class="jDica" id="jDica">Arraste para mover · as flechas saem sozinhas</p>
       <div id="tut" hidden><p class="tutBalao"></p><div class="tutMao">${MAO}</div></div></div>
-    <div id="fim" hidden></div><div id="conq" hidden></div><div id="castelo" hidden></div><div id="duelo" hidden></div><div id="janela" hidden></div>`;
+    <div id="fim" hidden></div><div id="conq" hidden></div><div id="castelo" hidden></div><div id="janela" hidden></div>`;
   fx = document.createElement('canvas'); fx.id = 'fx'; document.body.append(fx); gfx = fx.getContext('2d');
   const medir = () => { fx.width = innerWidth * devicePixelRatio; fx.height = innerHeight * devicePixelRatio; gfx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0); };
   medir(); addEventListener('resize', medir);
@@ -786,7 +785,6 @@ function mostrarModos() {
     <h3>${ico('herois')} Com o herói</h3>
     ${card('infinito', '#8a4ae8', 'estrela', 'Ponte sem fim', 'Chefes sem parar até cair', `${ico('rank')} ${fmt(S.recInf || 0)}`, liberado('infinito'), `${tr('Fase')} ${faseLibera('infinito')}`)}
     ${card('castelo', '#4a6ae8', 'h_muralha', 'Castelo', 'Defenda a muralha em ondas', `Onda ${S.castelo?.rec || 0}`, liberado('castelo'), `${tr('Fase')} ${faseLibera('castelo')}`)}
-    ${card('duelo', '#d8301a', 'h_lamina', 'Duelo 1x1', 'Arena: seu herói contra outro jogador', `${ico('coroa')} ${fmt(S.duelo?.tacas || 0)}`, liberado('dupla'), `${tr('Fase')} ${faseLibera('dupla')}`)}
     ${card('dupla', '#2a8ae8', 'herois', 'Dupla', 'Jogue junto com outra pessoa', 'Online', liberado('dupla'), `${tr('Fase')} ${faseLibera('dupla')}`)}
     <h3>${ico('pata')} Com os pets</h3>
     ${card('conquista', '#d8501a', 'bandeira', 'Conquista', 'Seus pets contra equipes de outros jogadores', lucroOcioso() > 0 ? `${ico('ouro')} ${fmt(lucroOcioso())}` : `Estágio ${S.cq.est}`, liberado('conquista'), `${tr('Fase')} ${faseLibera('conquista')}`)}
@@ -1393,32 +1391,6 @@ function fimDupla(venceu) { // quem roda a partida avisa o fim (3 vezes, caso al
   const D = G.dupla; if (!D?.canal || seguidor()) return; const p = { v: venceu, dh: Math.round(D.meuDano), dp: Math.round(D.danoP || 0) };
   D.canal.enviar('f', p); setTimeout(() => D.canal?.enviar('f', p), 500); setTimeout(() => D.canal?.enviar('f', p), 1500);
 }
-// ---- duelo 1x1 (estilo Archero, em duelo.js): procurar rival e abrir a arena ----
-function procurarDuelo() {
-  const j = $('#janela'); j.hidden = false; busca = { t0: Date.now(), ativo: true };
-  j.innerHTML = `<div class="jOnline"><h2>${ico('h_lamina')} Duelo 1x1</h2><div class="radar duelo"><i></i><i></i>${ico('h_lamina')}</div>
-    <p id="buscaTxt">Procurando um rival...</p><p class="sub">Arraste para andar. Parado, seu herói atira sozinho!</p><button class="btn azul" data-a="cancelarDupla">Cancelar</button></div>`;
-  const b0 = busca;
-  const passo = async () => {
-    if (!b0.ativo) return;
-    try {
-      const r = await ON.procurar(S.fase, 'duelo');
-      if (!b0.ativo) return;
-      if (r?.sala) { b0.ativo = false; busca = null; j.hidden = true; sfx('vitoria'); abrirDuelo({ sala: r.sala, apelido: r.apelido, fase: r.fase, host: r.host }); return; }
-    } catch (e) { /* sem conexão: cai num rival da lista */ }
-    if ((Date.now() - b0.t0) / 1000 > 8 + Math.random() * 4) { b0.ativo = false; ON.cancelar(); const nome = NOMES_BOT[Math.floor(Math.random() * NOMES_BOT.length)];
-      const el = $('#buscaTxt'); if (el) el.innerHTML = `Rival encontrado: <b>${nome}</b>!`; sfx('vitoria');
-      setTimeout(() => { if (busca !== b0) return; busca = null; j.hidden = true; abrirDuelo({ apelido: nome }); }, 1100); return; }
-    setTimeout(passo, 2000);
-  };
-  passo();
-}
-function abrirDuelo(d) {
-  limparFase(); MUROS_PISTA[0].visible = MUROS_PISTA[1].visible = false; $('#janela').hidden = true;
-  tela = 'duelo'; $('#lobby').hidden = true; $('#jogo').hidden = true; $('#fim').hidden = true; tema(5);
-  const sair = () => { DU.fechar(); abrirLobby(); desenharLobby(); };
-  DU.abrir($('#duelo'), d, { sair, denovo: () => { sair(); procurarDuelo(); }, projetil: projetilHeroi });
-}
 // ---- jogar de novo com o mesmo parceiro: os dois precisam aceitar ----
 function pedirRevanche() {
   const D = G?.dupla; if (!D || D.rvEu) return; D.rvEu = true; som('confirma');
@@ -1619,7 +1591,7 @@ async function resgatarCodigo(b) {
 function clique(e) {
   const b = e.target.closest('button'); if (!b) return; let a = b.dataset.a;
   if (b.dataset.trava) { som('erro'); toque(`${tr('Libera ao vencer a fase')} ${faseLibera(b.dataset.trava)}`); return; }
-  if (b.dataset.modo) { if (!liberado(b.dataset.modo === 'duelo' ? 'dupla' : b.dataset.modo)) { som('erro'); toque(`${tr('Libera ao vencer a fase')} ${faseLibera(b.dataset.modo)}`); return; } $('#janela').hidden = true; a = b.dataset.modo; }
+  if (b.dataset.modo) { if (!liberado(b.dataset.modo)) { som('erro'); toque(`${tr('Libera ao vencer a fase')} ${faseLibera(b.dataset.modo)}`); return; } $('#janela').hidden = true; a = b.dataset.modo; }
   if (a === 'nomeSorte') { som('clique'); $('#apelido1').value = sugerirNome(); return; }
   if (a === 'nomeDepois') { som('fechar'); S.lib.nome = 1; salvar(); $('#janela').hidden = true; return; }
   if (a === 'nomeOk') { const ap = ($('#apelido1')?.value || '').trim(), er = $('#nomeErro'); if (ap.length < 2) { som('erro'); er.textContent = tr('Pelo menos 2 letras'); return; }
@@ -1689,7 +1661,6 @@ function clique(e) {
   if (b.dataset.rk || b.dataset.cla || b.dataset.claPedir || b.dataset.cm || b.dataset.pedir || b.dataset.doar || ['trocarNome', 'salvarNome', 'voltarOnline', 'claCriar', 'claSair', 'chatEnviar', 'chatPedirAbrir'].includes(a) || b.dataset.trVer || b.dataset.trad) cliqueOnline(b);
   if (a === 'dupla') { som('confirma'); menuDupla(); }
   if (a === 'procurarDupla') { som('confirma'); procurarDupla(); }
-  if (a === 'duelo') { som('confirma'); procurarDuelo(); }
   if (a === 'chamarAmigo') { som('confirma'); chamarAmigo(); }
   if (a === 'temCodigo') { som('confirma'); temCodigo(); }
   if (a === 'entrarCodigo') { const c = ($('#codAmigo')?.value || '').replace(/\D/g, ''); if (c.length < 4) { som('erro'); return; } som('confirma'); convidarDupla(c, c); }
@@ -1717,7 +1688,6 @@ function clique(e) {
   if (b.dataset.vaga) tocarVaga(+b.dataset.vaga);
   if (b.dataset.cq) CQ.clique(b);
   if (b.dataset.ct || b.dataset.magia) CT.clique(b);
-  if (b.dataset.du || b.dataset.duHab) DU.clique(b);
   if (a === 'conquista') { som('confirma'); abrirConquista(); }
   if (a === 'castelo') { som('confirma'); abrirCastelo(); }
   if (b.dataset.ovo) abrirOvo(b.dataset.ovo);
@@ -1774,7 +1744,7 @@ function comecarFase(inf = false, dupla = null) {
   $('.jPoderes').hidden = !!G.corrida;
 
   if (G.dupla) faixa(`EM DUPLA COM ${G.dupla.apelido.toUpperCase()}!`, '#8ae0ff');
-  const em = $('#jEmojis'); if (em) em.hidden = !G.dupla; $('#emoPainel').hidden = true;
+  const em = $('#jEmojis'); if (em) em.hidden = !G.dupla;
   if (G.dupla) { const D = G.dupla, ks = Object.keys(FIGURINHAS); let i = 0; // prepara as figurinhas aos poucos (sem travar a partida)
     const prep = () => { if (G?.dupla !== D || i >= ks.length * 2) return; const k = ks[i % ks.length]; if (i < ks.length) imgFigurinha(k); else quadrosFig(k, D.hr); i++; setTimeout(prep, 400); }; setTimeout(prep, 1500); }
   else { const g0 = G; ON.ajudaAuto(G.n).then(r => { if (G !== g0 || !r) return; setTimeout(() => { if (G !== g0 || G.fim) return; G.fila = Math.min(maxFila(), G.fila + r.soldados);
@@ -1873,9 +1843,9 @@ let distCam = 106;
 export function passo(dt0) {
   let dt = dt0; if (G && G.lento > 0) { G.lento -= dt0; dt = dt0 * 0.25; }
   const t = C.tempo();
-  if (tela === 'conq' || tela === 'castelo' || tela === 'duelo') { // Conquista (pets lutam sozinhos), Castelo (defesa da muralha) e Duelo (arena 1x1)
-    MP.mostrarMapa(false); { const r = $('#mapaRot'); if (r) r.hidden = true; } const M = tela === 'conq' ? CQ : tela === 'duelo' ? DU : CT; if (tela === 'conq') { CQ.passo(dt0); passoVoo(dt0); } else M.passo(dt0); const V = M.vista(); foco.x = V.foco.x; foco.z = V.foco.z;
-    C.camera.yaw = V.yaw; C.camera.pitch = V.pitch; C.camera.dist = V.dist; C.camera.altura = 0; C.camera.suave = tela === 'duelo' ? 6 : 2.5;
+  if (tela === 'conq' || tela === 'castelo') { // Conquista (pets lutam sozinhos) e Castelo (defesa da muralha)
+    MP.mostrarMapa(false); { const r = $('#mapaRot'); if (r) r.hidden = true; } const M = tela === 'conq' ? CQ : CT; if (tela === 'conq') { CQ.passo(dt0); passoVoo(dt0); } else CT.passo(dt0); const V = M.vista(); foco.x = V.foco.x; foco.z = V.foco.z;
+    C.camera.yaw = V.yaw; C.camera.pitch = V.pitch; C.camera.dist = V.dist; C.camera.altura = 0; C.camera.suave = 2.5;
     if (texAgua) texAgua.offset.y += dt0 * 0.03;
     if (window.__ov) { Object.assign(C.camera, window.__ov.cam); Object.assign(foco, window.__ov.foco); }
     C.quadro(dt0, foco); gfx.clearRect(0, 0, innerWidth, innerHeight); M.desenharFx(gfx, dt0); return;
@@ -2495,16 +2465,13 @@ function nomeParceiro() {
     const w = gfx.measureText(t).width, x = p[0] + w / 2 + 10, ms = D.ping ?? null, cor = ms == null ? '#aab' : ms < 150 ? '#4ae86a' : ms < 350 ? '#ffd23a' : '#ff5a4a';
     gfx.beginPath(); gfx.arc(x, p[1], 5, 0, 7); gfx.fillStyle = cor; gfx.fill(); gfx.lineWidth = 2; gfx.strokeStyle = '#0f2f6a'; gfx.stroke();
     if (ms != null) { gfx.font = '11px Titulo, sans-serif'; gfx.textAlign = 'left'; gfx.lineWidth = 3; gfx.strokeText(`${ms}ms`, x + 8, p[1]); gfx.fillStyle = cor; gfx.fillText(`${ms}ms`, x + 8, p[1]); } }
-  for (const b of D.balao || []) { b.t += 1 / 60; const q = C.tela(b.eu ? G.heroi.x : D.x, 9 + Math.min(b.t, 0.6) * 2, ZH); if (q) desenharBalao(b, q, D.hr); }
+  for (const b of D.balao || []) { b.t += 1 / 60; const q = C.tela(b.eu ? G.heroi.x : D.x, 9 + Math.min(b.t, 0.6) * 2, ZH); if (!q) continue; gfx.globalAlpha = Math.max(0, 1 - Math.max(0, b.t - 2.4) / 0.5);
+    const F = FIGURINHAS[b.e]; if (F) { const esc2 = b.t < 0.15 ? 0.4 + b.t * 4 : 1, tam = 92 * esc2; b.hr ||= b.eu ? S.heroi : D.hr;
+      gfx.fillStyle = 'rgba(255,248,236,.95)'; gfx.strokeStyle = F.cor; gfx.lineWidth = 4; gfx.beginPath(); gfx.roundRect(q[0] - tam / 2, q[1] - tam / 2, tam, tam, 18 * esc2); gfx.fill(); gfx.stroke();
+      desenharFigurinha(b, q[0], q[1], tam * 1.05);
+      gfx.font = `${Math.round(17 * esc2)}px Titulo, sans-serif`; gfx.textAlign = 'center'; gfx.textBaseline = 'middle'; gfx.lineWidth = 4; gfx.strokeStyle = '#3a1a08'; const tx = tr(F.txt);
+      gfx.strokeText(tx, q[0], q[1] + tam / 2 + 2); gfx.fillStyle = F.cor; gfx.fillText(tx, q[0], q[1] + tam / 2 + 2); } gfx.globalAlpha = 1; }
   if (D.balao) D.balao = D.balao.filter(b => b.t < 2.9);
-}
-function desenharBalao(b, q, hr) { // figurinha num balão (q = ponto na tela)
-  gfx.globalAlpha = Math.max(0, 1 - Math.max(0, b.t - 2.4) / 0.5);
-  const F = FIGURINHAS[b.e]; if (F) { const esc2 = b.t < 0.15 ? 0.4 + b.t * 4 : 1, tam = 92 * esc2; b.hr ||= b.eu ? S.heroi : hr;
-    gfx.fillStyle = 'rgba(255,248,236,.95)'; gfx.strokeStyle = F.cor; gfx.lineWidth = 4; gfx.beginPath(); gfx.roundRect(q[0] - tam / 2, q[1] - tam / 2, tam, tam, 18 * esc2); gfx.fill(); gfx.stroke();
-    desenharFigurinha(b, q[0], q[1], tam * 1.05);
-    gfx.font = `${Math.round(17 * esc2)}px Titulo, sans-serif`; gfx.textAlign = 'center'; gfx.textBaseline = 'middle'; gfx.lineWidth = 4; gfx.strokeStyle = '#3a1a08'; const tx = tr(F.txt);
-    gfx.strokeText(tx, q[0], q[1] + tam / 2 + 2); gfx.fillStyle = F.cor; gfx.fillText(tx, q[0], q[1] + tam / 2 + 2); } gfx.globalAlpha = 1;
 }
 function desenharFx(dt) {
   gfx.clearRect(0, 0, innerWidth, innerHeight); if (!G) return;
