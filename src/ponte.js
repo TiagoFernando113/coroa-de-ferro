@@ -1875,7 +1875,7 @@ export function passo(dt0) {
   const t = C.tempo();
   if (tela === 'conq' || tela === 'castelo' || tela === 'duelo') { // Conquista (pets lutam sozinhos), Castelo (defesa da muralha) e Duelo (arena 1x1)
     MP.mostrarMapa(false); { const r = $('#mapaRot'); if (r) r.hidden = true; } const M = tela === 'conq' ? CQ : tela === 'duelo' ? DU : CT; if (tela === 'conq') { CQ.passo(dt0); passoVoo(dt0); } else M.passo(dt0); const V = M.vista(); foco.x = V.foco.x; foco.z = V.foco.z;
-    C.camera.yaw = V.yaw; C.camera.pitch = V.pitch; C.camera.dist = V.dist; C.camera.altura = 0; C.camera.suave = 2.5;
+    C.camera.yaw = V.yaw; C.camera.pitch = V.pitch; C.camera.dist = V.dist; C.camera.altura = 0; C.camera.suave = tela === 'duelo' ? 6 : 2.5;
     if (texAgua) texAgua.offset.y += dt0 * 0.03;
     if (window.__ov) { Object.assign(C.camera, window.__ov.cam); Object.assign(foco, window.__ov.foco); }
     C.quadro(dt0, foco); gfx.clearRect(0, 0, innerWidth, innerHeight); M.desenharFx(gfx, dt0); return;

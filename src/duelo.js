@@ -14,9 +14,9 @@ import { t as tr } from './i18n.js';
 import * as ON from './online.js';
 import * as Q from './queda.js';
 
-const ZC = -45, LX = 12.5, LZ = 20, R = 1.1, VEL = 10, VEL_TIRO = 26, T_RODADA = 60, MEIO_RODADA = 25, VITORIAS = 2;
+const ZC = -45, LX = 12.5, LZ = 32, R = 1.1, VEL = 10, VEL_TIRO = 26, T_RODADA = 60, MEIO_RODADA = 25, VITORIAS = 2;
 // obstáculos [x, z, meia largura, meia profundidade]; a arena é igual girando 180° (os dois veem a mesma coisa)
-const BLOCOS = (() => { const b = [[-6.5, 8, 2.4, 0.9], [6.5, 3.5, 1.2, 1.2], [-10.4, 0.5, 0.9, 2.4], [0, 0, 2.2, 0.9]]; return [...b, ...b.filter(q => q[0] || q[1]).map(([x, z, w, d]) => [-x, -z, w, d])]; })();
+const BLOCOS = (() => { const b = [[0, 0, 2.6, 0.9], [-8.5, 4, 1.3, 1.3], [7, 9, 2.6, 0.9], [-9, 14, 0.9, 2.6], [-3.5, 16, 1.3, 1.3], [6, 19, 1.2, 1.2], [-7.5, 24, 2.4, 0.9], [9, 25, 1.2, 1.2]]; return [...b, ...b.filter(q => q[0] || q[1]).map(([x, z, w, d]) => [-x, -z, w, d])]; })();
 // habilidades com as regras do Archero (flecha frontal -25% de dano, rajada dupla -15% de cadência e -10% de dano, parede -50% depois de quicar...)
 const HAB = {
   frente: { nome: 'Flecha frontal', desc: '+1 flecha (-25% de dano)', icone: 'h_triplo', max: 2 },
@@ -99,14 +99,14 @@ export function abrir(container, d, opcoes) {
   el = container; op = opcoes; el.hidden = false;
   const A = meusAtributos(), bot = !d.sala;
   K = { t: 0, estado: 'espera', esperaT: bot ? 1 : 10, conta: 0, bot, host: !!d.host || bot, nome: d.apelido || 'Rival', arena: montarArena(), tiros: [], txt: [], banner: null,
-    eu: Object.assign(criarHeroi(S.heroi || 'lyra', 16), A, { hp: A.hp, max: A.hp }), ele: null, escolha: null, toque: null, tH: 0, tHp: 0, saiu: 0, rodada: 0, placar: [0, 0], tMorri: 0 };
+    eu: Object.assign(criarHeroi(S.heroi || 'lyra', 28), A, { hp: A.hp, max: A.hp }), ele: null, escolha: null, toque: null, tH: 0, tHp: 0, saiu: 0, rodada: 0, placar: [0, 0], tMorri: 0 };
   if (bot) criarBot();
   else { K.canal = ON.conectarSala(d.sala, receber, !!d.host); K.tPronto = 0; }
   desenhar(); ligarToque(); intensidade(1); Q.emFase(true);
   K.banner = { txt: bot ? 'PREPARAR...' : 'ESPERANDO O RIVAL...', cor: '#ffd84a', t: 0 };
 }
 function criarBot() {
-  const hrs = Object.keys(HEROIS), O = K.ele = criarHeroi(hrs[Math.floor(Math.random() * hrs.length)], -16), M = K.eu, F = 0.88 + Math.random() * 0.1;
+  const hrs = Object.keys(HEROIS), O = K.ele = criarHeroi(hrs[Math.floor(Math.random() * hrs.length)], -28), M = K.eu, F = 0.88 + Math.random() * 0.1;
   Object.assign(O, { hp: Math.round(M.max * F), max: Math.round(M.max * F), cadBase: M.cadBase * F, danoBase: Math.round(M.danoBase * F), ia: { estado: 'anda', t: 0.8, dx: 0, dz: 0 } });
   K.bot = true; K.host = true;
 }
@@ -150,7 +150,7 @@ function receber(ev, p) {
   if (ev === '_reconectando') { faixa('RECONECTANDO...', '#ffd84a'); return; }
   if (ev === 'sair') { if (K.estado !== 'fim') { faixa(`${K.nome.toUpperCase()} DESISTIU!`, '#7aff8a'); acabar(true); } return; }
   K.saiu = 0;
-  if (ev === 'pronto') { if (!K.ele) { const O = K.ele = criarHeroi(HEROIS[p.hr] ? p.hr : 'lyra', -16); O.hp = O.max = +p.hp || 1000; }
+  if (ev === 'pronto') { if (!K.ele) { const O = K.ele = criarHeroi(HEROIS[p.hr] ? p.hr : 'lyra', -28); O.hp = O.max = +p.hp || 1000; }
     if (!K.ok) { K.ok = true; K.canal?.enviar('pronto', prontoMsg()); if (K.estado === 'espera') K.esperaT = 0.01; } return; }
   const O = K.ele; if (!O || K.estado === 'fim') return;
   if (ev === 'h') { O.tx = -p.x; O.tz = -p.z; O.ang = p.a + Math.PI; O.mov = !!p.m; return; }
@@ -171,7 +171,7 @@ const enviarVida = () => K.canal?.enviar('hp', { r: K.rodada, hp: Math.max(0, Ma
 function criarTiro(dono, x, z, ang, o) {
   const H = dono.H, m = op?.projetil ? op.projetil(H.ataque.proj, H.ataque.cor) : new THREE.Mesh(GEO_BALA, matCor(H.ataque.cor));
   m.position.set(x, 2.2, ZC + z); m.rotation.y = ang + Math.PI; if (o.crit) m.scale.multiplyScalar(1.4); cn().add(m);
-  K.tiros.push({ o: m, x, z, vx: Math.sin(ang) * VEL_TIRO, vz: Math.cos(ang) * VEL_TIRO, dono, dano: o.dano, crit: o.crit, ric: o.ric || 0, gelo: o.gelo, fogo: o.fogo, vida: 2.2 });
+  K.tiros.push({ o: m, x, z, vx: Math.sin(ang) * VEL_TIRO, vz: Math.cos(ang) * VEL_TIRO, dono, dano: o.dano, crit: o.crit, ric: o.ric || 0, gelo: o.gelo, fogo: o.fogo, vida: 3 });
 }
 function atirar(p, alvo) {
   const a = Math.atan2(alvo.x - p.x, alvo.z - p.z), n = 1 + (p.hab.frente || 0), lista = [], base = danoDe(p), cc = 0.05 + 0.2 * (p.hab.critico || 0), cm = 2 * (1 + 0.2 * (p.hab.critico || 0));
@@ -274,7 +274,7 @@ function passoBot(dt) {
     if (I.estado === 'anda' && linhaLivre(O, M)) { I.estado = 'atira'; I.t = 0.7 + Math.random() * 1.1; }
     else if (I.estado === 'anda') { I.t = 0.3; I.dx = (O.x > M.x ? -1 : 1) * 0.9; I.dz = (Math.random() - 0.5) * 0.8; } // atrás de um obstáculo: sai para ter linha de tiro
     else { I.estado = 'anda'; I.t = 0.5 + Math.random() * 0.8; const dist = Math.hypot(M.x - O.x, M.z - O.z) || 1, ax = (M.x - O.x) / dist, az = (M.z - O.z) / dist, lado = Math.random() < 0.5 ? 1 : -1;
-      const perto = dist < 14 ? -1 : dist > 26 ? 1 : 0; I.dx = -az * lado + ax * perto; I.dz = ax * lado + az * perto; const n = Math.hypot(I.dx, I.dz) || 1; I.dx /= n; I.dz /= n; }
+      const perto = dist < 14 ? -1 : dist > 28 ? 1 : 0; I.dx = -az * lado + ax * perto; I.dz = ax * lado + az * perto; const n = Math.hypot(I.dx, I.dz) || 1; I.dx /= n; I.dz /= n; }
   }
   if (I.estado === 'atira' && !linhaLivre(O, M)) I.t = Math.min(I.t, 0.2);
   if (I.estado === 'anda') { O.x += I.dx * velDe(O) * dt; O.z += I.dz * velDe(O) * dt; if (empurrar(O)) I.t = Math.min(I.t, 0.1); O.mov = true; O.ang = Math.atan2(I.dx, I.dz); O.z = Math.min(O.z, -2); }
@@ -355,12 +355,21 @@ export function clique(b) {
   if (a === 'sair') { som('fechar'); desistir(); op.sair(); }
   if (a === 'denovo') { som('confirma'); op.denovo(); }
 }
-export function vista() { return { foco: { x: 0, z: ZC + 2.5 }, yaw: Math.PI, pitch: 1.22, dist: 84 }; }
+export function vista() { // a câmera segue o seu herói (olhando um pouco para o lado do rival)
+  const M = K?.eu, z = M ? Math.max(-LZ + 16, Math.min(LZ - 20, M.z - 8)) : 0;
+  return { foco: { x: M ? M.x * 0.15 : 0, z: ZC + z }, yaw: Math.PI, pitch: 1.2, dist: 88 };
+}
 export function desenharFx(g, dt) {
   if (!K) return;
   for (const p of [K.eu, K.ele]) { if (!p || !p.max) continue; const q = C.tela(p.x, 6.2, ZC + p.z); if (!q) continue; const w = 54, eu = p === K.eu;
     g.fillStyle = 'rgba(0,0,0,.55)'; g.fillRect(q[0] - w / 2 - 2, q[1] - 2, w + 4, 10); g.fillStyle = eu ? '#4ae86a' : '#ff5a4a'; g.fillRect(q[0] - w / 2, q[1], w * Math.max(0, p.hp) / p.max, 6);
     g.font = '13px Titulo, sans-serif'; g.textAlign = 'center'; g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,.7)'; const t = fmt(Math.max(0, Math.round(p.hp))); g.strokeText(t, q[0], q[1] - 6); g.fillStyle = '#fff'; g.fillText(t, q[0], q[1] - 6); }
+  const E = K.ele; if (E && E.hp > 0 && K.estado !== 'espera') { const q = C.tela(E.x, 3, ZC + E.z); // rival fora da tela: seta na borda
+    if (!q || q[1] < 90 || q[1] > innerHeight - 70 || q[0] < 0 || q[0] > innerWidth) { const M = C.tela(K.eu.x, 3, ZC + K.eu.z) || [innerWidth / 2, innerHeight / 2];
+      const ax = q ? q[0] - M[0] : E.x - K.eu.x, ay = q ? q[1] - M[1] : -(K.eu.z - E.z) * 10, a = Math.atan2(ay, ax), cx = innerWidth / 2, cy = innerHeight / 2;
+      const k = Math.min((cx - 30) / Math.abs(Math.cos(a) || 1e-6), (cy - 100) / Math.abs(Math.sin(a) || 1e-6)), x = cx + Math.cos(a) * k, y = cy + Math.sin(a) * k;
+      g.save(); g.translate(x, y); g.rotate(a); g.fillStyle = '#ff5a4a'; g.strokeStyle = '#3a0a08'; g.lineWidth = 3; g.beginPath(); g.moveTo(16, 0); g.lineTo(-10, -12); g.lineTo(-4, 0); g.lineTo(-10, 12); g.closePath(); g.fill(); g.stroke(); g.restore();
+      g.font = '12px Titulo, sans-serif'; g.textAlign = 'center'; g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,.7)'; const dm = `${Math.round(Math.hypot(E.x - K.eu.x, E.z - K.eu.z))}m`; g.strokeText(dm, x - Math.cos(a) * 26, y - Math.sin(a) * 26 + 4); g.fillStyle = '#fff'; g.fillText(dm, x - Math.cos(a) * 26, y - Math.sin(a) * 26 + 4); } }
   for (const t of K.txt) { t.t += dt; const p = C.tela(t.x, t.y + t.t * 3, ZC + t.z); if (!p) continue; g.globalAlpha = Math.max(0, 1 - t.t / 0.8);
     g.font = `${t.t < 0.1 ? 22 : 18}px Titulo, sans-serif`; g.textAlign = 'center'; g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,.7)'; const tx = tr(t.txt); g.strokeText(tx, p[0], p[1]); g.fillStyle = t.cor; g.fillText(tx, p[0], p[1]); g.globalAlpha = 1; }
   K.txt = K.txt.filter(t => t.t < 0.8);
