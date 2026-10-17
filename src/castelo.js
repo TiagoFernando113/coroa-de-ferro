@@ -12,6 +12,7 @@ import { ico, som, $, voarMoedas, flashTela } from './util.js';
 import { t as tr } from './i18n.js';
 import { evento } from './missoes.js';
 import * as ON from './online.js';
+import * as A from './analise.js';
 
 const Z_MURO = -4.5, Z_DEF = -1.5, Z_INICIO = -82, SLOTS = [-14, -8.4, -2.8, 2.8, 8.4, 14];
 const MAGIAS = {
@@ -80,7 +81,7 @@ export function abrir(container, sair) {
   const B = bonusEquipe(), muro = Math.round(100 * (1 + 0.15 * S.up.vida) * (1 + (B.muralha || 0) / 100));
   K = { onda: 0, estado: 'pausa', pausaT: 2, fila: [], t: 0, inim: [], tiros: [], mets: [], def: criarDefensores(), muro, muroMax: muro, mana: 60, gelo: 0, vel: 1, mortos: 0, txt: [], banner: null,
     lento: 1 - Math.min(0.5, (B.lento || 0) / 100) * 0.5, multChefe: 1 + (B.chefe || 0) / 100, crit: Math.min(0.6, (B.critico || 0) / 100), cartas: 1 + 0.15 * ((S.pd.chuva?.nv || 1) - 1) };
-  desenhar(); intensidade(1);
+  desenhar(); intensidade(1); A.comecou('castelo');
   if (!S.dicas?.castelo) { K.pausaT = 1e9; const j = $('#ctJanela'); j.hidden = false;
     j.innerHTML = `<div class="cqFim dica"><h2>${ico('h_muralha')} Castelo</h2>
       <p>Seu herói e seus pets defendem a muralha sozinhos.</p><p>${ico('h_meteoro')} Use as 3 magias gastando mana (barra azul).</p>
@@ -193,7 +194,7 @@ function golpeCastelo(d) {
   K.txt.push({ x: d.x, y: 6, z: d.z, txt: tr(GOLPES[id].nome), cor: '#ffd84a', t: 0 }); if (d.v.tem('Attack2')) d.v.tocar('Attack2', { loop: false, reinicia: true }); sfx('magia'); return true;
 }
 function acabar() {
-  K.estado = 'fim'; const ondas = K.onda - 1, novo = ondas > (S.castelo?.rec || 0); S.castelo ||= { rec: 0 }; if (novo) S.castelo.rec = ondas;
+  K.estado = 'fim'; A.partida('castelo', K.onda - 1, null, { orcs: K.mortos }); const ondas = K.onda - 1, novo = ondas > (S.castelo?.rec || 0); S.castelo ||= { rec: 0 }; if (novo) S.castelo.rec = ondas;
   const premio = Math.round((20 + 12 * ondas + 2 * K.mortos / 10) * (fimDeSemana() ? 2 : 1)); S.moedas += premio; salvar(); evento('orcs', K.mortos); evento('ondas', ondas); if (novo && S.online?.codigo) ON.ctEnviar(ondas, S.heroi || 'lyra').catch(() => {});
   sfx(novo ? 'vitoria' : 'derrota'); C.camera.tremor = 1; K.banner = { txt: 'A MURALHA CAIU!', cor: '#ff6a5a', t: 0 };
   setTimeout(() => { if (!K || !el) return; const j = $('#ctJanela'); j.hidden = false;

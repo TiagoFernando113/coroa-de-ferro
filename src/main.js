@@ -7,6 +7,7 @@ import { iniciarIdioma, idiomaEscolhido, mudarIdioma, IDIOMAS } from './i18n.js'
 import { $, carregarRecursos, som } from './util.js';
 import { montarPonte, abrirLobby, passo, ondeEsta, _G, _sim, _construir } from './ponte.js';
 import * as Q from './queda.js';
+import * as A from './analise.js';
 
 window.VERSAO = VERSAO;
 let qualidade = 'media';
@@ -32,7 +33,7 @@ async function comecar() {
     await carregarRecursos(rec);
   } catch (e) { Q.reportar('carga', e.message, e.stack, 'carga'); $('.tMenu').innerHTML = `<p>Não foi possível carregar 😢<br><small>${e.message}</small></p>`; return; }
   $('#carga').hidden = true;
-  carregar(); Q.iniciarQuedas(ondeEsta); iniciarPets(); montarPonte(); abrirLobby();
+  carregar(); Q.iniciarQuedas(ondeEsta); A.iniciarPing(ondeEsta); iniciarPets(); montarPonte(); abrirLobby();
   let ultimo = performance.now();
   // mede o FPS: se ficar travando por ~8 s seguidos, liga o modo leve sozinho (e guarda para a próxima vez)
   let jan = 0, quadros = 0, ruins = 0;

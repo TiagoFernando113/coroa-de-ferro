@@ -10,6 +10,7 @@ import { ico, som, $, voarMoedas, flashTela } from './util.js';
 import { t as tr } from './i18n.js';
 import { evento } from './missoes.js';
 import * as ON from './online.js';
+import * as A from './analise.js';
 import { forcaEquipe } from './pets.js';
 
 const esc = t => String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -170,7 +171,7 @@ function desenhar() {
 }
 function lutar() { if (Q.estado !== 'prep') return; Q.estado = 'luta'; Q.banner = { txt: 'LUTEM!', cor: '#ffd84a', t: 0 }; sfx('trombeta'); som('espada'); desenhar(); }
 function acabar(venceu) {
-  Q.estado = 'fim'; Q.venceu = venceu; if (Q.sem3d) return;
+  Q.estado = 'fim'; Q.venceu = venceu; if (Q.sem3d) return; A.partida('conquista', Q.est, venceu);
   Q.banner = { txt: venceu ? 'VITÓRIA!' : 'DERROTA!', cor: venceu ? '#ffd84a' : '#ff6a5a', t: 0 }; sfx(venceu ? 'vitoria' : 'derrota'); if (venceu) flashTela('#fff', 0.4);
   for (const u of Q.us) if (!u.morto && u.v) u.v.tocar('Idle');
   const est = Q.est; let premio = 0, ovo = null;

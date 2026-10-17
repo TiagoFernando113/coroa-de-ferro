@@ -17,6 +17,7 @@ import * as CT from './castelo.js';
 import * as MP from './mapa.js';
 import * as Q from './queda.js';
 import * as MU from './mundo.js';
+import * as A from './analise.js';
 import { MEDALHAS, NIVEIS_MEDALHA, nivelMedalha, pegas, medalhasProntas, premioMedalha, pegarMedalha } from './perfil.js';
 import { ofertas, lojaDia, comprarOferta, temOferta } from './loja.js';
 import { TIPOS as TIPOS_MISSAO, PTS_NIVEL, NIVEIS_PASSE, atualizarMissoes, evento, prontas, pegarMissao, premioNivel, nivelPasse, pegarNivel, fimTemporada } from './missoes.js';
@@ -765,7 +766,7 @@ function abrirOvo(tipo) {
 function abrirMundo() { // Mapa de Guerra (mundo.js)
   limparFase(); climaMapa = false; $('#janela').hidden = true;
   tela = 'mundo'; $('#lobby').hidden = true; $('#jogo').hidden = true; $('#fim').hidden = true; tema(2);
-  MU.abrir($('#mundo'), { sair: () => { MU.fechar(); abrirLobby(); desenharLobby(); } });
+  A.partida('mapa'); MU.abrir($('#mundo'), { sair: () => { MU.fechar(); abrirLobby(); desenharLobby(); } });
 }
 function abrirCastelo() {
   limparFase(); MUROS_PISTA[0].visible = MUROS_PISTA[1].visible = false; MUROS_PISTA[2].visible = true; $('#janela').hidden = true;
@@ -1747,6 +1748,7 @@ function comecarFase(inf = false, dupla = null) {
     if (dupla.cfg) { const c = dupla.cfg; G.dupla.cfg = null; aplicarCfg(G.dupla, c); }
     G.heroi.x = G.heroi.alvo = -6 * lado; G.heroiV.raiz.position.x = G.heroi.x;
     G.chefe.hp = G.chefe.max = Math.round(G.chefe.max * 1.7); }
+  A.comecou(G.inf ? 'infinito' : G.dupla ? 'dupla' : 'fase');
   tela = 'jogo'; Q.emFase(true); $('#lobby').hidden = true; $('#fim').hidden = true; $('#jogo').hidden = false; $('#jDica').hidden = false;
   $('#jN').textContent = G.inf ? '∞ · 1' : G.n; $('#jChefeN').textContent = G.chefe.nome; tema((G.n - 1) % 8);
   { const P = G.heroiDef.poder, bt = document.querySelector('[data-pd=chuva]'); if (bt) bt.innerHTML = `${ico(P.icone)}<small>${P.nome}</small>`; }
@@ -1804,7 +1806,7 @@ function pararRoleta() {
   $('#fBotoes').hidden = true; $('#fSeguir').hidden = false;
 }
 function terminarInf() {
-  G.fim = 'd'; tela = 'fim'; Q.emFase(false); const pts = pontosInf(), novo = pts > (S.recInf || 0), ganho = Math.floor(pts / 40);
+  G.fim = 'd'; tela = 'fim'; Q.emFase(false); A.partida('infinito', G.chefesMortos, null, { pontos: pontosInf() }); const pts = pontosInf(), novo = pts > (S.recInf || 0), ganho = Math.floor(pts / 40);
   if (novo) S.recInf = pts; S.moedas += ganho; const bau = G.chefesMortos > 0 ? ganharBau(G.n) : null; salvar();
   evento('orcs', G.mortesVm); evento('chefes', G.chefesMortos); evento('infinito');
   setTimeout(() => {
@@ -1822,7 +1824,7 @@ function terminarInf() {
 }
 function danoNoCla() { const d = G.danoTotal || 0; if (d > 0 && S.online?.codigo) ON.claDano(d).then(r => { if (r?.caiu) setTimeout(coletarPremios, 500); }).catch(() => {}); }
 function terminar(venceu) {
-  if (G.fim) return; if (S.duplaViva) delete S.duplaViva; danoNoCla(); fimDupla(venceu); if (G.inf) return terminarInf(); G.fim = venceu ? 'v' : 'd'; tela = 'fim'; Q.emFase(false);
+  if (G.fim) return; if (S.duplaViva) delete S.duplaViva; danoNoCla(); fimDupla(venceu); if (G.inf) return terminarInf(); G.fim = venceu ? 'v' : 'd'; tela = 'fim'; Q.emFase(false); A.partida(G.dupla ? 'dupla' : 'fase', G.n, venceu, { orcs: G.mortesVm, heroi: S.heroi, bot: G.dupla?.bot || undefined });
   const ganho = Math.round((venceu ? G.F.moedas + Math.floor(G.az.length / 4) : G.F.moedas * 0.25) * (G.dupla ? 1.5 : 1) * (1 + ((bonusEquipe().moedas || 0) + bonusRenasc(S.renasc || 0).moedas) / 100) * (G.multMoedas || 1) * (fimDeSemana() ? 2 : 1));
   S.moedas += ganho; evento('orcs', G.mortesVm); if (venceu) { evento('fases'); evento('chefes'); } let bau = null; if (venceu) { bau = ganharBau(G.n); if (!G.dupla || G.n === S.fase) { S.fase++; mapaAndar = S.fase; } S.melhor = Math.max(S.melhor, G.n); } salvar();
   setTimeout(() => {
