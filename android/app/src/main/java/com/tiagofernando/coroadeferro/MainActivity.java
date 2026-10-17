@@ -91,7 +91,7 @@ public class MainActivity extends Activity {
         if (saved != null) web.restoreState(saved);
         else web.loadUrl(INICIO);
 
-        new Thread(this::procurarAtualizacao).start();
+        checarAgora();
     }
 
     // ---- ponte com o JavaScript: window.App ----
@@ -103,6 +103,9 @@ public class MainActivity extends Activity {
                 try { startActivity(Intent.createChooser(i, "Chamar amigo")); } catch (Exception e) { }
             });
         }
+
+        @JavascriptInterface
+        public void recarregar() { runOnUiThread(() -> web.reload()); }
 
         @JavascriptInterface
         public boolean avisosLigados() {
@@ -164,6 +167,29 @@ public class MainActivity extends Activity {
         return bytes(c.getInputStream());
     }
 
+    // versao.json do jogo que está rodando agora (do download ou do APK)
+    JSONObject infoAtual() {
+        try { return new JSONObject(ler(usarDisco ? new FileInputStream(new File(disco, "versao.json")) : getAssets().open("jogo/versao.json"))); }
+        catch (Exception e) { return new JSONObject(); }
+    }
+
+    byte[] lerLocal(String a) throws Exception {
+        return bytes(usarDisco ? new FileInputStream(new File(disco, a)) : getAssets().open("jogo/" + a));
+    }
+
+    // confere de novo ao voltar para o app e a cada 3 min com ele aberto (não só ao abrir)
+    private final long abertoEm = System.currentTimeMillis();
+    private volatile long ultimaChecagem = 0;
+    private volatile boolean checando = false;
+    private final android.os.Handler relogio = new android.os.Handler(android.os.Looper.getMainLooper());
+    private final Runnable periodica = new Runnable() { public void run() { checarAgora(); relogio.postDelayed(this, 180000); } };
+
+    void checarAgora() {
+        if (checando || System.currentTimeMillis() - ultimaChecagem < 60000) return;
+        checando = true; ultimaChecagem = System.currentTimeMillis();
+        new Thread(() -> { try { procurarAtualizacao(); } finally { checando = false; } }).start();
+    }
+
     void procurarAtualizacao() {
         int atual = Math.max(versaoApk(), versaoDisco());
         for (String ramo : RAMOS) {
@@ -177,10 +203,14 @@ public class MainActivity extends Activity {
                 File tmp = new File(getFilesDir(), "jogo_novo");
                 apagar(tmp);
                 tmp.mkdirs();
+                // só baixa o que mudou: arquivo com a mesma impressão digital é copiado do que já está no celular
                 JSONArray arqs = info.getJSONArray("arquivos");
+                JSONObject hNovo = info.optJSONObject("hash"), hVelho = infoAtual().optJSONObject("hash");
                 for (int i = 0; i < arqs.length(); i++) {
-                    String a = arqs.getString(i);
-                    gravar(new File(tmp, a), baixar(ramo, a));
+                    String a = arqs.getString(i), h = hNovo != null ? hNovo.optString(a, "") : "";
+                    byte[] b = null;
+                    if (!h.isEmpty() && hVelho != null && h.equals(hVelho.optString(a, ""))) { try { b = lerLocal(a); } catch (Exception e) { b = null; } }
+                    gravar(new File(tmp, a), b != null ? b : baixar(ramo, a));
                 }
                 gravar(new File(tmp, "versao.json"), vj);
 
@@ -192,8 +222,10 @@ public class MainActivity extends Activity {
 
                 runOnUiThread(() -> {
                     usarDisco = true;
-                    Toast.makeText(this, "Atualizado para a versão " + nova, Toast.LENGTH_SHORT).show();
-                    web.reload();
+                    if (System.currentTimeMillis() - abertoEm < 15000) { // acabou de abrir: recarrega direto
+                        Toast.makeText(this, "Atualizado para a versão " + nova, Toast.LENGTH_SHORT).show();
+                        web.reload();
+                    } else web.evaluateJavascript("window.__novaVersao&&window.__novaVersao(" + nova + ")", null); // no meio do jogo: o jogo mostra o botão
                 });
                 return;
             } catch (Exception e) {
@@ -229,11 +261,13 @@ public class MainActivity extends Activity {
     protected void onPause() {
         super.onPause();
         if (web != null) { web.evaluateJavascript("window.__pausar&&window.__pausar(true)", null); web.onPause(); }
+        relogio.removeCallbacks(periodica);
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         if (web != null) { web.onResume(); web.evaluateJavascript("window.__pausar&&window.__pausar(false)", null); }
+        relogio.removeCallbacks(periodica); relogio.postDelayed(periodica, 3000);
     }
 }

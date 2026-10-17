@@ -621,6 +621,13 @@ function fecharGuia() { guia?.el.remove(); guia = null; }
 // tocou no alvo do passo: segue para o próximo (o toque continua valendo para o jogo)
 document.addEventListener('click', e => { const g = guia; if (!g || !g.alvoEl) return; if (g.alvoEl.contains(e.target)) setTimeout(avancarGuia, 350); }, true);
 setInterval(proximaLiberacao, 1200);
+// o app baixou uma versão nova com o jogo aberto: botão para atualizar (só no menu, nunca no meio da partida)
+let versaoNova = 0;
+window.__novaVersao = v => { versaoNova = v; };
+setInterval(() => { let b = $('#btnVersao'); const ver = versaoNova && tela === 'lobby' && window.App?.recarregar;
+  if (!ver) { if (b) b.hidden = true; return; }
+  if (!b) { b = document.createElement('button'); b.id = 'btnVersao'; b.className = 'btnVersao'; b.onclick = () => { som('confirma'); window.App.recarregar(); }; document.body.appendChild(b); }
+  b.innerHTML = `${ico('seta', 'up')} ${tr('Nova versão! Toque para atualizar')}`; b.hidden = false; }, 1000);
 // mãozinha dos tutoriais (Kenney Input Prompts, CC0): a ponta do dedo fica no ponto, com o anel de toque
 const MAO = `<i class="maoOnda"></i><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M37.55 30.55 L36.95 29.05 37 28 Q37 24.8 34.8 22.55 L34.7 22.45 34.6 22.35 Q32.3 20 29 20 25.7 20 23.35 22.4 21 24.7 21 28 21 31.35 23.3 33.6 L23.35 33.65 Q24.75 35.05 26.5 35.65 L27.75 38.95 Q24 38.55 21.2 35.75 18 32.6 18 28 18 23.45 21.2 20.25 24.45 17 29 17 33.55 17 36.75 20.25 L36.95 20.45 Q40 23.55 40 28 L39.85 30 Q38.6 30.1 37.55 30.55 M36 34.75 L36.8 34.8 Q37.65 33.8 38.65 33.35 39.4 33 40.3 33 42.65 32.95 43.65 34.65 44.75 33.75 46.25 33.75 47.75 33.75 48.65 34.95 50.7 37.75 52.4 41.8 54 47.75 51.1 51.55 49.45 53.45 46.95 54.35 L41.7 54.75 Q39.65 54.2 37.8 53.1 34.1 50.85 30.45 50.65 24.95 51 25 47.65 25 46.5 25.7 45.65 26.45 44.95 27.55 44.7 29.05 44.5 30.75 44.7 32.85 44.6 32.4 43 L30.9 38.85 29.8 36 27.85 30.65 Q27.35 29.35 27.85 28.3 28.25 27.55 29.95 27.15 31.6 26.75 32.5 27.45 L33.7 29.05 36 34.75" fill="#fff" stroke="#2a1608" stroke-width="2.6" stroke-linejoin="round" paint-order="stroke"/></svg>`;
 const ABAS = [['home', 'Batalha', 'h_triplo'], ['up', 'Melhorias', 'raio'], ['cartas', 'Heróis', 'herois'], ['pets', 'Pets', 'pata'], ['cla', 'Clã', 'escudo'], ['rank', 'Ranking', 'rank']];
