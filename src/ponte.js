@@ -16,6 +16,7 @@ import * as CQ from './conquista.js';
 import * as CT from './castelo.js';
 import * as MP from './mapa.js';
 import * as Q from './queda.js';
+import * as DU from './duelo.js';
 import { MEDALHAS, NIVEIS_MEDALHA, nivelMedalha, pegas, medalhasProntas, premioMedalha, pegarMedalha } from './perfil.js';
 import { ofertas, lojaDia, comprarOferta, temOferta } from './loja.js';
 import { TIPOS as TIPOS_MISSAO, PTS_NIVEL, NIVEIS_PASSE, atualizarMissoes, evento, prontas, pegarMissao, premioNivel, nivelPasse, pegarNivel, fimTemporada } from './missoes.js';
@@ -466,7 +467,6 @@ function limparFase() {
   for (const p of G.portoes) cena.remove(p.o);
   G.chefe?.v.remover(); G.heroiV?.remover(); G.gigante?.v.remover(); for (const p of G.petsV || []) p.v.remover();
   if (G.dupla) { G.dupla.v.remover(); for (const p of G.dupla.pets || []) p.v.remover(); if (!G.dupla.manter) G.dupla.canal?.fechar(); }
-  G.duelo?.canal?.fechar();
   for (const c of G.chuvas) for (const f of c.fl) cena.remove(f.o);
   for (const p of G.pedras) cena.remove(p.o);
   if (G.corrida) for (const o of G.corrida.objs) cena.remove(o);
@@ -485,13 +485,12 @@ function montarHud() {
       <div class="pilula guerra" id="jGuerra">${ico('forca')}<b id="jOuro"></b></div>
       <div id="jVagas"></div><div id="jMenuT" hidden></div>
       <div class="jChefe"><b id="jChefeN"></b><div class="barra vm"><i id="jChefeB"></i><span id="jChefeT"></span></div></div>
-      <div class="jRival" id="jRival" hidden><b id="rvNome" data-nt></b><div class="rvL">${ico('chefe')}<div class="barra vm"><i id="rvC"></i></div></div><div class="rvL">${ico('escudo')}<div class="barra muro"><i id="rvM"></i></div></div></div>
       <div class="jEmojis" id="jEmojis" hidden><button class="emoAbrir" data-a="emoAbrir">${ico('pata')}</button><div class="emoPainel" id="emoPainel" hidden></div></div>
-      <div class="jPoderes"><button class="poder" data-pd="chuva">${ico('h_chuva')}<small>Chuva</small></button><button class="poder" data-pd="gigante">${ico('cav')}<small>Gigante</small></button><button class="poder atk" id="jAtk" data-a="atkDuelo" hidden>${ico('monstro')}<small id="jAtkN"></small><em id="jAtkQ"></em></button></div>
+      <div class="jPoderes"><button class="poder" data-pd="chuva">${ico('h_chuva')}<small>Chuva</small></button><button class="poder" data-pd="gigante">${ico('cav')}<small>Gigante</small></button></div>
       <div class="jMuro">${ico('escudo')}<div class="barra muro"><i id="jMuroB"></i><span id="jMuroT"></span></div></div>
       <p class="jDica" id="jDica">Arraste para mover · as flechas saem sozinhas</p>
       <div id="tut" hidden><p class="tutBalao"></p><div class="tutMao">${MAO}</div></div></div>
-    <div id="fim" hidden></div><div id="conq" hidden></div><div id="castelo" hidden></div><div id="janela" hidden></div>`;
+    <div id="fim" hidden></div><div id="conq" hidden></div><div id="castelo" hidden></div><div id="duelo" hidden></div><div id="janela" hidden></div>`;
   fx = document.createElement('canvas'); fx.id = 'fx'; document.body.append(fx); gfx = fx.getContext('2d');
   const medir = () => { fx.width = innerWidth * devicePixelRatio; fx.height = innerHeight * devicePixelRatio; gfx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0); };
   medir(); addEventListener('resize', medir);
@@ -787,7 +786,7 @@ function mostrarModos() {
     <h3>${ico('herois')} Com o herói</h3>
     ${card('infinito', '#8a4ae8', 'estrela', 'Ponte sem fim', 'Chefes sem parar até cair', `${ico('rank')} ${fmt(S.recInf || 0)}`, liberado('infinito'), `${tr('Fase')} ${faseLibera('infinito')}`)}
     ${card('castelo', '#4a6ae8', 'h_muralha', 'Castelo', 'Defenda a muralha em ondas', `Onda ${S.castelo?.rec || 0}`, liberado('castelo'), `${tr('Fase')} ${faseLibera('castelo')}`)}
-    ${card('duelo', '#d8301a', 'h_lamina', 'Duelo 1x1', 'Derrube seu chefe antes do rival', `${ico('coroa')} ${fmt(S.duelo?.tacas || 0)}`, liberado('dupla'), `${tr('Fase')} ${faseLibera('dupla')}`)}
+    ${card('duelo', '#d8301a', 'h_lamina', 'Duelo 1x1', 'Arena: seu herói contra outro jogador', `${ico('coroa')} ${fmt(S.duelo?.tacas || 0)}`, liberado('dupla'), `${tr('Fase')} ${faseLibera('dupla')}`)}
     ${card('dupla', '#2a8ae8', 'herois', 'Dupla', 'Jogue junto com outra pessoa', 'Online', liberado('dupla'), `${tr('Fase')} ${faseLibera('dupla')}`)}
     <h3>${ico('pata')} Com os pets</h3>
     ${card('conquista', '#d8501a', 'bandeira', 'Conquista', 'Seus pets contra equipes de outros jogadores', lucroOcioso() > 0 ? `${ico('ouro')} ${fmt(lucroOcioso())}` : `Estágio ${S.cq.est}`, liberado('conquista'), `${tr('Fase')} ${faseLibera('conquista')}`)}
@@ -1394,109 +1393,31 @@ function fimDupla(venceu) { // quem roda a partida avisa o fim (3 vezes, caso al
   const D = G.dupla; if (!D?.canal || seguidor()) return; const p = { v: venceu, dh: Math.round(D.meuDano), dp: Math.round(D.danoP || 0) };
   D.canal.enviar('f', p); setTimeout(() => D.canal?.enviar('f', p), 500); setTimeout(() => D.canal?.enviar('f', p), 1500);
 }
-// ---- duelo 1x1: cada um na sua ponte; orcs derrotados carregam ataques que caem na ponte do rival ----
-// ganha quem derrubar o próprio chefe primeiro (ou quem ainda estiver de pé quando a muralha do outro cair)
-const POR_CARGA = 14; // orcs derrotados para carregar 1 ataque
-const orcsAtaque = () => Math.min(30, Math.round(3 + 0.8 * dadosFase(G?.n || 1).ritmo));
+// ---- duelo 1x1 (estilo Archero, em duelo.js): procurar rival e abrir a arena ----
 function procurarDuelo() {
   const j = $('#janela'); j.hidden = false; busca = { t0: Date.now(), ativo: true };
   j.innerHTML = `<div class="jOnline"><h2>${ico('h_lamina')} Duelo 1x1</h2><div class="radar duelo"><i></i><i></i>${ico('h_lamina')}</div>
-    <p id="buscaTxt">Procurando um rival...</p><p class="sub">Derrube seu chefe antes do rival. Orcs derrotados viram ataques na ponte dele!</p><button class="btn azul" data-a="cancelarDupla">Cancelar</button></div>`;
+    <p id="buscaTxt">Procurando um rival...</p><p class="sub">Arraste para andar. Parado, seu herói atira sozinho!</p><button class="btn azul" data-a="cancelarDupla">Cancelar</button></div>`;
   const b0 = busca;
   const passo = async () => {
     if (!b0.ativo) return;
     try {
       const r = await ON.procurar(S.fase, 'duelo');
       if (!b0.ativo) return;
-      if (r?.sala) { b0.ativo = false; busca = null; j.hidden = true; sfx('vitoria'); comecarDuelo({ sala: r.sala, apelido: r.apelido, fase: r.fase, host: r.host }); return; }
+      if (r?.sala) { b0.ativo = false; busca = null; j.hidden = true; sfx('vitoria'); abrirDuelo({ sala: r.sala, apelido: r.apelido, fase: r.fase, host: r.host }); return; }
     } catch (e) { /* sem conexão: cai num rival da lista */ }
     if ((Date.now() - b0.t0) / 1000 > 8 + Math.random() * 4) { b0.ativo = false; ON.cancelar(); const nome = NOMES_BOT[Math.floor(Math.random() * NOMES_BOT.length)];
       const el = $('#buscaTxt'); if (el) el.innerHTML = `Rival encontrado: <b>${nome}</b>!`; sfx('vitoria');
-      setTimeout(() => { if (busca !== b0) return; busca = null; j.hidden = true; comecarDuelo({ apelido: nome, fase: S.fase }); }, 1100); return; }
+      setTimeout(() => { if (busca !== b0) return; busca = null; j.hidden = true; abrirDuelo({ apelido: nome }); }, 1100); return; }
     setTimeout(passo, 2000);
   };
   passo();
 }
-function comecarDuelo(d) {
-  const bot = !d.sala; comecarFase(false, null, { apelido: d.apelido || 'Rival', bot, host: !!d.host, fase: d.fase || S.fase });
-  if (bot) return; const W = G.duelo;
-  W.canal = ON.conectarSala(d.sala, (ev, p) => receberDuelo(W, ev, p), !!d.host);
-  G.espera = 10; faixa('ESPERANDO O RIVAL...', '#ff9a7a');
-  const tick = () => { if (G?.duelo !== W || W.ok) return; W.canal?.enviar('pronto', { hr: S.heroi }); if (!G.espera && !W.ok) { W.bot = true; W.canal?.fechar(); W.canal = null; return; } setTimeout(tick, 700); }; tick(); // não apareceu: segue contra o computador
-}
-function receberDuelo(W, ev, p) {
-  if (G?.duelo !== W) return; W.visto = performance.now();
-  if (ev === '_reconectando') { if (!G.fim) faixa('RECONECTANDO...', '#ffd84a'); return; }
-  if (ev === '_voltou') { W.saiu = false; return; }
-  if (ev === '_caiu') { if (!W.saiu) { W.saiu = performance.now(); if (!G.fim) faixa(`${W.apelido.toUpperCase()} CAIU DA CONEXÃO...`, '#ff9a3a'); } return; }
-  if (ev === 'sair') { if (!G.fim) { faixa(`${W.apelido.toUpperCase()} DESISTIU!`, '#7aff8a'); W.fimDele = true; vitoriaFx(); terminar(true); } return; }
-  W.saiu = false;
-  if (ev === 'pronto') { W.hr = p.hr; if (!W.ok) { W.ok = true; W.canal?.enviar('pronto', { hr: S.heroi }); if (G.espera) { G.espera = 0; faixa('VALENDO!', '#7aff8a'); } } return; }
-  if (ev === 'em') { if (FIGURINHAS[p.e]) { W.balao = W.balao.filter(x => x.eu); W.balao.push({ e: p.e, t: 0 }); somFigurinha(p.e); } return; }
-  if (G.fim) return;
-  if (ev === 'd') { W.rc = Math.max(0, Math.min(1, +p.c || 0)); W.rm = Math.max(0, Math.min(1, +p.m || 0)); return; }
-  if (ev === 'atk') { receberAtaque(Math.max(1, Math.min(40, p.n | 0))); return; }
-  if (ev === 'fim') { W.fimDele = true; if (p.v) { faixa(`${W.apelido.toUpperCase()} VENCEU!`, '#ff5a4a'); derrotaFx(); terminar(false); } else { faixa(`A MURALHA DE ${W.apelido.toUpperCase()} CAIU!`, '#7aff8a'); vitoriaFx(); terminar(true); } }
-}
-function passoDuelo(dt) {
-  const W = G.duelo; if (!W || G.fim) return; const ch = G.chefe, minhaC = Math.max(0, ch.hp / ch.max), meuM = Math.max(0, G.muro / G.muroMax);
-  // cargas de ataque (até 3 guardadas)
-  while (G.mortesVm - W.m0 >= POR_CARGA) { W.m0 += POR_CARGA; if (W.cargas < 3) { W.cargas++; if (W.cargas === 1) sfx('brilho'); } }
-  if (W.cargas >= 3) W.m0 = G.mortesVm;
-  const bt = $('#jAtk'); if (bt) { bt.style.setProperty('--h', W.cargas ? '0%' : `${100 - 100 * (G.mortesVm - W.m0) / POR_CARGA}%`); bt.classList.toggle('pronto', W.cargas > 0); $('#jAtkQ').textContent = W.cargas > 1 ? 'x' + W.cargas : ''; }
-  if (G.espera) return;
-  if ((W.tEnv -= dt) <= 0 && W.canal) { W.tEnv = 0.8; W.canal.enviar('d', { c: +minhaC.toFixed(3), m: +meuM.toFixed(3) }); }
-  if (W.bot) { // rival do computador: anda junto com você (às vezes na frente, às vezes atrás) e também manda orcs
-    W.drift = Math.max(-0.14, Math.min(0.16, W.drift + (Math.random() - 0.5) * dt * 0.05));
-    if (G.t > 6 || minhaC < 0.98) W.rc = Math.min(W.rc, Math.max(0, minhaC + W.drift));
-    if ((W.tAtkBot -= dt) <= 0) { W.tAtkBot = 13 + Math.random() * 9; receberAtaque(orcsAtaque()); if (Math.random() < 0.5) falaRival(W, Math.random() < 0.5 ? 'toma' : 'kkk'); }
-    if (W.resp && (W.resp.t -= dt) <= 0) { falaRival(W, W.resp.e); W.resp = null; }
-    if ((W.tFala -= dt) <= 0) { W.tFala = 9; if (W.rc < minhaC - 0.15 && Math.random() < 0.4) falaRival(W, 'facil'); else if (W.rc > minhaC + 0.15 && Math.random() < 0.4) falaRival(W, 'socorro'); }
-    if (W.rc <= 0) { faixa(`${W.apelido.toUpperCase()} VENCEU!`, '#ff5a4a'); derrotaFx(); terminar(false); return; }
-    if (W.rm <= 0) { faixa(`A MURALHA DE ${W.apelido.toUpperCase()} CAIU!`, '#7aff8a'); vitoriaFx(); terminar(true); return; }
-  } else if (W.saiu && performance.now() - W.saiu > 12000) { faixa(`${W.apelido.toUpperCase()} SAIU: VITÓRIA!`, '#7aff8a'); W.fimDele = true; vitoriaFx(); terminar(true); return; }
-  if ((W.tPainel -= dt) <= 0) { W.tPainel = 0.2; $('#rvC').style.width = (100 * W.rc) + '%'; $('#rvM').style.width = (100 * W.rm) + '%'; $('#jRival').classList.toggle('perto', W.rc < 0.2); }
-}
-function falaRival(W, e) { W.balao = W.balao.filter(x => x.eu); W.balao.push({ e, t: 0 }); somFigurinha(e); }
-function enviarAtaque() {
-  const W = G?.duelo; if (!W || G.fim || G.espera || !W.cargas) { som('erro'); return; }
-  W.cargas--; const n = orcsAtaque(); W.canal?.enviar('atk', { n });
-  if (W.bot) { W.rm = Math.max(0, W.rm - (0.06 + Math.random() * 0.05)); W.drift += 0.03; if (Math.random() < 0.35) W.resp = { t: 1.2, e: 'socorro' }; }
-  faixa(`+${n} ORCS PARA ${W.apelido.toUpperCase()}!`, '#c88aff'); sfx('magia'); C.faiscas(G.heroi.x, 4, ZH, 0xc88aff, 30, 6); G.brilhoH = 1;
-}
-function receberAtaque(n) { // orcs do rival saem do portão do chefe
-  const ch = G.chefe, W = G.duelo;
-  for (let k = 0; k < n && G.vm.length < MAXU; k++) { const r = G.rotas > 1 ? (k % 2 ? 1 : -1) : 0; G.vm.push({ x: xRota(r) * 0.6 + (Math.random() - 0.5) * 3, z: ch.z + 5 + Math.random() * 3, ph: Math.random() * 6, ax: xRota(r) }); }
-  faixa(`${W.apelido.toUpperCase()} MANDOU +${n} ORCS!`, '#c88aff'); C.onda(0, ch.z + 7, 9, 0xc88aff, 0.6); C.faiscas(0, 3, ch.z + 6, 0xc88aff, 30, 6); C.camera.tremor = Math.max(C.camera.tremor, 0.5); som('pancada', 0.5);
-}
-function desistirDuelo() { // sair no meio conta como derrota
-  const W = G?.duelo; if (!W || G.fim) return; W.canal?.enviar('sair', {}); S.duelo = S.duelo || { v: 0, d: 0, tacas: 0 }; S.duelo.d++; S.duelo.tacas = Math.max(0, S.duelo.tacas - 15); salvar();
-}
-function terminarDuelo(venceu) {
-  const W = G.duelo; G.fim = venceu ? 'v' : 'd'; tela = 'fim'; Q.emFase(false);
-  if (G.escolhendo) { G.escolhendo = false; G.pausa = false; $('#janela').hidden = true; } $('#emoPainel').hidden = true;
-  if (W.canal && !W.fimDele) { const p = { v: venceu }; W.canal.enviar('fim', p); setTimeout(() => W.canal?.enviar('fim', p), 500); setTimeout(() => W.canal?.enviar('fim', p), 1500); }
-  const D = S.duelo = S.duelo || { v: 0, d: 0, tacas: 0 }, dt = venceu ? 30 : -15; D[venceu ? 'v' : 'd']++; D.tacas = Math.max(0, D.tacas + dt);
-  const ganho = Math.round(G.F.moedas * (venceu ? 1.2 : 0.25) * (1 + ((bonusEquipe().moedas || 0) + bonusRenasc(S.renasc || 0).moedas) / 100) * (fimDeSemana() ? 2 : 1));
-  S.moedas += ganho; evento('orcs', G.mortesVm); const bau = venceu ? ganharBau(G.n) : null; salvar();
-  setTimeout(() => {
-    $('#jogo').hidden = true; const f = $('#fim'); f.hidden = false;
-    f.innerHTML = `<div class="fimCaixa ${venceu ? 'vit' : 'der'}"><h2>${venceu ? 'VITÓRIA!' : 'DERROTA'}</h2>
-      <p>Duelo contra <b data-nt>${esc(W.apelido)}</b></p>
-      <div class="dlTacas ${venceu ? 'sobe' : 'desce'}">${ico('coroa')}<b>${fmt(D.tacas)}</b><em>${dt > 0 ? '+' : ''}${dt}</em></div>
-      <div class="ganho">${ico('ouro')}<b id="fGanho">+${fmt(ganho)}</b></div>
-      ${venceu ? `<div class="fBau">${bau ? `${bauHtml(bau, 'mini')}<b>${BAUS[bau].nome}!</b>` : `<small>Espaços de baú cheios: abra seus baús!</small>`}</div>` : ''}
-      <p class="sub">${D.v} vitórias · ${D.d} derrotas</p>
-      <div id="fSeguir"><button class="btn verde grande" data-a="duelo">${ico('h_lamina')} Duelar de novo</button>
-      <div class="fLinha"><button class="btn azul" data-a="lobbyUp">${ico('raio')} Melhorias</button><button class="btn cinza" data-a="lobby">${ico('guilda')} Menu</button></div></div></div>`;
-    sfx(venceu ? 'vitoria' : 'derrota');
-    if (venceu) { flashTela('#ffe27a', 0.5); contarAte($('#fGanho'), ganho, 900, '+', fmt); setTimeout(() => voarMoedas('#fGanho', 12), 150); }
-  }, venceu ? 1800 : 1200);
-}
-function desenharDuelo() { // figurinhas: a sua em cima do herói, a do rival embaixo do painel dele
-  const W = G?.duelo; if (!W || tela !== 'jogo' || !W.balao.length) return; const r = $('#jRival').getBoundingClientRect();
-  for (const b of W.balao) { b.t += 1 / 60; const q = b.eu ? C.tela(G.heroi.x, 9 + Math.min(b.t, 0.6) * 2, ZH) : [r.left + r.width / 2, r.bottom + 62]; if (q) desenharBalao(b, q, W.hr || 'lyra'); }
-  W.balao = W.balao.filter(b => b.t < 2.9);
+function abrirDuelo(d) {
+  limparFase(); MUROS_PISTA[0].visible = MUROS_PISTA[1].visible = false; $('#janela').hidden = true;
+  tela = 'duelo'; $('#lobby').hidden = true; $('#jogo').hidden = true; $('#fim').hidden = true; tema(5);
+  const sair = () => { DU.fechar(); abrirLobby(); desenharLobby(); };
+  DU.abrir($('#duelo'), d, { sair, denovo: () => { sair(); procurarDuelo(); }, projetil: projetilHeroi });
 }
 // ---- jogar de novo com o mesmo parceiro: os dois precisam aceitar ----
 function pedirRevanche() {
@@ -1715,7 +1636,7 @@ function clique(e) {
   if (a === 'jogar') { som('confirma'); comecarFase(); }
   if (a === 'modos') { som('clique'); mostrarModos(); return; }
   if (a === 'emoAbrir') { const pn = $('#emoPainel'); if (pn.hidden) pn.innerHTML = Object.keys(FIGURINHAS).map(k => `<button data-emo="${k}"><img src="${imgFigurinha(k)}" alt=""><small>${tr(FIGURINHAS[k].txt)}</small></button>`).join(''); pn.hidden = !pn.hidden; som('clique'); return; }
-  if (b.dataset.emo) { $('#emoPainel').hidden = true; const D = G?.dupla || G?.duelo; if (!D || (D.emoT && performance.now() - D.emoT < 1200)) return; D.emoT = performance.now(); D.balao = (D.balao || []).filter(x => !x.eu); D.balao.push({ e: b.dataset.emo, t: 0, eu: true }); D.canal?.enviar('em', { e: b.dataset.emo }); somFigurinha(b.dataset.emo);
+  if (b.dataset.emo) { $('#emoPainel').hidden = true; const D = G?.dupla; if (!D || (D.emoT && performance.now() - D.emoT < 1200)) return; D.emoT = performance.now(); D.balao = (D.balao || []).filter(x => !x.eu); D.balao.push({ e: b.dataset.emo, t: 0, eu: true }); D.canal?.enviar('em', { e: b.dataset.emo }); somFigurinha(b.dataset.emo);
     if (D.bot && !D.resp && Math.random() < 0.8) D.resp = { t: 1 + Math.random(), e: { socorro: 'bora', ajuda: 'bora', gg: 'gg', kkk: 'kkk', bora: 'top', top: 'gg' }[b.dataset.emo] || 'top' }; return; }
   if (b.dataset.claVer) { som('clique'); verCla(b.dataset.claVer); return; }
   if (a === 'contaRecuperar') { som('clique'); mostrarPerfil(); setTimeout(() => { const d = document.querySelector('#janela details'); if (d) { d.open = true; d.scrollIntoView({ block: 'center' }); } }, 300); return; }
@@ -1724,7 +1645,7 @@ function clique(e) {
   if (a === 'rsColetar') { const q = b.getBoundingClientRect(), m = coletarOcioso(); if (m > 0) { sfx('vitoria'); desenharLobby(); voarMoedas('.lbTopo .pilula.ouro', 12, { x: q.left + q.width / 2, y: q.top + q.height / 2 }); } b.disabled = true; b.textContent = tr('Coletado!'); return; }
   if (a === 'infinito') { som('confirma'); comecarFase(true); }
   if (a === 'denovoInf') { som('confirma'); comecarFase(true); }
-  if (a === 'sair') { som('fechar'); G?.dupla?.canal?.enviar('sair', {}); desistirDuelo(); if (S.duplaViva) { delete S.duplaViva; salvar(); } $('#janela').hidden = true; abrirLobby(); }
+  if (a === 'sair') { som('fechar'); G?.dupla?.canal?.enviar('sair', {}); if (S.duplaViva) { delete S.duplaViva; salvar(); } $('#janela').hidden = true; abrirLobby(); }
   if (a === 'proxima') { som('confirma'); if (novidadePendente()) abrirLobby(); else comecarFase(); } // liberou algo: passa pelo menu para ver (um de cada vez)
   if (a === 'lobby') { som('clique'); abrirLobby(); }
   if (a === 'lobbyUp') { som('clique'); abrirLobby(); abaLobby = 'up'; desenharLobby(); }
@@ -1769,7 +1690,6 @@ function clique(e) {
   if (a === 'dupla') { som('confirma'); menuDupla(); }
   if (a === 'procurarDupla') { som('confirma'); procurarDupla(); }
   if (a === 'duelo') { som('confirma'); procurarDuelo(); }
-  if (a === 'atkDuelo') { enviarAtaque(); return; }
   if (a === 'chamarAmigo') { som('confirma'); chamarAmigo(); }
   if (a === 'temCodigo') { som('confirma'); temCodigo(); }
   if (a === 'entrarCodigo') { const c = ($('#codAmigo')?.value || '').replace(/\D/g, ''); if (c.length < 4) { som('erro'); return; } som('confirma'); convidarDupla(c, c); }
@@ -1797,6 +1717,7 @@ function clique(e) {
   if (b.dataset.vaga) tocarVaga(+b.dataset.vaga);
   if (b.dataset.cq) CQ.clique(b);
   if (b.dataset.ct || b.dataset.magia) CT.clique(b);
+  if (b.dataset.du || b.dataset.duHab) DU.clique(b);
   if (a === 'conquista') { som('confirma'); abrirConquista(); }
   if (a === 'castelo') { som('confirma'); abrirCastelo(); }
   if (b.dataset.ovo) abrirOvo(b.dataset.ovo);
@@ -1833,9 +1754,9 @@ export function construir(i, tipo) { // nova torre ou sobe de nível
   C.faiscas(v.x, 3, v.z, 0xffd84a, 30, 6); som('compra'); G.txt.push({ x: v.x, y: 6, z: v.z, txt: v.nv > 1 ? `Nível ${v.nv}!` : T.nome + '!', cor: '#ffd84a', t: 0, grande: true });
   atualizarVagas(); return true;
 }
-function comecarFase(inf = false, dupla = null, duelo = null) {
+function comecarFase(inf = false, dupla = null) {
   roleta = null;
-  if (inf) iniciarFase(1, true); else if (dupla) iniciarFase(dupla.fase, false, true); else if (duelo) iniciarFase(duelo.fase, false, true); else if (!G || G.inf || G.dupla || G.duelo || G.n !== S.fase || G.t > 0 || G.assinatura !== assinaturaPets()) iniciarFase(S.fase);
+  if (inf) iniciarFase(1, true); else if (dupla) iniciarFase(dupla.fase, false, true); else if (!G || G.inf || G.dupla || G.n !== S.fase || G.t > 0 || G.assinatura !== assinaturaPets()) iniciarFase(S.fase);
   if (dupla) { // chefe mais forte; o herói do parceiro aparece do outro lado
     const hr = dupla.hr || (dupla.bot ? Object.keys(HEROIS)[Math.floor(Math.random() * 6)] : 'selene');
     const v = C.heroi(HEROIS[hr].visual); v.raiz.scale.setScalar(2.4); v.raiz.rotation.y = Math.PI; v.raiz.position.set(6, 0, ZH + 0.5); v.tocar('Idle_A'); dupla = { ...dupla, hr };
@@ -1844,22 +1765,19 @@ function comecarFase(inf = false, dupla = null, duelo = null) {
     if (dupla.cfg) { const c = dupla.cfg; G.dupla.cfg = null; aplicarCfg(G.dupla, c); }
     G.heroi.x = G.heroi.alvo = -6 * lado; G.heroiV.raiz.position.x = G.heroi.x;
     G.chefe.hp = G.chefe.max = Math.round(G.chefe.max * 1.7); }
-  if (duelo) { G.duelo = { ...duelo, rc: 1, rm: 1, cargas: 0, m0: 0, tEnv: 0, tPainel: 0, drift: 0.04, tAtkBot: 16 + Math.random() * 6, tFala: 0, balao: [], visto: performance.now() }; G.chefe.hp = G.chefe.max = Math.round(G.chefe.max * 1.2); }
-  { const W = G.duelo; $('#jRival').hidden = $('#jAtk').hidden = !W; if (W) { $('#rvNome').textContent = W.apelido; $('#jAtkN').textContent = '+' + orcsAtaque(); } }
   tela = 'jogo'; Q.emFase(true); $('#lobby').hidden = true; $('#fim').hidden = true; $('#jogo').hidden = false; $('#jDica').hidden = false;
   $('#jN').textContent = G.inf ? '∞ · 1' : G.n; $('#jChefeN').textContent = G.chefe.nome; tema((G.n - 1) % 8);
   { const P = G.heroiDef.poder, bt = document.querySelector('[data-pd=chuva]'); if (bt) bt.innerHTML = `${ico(P.icone)}<small>${P.nome}</small>`; }
   if (G.inf) faixa('PONTE SEM FIM!', '#c88aff');
-  G.tut = !S.tut && !(S.melhor > 0) && !G.inf && !G.dupla && !G.duelo && G.n === 1 ? { passo: 0, t: 0, x0: G.heroi.x, pilhas: 0 } : null; if (G.tut) $('#jDica').hidden = true;
+  G.tut = !S.tut && !(S.melhor > 0) && !G.inf && !G.dupla && G.n === 1 ? { passo: 0, t: 0, x0: G.heroi.x, pilhas: 0 } : null; if (G.tut) $('#jDica').hidden = true;
   if (G.evento) { const E = EVENTOS[G.evento]; setTimeout(() => { if (G?.evento && !G.fim) faixa(E.nome.toUpperCase() + '!', E.cor); }, 1800); if (G.evento === 'furia') intensidade(2); }
   $('.jPoderes').hidden = !!G.corrida;
 
   if (G.dupla) faixa(`EM DUPLA COM ${G.dupla.apelido.toUpperCase()}!`, '#8ae0ff');
-  const em = $('#jEmojis'); if (em) em.hidden = !G.dupla && !G.duelo; $('#emoPainel').hidden = true;
-  if (G.duelo) faixa(`DUELO CONTRA ${G.duelo.apelido.toUpperCase()}!`, '#ff7a5a');
+  const em = $('#jEmojis'); if (em) em.hidden = !G.dupla; $('#emoPainel').hidden = true;
   if (G.dupla) { const D = G.dupla, ks = Object.keys(FIGURINHAS); let i = 0; // prepara as figurinhas aos poucos (sem travar a partida)
     const prep = () => { if (G?.dupla !== D || i >= ks.length * 2) return; const k = ks[i % ks.length]; if (i < ks.length) imgFigurinha(k); else quadrosFig(k, D.hr); i++; setTimeout(prep, 400); }; setTimeout(prep, 1500); }
-  else if (!G.duelo) { const g0 = G; ON.ajudaAuto(G.n).then(r => { if (G !== g0 || !r) return; setTimeout(() => { if (G !== g0 || G.fim) return; G.fila = Math.min(maxFila(), G.fila + r.soldados);
+  else { const g0 = G; ON.ajudaAuto(G.n).then(r => { if (G !== g0 || !r) return; setTimeout(() => { if (G !== g0 || G.fim) return; G.fila = Math.min(maxFila(), G.fila + r.soldados);
       faixa(`${r.apelido.toUpperCase()}${r.cla ? ' (CLÃ)' : ''} VEIO AJUDAR! +${r.soldados}`, '#8ae0ff'); sfx('brilho'); }, 5000); }).catch(() => {}); }
   $('#jDica').textContent = G.rotas > 1 ? 'Duas rotas! Seus soldados vão pelo lado do herói' : 'Arraste para mover · toque nas vagas para construir torres';
   if (G.rotas > 1) faixa('DUAS ROTAS!', '#ffd84a');
@@ -1922,7 +1840,7 @@ function terminarInf() {
 }
 function danoNoCla() { const d = G.danoTotal || 0; if (d > 0 && S.online?.codigo) ON.claDano(d).then(r => { if (r?.caiu) setTimeout(coletarPremios, 500); }).catch(() => {}); }
 function terminar(venceu) {
-  if (G.fim) return; if (G.duelo) return terminarDuelo(venceu); if (S.duplaViva) delete S.duplaViva; danoNoCla(); fimDupla(venceu); if (G.inf) return terminarInf(); G.fim = venceu ? 'v' : 'd'; tela = 'fim'; Q.emFase(false);
+  if (G.fim) return; if (S.duplaViva) delete S.duplaViva; danoNoCla(); fimDupla(venceu); if (G.inf) return terminarInf(); G.fim = venceu ? 'v' : 'd'; tela = 'fim'; Q.emFase(false);
   const ganho = Math.round((venceu ? G.F.moedas + Math.floor(G.az.length / 4) : G.F.moedas * 0.25) * (G.dupla ? 1.5 : 1) * (1 + ((bonusEquipe().moedas || 0) + bonusRenasc(S.renasc || 0).moedas) / 100) * (G.multMoedas || 1) * (fimDeSemana() ? 2 : 1));
   S.moedas += ganho; evento('orcs', G.mortesVm); if (venceu) { evento('fases'); evento('chefes'); } let bau = null; if (venceu) { bau = ganharBau(G.n); if (!G.dupla || G.n === S.fase) { S.fase++; mapaAndar = S.fase; } S.melhor = Math.max(S.melhor, G.n); } salvar();
   setTimeout(() => {
@@ -1955,8 +1873,8 @@ let distCam = 106;
 export function passo(dt0) {
   let dt = dt0; if (G && G.lento > 0) { G.lento -= dt0; dt = dt0 * 0.25; }
   const t = C.tempo();
-  if (tela === 'conq' || tela === 'castelo') { // Conquista (pets lutam sozinhos) e Castelo (defesa da muralha)
-    MP.mostrarMapa(false); { const r = $('#mapaRot'); if (r) r.hidden = true; } const M = tela === 'conq' ? CQ : CT; if (tela === 'conq') { CQ.passo(dt0); passoVoo(dt0); } else CT.passo(dt0); const V = M.vista(); foco.x = V.foco.x; foco.z = V.foco.z;
+  if (tela === 'conq' || tela === 'castelo' || tela === 'duelo') { // Conquista (pets lutam sozinhos), Castelo (defesa da muralha) e Duelo (arena 1x1)
+    MP.mostrarMapa(false); { const r = $('#mapaRot'); if (r) r.hidden = true; } const M = tela === 'conq' ? CQ : tela === 'duelo' ? DU : CT; if (tela === 'conq') { CQ.passo(dt0); passoVoo(dt0); } else M.passo(dt0); const V = M.vista(); foco.x = V.foco.x; foco.z = V.foco.z;
     C.camera.yaw = V.yaw; C.camera.pitch = V.pitch; C.camera.dist = V.dist; C.camera.altura = 0; C.camera.suave = 2.5;
     if (texAgua) texAgua.offset.y += dt0 * 0.03;
     if (window.__ov) { Object.assign(C.camera, window.__ov.cam); Object.assign(foco, window.__ov.foco); }
@@ -2016,12 +1934,12 @@ function moverHeroi(dt) {
 }
 function passoJogo(dt) {
   if (G.corrida) return passoCorrida(dt);
-  if (G.espera > 0) { G.espera -= dt; if (G.espera <= 0) { G.espera = 0; faixa('VALENDO!', '#7aff8a'); } passoDupla(dt); passoDuelo(dt); return; }
+  if (G.espera > 0) { G.espera -= dt; if (G.espera <= 0) { G.espera = 0; faixa('VALENDO!', '#7aff8a'); } passoDupla(dt); return; }
   if (seguidor()) return passoConvidado(dt);
   { const D = G.dupla; if (D && !D.host && !D.bot && !D.assumiu) { D.assumiu = true; for (const u of G.az) u.luta = null; for (const u of G.vm) u.luta = null; } } // o host saiu: este celular assume a partida
   G.t += dt; const h = G.heroi, ch = G.chefe;
   moverHeroi(dt);
-  passoDupla(dt); passoDuelo(dt);
+  passoDupla(dt);
   // ponte sem fim: as pistas se renovam
   if (G.inf) G.pistas.forEach((p, k) => { if (p.length >= 6) return; const F = dadosFase(G.n + Math.floor(Math.random() * 3)), l = k ? F.dir : F.esq;
       for (let i = 0; i < 10; i++) novoBloco(blocoInf(l[i + 8], k), k, (p.length ? p[p.length - 1].z : ZLANE) - PASSO - 6, F.duro + G.chefesMortos); });
@@ -2599,7 +2517,7 @@ function desenharFx(dt) {
   if (tela === 'jogo') {
     if (G.rotas > 1) for (const s of [-1, 1]) { selo(G.az.filter(u => u.z < ZFORK0 && (u.x < 0) === (s < 0)), '#2f74e0', '#0f2f6a'); selo(G.vm.filter(u => (u.x < 0) === (s < 0)), '#d8342a', '#5a0e0a'); }
     else { selo(G.az, '#2f74e0', '#0f2f6a'); selo(G.vm, '#d8342a', '#5a0e0a'); }
-    nomeParceiro(); desenharDuelo();
+    nomeParceiro();
     if (G.fila > 0) { const p = C.tela(0, 3, ZSPAWN); if (p) { gfx.font = '20px Titulo, sans-serif'; gfx.textAlign = 'center'; gfx.lineWidth = 4; gfx.strokeStyle = '#0f2f6a'; gfx.strokeText(`+${fmt(G.fila)}`, p[0], p[1]); gfx.fillStyle = '#8ac8ff'; gfx.fillText(`+${fmt(G.fila)}`, p[0], p[1]); } }
   }
   for (const t of G.txt) { t.t += dt; const p = C.tela(t.x, t.y + t.t * 3, t.z); if (!p) continue; gfx.globalAlpha = Math.max(0, 1 - Math.max(0, t.t - 0.5) / 0.5);
