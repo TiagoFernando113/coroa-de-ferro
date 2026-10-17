@@ -117,6 +117,10 @@ const T = {
   'Doar': L('Donate', 'Donar'), 'Doado': L('Donated', 'Donado'), 'Completo': L('Complete', 'Completo'), 'Próximo pedido em #h#': L('Next request in #h#', 'Próximo pedido en #h#'),
   'Você ajudou outros jogadores': L('You helped other players', 'Ayudaste a otros jugadores'), 'Doações no clã': L('Clan donations', 'Donaciones del clan'), 'Chefe do clã derrotado': L('Clan boss defeated', 'Jefe del clan derrotado'),
   'Jogar em dupla': L('Play as a duo', 'Jugar en dúo'), 'Procurando um parceiro...': L('Looking for a partner...', 'Buscando compañero...'), 'Cancelar': L('Cancel', 'Cancelar'), 'Sair': L('Leave', 'Salir'),
+  'Duelo 1x1': L('1v1 Duel', 'Duelo 1v1'), 'Derrube seu chefe antes do rival': L('Defeat your boss before your rival', 'Derrota a tu jefe antes que tu rival'), 'Procurando um rival...': L('Looking for a rival...', 'Buscando un rival...'),
+  'Derrube seu chefe antes do rival. Orcs derrotados viram ataques na ponte dele!': L('Defeat your boss before your rival. Orcs you beat become attacks on their bridge!', '¡Derrota a tu jefe antes que tu rival. Los orcos que derrotas se vuelven ataques en su puente!'),
+  'Rival encontrado:': L('Rival found:', 'Rival encontrado:'), 'ESPERANDO O RIVAL...': L('WAITING FOR RIVAL...', 'ESPERANDO AL RIVAL...'), 'Duelar de novo': L('Duel again', 'Duelo otra vez'), 'DERROTA': L('DEFEAT', 'DERROTA'),
+  'Duelo contra': L('Duel against', 'Duelo contra'), '# vitórias · # derrotas': L('# wins · # losses', '# victorias · # derrotas'), '# vitórias': L('# wins', '# victorias'), '# derrotas': L('# losses', '# derrotas'),
   'Você pode trocar o nome de novo em': L('You can change your name again in', 'Puedes cambiar el nombre de nuevo en'), 'dia': L('day', 'día'), 'dias': L('days', 'días'),
   'Dá para trocar o nome # vez a cada # dias.': L('You can change your name # time every # days.', 'Puedes cambiar el nombre # vez cada # días.'),
   'sem conexão': L('no connection', 'sin conexión'), 'Pelo menos # letras': L('At least # letters', 'Al menos # letras'), 'Sigla com # a # letras': L('Tag with # to # letters', 'Sigla de # a # letras'),
@@ -375,5 +379,8 @@ const PAD = [
   P(/^(.+) SAIU$/, '$1 LEFT', '$1 SALIÓ'), P(/^(.+?)( \(CLÃ\))? VEIO AJUDAR! (.+)$/, '$1 CAME TO HELP! $3', '¡$1 VINO A AYUDAR! $3'), P(/^O CLÃ DOOU (\d+) CARTAS?!$/, 'THE CLAN DONATED $1 CARD(S)!', '¡EL CLAN DONÓ $1 CARTA(S)!'),
   P(/^Em dupla com (.+): \+50% moedas$/, 'Duo with $1: +50% coins', 'En dúo con $1: +50% monedas'), P(/^Jogar de novo com (.+)$/, 'Play again with $1', 'Jugar de nuevo con $1'),
   P(/^(.+) foi derrotado!$/, '$1 was defeated!', '¡$1 fue derrotado!'),
+  P(/^\+(\d+) ORCS PARA (.+)!$/, '+$1 ORCS TO $2!', '¡+$1 ORCOS PARA $2!'), P(/^(.+) MANDOU \+(\d+) ORCS!$/, '$1 SENT +$2 ORCS!', '¡$1 ENVIÓ +$2 ORCOS!'), P(/^A MURALHA DE (.+) CAIU!$/, "$1'S WALL FELL!", '¡CAYÓ LA MURALLA DE $1!'),
+  P(/^(.+) VENCEU!$/, '$1 WON!', '¡$1 GANÓ!'), P(/^(.+) DESISTIU!$/, '$1 GAVE UP!', '¡$1 SE RINDIÓ!'), P(/^(.+) SAIU: VITÓRIA!$/, '$1 LEFT: VICTORY!', '$1 SALIÓ: ¡VICTORIA!'), P(/^(.+) CAIU DA CONEXÃO\.\.\.$/, '$1 LOST CONNECTION...', '$1 PERDIÓ LA CONEXIÓN...'),
+  P(/^DUELO CONTRA (.+)!$/, 'DUEL AGAINST $1!', '¡DUELO CONTRA $1!'),
 ];
 export const PADROES = { en: PAD.map(p => [p[0], p[1]]), es: PAD.map(p => [p[0], p[2]]) };

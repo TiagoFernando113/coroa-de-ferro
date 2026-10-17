@@ -1038,3 +1038,14 @@ input{font:inherit;user-select:text;-webkit-user-select:text}
 .tutBts .btn{margin:0;min-width:110px}
 .tutPular{background:none;border:0;color:var(--suave);font-family:var(--fT);font-size:13px;text-decoration:underline;padding:4px}
 #tut.parado::before{content:'';position:fixed;inset:0;background:rgba(6,10,24,.35);pointer-events:none}
+
+/* duelo 1x1 */
+.jRival{position:absolute;right:10px;top:calc(max(10px,env(safe-area-inset-top)) + 104px);width:132px;padding:6px 8px 7px;border-radius:14px;background:rgba(40,10,20,.62);border:2px solid #ff7a5a;pointer-events:none!important}
+.jRival b{display:block;font-family:var(--fT);font-weight:400;font-size:13px;color:#ffb8a8;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 0 rgba(0,0,0,.6)}
+.rvL{display:flex;align-items:center;gap:4px;margin-top:3px}.rvL .ico{width:16px;height:16px;color:#fff;flex:none}.rvL .barra{flex:1;height:11px;margin:0;border-width:1.5px}
+.jRival.perto{animation:rvPerto .6s infinite alternate}@keyframes rvPerto{to{border-color:#ffe27a;box-shadow:0 0 14px #ff5a3a}}
+.poder.atk{background:linear-gradient(#c88aff,#7a2ad8);box-shadow:0 5px 0 #3a0a7a,0 8px 14px rgba(0,0,0,.35)}
+.poder.atk em{position:absolute;top:3px;right:5px;font-style:normal;font-family:var(--fT);font-size:13px;color:#ffe27a;text-shadow:0 1px 0 #000}
+.radar.duelo{color:#e8503a}.radar.duelo i{border-color:#ff7a5a}
+.dlTacas{display:flex;align-items:center;justify-content:center;gap:6px;font-family:var(--fT);font-size:26px;color:#ffd23a;margin:6px 0}.dlTacas .ico{width:30px;height:30px}
+.dlTacas em{font-style:normal;font-size:18px}.dlTacas.sobe em{color:#4ae86a}.dlTacas.desce em{color:#ff6a5a}
