@@ -5,7 +5,8 @@ import { carregar } from './meta.js';
 import { iniciarPets } from './pets.js';
 import { iniciarIdioma, idiomaEscolhido, mudarIdioma, IDIOMAS } from './i18n.js';
 import { $, carregarRecursos, som } from './util.js';
-import { montarPonte, abrirLobby, passo, _G, _sim, _construir } from './ponte.js';
+import { montarPonte, abrirLobby, passo, ondeEsta, _G, _sim, _construir } from './ponte.js';
+import * as Q from './queda.js';
 
 window.VERSAO = VERSAO;
 let qualidade = 'media';
@@ -29,14 +30,14 @@ async function comecar() {
       baixar('recursos.bin', p => { pr = p; prog(); }),
     ]);
     await carregarRecursos(rec);
-  } catch (e) { $('.tMenu').innerHTML = `<p>Não foi possível carregar 😢<br><small>${e.message}</small></p>`; return; }
+  } catch (e) { Q.reportar('carga', e.message, e.stack, 'carga'); $('.tMenu').innerHTML = `<p>Não foi possível carregar 😢<br><small>${e.message}</small></p>`; return; }
   $('#carga').hidden = true;
-  carregar(); iniciarPets(); montarPonte(); abrirLobby();
+  carregar(); Q.iniciarQuedas(ondeEsta); iniciarPets(); montarPonte(); abrirLobby();
   let ultimo = performance.now();
   // mede o FPS: se ficar travando por ~8 s seguidos, liga o modo leve sozinho (e guarda para a próxima vez)
   let jan = 0, quadros = 0, ruins = 0;
   const medirFps = dt => { if (document.hidden || C.qualidadeAtual() === 'baixa') return; jan += dt; quadros++;
-    if (jan >= 4) { const fps = quadros / jan; ruins = fps < 24 ? ruins + 1 : 0; jan = 0; quadros = 0;
+    if (jan >= 4) { const fps = quadros / jan; Q.medirFps(fps); ruins = fps < 24 ? ruins + 1 : 0; jan = 0; quadros = 0;
       if (ruins >= 2) { C.modoLeve(); try { localStorage.setItem('guilda_q', 'baixa'); } catch (e) {} avisoLeve(); } } };
   const laco = agora => { const dt0 = (agora - ultimo) / 1000, dt = Math.min(0.1, dt0); ultimo = agora; if (dt0 < 1) medirFps(dt0); passo(dt); requestAnimationFrame(laco); };
   requestAnimationFrame(laco);

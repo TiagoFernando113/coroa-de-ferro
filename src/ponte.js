@@ -15,6 +15,7 @@ import { PETS, RARIDADES, CLASSES, OVOS, BONUS as BONUS_PET, ESTRELAS, MAX_EQUIP
 import * as CQ from './conquista.js';
 import * as CT from './castelo.js';
 import * as MP from './mapa.js';
+import * as Q from './queda.js';
 import { MEDALHAS, NIVEIS_MEDALHA, nivelMedalha, pegas, medalhasProntas, premioMedalha, pegarMedalha } from './perfil.js';
 import { ofertas, lojaDia, comprarOferta, temOferta } from './loja.js';
 import { TIPOS as TIPOS_MISSAO, PTS_NIVEL, NIVEIS_PASSE, atualizarMissoes, evento, prontas, pegarMissao, premioNivel, nivelPasse, pegarNivel, fimTemporada } from './missoes.js';
@@ -56,6 +57,7 @@ function novoAzul(x, z, ax, extra) { const tipo = extra?.tipo || tipoNovo(), u =
 const ladoHeroi = () => G.heroi.x < -0.5 ? -1 : G.heroi.x > 0.5 ? 1 : (Math.random() < 0.5 ? -1 : 1);
 
 let G = null;                // partida atual
+export const ondeEsta = () => tela + (G && tela === 'jogo' ? ` f${G.n}${G.inf ? ' inf' : ''}${G.dupla ? ' dupla' : ''}${G.tut ? ' tut' : ''}` : '');
 let tela = 'lobby';          // 'lobby' | 'jogo' | 'fim'
 let foco = { x: 0, z: -30 };
 
@@ -502,7 +504,7 @@ function montarHud() {
 }
 export function abrirLobby() {
   roleta = null; abaLobby = 'home'; mapaCam = null; mapaVel = 0;
-  tela = 'lobby'; $('#jogo').hidden = true; $('#fim').hidden = true; $('#lobby').hidden = false; tema('guilda');
+  tela = 'lobby'; Q.emFase(false); $('#jogo').hidden = true; $('#fim').hidden = true; $('#lobby').hidden = false; tema('guilda');
   iniciarFase(S.fase); desenharLobby();
   if (!diarioVisto && diarioPronto()) { diarioVisto = true; setTimeout(mostrarDiario, 900); }
   else setTimeout(coletarPremios, 1200);
@@ -758,7 +760,7 @@ function abrirOvo(tipo) {
 }
 function abrirCastelo() {
   limparFase(); MUROS_PISTA[0].visible = MUROS_PISTA[1].visible = false; MUROS_PISTA[2].visible = true; $('#janela').hidden = true;
-  tela = 'castelo'; $('#lobby').hidden = true; $('#jogo').hidden = true; $('#fim').hidden = true; tema(1);
+  tela = 'castelo'; Q.emFase(true); $('#lobby').hidden = true; $('#jogo').hidden = true; $('#fim').hidden = true; tema(1);
   CT.abrir($('#castelo'), () => { CT.fechar(); abrirLobby(); desenharLobby(); });
 }
 // ---- configurações: idioma, som e qualidade gráfica num lugar só ----
@@ -794,7 +796,7 @@ async function salvarDefesa() { if (!S.equipe.length) return; const eq = equipeA
   const t = await ON.arenaSalvar(eq, forcaEquipe()); S.arena = { ...(S.arena || {}), sig, trofeus: t }; salvar(); }
 function abrirConquista() {
   limparFase(); for (const m of MUROS_PISTA) m.visible = false; $('#janela').hidden = true;
-  tela = 'conq'; $('#lobby').hidden = true; $('#jogo').hidden = true; $('#fim').hidden = true; tema(4);
+  tela = 'conq'; Q.emFase(true); $('#lobby').hidden = true; $('#jogo').hidden = true; $('#fim').hidden = true; tema(4);
   salvarDefesa().catch(() => {});
   CQ.abrir($('#conq'), destino => { CQ.fechar(); abrirLobby(); abaLobby = destino; desenharLobby(); });
 }
@@ -895,13 +897,16 @@ function comCache(k, buscar, render, erro, ttl = 20000) {
   if (c && Date.now() - c.t < ttl) return;
   buscar().then(d => { const mudou = !c || JSON.stringify(c.d) !== JSON.stringify(d); gravarCache(k, d); if (mudou) render(d); }).catch(e => { if (!c) erro?.(e); });
 }
+// 'nome_espera:N' (horas) vira texto
+const msgNome = m => { const h = +(/nome_espera:(\d+)/.exec(m || '') || [])[1]; if (!h) return tr(m); return `${tr('Você pode trocar o nome de novo em')} ${h >= 24 ? `${Math.ceil(h / 24)} ${tr(h >= 48 ? 'dias' : 'dia')}` : `${h}h`}`; };
 function carregarOnline(aba) {
   const el = $('#onCorpo'); if (!el) return; const O = ON.conta(); el.classList.remove('comChat'); ON.garantir().then(enviarPerfil).catch(() => {});
   const nome = `<div class="nomeEu">Seu nome: <b data-nt>${esc(O?.apelido || '...')}</b> <button class="fSo" data-a="trocarNome">trocar</button></div>`;
   const mostrarNomeEu = () => { const b = document.querySelector('.nomeEu b'); if (b) b.textContent = ON.conta()?.apelido || ''; };
   if (aba === 'nome') {
     el.innerHTML = `<p class="sub">Esse nome aparece no ranking, no clã e na dupla.</p><input id="apelido" maxlength="16" placeholder="Seu apelido" value="${esc(O?.apelido || '')}"><p class="erro" id="onErro"></p>
-      <button class="btn verde grande" data-a="salvarNome">Salvar</button><button class="btn azul" data-a="voltarOnline">Voltar</button>`; return;
+      <p class="cfgDica">${tr('Dá para trocar o nome 1 vez a cada 7 dias.')}</p><button class="btn verde grande" data-a="salvarNome">Salvar</button><button class="btn azul" data-a="voltarOnline">Voltar</button>`;
+    ON.nomeEspera().then(h => { if (!(h > 0)) return; const e = $('#onErro'), b = document.querySelector('[data-a=salvarNome]'), i = $('#apelido'); if (e) e.textContent = msgNome(`nome_espera:${h}`); if (b) b.disabled = true; if (i) i.disabled = true; }).catch(() => {}); return;
   }
   if (aba === 'rank') { // placar: cards com o 1º de cada categoria; tocar abre a lista completa
     if (rankModo && PLACAR[rankModo]) return mostrarListaPlacar(el, nome, rankModo, mostrarNomeEu);
@@ -959,7 +964,8 @@ async function cliqueOnline(b) {
   if (a === 'trocarNome') { som('clique'); carregarOnline('nome'); }
   if (a === 'voltarOnline') { som('clique'); carregarOnline(abaLobby); }
   if (a === 'salvarNome') { const ap = $('#apelido').value.trim(); if (ap.length < 2) return erro('Pelo menos 2 letras');
-    b.disabled = true; try { await ON.registrar(ap); som('confirma'); carregarOnline(abaLobby); } catch (e) { b.disabled = false; erro(e.message); } }
+    if (ap === ON.conta()?.apelido) { carregarOnline(abaLobby); return; }
+    b.disabled = true; try { await ON.registrar(ap); som('confirma'); carregarOnline(abaLobby); } catch (e) { b.disabled = false; erro(msgNome(e.message)); } }
   if (b.dataset.claPedir) { b.disabled = true; try { await ON.claPedir(+b.dataset.claPedir); esquecer('clas'); sfx('brilho'); b.outerHTML = `<button class="btn cinza peq" disabled>${ico('relogio')} ${tr('Pedido enviado')}</button>`; } catch (e) { b.disabled = false; erro(e.message); } return; }
   if (b.dataset.cla) { b.disabled = true; try { await ON.claEntrar(+b.dataset.cla); esquecer('meucla', 'clas', 'chat', 'placar'); sfx('vitoria'); $('#janela').hidden = true; if (abaLobby !== 'cla') { abaLobby = 'cla'; desenharLobby(); } else carregarOnline('cla'); } catch (e) { b.disabled = false; erro(e.message); } }
   if (a === 'claCriar') { const n = $('#nomeCla').value.trim(), tg = $('#tagCla').value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -1590,7 +1596,7 @@ function clique(e) {
   if (a === 'nomeDepois') { som('fechar'); S.lib.nome = 1; salvar(); $('#janela').hidden = true; return; }
   if (a === 'nomeOk') { const ap = ($('#apelido1')?.value || '').trim(), er = $('#nomeErro'); if (ap.length < 2) { som('erro'); er.textContent = tr('Pelo menos 2 letras'); return; }
     b.disabled = true; ON.registrar(ap).then(() => { S.lib.nome = 1; salvar(); sfx('vitoria'); $('#janela').hidden = true; desenharLobby(); toque(`${tr('Bem-vindo,')} ${ap}!`); })
-      .catch(e => { b.disabled = false; som('erro'); er.textContent = tr(e.message); const d = document.querySelector('[data-a=nomeDepois]'); if (d) d.hidden = false; }); return; }
+      .catch(e => { b.disabled = false; som('erro'); er.textContent = msgNome(e.message); const d = document.querySelector('[data-a=nomeDepois]'); if (d) d.hidden = false; }); return; }
   if (a === 'pegarPremio') { const q = document.querySelector('#pcMoedas')?.getBoundingClientRect(); $('#janela').hidden = true; sfx('vitoria'); som('moedas');
     if (q) voarMoedas('.lbTopo .pilula.ouro', 14, { x: q.left + q.width / 2, y: q.top + q.height / 2 }); if (tela === 'lobby') desenharLobby(); return; }
   if (a === 'tutOk') { if (G?.tut) { G.tut.okClicado = true; som('clique'); } return; }
@@ -1729,7 +1735,7 @@ function comecarFase(inf = false, dupla = null) {
     if (dupla.cfg) { const c = dupla.cfg; G.dupla.cfg = null; aplicarCfg(G.dupla, c); }
     G.heroi.x = G.heroi.alvo = -6 * lado; G.heroiV.raiz.position.x = G.heroi.x;
     G.chefe.hp = G.chefe.max = Math.round(G.chefe.max * 1.7); }
-  tela = 'jogo'; $('#lobby').hidden = true; $('#fim').hidden = true; $('#jogo').hidden = false; $('#jDica').hidden = false;
+  tela = 'jogo'; Q.emFase(true); $('#lobby').hidden = true; $('#fim').hidden = true; $('#jogo').hidden = false; $('#jDica').hidden = false;
   $('#jN').textContent = G.inf ? '∞ · 1' : G.n; $('#jChefeN').textContent = G.chefe.nome; tema((G.n - 1) % 8);
   { const P = G.heroiDef.poder, bt = document.querySelector('[data-pd=chuva]'); if (bt) bt.innerHTML = `${ico(P.icone)}<small>${P.nome}</small>`; }
   if (G.inf) faixa('PONTE SEM FIM!', '#c88aff');
@@ -1786,7 +1792,7 @@ function pararRoleta() {
   $('#fBotoes').hidden = true; $('#fSeguir').hidden = false;
 }
 function terminarInf() {
-  G.fim = 'd'; tela = 'fim'; const pts = pontosInf(), novo = pts > (S.recInf || 0), ganho = Math.floor(pts / 40);
+  G.fim = 'd'; tela = 'fim'; Q.emFase(false); const pts = pontosInf(), novo = pts > (S.recInf || 0), ganho = Math.floor(pts / 40);
   if (novo) S.recInf = pts; S.moedas += ganho; const bau = G.chefesMortos > 0 ? ganharBau(G.n) : null; salvar();
   evento('orcs', G.mortesVm); evento('chefes', G.chefesMortos); evento('infinito');
   setTimeout(() => {
@@ -1804,7 +1810,7 @@ function terminarInf() {
 }
 function danoNoCla() { const d = G.danoTotal || 0; if (d > 0 && S.online?.codigo) ON.claDano(d).then(r => { if (r?.caiu) setTimeout(coletarPremios, 500); }).catch(() => {}); }
 function terminar(venceu) {
-  if (G.fim) return; if (S.duplaViva) delete S.duplaViva; danoNoCla(); fimDupla(venceu); if (G.inf) return terminarInf(); G.fim = venceu ? 'v' : 'd'; tela = 'fim';
+  if (G.fim) return; if (S.duplaViva) delete S.duplaViva; danoNoCla(); fimDupla(venceu); if (G.inf) return terminarInf(); G.fim = venceu ? 'v' : 'd'; tela = 'fim'; Q.emFase(false);
   const ganho = Math.round((venceu ? G.F.moedas + Math.floor(G.az.length / 4) : G.F.moedas * 0.25) * (G.dupla ? 1.5 : 1) * (1 + ((bonusEquipe().moedas || 0) + bonusRenasc(S.renasc || 0).moedas) / 100) * (G.multMoedas || 1) * (fimDeSemana() ? 2 : 1));
   S.moedas += ganho; evento('orcs', G.mortesVm); if (venceu) { evento('fases'); evento('chefes'); } let bau = null; if (venceu) { bau = ganharBau(G.n); if (!G.dupla || G.n === S.fase) { S.fase++; mapaAndar = S.fase; } S.melhor = Math.max(S.melhor, G.n); } salvar();
   setTimeout(() => {

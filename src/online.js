@@ -18,6 +18,8 @@ async function rpc(fn, corpo = {}) {
 const aleatorio = n => { const a = new Uint8Array(n); crypto.getRandomValues(a); return Array.from(a, b => b.toString(16).padStart(2, '0')).join(''); };
 function uuid() { if (crypto.randomUUID) return crypto.randomUUID(); const h = aleatorio(16); return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-a${h.slice(17, 20)}-${h.slice(20, 32)}`; }
 export const conta = () => S.online;
+export const erroReg = (tipo, msg, pilha, tela, aparelho) => rpc('ponte_erro_reg', { p_id: S.online?.id || null, p_versao: window.VERSAO | 0, p_tipo: tipo, p_msg: msg, p_pilha: pilha, p_tela: tela, p_aparelho: aparelho });
+export const nomeEspera = () => S.online?.codigo ? rpc('ponte_nome_espera', { p_id: S.online.id }) : Promise.resolve(0);
 // cria a conta (ou troca o apelido)
 export async function registrar(apelido) {
   if (!S.online) { S.online = { id: uuid(), segredo: aleatorio(24), apelido: '', codigo: '' }; salvar(); }

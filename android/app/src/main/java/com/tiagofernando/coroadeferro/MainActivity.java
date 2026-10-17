@@ -7,6 +7,8 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.provider.Settings;
 import android.webkit.JavascriptInterface;
+import android.webkit.RenderProcessGoneDetail;
+import android.view.ViewGroup;
 import android.os.Build;
 import android.os.Bundle;
 import android.webkit.WebResourceRequest;
@@ -49,6 +51,13 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle saved) {
         super.onCreate(saved);
+        // erro do Java: guarda para o jogo mandar no próximo início, depois deixa o Android fechar como sempre
+        final Thread.UncaughtExceptionHandler padrao = Thread.getDefaultUncaughtExceptionHandler();
+        Thread.setDefaultUncaughtExceptionHandler((t, e) -> {
+            java.io.StringWriter sw = new java.io.StringWriter(); e.printStackTrace(new java.io.PrintWriter(sw));
+            guardarQueda("java: " + e + "\n" + sw);
+            if (padrao != null) padrao.uncaughtException(t, e);
+        });
         disco = new File(getFilesDir(), "jogo");
         usarDisco = versaoDisco() > versaoApk();
 
@@ -72,6 +81,19 @@ public class MainActivity extends Activity {
                 if (HOST.equals(req.getUrl().getHost())) return false;
                 try { startActivity(new Intent(Intent.ACTION_VIEW, req.getUrl())); } catch (Exception e) { }
                 return true; // links de fora (WhatsApp, download do app) abrem fora do jogo
+            }
+
+            // a WebView morreu (falta de memória ou travou): em vez de fechar o app, abre o jogo de novo
+            @Override
+            @android.annotation.TargetApi(26)
+            public boolean onRenderProcessGone(WebView v, RenderProcessGoneDetail d) {
+                guardarQueda("webview morreu: " + (Build.VERSION.SDK_INT >= 26 && d.didCrash() ? "travou" : "sem memória") + " memoria=" + ultimaMemoria);
+                if (web == v) web = null;
+                ((ViewGroup) v.getParent()).removeView(v);
+                v.destroy();
+                startActivity(new Intent(MainActivity.this, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP));
+                finish();
+                return true;
             }
 
             @Override
@@ -104,8 +126,17 @@ public class MainActivity extends Activity {
             });
         }
 
+        // última queda guardada (e apaga)
         @JavascriptInterface
-        public void recarregar() { runOnUiThread(() -> web.reload()); }
+        public String queda() {
+            android.content.SharedPreferences p = getSharedPreferences("queda", MODE_PRIVATE);
+            String q = p.getString("q", "");
+            p.edit().remove("q").commit();
+            return q;
+        }
+
+        @JavascriptInterface
+        public void recarregar() { runOnUiThread(() -> { if (web != null) web.reload(); }); }
 
         @JavascriptInterface
         public boolean avisosLigados() {
@@ -224,8 +255,8 @@ public class MainActivity extends Activity {
                     usarDisco = true;
                     if (System.currentTimeMillis() - abertoEm < 15000) { // acabou de abrir: recarrega direto
                         Toast.makeText(this, "Atualizado para a versão " + nova, Toast.LENGTH_SHORT).show();
-                        web.reload();
-                    } else web.evaluateJavascript("window.__novaVersao&&window.__novaVersao(" + nova + ")", null); // no meio do jogo: o jogo mostra o botão
+                        if (web != null) web.reload();
+                    } else if (web != null) web.evaluateJavascript("window.__novaVersao&&window.__novaVersao(" + nova + ")", null); // no meio do jogo: o jogo mostra o botão
                 });
                 return;
             } catch (Exception e) {
@@ -244,15 +275,27 @@ public class MainActivity extends Activity {
         f.delete();
     }
 
+    void guardarQueda(String q) {
+        getSharedPreferences("queda", MODE_PRIVATE).edit().putString("q", q.length() > 1800 ? q.substring(0, 1800) : q).commit();
+    }
+
+    private volatile int ultimaMemoria = 0;
+
+    @Override
+    public void onTrimMemory(int nivel) {
+        super.onTrimMemory(nivel);
+        ultimaMemoria = nivel; // 10/15 = pouca memória com o app aberto
+    }
+
     @Override
     protected void onSaveInstanceState(Bundle out) {
         super.onSaveInstanceState(out);
-        web.saveState(out);
+        if (web != null) web.saveState(out);
     }
 
     @Override
     public void onBackPressed() {
-        if (web.canGoBack()) web.goBack();
+        if (web != null && web.canGoBack()) web.goBack();
         else super.onBackPressed();
     }
 

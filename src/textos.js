@@ -117,6 +117,8 @@ const T = {
   'Doar': L('Donate', 'Donar'), 'Doado': L('Donated', 'Donado'), 'Completo': L('Complete', 'Completo'), 'Próximo pedido em #h#': L('Next request in #h#', 'Próximo pedido en #h#'),
   'Você ajudou outros jogadores': L('You helped other players', 'Ayudaste a otros jugadores'), 'Doações no clã': L('Clan donations', 'Donaciones del clan'), 'Chefe do clã derrotado': L('Clan boss defeated', 'Jefe del clan derrotado'),
   'Jogar em dupla': L('Play as a duo', 'Jugar en dúo'), 'Procurando um parceiro...': L('Looking for a partner...', 'Buscando compañero...'), 'Cancelar': L('Cancel', 'Cancelar'), 'Sair': L('Leave', 'Salir'),
+  'Você pode trocar o nome de novo em': L('You can change your name again in', 'Puedes cambiar el nombre de nuevo en'), 'dia': L('day', 'día'), 'dias': L('days', 'días'),
+  'Dá para trocar o nome # vez a cada # dias.': L('You can change your name # time every # days.', 'Puedes cambiar el nombre # vez cada # días.'),
   'sem conexão': L('no connection', 'sin conexión'), 'Pelo menos # letras': L('At least # letters', 'Al menos # letras'), 'Sigla com # a # letras': L('Tag with # to # letters', 'Sigla de # a # letras'),
   'Nome com pelo menos # letras': L('Name with at least # letters', 'Nombre con al menos # letras'), 'Precisa de # moedas': L('Needs # coins', 'Necesitas # monedas'),
   'você não está num clã': L("you're not in a clan", 'no estás en un clan'), 'clã cheio (#)': L('clan full (#)', 'clan lleno (#)'), 'mensagem vazia': L('empty message', 'mensaje vacío'), 'pedido já completo': L('request already complete', 'pedido ya completo'),
