@@ -493,6 +493,72 @@ async function mostrarResumo(fora, tentativas = 0) {
 }
 // ---- lobby: cena 3D atrás do herói, card da fase, JOGAR, baús e abas embaixo ----
 let abaLobby = 'home';
+// ---- liberação aos poucos: cada parte do jogo abre ao vencer uma fase, com um tutorial curto ----
+const LIBERA = [ // [id, fase vencida, nome, ícone, frase]
+  ['baus', 1, 'Baús', 'bau', 'Vença fases para ganhar baús cheios de prêmios'],
+  ['up', 2, 'Melhorias', 'raio', 'Use suas moedas para deixar o exército mais forte'],
+  ['pets', 3, 'Pets', 'pata', 'Pets lutam do seu lado e dão bônus na batalha'],
+  ['cartas', 4, 'Heróis', 'herois', 'Cada herói tem um ataque e um poder diferente'],
+  ['missoes', 5, 'Missões', 'missoes', 'Complete missões para ganhar moedas e prêmios'],
+  ['conquista', 6, 'Conquista', 'bandeira', 'Seus pets enfrentam equipes de outros jogadores'],
+  ['rank', 8, 'Ranking', 'rank', 'Veja sua posição entre os jogadores do mundo'],
+  ['dupla', 8, 'Dupla', 'herois', 'Jogue junto com um amigo na mesma ponte'],
+  ['castelo', 10, 'Castelo', 'h_muralha', 'Defenda a muralha de ondas de inimigos'],
+  ['infinito', 10, 'Ponte sem fim', 'estrela', 'Chefes sem parar: até onde você aguenta?'],
+  ['cla', 12, 'Clã', 'escudo', 'Entre num clã e ganhe prêmios junto com outros jogadores'],
+];
+const faseLibera = id => LIBERA.find(l => l[0] === id)?.[1] || 0;
+const liberado = id => !S.lib || S.lib.todos || (S.melhor || 0) >= faseLibera(id);
+const toque = txt => { const t = document.createElement('div'); t.className = 'toast'; t.textContent = tr(txt); document.body.appendChild(t); setTimeout(() => t.remove(), 1800); };
+// tutorial: escurece a tela e deixa só o alvo aceso, com uma mãozinha e um balão
+const PASSOS_LIB = {
+  baus: [{ alvo: '.slotBau[data-bau]', txt: 'Você ganhou um baú! Toque para abrir' }],
+  up: [{ alvo: '[data-aba-lobby=up]', txt: 'Toque em Melhorias' }, { alvo: '.up.pode, .up', txt: 'Cada melhoria deixa o exército mais forte. Toque para comprar!' }],
+  pets: [{ alvo: '[data-aba-lobby=pets]', txt: 'Toque em Pets' }, { alvo: '.ptOvo[data-ovo]', txt: 'Você ganhou um ovo! Toque para chocar' }, { txt: 'Os pets da equipe seguem o herói, atiram junto e dão bônus. Junte 3 iguais para ganhar uma estrela!' }],
+  cartas: [{ alvo: '[data-aba-lobby=cartas]', txt: 'Toque em Heróis' }, { txt: 'Cada herói tem um ataque e um poder diferente. Junte cartas para subir o nível dos poderes!' }],
+  missoes: [{ alvo: '.lbTopo .missoes', txt: 'Toque nas Missões' }, { txt: 'Complete missões para ganhar moedas e subir no passe de prêmios!' }],
+  conquista: [{ alvo: '[data-a=modos]', txt: 'Toque em Modos' }, { alvo: '[data-modo=conquista]', txt: 'Na Conquista seus pets lutam sozinhos e juntam moedas até com o jogo fechado!' }],
+  rank: [{ alvo: '[data-aba-lobby=rank]', txt: 'Toque em Ranking' }, { txt: 'Suba de fase e vença no modo Sem fim para aparecer no topo do mundo!' }],
+  dupla: [{ alvo: '[data-a=modos]', txt: 'Toque em Modos' }, { alvo: '[data-modo=dupla]', txt: 'Na Dupla você joga junto com um amigo: chame pelo WhatsApp!' }],
+  castelo: [{ alvo: '[data-a=modos]', txt: 'Toque em Modos' }, { alvo: '[data-modo=castelo]', txt: 'No Castelo você defende a muralha de ondas cada vez mais fortes. E tem a Ponte sem fim também!' }],
+  cla: [{ alvo: '[data-aba-lobby=cla]', txt: 'Toque em Clã' }, { txt: 'Num clã vocês atacam um chefe juntos e todos ganham prêmios!' }],
+};
+let guia = null;
+function proximaLiberacao() { // comemora o que abriu (uma coisa por vez, só no menu e sem janela aberta)
+  if (!S?.lib || S.lib.todos || tela !== 'lobby' || guia || !$('#janela').hidden) return;
+  const L = LIBERA.find(l => (S.melhor || 0) >= l[1] && !S.lib.visto[l[0]]); if (!L) return;
+  const [id, , nome, icone, frase] = L; S.lib.visto[id] = 1; if (id === 'castelo') S.lib.visto.infinito = 1;
+  if (id === 'pets') S.ovos.comum = (S.ovos.comum || 0) + 1; // primeiro ovo de presente
+  salvar(); desenharLobby();
+  const j = $('#janela'); j.hidden = false; sfx('vitoria'); som('lendario');
+  j.innerHTML = `<div class="jOnline jNovo"><div class="novoRaios"></div><em class="novoTag">${tr('NOVO!')}</em><div class="novoIco">${ico(icone)}</div><h2>${nome}</h2><p>${frase}</p>
+    <button class="btn verde grande" data-a="verNovo" data-novo="${id}">${ico('check')} Ver agora</button></div>`;
+}
+function comecarGuia(id) {
+  const passos = PASSOS_LIB[id]; if (!passos) return; fecharGuia();
+  const el = document.createElement('div'); el.id = 'guia'; el.innerHTML = `<div class="guiaFuro"></div><div class="guiaMao tutMao">${ico('mao')}</div><div class="guiaBalao"><p></p><div><button class="guiaPular">${tr('Pular')}</button><button class="guiaOk btn verde peq">${tr('Entendi')}</button></div></div>`;
+  document.body.appendChild(el); guia = { id, passos, i: -1, el, t0: performance.now() }; avancarGuia();
+  el.querySelector('.guiaPular').onclick = () => { som('fechar'); fecharGuia(); };
+  el.querySelector('.guiaOk').onclick = () => { som('clique'); avancarGuia(); };
+  const loop = () => { if (!guia || guia.el !== el) return; posicionarGuia(); requestAnimationFrame(loop); }; loop();
+}
+function avancarGuia() {
+  const g = guia; if (!g) return; g.i++; const P = g.passos[g.i]; if (!P) { fecharGuia(); sfx('brilho'); return; }
+  g.el.querySelector('.guiaBalao p').textContent = tr(P.txt); g.el.querySelector('.guiaOk').hidden = !!P.alvo; g.el.classList.toggle('semAlvo', !P.alvo);
+  const b = g.el.querySelector('.guiaBalao'); b.classList.remove('entra'); void b.offsetWidth; b.classList.add('entra');
+}
+function posicionarGuia() {
+  const g = guia, P = g.passos[g.i]; if (!P) return; const furo = g.el.querySelector('.guiaFuro'), mao = g.el.querySelector('.guiaMao'), balao = g.el.querySelector('.guiaBalao');
+  const alvo = P.alvo && [...document.querySelectorAll(P.alvo)].find(e => e.offsetParent); g.alvoEl = alvo || null;
+  if (!alvo) { furo.style.cssText = `left:50%;top:50%;width:0;height:0`; mao.hidden = true; balao.style.top = '40%'; return; }
+  const r = alvo.getBoundingClientRect(), m = 6; furo.style.cssText = `left:${r.left - m}px;top:${r.top - m}px;width:${r.width + 2 * m}px;height:${r.height + 2 * m}px`;
+  mao.hidden = false; mao.style.left = `${r.left + r.width / 2}px`; mao.style.top = `${r.top + r.height / 2}px`;
+  balao.style.top = r.top > innerHeight * 0.5 ? `${Math.max(70, r.top - 150)}px` : `${Math.min(innerHeight - 170, r.bottom + 60)}px`;
+}
+function fecharGuia() { guia?.el.remove(); guia = null; }
+// tocou no alvo do passo: segue para o próximo (o toque continua valendo para o jogo)
+document.addEventListener('click', e => { const g = guia; if (!g || !g.alvoEl) return; if (g.alvoEl.contains(e.target)) setTimeout(avancarGuia, 350); }, true);
+setInterval(proximaLiberacao, 1200);
 const ABAS = [['home', 'Batalha', 'h_triplo'], ['up', 'Melhorias', 'raio'], ['cartas', 'Heróis', 'herois'], ['pets', 'Pets', 'pata'], ['cla', 'Clã', 'escudo'], ['rank', 'Ranking', 'rank']];
 // ---- renascer: volta para a fase 1 com bônus permanentes ----
 const reqRenascer = () => 20 + 10 * (S.renasc || 0);
@@ -535,9 +601,9 @@ function htmlCartas() {
 }
 function desenharLobby() {
   const F = dadosFase(S.fase), O = S.online, upPode = Object.entries(UPGRADES).some(([k, U]) => S.up[k] < U.max && S.moedas >= U.custo(S.up[k]));
-  const nav = `<nav class="lbNav">${ABAS.map(([k, nome, icone]) => `<button class="${abaLobby === k ? 'on' : ''}" data-aba-lobby="${k}">${ico(icone)}<small>${nome}</small>${(k === 'up' && upPode) || (k === 'pets' && (S.ovos.comum || S.ovos.magico)) ? '<i class="ponto"></i>' : ''}</button>`).join('')}</nav>`;
+  const nav = `<nav class="lbNav">${ABAS.map(([k, nome, icone]) => !liberado(k) ? `<button class="trava" data-trava="${k}">${ico('cadeado')}<small>${tr('Fase')} ${faseLibera(k)}</small></button>` : `<button class="${abaLobby === k ? 'on' : ''}" data-aba-lobby="${k}">${ico(icone)}<small>${nome}</small>${(k === 'up' && upPode) || (k === 'pets' && (S.ovos.comum || S.ovos.magico)) ? '<i class="ponto"></i>' : ''}</button>`).join('')}</nav>`;
   const topo = `<div class="lbTopo"><button class="avatarBtn" data-a="perfil"><img src="${fotoPet(avatarAtual())}" alt="">${medalhasProntas() ? '<i class="ponto"></i>' : ''}</button><div class="pilula ouro">${ico('ouro')}<b>${fmt(S.moedas)}</b></div>
-    <button class="redondo loja" data-a="loja">${ico('mercado')}${temOferta() ? '<i class="ponto"></i>' : ''}</button><button class="redondo missoes" data-a="missoes">${ico('missoes')}${prontas() ? '<i class="ponto"></i>' : ''}</button><button class="redondo presente" data-a="diario">${ico('presente')}${diarioPronto() ? '<i class="ponto"></i>' : ''}</button><button class="redondo" data-a="config">${ico('config')}</button></div>`;
+    <button class="redondo loja" data-a="loja">${ico('mercado')}${temOferta() ? '<i class="ponto"></i>' : ''}</button>${liberado('missoes') ? `<button class="redondo missoes" data-a="missoes">${ico('missoes')}${prontas() ? '<i class="ponto"></i>' : ''}</button>` : ''}<button class="redondo presente" data-a="diario">${ico('presente')}${diarioPronto() ? '<i class="ponto"></i>' : ''}</button><button class="redondo" data-a="config">${ico('config')}</button></div>`;
   let meio;
   if (abaLobby === 'home') meio = `
     <div class="lbLogo"><small>Batalha da</small><h1>Ponte</h1></div>
@@ -545,9 +611,10 @@ function desenharLobby() {
       ${eventoDaFase(S.fase) ? (E => `<em class="fEvento" style="--c:${E.cor}">${ico(E.icone)}<b>${E.nome}:</b> ${E.desc}</em>`)(EVENTOS[eventoDaFase(S.fase)]) : ''}</span></div>
     <div class="lbBase">
       ${fimDeSemana() ? `<div class="fdsFaixa">${ico('festa')}<span><b>Fim de semana dourado!</b><small>Moedas x2 · ovos com sorte x2 · guerra de clãs</small></span></div>` : ''}
-      <div class="baus">${Array.from({ length: MAX_BAUS }, (_, i) => { const b = S.baus[i];
+      <div class="baus" ${liberado('baus') ? '' : 'hidden'}>${Array.from({ length: MAX_BAUS }, (_, i) => { const b = S.baus[i];
         return b ? `<button class="slotBau" data-bau="${i}">${bauHtml(b.tipo, 'mini')}<small>Abrir!</small></button>` : `<div class="slotBau vazio">${ico('bau')}</div>`; }).join('')}</div>
-      <div class="lbJogar"><button class="modo roxo modosBtn" data-a="modos">${ico('dado')}<small>Modos</small>${lucroOcioso() > 0 ? '<i class="ponto"></i>' : ''}</button>
+      <div class="lbJogar">${['conquista', 'dupla', 'castelo', 'infinito'].some(liberado) ? `<button class="modo roxo modosBtn" data-a="modos">${ico('dado')}<small>Modos</small>${lucroOcioso() > 0 && liberado('conquista') ? '<i class="ponto"></i>' : ''}</button>`
+        : `<button class="modo roxo modosBtn trava" data-trava="conquista">${ico('cadeado')}<small>${tr('Fase')} ${faseLibera('conquista')}</small></button>`}
         <button class="btn verde grande jogar" data-a="jogar">JOGAR<small>Fase ${S.fase}</small></button></div></div>`;
   else if (abaLobby === 'cla' || abaLobby === 'rank') meio = `<div class="lbFolha"><h2>${ABAS.find(a => a[0] === abaLobby)[1]}</h2><div class="lbFolhaCorpo jOnline2" id="onCorpo"></div></div>`;
   else meio = `<div class="lbFolha"><h2>${ABAS.find(a => a[0] === abaLobby)[1]}</h2><div class="lbFolhaCorpo">${abaLobby === 'up' ? htmlMelhorias() : abaLobby === 'pets' ? htmlPets() : htmlCartas()}</div></div>`;
@@ -572,7 +639,7 @@ function htmlPets() {
   return `<div class="ptEquipe"><h3>Equipe <small>${eq.length}/${MAX_EQUIPE} · ${ico('forca')} ${fmt(forcaEquipe())}</small><button class="btn peq azul" data-pet-a="melhores">Equipar melhores</button></h3>
       <div class="ptSlots">${Array.from({ length: MAX_EQUIPE }, (_, i) => eq[i] ? cardPet(eq[i], 'mini') : '<div class="ptSlot">+</div>').join('')}</div>
       <div class="ptBonus">${Object.keys(BONUS_PET).filter(t => B[t]).map(t => `<span class="bn">${ico(BONUS_PET[t].icone)}${txtBonus(t, B[t])}</span>`).join('') || '<small>Equipe pets para ganhar bônus na ponte</small>'}</div>
-      <button class="btn verde cqBtn" data-a="conquista">${ico('bandeira')} Conquista · estágio ${S.cq.est}</button></div>
+      ${liberado('conquista') ? `<button class="btn verde cqBtn" data-a="conquista">${ico('bandeira')} Conquista · estágio ${S.cq.est}</button>` : ''}</div>
     <h3>Ovos</h3><div class="ptOvos">${Object.entries(OVOS).map(([k, O]) => `<button class="ptOvo ${S.ovos[k] || S.moedas >= O.preco ? 'pode' : ''}" data-ovo="${k}">${CQ.ovoHtml(k)}
       <b>${O.nome}</b><small>${chances(O)}</small><em>${S.ovos[k] ? `Chocar (${S.ovos[k]})` : `${ico('ouro')} ${fmt(O.preco)}`}</em></button>`).join('')}</div>
     <h3>Coleção <small>3 iguais = 1 com estrela ★ (até ★5)</small></h3><div class="ptGrade">${colecao.join('')}</div>
@@ -640,11 +707,11 @@ function mostrarModos() {
     <span><b>${nome}</b><small>${desc}</small></span><em>${livre ? info : req}</em></button>`;
   j.innerHTML = `<div class="jOnline jModos"><h2>${ico('dado')} Modos</h2>
     <h3>${ico('herois')} Com o herói</h3>
-    ${card('infinito', '#8a4ae8', 'estrela', 'Ponte sem fim', 'Chefes sem parar até cair', `${ico('rank')} ${fmt(S.recInf || 0)}`, S.melhor >= 3, 'Fase 3')}
-    ${card('castelo', '#4a6ae8', 'h_muralha', 'Castelo', 'Defenda a muralha em ondas', `Onda ${S.castelo?.rec || 0}`, S.melhor >= 3, 'Fase 3')}
-    ${card('dupla', '#2a8ae8', 'herois', 'Dupla', 'Jogue junto com outra pessoa', 'Online', true, '')}
+    ${card('infinito', '#8a4ae8', 'estrela', 'Ponte sem fim', 'Chefes sem parar até cair', `${ico('rank')} ${fmt(S.recInf || 0)}`, liberado('infinito'), `${tr('Fase')} ${faseLibera('infinito')}`)}
+    ${card('castelo', '#4a6ae8', 'h_muralha', 'Castelo', 'Defenda a muralha em ondas', `Onda ${S.castelo?.rec || 0}`, liberado('castelo'), `${tr('Fase')} ${faseLibera('castelo')}`)}
+    ${card('dupla', '#2a8ae8', 'herois', 'Dupla', 'Jogue junto com outra pessoa', 'Online', liberado('dupla'), `${tr('Fase')} ${faseLibera('dupla')}`)}
     <h3>${ico('pata')} Com os pets</h3>
-    ${card('conquista', '#d8501a', 'bandeira', 'Conquista', 'Seus pets contra equipes de outros jogadores', lucroOcioso() > 0 ? `${ico('ouro')} ${fmt(lucroOcioso())}` : `Estágio ${S.cq.est}`, true, '')}
+    ${card('conquista', '#d8501a', 'bandeira', 'Conquista', 'Seus pets contra equipes de outros jogadores', lucroOcioso() > 0 ? `${ico('ouro')} ${fmt(lucroOcioso())}` : `Estágio ${S.cq.est}`, liberado('conquista'), `${tr('Fase')} ${faseLibera('conquista')}`)}
     <button class="fSo" data-a="fecharJanela">Fechar</button></div>`;
 }
 // ---- a equipe de pets fica salva no servidor: vira o inimigo da Conquista de outros jogadores ----
@@ -1423,7 +1490,10 @@ async function resgatarCodigo(b) {
   b.disabled = false;
 }
 function clique(e) {
-  const b = e.target.closest('button'); if (!b) return; let a = b.dataset.a; if (b.dataset.modo) { $('#janela').hidden = true; a = b.dataset.modo; }
+  const b = e.target.closest('button'); if (!b) return; let a = b.dataset.a;
+  if (b.dataset.trava) { som('erro'); toque(`${tr('Libera ao vencer a fase')} ${faseLibera(b.dataset.trava)}`); return; }
+  if (b.dataset.modo) { if (!liberado(b.dataset.modo)) { som('erro'); toque(`${tr('Libera ao vencer a fase')} ${faseLibera(b.dataset.modo)}`); return; } $('#janela').hidden = true; a = b.dataset.modo; }
+  if (a === 'verNovo') { som('confirma'); $('#janela').hidden = true; abaLobby = 'home'; desenharLobby(); setTimeout(() => comecarGuia(b.dataset.novo), 250); return; }
   if (a === 'som') { alternarSom(); som('clique'); if ($('#janela .jConfig')) mostrarConfig(); else desenharLobby(); }
   if (b.dataset.abaLobby) { som('clique'); abaLobby = b.dataset.abaLobby; desenharLobby(); }
   if (b.dataset.up) { if (comprar(b.dataset.up)) { som('compra'); desenharLobby(); } else som('erro'); }
@@ -1437,7 +1507,7 @@ function clique(e) {
   if (a === 'contaNova') { if (b.dataset.certeza !== '1') { b.dataset.certeza = '1'; b.textContent = tr('Toque de novo para confirmar'); som('clique'); return; }
     S.online = null; S.contaInvalida = false; S.temSenha = null; S.arena = null; salvar(); avisouConta = false; ON.garantir().then(() => { sfx('vitoria'); mostrarPerfil(); }).catch(() => {}); return; }
   if (a === 'rsColetar') { const q = b.getBoundingClientRect(), m = coletarOcioso(); if (m > 0) { sfx('vitoria'); desenharLobby(); voarMoedas('.lbTopo .pilula.ouro', 12, { x: q.left + q.width / 2, y: q.top + q.height / 2 }); } b.disabled = true; b.textContent = tr('Coletado!'); return; }
-  if (a === 'infinito') { if (S.melhor < 3) { som('erro'); return; } som('confirma'); comecarFase(true); }
+  if (a === 'infinito') { som('confirma'); comecarFase(true); }
   if (a === 'denovoInf') { som('confirma'); comecarFase(true); }
   if (a === 'sair') { som('fechar'); G?.dupla?.canal?.enviar('sair', {}); $('#janela').hidden = true; abrirLobby(); }
   if (a === 'proxima') { som('confirma'); comecarFase(); }
@@ -1509,7 +1579,7 @@ function clique(e) {
   if (b.dataset.cq) CQ.clique(b);
   if (b.dataset.ct || b.dataset.magia) CT.clique(b);
   if (a === 'conquista') { som('confirma'); abrirConquista(); }
-  if (a === 'castelo') { if (S.melhor < 3) { som('erro'); return; } som('confirma'); abrirCastelo(); }
+  if (a === 'castelo') { som('confirma'); abrirCastelo(); }
   if (b.dataset.ovo) abrirOvo(b.dataset.ovo);
   if (b.dataset.pet) { som('clique'); mostrarPet(b.dataset.pet); }
   if (b.dataset.petA) acaoPet(b.dataset.petA, b.dataset.k);

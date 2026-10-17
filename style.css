@@ -959,3 +959,29 @@ input{font:inherit;user-select:text;-webkit-user-select:text}
 .codAmigo{font-family:var(--fT);font-size:46px;letter-spacing:8px;color:#5a2e08;background:#fff;border:3px dashed var(--creme2);border-radius:14px;padding:6px 0;text-align:center}
 .codAmigoIn{font-family:var(--fT);font-size:34px;letter-spacing:6px;text-align:center;padding:10px;border-radius:14px;border:3px solid var(--creme2);width:100%;box-sizing:border-box}
 .jDupla .radar{margin:0 auto}
+/* ---- liberação aos poucos: tela NOVO! e tutorial com destaque ---- */
+#guia{position:fixed;inset:0;z-index:60;pointer-events:none}
+.guiaFuro{position:fixed;border-radius:18px;box-shadow:0 0 0 200vmax rgba(6,10,24,.66);border:3px solid #ffd23a;transition:left .25s,top .25s,width .25s,height .25s;animation:guiaPulsa 1.2s ease-in-out infinite}
+#guia.semAlvo .guiaFuro{border:0;box-shadow:0 0 0 200vmax rgba(6,10,24,.5);animation:none}
+@keyframes guiaPulsa{50%{border-color:#fff;outline:6px solid rgba(255,210,58,.35)}}
+.guiaMao{position:fixed;z-index:2}
+.guiaBalao{position:fixed;left:50%;transform:translateX(-50%);width:min(340px,88vw);padding:14px 16px 10px;border-radius:18px;background:var(--creme);border:3px solid var(--madeira);
+  box-shadow:0 5px 0 var(--madeira),0 12px 24px rgba(0,0,0,.4);text-align:center;font-family:var(--fT);font-size:17px;color:var(--tinta);pointer-events:auto;transition:top .25s}
+.guiaBalao p{margin:0 0 8px;line-height:1.25}
+.guiaBalao div{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.guiaBalao .guiaPular{background:none;border:0;color:var(--suave);font-family:var(--fT);font-size:13px;text-decoration:underline;padding:4px}
+.guiaBalao .guiaOk{margin:0;min-width:110px}
+.guiaBalao.entra{animation:tutEntra .35s cubic-bezier(.2,1.6,.4,1)}
+.lbNav .trava{opacity:.55;filter:grayscale(1)}
+.lbNav .trava small{font-size:10px}
+.modosBtn.trava{filter:grayscale(.9);opacity:.7}
+.jNovo{position:relative;overflow:hidden;text-align:center;padding-top:26px}
+.jNovo .novoRaios{position:absolute;left:50%;top:92px;width:520px;height:520px;margin:-260px 0 0 -260px;background:repeating-conic-gradient(rgba(255,210,58,.22) 0 12deg,transparent 12deg 24deg);animation:novoGira 9s linear infinite;pointer-events:none}
+@keyframes novoGira{to{transform:rotate(360deg)}}
+.jNovo .novoTag{position:relative;display:inline-block;width:auto;align-self:center;margin:0 auto;font-style:normal;font-family:var(--fT);font-size:20px;color:#fff;background:#e8452a;padding:3px 14px;border-radius:12px;transform:rotate(-4deg);box-shadow:0 3px 0 #9a2a14;animation:entra .4s cubic-bezier(.2,1.6,.4,1)}
+.jNovo .novoIco{position:relative;width:110px;height:110px;margin:14px auto 6px;border-radius:28px;background:linear-gradient(#ffe27a,#f0a81a);border:4px solid #fff;box-shadow:0 6px 0 #b8700a,0 12px 24px rgba(0,0,0,.3);display:grid;place-items:center;color:#5a2e08;animation:novoPula .6s cubic-bezier(.2,1.6,.4,1)}
+.jNovo .novoIco .ico{width:64px;height:64px}
+@keyframes novoPula{from{transform:scale(.2) rotate(-30deg);opacity:0}}
+.jNovo h2{position:relative;justify-content:center}
+.jNovo p{position:relative;margin:4px 0 16px}
+.jNovo .btn{position:relative}

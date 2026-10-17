@@ -12,6 +12,7 @@ export function carregar() {
   S.pd = S.pd || {}; for (const k of CARTAS) S.pd[k] = S.pd[k] || { nv: k === 'lanca' || k === 'mago' ? 0 : 1, c: 0 };
   S.deck = S.deck || ['arco'];
   S.heroi = S.heroi || 'lyra'; S.herois = S.herois || ['lyra'];
+  if (!S.lib) S.lib = S.melhor > 0 || S.online ? { todos: true } : { visto: {} }; // quem já jogava fica com tudo liberado
   return S;
 }
 let sujo = false; // mudou desde o último backup na nuvem
