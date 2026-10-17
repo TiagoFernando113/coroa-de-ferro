@@ -16,6 +16,7 @@ import * as CQ from './conquista.js';
 import * as CT from './castelo.js';
 import * as MP from './mapa.js';
 import * as Q from './queda.js';
+import * as MU from './mundo.js';
 import { MEDALHAS, NIVEIS_MEDALHA, nivelMedalha, pegas, medalhasProntas, premioMedalha, pegarMedalha } from './perfil.js';
 import { ofertas, lojaDia, comprarOferta, temOferta } from './loja.js';
 import { TIPOS as TIPOS_MISSAO, PTS_NIVEL, NIVEIS_PASSE, atualizarMissoes, evento, prontas, pegarMissao, premioNivel, nivelPasse, pegarNivel, fimTemporada } from './missoes.js';
@@ -489,7 +490,7 @@ function montarHud() {
       <div class="jMuro">${ico('escudo')}<div class="barra muro"><i id="jMuroB"></i><span id="jMuroT"></span></div></div>
       <p class="jDica" id="jDica">Arraste para mover · as flechas saem sozinhas</p>
       <div id="tut" hidden><p class="tutBalao"></p><div class="tutMao">${MAO}</div></div></div>
-    <div id="fim" hidden></div><div id="conq" hidden></div><div id="castelo" hidden></div><div id="janela" hidden></div>`;
+    <div id="fim" hidden></div><div id="conq" hidden></div><div id="castelo" hidden></div><div id="mundo" hidden></div><div id="janela" hidden></div>`;
   fx = document.createElement('canvas'); fx.id = 'fx'; document.body.append(fx); gfx = fx.getContext('2d');
   const medir = () => { fx.width = innerWidth * devicePixelRatio; fx.height = innerHeight * devicePixelRatio; gfx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0); };
   medir(); addEventListener('resize', medir);
@@ -758,6 +759,11 @@ function abrirOvo(tipo) {
       <button class="btn verde" data-a="fecharJanela">Pegar</button></div>`;
     sfx(D.r >= 2 ? 'vitoria' : 'brilho'); if (D.r >= 3) som('lendario'); if (D.r >= 2) avisarCla(`tirou ${D.nome} (${R.nome}) num ovo!`); C.camera.tremor = 0.3; recriarPetsLobby(); }, 2100);
 }
+function abrirMundo() { // Mapa de Guerra (mundo.js)
+  limparFase(); climaMapa = false; $('#janela').hidden = true;
+  tela = 'mundo'; $('#lobby').hidden = true; $('#jogo').hidden = true; $('#fim').hidden = true; tema(2);
+  MU.abrir($('#mundo'), { sair: () => { MU.fechar(); abrirLobby(); desenharLobby(); } });
+}
 function abrirCastelo() {
   limparFase(); MUROS_PISTA[0].visible = MUROS_PISTA[1].visible = false; MUROS_PISTA[2].visible = true; $('#janela').hidden = true;
   tela = 'castelo'; Q.emFase(true); $('#lobby').hidden = true; $('#jogo').hidden = true; $('#fim').hidden = true; tema(1);
@@ -782,6 +788,7 @@ function mostrarModos() {
   const card = (k, cor, icone, nome, desc, info, livre, req) => `<button class="modoC ${livre ? '' : 'bloq'}" data-modo="${k}" style="--c:${cor}">${ico(livre ? icone : 'cadeado')}
     <span><b>${nome}</b><small>${desc}</small></span><em>${livre ? info : req}</em></button>`;
   j.innerHTML = `<div class="jOnline jModos"><h2>${ico('dado')} Modos</h2>
+    ${card('mundo', '#c8501a', 'bandeira', 'Mapa de Guerra', 'Seu exército marcha num mapa com todos os jogadores', 'Novo!', liberado('dupla'), `${tr('Fase')} ${faseLibera('dupla')}`)}
     <h3>${ico('herois')} Com o herói</h3>
     ${card('infinito', '#8a4ae8', 'estrela', 'Ponte sem fim', 'Chefes sem parar até cair', `${ico('rank')} ${fmt(S.recInf || 0)}`, liberado('infinito'), `${tr('Fase')} ${faseLibera('infinito')}`)}
     ${card('castelo', '#4a6ae8', 'h_muralha', 'Castelo', 'Defenda a muralha em ondas', `Onda ${S.castelo?.rec || 0}`, liberado('castelo'), `${tr('Fase')} ${faseLibera('castelo')}`)}
@@ -1591,7 +1598,7 @@ async function resgatarCodigo(b) {
 function clique(e) {
   const b = e.target.closest('button'); if (!b) return; let a = b.dataset.a;
   if (b.dataset.trava) { som('erro'); toque(`${tr('Libera ao vencer a fase')} ${faseLibera(b.dataset.trava)}`); return; }
-  if (b.dataset.modo) { if (!liberado(b.dataset.modo)) { som('erro'); toque(`${tr('Libera ao vencer a fase')} ${faseLibera(b.dataset.modo)}`); return; } $('#janela').hidden = true; a = b.dataset.modo; }
+  if (b.dataset.modo) { if (!liberado(b.dataset.modo === 'mundo' ? 'dupla' : b.dataset.modo)) { som('erro'); toque(`${tr('Libera ao vencer a fase')} ${faseLibera(b.dataset.modo)}`); return; } $('#janela').hidden = true; a = b.dataset.modo; }
   if (a === 'nomeSorte') { som('clique'); $('#apelido1').value = sugerirNome(); return; }
   if (a === 'nomeDepois') { som('fechar'); S.lib.nome = 1; salvar(); $('#janela').hidden = true; return; }
   if (a === 'nomeOk') { const ap = ($('#apelido1')?.value || '').trim(), er = $('#nomeErro'); if (ap.length < 2) { som('erro'); er.textContent = tr('Pelo menos 2 letras'); return; }
@@ -1661,6 +1668,7 @@ function clique(e) {
   if (b.dataset.rk || b.dataset.cla || b.dataset.claPedir || b.dataset.cm || b.dataset.pedir || b.dataset.doar || ['trocarNome', 'salvarNome', 'voltarOnline', 'claCriar', 'claSair', 'chatEnviar', 'chatPedirAbrir'].includes(a) || b.dataset.trVer || b.dataset.trad) cliqueOnline(b);
   if (a === 'dupla') { som('confirma'); menuDupla(); }
   if (a === 'procurarDupla') { som('confirma'); procurarDupla(); }
+  if (a === 'mundo') { som('confirma'); abrirMundo(); }
   if (a === 'chamarAmigo') { som('confirma'); chamarAmigo(); }
   if (a === 'temCodigo') { som('confirma'); temCodigo(); }
   if (a === 'entrarCodigo') { const c = ($('#codAmigo')?.value || '').replace(/\D/g, ''); if (c.length < 4) { som('erro'); return; } som('confirma'); convidarDupla(c, c); }
@@ -1688,6 +1696,7 @@ function clique(e) {
   if (b.dataset.vaga) tocarVaga(+b.dataset.vaga);
   if (b.dataset.cq) CQ.clique(b);
   if (b.dataset.ct || b.dataset.magia) CT.clique(b);
+  if (b.dataset.mu || b.dataset.muEx) MU.clique(b);
   if (a === 'conquista') { som('confirma'); abrirConquista(); }
   if (a === 'castelo') { som('confirma'); abrirCastelo(); }
   if (b.dataset.ovo) abrirOvo(b.dataset.ovo);
@@ -1843,10 +1852,10 @@ let distCam = 106;
 export function passo(dt0) {
   let dt = dt0; if (G && G.lento > 0) { G.lento -= dt0; dt = dt0 * 0.25; }
   const t = C.tempo();
-  if (tela === 'conq' || tela === 'castelo') { // Conquista (pets lutam sozinhos) e Castelo (defesa da muralha)
-    MP.mostrarMapa(false); { const r = $('#mapaRot'); if (r) r.hidden = true; } const M = tela === 'conq' ? CQ : CT; if (tela === 'conq') { CQ.passo(dt0); passoVoo(dt0); } else CT.passo(dt0); const V = M.vista(); foco.x = V.foco.x; foco.z = V.foco.z;
-    C.camera.yaw = V.yaw; C.camera.pitch = V.pitch; C.camera.dist = V.dist; C.camera.altura = 0; C.camera.suave = 2.5;
-    if (texAgua) texAgua.offset.y += dt0 * 0.03;
+  if (tela === 'conq' || tela === 'castelo' || tela === 'mundo') { // Conquista (pets lutam sozinhos), Castelo (defesa da muralha) e Mapa de Guerra
+    MP.mostrarMapa(false); { const r = $('#mapaRot'); if (r) r.hidden = true; } const M = tela === 'conq' ? CQ : tela === 'mundo' ? MU : CT; if (tela === 'conq') { CQ.passo(dt0); passoVoo(dt0); } else M.passo(dt0); const V = M.vista(); foco.x = V.foco.x; foco.z = V.foco.z;
+    C.camera.yaw = V.yaw; C.camera.pitch = V.pitch; C.camera.dist = V.dist; C.camera.altura = 0; C.camera.suave = tela === 'mundo' ? 10 : 2.5;
+    if (texAgua && tela !== 'mundo') texAgua.offset.y += dt0 * 0.03;
     if (window.__ov) { Object.assign(C.camera, window.__ov.cam); Object.assign(foco, window.__ov.foco); }
     C.quadro(dt0, foco); gfx.clearRect(0, 0, innerWidth, innerHeight); M.desenharFx(gfx, dt0); return;
   }

@@ -97,7 +97,7 @@ export function desenharTropas(t, lista, rotY, tempo) {
     const k = t === 'vm' ? 'vm' : u.tipo || 'az', M = T[k], i = cont[k];
     if (i >= (leve ? Math.min(M.max, 140) : M.max)) continue; cont[k]++;
     const fase = tempo * 9 + u.ph, luta = u.luta, pulo = luta ? 0 : Math.abs(Math.sin(fase)) * 0.18;
-    e.set(luta ? 0.12 : 0.06, rotY + (luta ? Math.sin(tempo * 20 + u.ph) * 0.15 : 0), 0); q.setFromEuler(e);
+    e.set(luta ? 0.12 : 0.06, (u.ry ?? rotY) + (luta ? Math.sin(tempo * 20 + u.ph) * 0.15 : 0), 0); q.setFromEuler(e);
     base.compose(v3.set(u.x, pulo, u.z), q, s3); M.corpo.setMatrixAt(i, base);
     const passo = luta ? 0.15 : Math.sin(fase) * 0.75;
     m1.makeTranslation(-0.15 * ESC, QUADRIL * ESC, 0).multiply(m2.makeRotationX(passo)); M.pe.setMatrixAt(i, m1.premultiply(base));
