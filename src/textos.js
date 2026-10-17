@@ -337,6 +337,7 @@ const T = {
   // primeiro nome
   'Como quer ser chamado?': L('What should we call you?', '¿Cómo quieres que te llamen?'), 'Seu nome aparece no ranking, no clã e na dupla': L('Your name shows in the ranking, clan and duo', 'Tu nombre aparece en el ranking, el clan y el dúo'),
   'Confirmar': L('Confirm', 'Confirmar'), 'Escolher depois': L('Choose later', 'Elegir después'), 'Bem-vindo,': L('Welcome,', 'Bienvenido,'),
+  'PRÊMIO!': L('REWARD!', '¡PREMIO!'), 'Código resgatado!': L('Code redeemed!', '¡Código canjeado!'), 'Pegar!': L('Collect!', '¡Recoger!'),
 };
 export const TEXTOS = { en: {}, es: {} };
 for (const [k, v] of Object.entries(T)) { TEXTOS.en[k] = v.en; TEXTOS.es[k] = v.es; }

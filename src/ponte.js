@@ -112,6 +112,9 @@ function texturaChao(B) {
   for (let i = 0; i < 600; i++) { g.fillStyle = `hsl(${h + Math.random() * dh},${s + Math.random() * 15}%,${l + Math.random() * 12}%)`; g.fillRect(Math.random() * 128, Math.random() * 128, 3, 3); }
   const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; return t;
 }
+// pinta a geometria inteira com uma cor (para juntar caixas de cores diferentes numa malha só)
+const corTmp = new THREE.Color();
+function comCor(g, c) { corTmp.set(c); const n = g.attributes.position.count, a = new Float32Array(n * 3); for (let i = 0; i < n; i++) { a[i * 3] = corTmp.r; a[i * 3 + 1] = corTmp.g; a[i * 3 + 2] = corTmp.b; } g.setAttribute('color', new THREE.BufferAttribute(a, 3)); return g; }
 function montarCenario(bi) {
   if (bi === biomaAtual) return; biomaAtual = bi; const B = BIOMAS[bi];
   if (cenGrupo) cena.remove(cenGrupo); if (cenEstat) C.removerGrupo(cenEstat);
@@ -125,28 +128,33 @@ function montarCenario(bi) {
   // paredões do cânion com o chão do bioma em cima, borda irregular
   const tg = texturaChao(B); tg.repeat.set(6, 2);
   const topo = new THREE.MeshLambertMaterial({ map: tg }), rocha = new THREE.MeshLambertMaterial({ color: B.rocha[0] }), rocha2 = new THREE.MeshLambertMaterial({ color: B.rocha[1] });
-  const enfeites = [];
+  const enfeites = [], lados = [], topos = [];
+  // tudo junto em poucas malhas (antes eram centenas de caixas = centenas de desenhos por quadro)
+  const caixa = (w, h, d, x, y, z, ry, c) => { const g = new THREE.BoxGeometry(w, h, d); if (ry) g.rotateY(ry); g.translate(x, y, z); lados.push(comCor(g, c)); };
   for (const lado of [-1, 1]) for (let z = ZTRAS + 30; z > ZFRENTE - 260; z -= 9) {
-    const borda = 25 + r() * 5 + Math.max(0, (-z - 100) * 0.05), larg = 140, alt = -Y_RIO + 2 + r() * 2;
-    const m = add(new THREE.Mesh(new THREE.BoxGeometry(larg, alt, 9.4), [r() < 0.5 ? rocha : rocha2, r() < 0.5 ? rocha : rocha2, topo, rocha, rocha, rocha]));
-    m.position.set(lado * (borda + larg / 2), Y_RIO + alt / 2 - 1.2, z); m.receiveShadow = true;
-    if (r() < 0.6) { const d = add(new THREE.Mesh(new THREE.BoxGeometry(4 + r() * 4, 6 + r() * 10, 6 + r() * 4), rocha2)); d.position.set(lado * (borda - 1), Y_RIO + 6 + r() * 12, z + r() * 4); d.rotation.y = r(); }
-    for (let k = 0; k < 3; k++) { const q = r(), grupo = B.enfeites[q < 0.5 ? 0 : q < 0.8 ? 1 : 2], [m2, s] = sorteio(grupo);
-      enfeites.push({ m: m2, x: lado * (borda + 3 + r() * 55), y: 0.8, z: z + r() * 9, ry: r() * 6.28, s: s * (0.8 + r() * 0.5) }); }
+    const borda = 25 + r() * 5 + Math.max(0, (-z - 100) * 0.05), larg = 140, alt = -Y_RIO + 2 + r() * 2, cx = lado * (borda + larg / 2);
+    caixa(larg, alt, 9.4, cx, Y_RIO + alt / 2 - 1.2, z, 0, r() < 0.5 ? B.rocha[0] : B.rocha[1]);
+    topos.push(new THREE.PlaneGeometry(larg, 9.4).rotateX(-Math.PI / 2).translate(cx, Y_RIO + alt - 1.2 + 0.04, z));
+    if (r() < 0.6) { const w = 4 + r() * 4, h = 6 + r() * 10, d = 6 + r() * 4; caixa(w, h, d, lado * (borda - 1), Y_RIO + 6 + r() * 12, z + r() * 4, r(), B.rocha[1]); }
+    for (let k = 0, nk = C.qualidadeAtual() === 'baixa' ? 1 : 2; k < nk; k++) { const q = r(), grupo = B.enfeites[q < 0.5 ? 0 : q < 0.8 ? 1 : 2], [m2, s] = sorteio(grupo); // árvores pesam: 2 por trecho, perto da ponte
+      enfeites.push({ m: m2, x: lado * (borda + 3 + r() * 32), y: 0.8, z: z + r() * 9, ry: r() * 6.28, s: s * (0.8 + r() * 0.5) }); }
   }
+  { const ml = add(new THREE.Mesh(mergeGeometries(lados), new THREE.MeshLambertMaterial({ vertexColors: true }))); ml.receiveShadow = true;
+    const mt = add(new THREE.Mesh(mergeGeometries(topos), topo)); mt.receiveShadow = true; }
   for (let i = 0; i < 26; i++) { const lado = r() < 0.5 ? -1 : 1; enfeites.push({ m: ['Q:Rock_Medium_1', 'Q:Rock_Medium_2', 'Q:Rock_Medium_3'][i % 3], x: lado * (19 + r() * 9), y: Y_RIO - 0.5, z: ZTRAS - r() * 260, ry: r() * 6, s: 3 + r() * 4 }); }
   cenEstat = C.montarEstatico(enfeites);
   // pilares da ponte descendo até o rio
-  const pil = new THREE.MeshLambertMaterial({ color: 0x8f8a84 });
+  const pil = new THREE.MeshLambertMaterial({ color: 0x8f8a84 }), pilares = [];
   for (let z = ZTRAS - 12; z > ZFRENTE + 10; z -= 26) for (const lado of [-1, 1]) {
-    const m = add(new THREE.Mesh(new THREE.BoxGeometry(5, -Y_RIO - 4, 6), pil)); m.position.set(lado * (MEIA - 3), (Y_RIO - 4) / 2, z); m.castShadow = true;
-    const b = add(new THREE.Mesh(new THREE.BoxGeometry(7, 3, 8), pil)); b.position.set(lado * (MEIA - 3), Y_RIO + 1, z);
+    pilares.push(new THREE.BoxGeometry(5, -Y_RIO - 4, 6).translate(lado * (MEIA - 3), (Y_RIO - 4) / 2, z), new THREE.BoxGeometry(7, 3, 8).translate(lado * (MEIA - 3), Y_RIO + 1, z));
   }
+  add(new THREE.Mesh(mergeGeometries(pilares), pil)).castShadow = true;
   // montanhas (ou vulcões) no horizonte
   const mont = new THREE.MeshLambertMaterial({ color: B.mont[0], flatShading: true }), pico = B.lava ? new THREE.MeshBasicMaterial({ color: B.mont[1] }) : new THREE.MeshLambertMaterial({ color: B.mont[1], flatShading: true });
-  for (let i = 0; i < 14; i++) { const x = (r() - 0.5) * 520, z = ZFRENTE - 120 - r() * 160, h = 60 + r() * 90, rr = 40 + r() * 50;
-    const m = add(new THREE.Mesh(new THREE.ConeGeometry(rr, h, 6 + Math.floor(r() * 3)), mont)); m.position.set(x, h / 2 - 10, z); m.rotation.y = r();
-    const c = add(new THREE.Mesh(new THREE.ConeGeometry(rr * 0.32, h * 0.32, m.geometry.parameters.radialSegments), pico)); c.position.set(x, h - 10 - h * 0.16 + 0.5, z); c.rotation.y = m.rotation.y; }
+  const montes = [], picos = [];
+  for (let i = 0; i < 14; i++) { const x = (r() - 0.5) * 520, z = ZFRENTE - 120 - r() * 160, h = 60 + r() * 90, rr = 40 + r() * 50, seg = 6 + Math.floor(r() * 3), ry = r();
+    montes.push(new THREE.ConeGeometry(rr, h, seg).rotateY(ry).translate(x, h / 2 - 10, z)); picos.push(new THREE.ConeGeometry(rr * 0.32, h * 0.32, seg).rotateY(ry).translate(x, h - 10 - h * 0.16 + 0.5, z)); }
+  add(new THREE.Mesh(mergeGeometries(montes), mont)); add(new THREE.Mesh(mergeGeometries(picos), pico));
 }
 
 // ---------------- ponte fixa ----------------
@@ -188,8 +196,12 @@ export function montarPonte() {
 }
 
 // ---------------- fase ----------------
-const GEO_BLOCO = new THREE.BoxGeometry(9.4, 2.4, 3);
-const GEO_BARREIRA = new THREE.BoxGeometry(10.4, 3.6, 1.4);
+// caixa com só 2 grupos: [lados, faces com o rótulo (cima e frente)] → 2 desenhos por pilha em vez de 6
+function caixa2(w, h, d) { const g = new THREE.BoxGeometry(w, h, d), idx = g.index.array, a = [], b = [];
+  g.groups.forEach(q => (q.materialIndex === 2 || q.materialIndex === 4 ? b : a).push(...idx.slice(q.start, q.start + q.count)));
+  g.setIndex([...a, ...b]); g.clearGroups(); g.addGroup(0, a.length, 0); g.addGroup(a.length, b.length, 1); return g; }
+const GEO_BLOCO = caixa2(9.4, 2.4, 3);
+const GEO_BARREIRA = caixa2(10.4, 3.6, 1.4);
 const MAT_LADO_AZUL = new THREE.MeshLambertMaterial({ color: 0x2a6ad8 }), MAT_LADO_AMAR = new THREE.MeshLambertMaterial({ color: 0xe0a818 }), MAT_MADEIRA = new THREE.MeshLambertMaterial({ color: 0x8a5a2b }), MAT_ROXO = new THREE.MeshLambertMaterial({ color: 0x8a3ad8, emissive: 0x3a0a6a });
 const GEO_POSTE = new THREE.BoxGeometry(1.3, 5.2, 1.3), GEO_PAINEL = new THREE.PlaneGeometry(9.6, 2.8), MAT_POSTE = new THREE.MeshLambertMaterial({ color: 0xe8e8f0 });
 function criarPortao(p) {
@@ -203,14 +215,14 @@ function criarBloco(b, lado) {
   if (b.tipo === 'barreira') {
     const cv = document.createElement('canvas'); cv.width = 256; cv.height = 96; const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
     b.cv = cv; b.tex = t; b.hpMax = b.hp; redesenharBarreira(b);
-    const mf = new THREE.MeshLambertMaterial({ map: t }); b.mesh = new THREE.Mesh(GEO_BARREIRA, [MAT_MADEIRA, MAT_MADEIRA, mf, MAT_MADEIRA, mf, MAT_MADEIRA]);
+    const mf = new THREE.MeshLambertMaterial({ map: t }); b.mesh = new THREE.Mesh(GEO_BARREIRA, [MAT_MADEIRA, mf]);
   } else if (b.tipo === 'poder') {
     const mf = new THREE.MeshLambertMaterial({ map: texRotulo(b.p === 'flecha' ? 'FLECHA +1' : 'RÁPIDO', '#a24ae8', '#5a1a9a') });
-    b.mesh = new THREE.Mesh(GEO_BLOCO, [MAT_ROXO, MAT_ROXO, mf, MAT_ROXO, mf, MAT_ROXO]);
+    b.mesh = new THREE.Mesh(GEO_BLOCO, [MAT_ROXO, mf]);
   } else {
     const amarelo = b.valor >= 10, txt = b.tipo === 'vezes' ? `x${b.valor}` : `+${b.valor}`, fundo = b.tipo === 'vezes' ? '#2bb84a' : amarelo ? '#f2b51a' : '#2f7ae8', borda = b.tipo === 'vezes' ? '#13702a' : amarelo ? '#a8740a' : '#173f9a';
     const mf = new THREE.MeshLambertMaterial({ map: texRotulo(txt, fundo, borda) }), ml = b.tipo === 'vezes' ? new THREE.MeshLambertMaterial({ color: 0x2bb84a }) : amarelo ? MAT_LADO_AMAR : MAT_LADO_AZUL;
-    b.mesh = new THREE.Mesh(GEO_BLOCO, [ml, ml, mf, ml, mf, ml]);
+    b.mesh = new THREE.Mesh(GEO_BLOCO, [ml, mf]);
   }
   b.mesh.castShadow = true; b.mesh.receiveShadow = true; b.mesh.position.set(x, b.tipo === 'barreira' ? 1.8 : 1.2, b.z); cena.add(b.mesh);
 }
@@ -245,17 +257,17 @@ function vistaMapa(dt) {
   MP.montarMapa(cena, { atual: S.fase, biomas: BIOMAS, biomaDe, chefeDe: n => dadosFase(n).chefe.modelo, heroi: heroiAtual(S).visual, heroiK: S.heroi, texAgua, andar: mapaAndar === S.fase });
   if (mapaAndar === S.fase) { mapaAndar = 0; mapaCam = MP.xDaFase(S.fase - 1); }
   const ax = MP.andando(); if (ax != null) { mapaCam += (ax - mapaCam) * Math.min(1, dt * 4); mapaVel = 0; }
-  const x0 = MP.xDaFase(Math.max(1, S.fase - 5)), x1 = MP.xDaFase(S.fase + 7);
+  const x0 = MP.xDaFase(1), x1 = MP.xDaFase(MP.ultimaFase());
   if (mapaCam == null) mapaCam = MP.xDaFase(S.fase);
-  if (!arrastoMapa) { mapaCam += mapaVel * dt; mapaVel *= Math.pow(0.04, dt); }
+  if (!arrastoMapa) { mapaCam += mapaVel * dt; mapaVel *= Math.pow(0.18, dt); } // solta e continua deslizando
   if (mapaCam < x0) { mapaCam += (x0 - mapaCam) * Math.min(1, dt * 8); mapaVel = 0; } if (mapaCam > x1) { mapaCam += (x1 - mapaCam) * Math.min(1, dt * 8); mapaVel = 0; }
-  MP.passoMapa(dt); rotulosMapa();
+  MP.garantirBlocos(mapaCam); MP.passoMapa(dt); rotulosMapa();
 }
 function rotulosMapa() {
   let el = $('#mapaRot'); const ver = tela === 'lobby' && abaLobby === 'home';
   if (!el) { el = document.createElement('div'); el.id = 'mapaRot'; document.body.appendChild(el); }
   el.hidden = !ver; if (!ver) return;
-  const ilhas = MP.ilhas(), k = ilhas.map(i => i.n).join() + '|' + S.fase;
+  const ilhas = MP.ilhas(mapaCam ?? MP.xDaFase(S.fase)), k = ilhas.map(i => i.n).join() + '|' + S.fase;
   if (el.dataset.k !== k) { el.dataset.k = k; const F = dadosFase(S.fase), E = eventoDaFase(S.fase) && EVENTOS[eventoDaFase(S.fase)];
     el.innerHTML = ilhas.map(i => i.n < S.fase ? `<div class="ilhaRot feita" data-n="${i.n}">${ico('check')}<b>${i.n}</b></div>`
       : i.n === S.fase ? `<button class="ilhaRot atual" data-a="jogar" data-n="${i.n}"><small>${tr('FASE')}</small><b>${i.n}</b><em>${ico('chefe')} ${F.chefe.nome}</em>${E ? `<i style="--c:${E.cor}">${ico(E.icone)} ${E.nome}</i>` : ''}</button>`
@@ -267,7 +279,7 @@ document.addEventListener('pointerdown', e => {
   if (tela !== 'lobby' || abaLobby !== 'home' || !$('#janela').hidden || guia || e.target.closest('button, input, .lbBase, .lbTopo, .lbNav, .lbFolha, #janela')) return;
   arrastoMapa = { x0: e.clientX, c0: mapaCam ?? 0, xa: e.clientX, ta: performance.now() }; mapaVel = 0;
 });
-document.addEventListener('pointermove', e => { const A = arrastoMapa; if (!A) return; const k = MP.MAPA.D / (innerWidth * 0.6), now = performance.now();
+document.addEventListener('pointermove', e => { const A = arrastoMapa; if (!A) return; const k = MP.MAPA.D / (innerWidth * 0.32), now = performance.now(); // um arrasto da tela inteira anda ~3 ilhas
   mapaCam = A.c0 - (e.clientX - A.x0) * k; const dtm = Math.max(1, now - A.ta); mapaVel = -(e.clientX - A.xa) * k / (dtm / 1000); A.xa = e.clientX; A.ta = now; });
 document.addEventListener('pointerup', () => { if (arrastoMapa && performance.now() - arrastoMapa.ta > 80) mapaVel = 0; arrastoMapa = null; });
 export function iniciarFase(n, inf = false, semCorrida = false) {
@@ -1530,11 +1542,21 @@ function mostrarDiario() {
     <div class="codigo"><input id="codTxt" maxlength="20" placeholder="Tem um código?"><button class="btn amarelo peq" data-a="resgatar">Usar</button></div><p class="erro" id="codErro"></p>
     <button class="btn azul" data-a="fecharJanela">Fechar</button></div>`;
 }
+// tela de prêmio do código: raios girando, os prêmios pulam um por vez e as moedas voam para o contador
+function premioCodigo(r) {
+  const j = $('#janela'); j.hidden = false; flashTela('#ffe27a', 0.5); som('lendario');
+  const itens = [r.moedas && `<div class="pcItem" style="--d:.25s">${ico('ouro')}<b id="pcMoedas">+0</b><small>${tr('moedas')}</small></div>`,
+    r.comum && `<div class="pcItem" style="--d:.55s">${CQ.ovoHtml('comum')}<b>+${r.comum}</b><small>${tr('Ovo Comum')}</small></div>`,
+    r.magico && `<div class="pcItem" style="--d:.85s">${CQ.ovoHtml('magico')}<b>+${r.magico}</b><small>${tr('Ovo Mágico')}</small></div>`].filter(Boolean);
+  j.innerHTML = `<div class="jOnline jNovo jPremio"><div class="novoRaios"></div><em class="novoTag">${tr('PRÊMIO!')}</em><h2>${ico('presente')} Código resgatado!</h2>
+    <div class="pcItens">${itens.join('')}</div><button class="btn verde grande" data-a="pegarPremio">${ico('check')} Pegar!</button></div>`;
+  [250, 550, 850].slice(0, itens.length).forEach(t => setTimeout(() => sfx('brilho'), t));
+  if (r.moedas) setTimeout(() => contarAte($('#pcMoedas'), r.moedas, 900, '+', fmt), 300);
+}
 async function resgatarCodigo(b) {
   const i = $('#codTxt'), e = $('#codErro'), c = i.value.trim(); if (!c) return; b.disabled = true; e.textContent = '';
   try { const r = await ON.resgatar(c); S.moedas += r.moedas || 0; S.ovos.comum += r.comum || 0; S.ovos.magico += r.magico || 0; salvar(); sfx('vitoria'); som('moedas');
-    e.className = 'ok'; e.textContent = [r.moedas && `+${fmt(r.moedas)} ${tr('moedas')}`, r.comum && `+${r.comum} ${tr('Ovo Comum')}`, r.magico && `+${r.magico} ${tr('Ovo Mágico')}`].filter(Boolean).join(' · '); i.value = '';
-    if (tela === 'lobby') desenharLobby(); }
+    i.value = ''; if (tela === 'lobby') desenharLobby(); premioCodigo(r); return; }
   catch (er) { e.className = 'erro'; e.textContent = er.message; som('erro'); }
   b.disabled = false;
 }
@@ -1547,6 +1569,8 @@ function clique(e) {
   if (a === 'nomeOk') { const ap = ($('#apelido1')?.value || '').trim(), er = $('#nomeErro'); if (ap.length < 2) { som('erro'); er.textContent = tr('Pelo menos 2 letras'); return; }
     b.disabled = true; ON.registrar(ap).then(() => { S.lib.nome = 1; salvar(); sfx('vitoria'); $('#janela').hidden = true; desenharLobby(); toque(`${tr('Bem-vindo,')} ${ap}!`); })
       .catch(e => { b.disabled = false; som('erro'); er.textContent = tr(e.message); const d = document.querySelector('[data-a=nomeDepois]'); if (d) d.hidden = false; }); return; }
+  if (a === 'pegarPremio') { const q = document.querySelector('#pcMoedas')?.getBoundingClientRect(); $('#janela').hidden = true; sfx('vitoria'); som('moedas');
+    if (q) voarMoedas('.lbTopo .pilula.ouro', 14, { x: q.left + q.width / 2, y: q.top + q.height / 2 }); if (tela === 'lobby') desenharLobby(); return; }
   if (a === 'verNovo') { som('confirma'); $('#janela').hidden = true; abaLobby = 'home'; desenharLobby(); setTimeout(() => comecarGuia(b.dataset.novo), 250); return; }
   if (a === 'som') { alternarSom(); som('clique'); if ($('#janela .jConfig')) mostrarConfig(); else desenharLobby(); }
   if (b.dataset.abaLobby) { som('clique'); abaLobby = b.dataset.abaLobby; desenharLobby(); }
@@ -1777,7 +1801,7 @@ export function passo(dt0) {
   let dt = dt0; if (G && G.lento > 0) { G.lento -= dt0; dt = dt0 * 0.25; }
   const t = C.tempo();
   if (tela === 'conq' || tela === 'castelo') { // Conquista (pets lutam sozinhos) e Castelo (defesa da muralha)
-    const M = tela === 'conq' ? CQ : CT; if (tela === 'conq') { CQ.passo(dt0); passoVoo(dt0); } else CT.passo(dt0); const V = M.vista(); foco.x = V.foco.x; foco.z = V.foco.z;
+    MP.mostrarMapa(false); const M = tela === 'conq' ? CQ : CT; if (tela === 'conq') { CQ.passo(dt0); passoVoo(dt0); } else CT.passo(dt0); const V = M.vista(); foco.x = V.foco.x; foco.z = V.foco.z;
     C.camera.yaw = V.yaw; C.camera.pitch = V.pitch; C.camera.dist = V.dist; C.camera.altura = 0; C.camera.suave = 2.5;
     if (texAgua) texAgua.offset.y += dt0 * 0.03;
     if (window.__ov) { Object.assign(C.camera, window.__ov.cam); Object.assign(foco, window.__ov.foco); }
@@ -1808,7 +1832,7 @@ export function passo(dt0) {
   foco.x = final ? 0 : (G ? G.heroi.x : 0) * 0.25; foco.z = final ? G.chefe.z + 14 : -42;
   if (corre && !final) { foco.x = G.heroi.x * 0.3; foco.z = G.corrida.cz - 22; G.heroiV.raiz.position.z = G.corrida.cz; }
   const lobby = tela === 'lobby';
-  if (lobby) { vistaMapa(dt0); foco.x = mapaCam; foco.z = MP.MAPA.z + 6; } else { if (climaMapa && G) { climaMapa = false; aplicarClima(); } const r = $('#mapaRot'); if (r) r.hidden = true; }
+  if (lobby) { MP.mostrarMapa(true); vistaMapa(dt0); foco.x = mapaCam; foco.z = MP.MAPA.z + 6; } else { if (climaMapa && G) { climaMapa = false; aplicarClima(); MP.mostrarMapa(false); } const r = $('#mapaRot'); if (r) r.hidden = true; }
   distCam += ((final ? 62 : corre ? 82 : 106) - distCam) * Math.min(1, dt0 * 2);
   C.camera.yaw = Math.PI; C.camera.pitch = lobby ? 0.6 : 0.9; C.camera.dist = lobby ? 122 : distCam - (G ? G.punch * 7 : 0); C.camera.altura = lobby ? MP.MAPA.y + 1 : 0; C.camera.suave = lobby ? 12 : final ? 2.5 : 4;
   if (G && tela === 'jogo') { posicionarVagas(); passoTutorial(dt0); }

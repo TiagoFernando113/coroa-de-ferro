@@ -2,6 +2,7 @@
 // e os que caem saem voando (boneco inteiro girando) antes de sumir.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import * as C from './cena.js';
 
 const ESC = 1.3, MAXU = 900, MAXV = 320;
 const pinta = (g, c) => {
@@ -20,19 +21,19 @@ function pecas(t) {
   const corpo = [
     pinta(new THREE.CylinderGeometry(0.33, 0.4, 0.72, 8).translate(0, 0.98, 0), roupa),                 // tronco
     pinta(new THREE.CylinderGeometry(0.41, 0.41, 0.12, 8).translate(0, 0.66, 0), 0x5a3a1a),              // cinto
-    pinta(new THREE.SphereGeometry(0.3, 10, 8).translate(0, 1.58, 0), pele),                              // cabeça
+    pinta(new THREE.SphereGeometry(0.3, 8, 6).translate(0, 1.58, 0), pele),                              // cabeça
     pinta(new THREE.CylinderGeometry(0.22, t === 'mago' ? 0.5 : 0.42, t === 'mago' ? 0.7 : 0.5, 8).translate(0, t === 'mago' ? 0.5 : 0.67, 0).scale(1, 1, 0.9), escura), // saia / manto
     pinta(new THREE.CylinderGeometry(0.13, 0.13, 0.45, 6).rotateZ(0.25).translate(-OMBRO_X, 1.08, 0.12), roupa), // outro braço
   ];
   if (t === 'az' || t === 'vm') corpo.push( // escudo redondo
-    pinta(new THREE.CylinderGeometry(0.4, 0.4, 0.09, 12).rotateX(Math.PI / 2).translate(-0.42, 1.0, 0.3), escura),
+    pinta(new THREE.CylinderGeometry(0.4, 0.4, 0.09, 9).rotateX(Math.PI / 2).translate(-0.42, 1.0, 0.3), escura),
     pinta(new THREE.CylinderGeometry(0.2, 0.2, 0.1, 10).rotateX(Math.PI / 2).translate(-0.42, 1.0, 0.36), azul ? 0xffd23a : 0x2a2a2a));
   if (t === 'lanca') corpo.push( // escudo grande retangular
     pinta(new THREE.BoxGeometry(0.62, 0.95, 0.1).translate(-0.42, 1.0, 0.34), 0xd8dde6),
     pinta(new THREE.BoxGeometry(0.5, 0.12, 0.12).translate(-0.42, 1.05, 0.38), 0x2f74e0));
   if (t === 'arco') corpo.push(pinta(new THREE.BoxGeometry(0.22, 0.6, 0.22).rotateX(0.3).translate(0.1, 1.15, -0.32), 0x7a4a20)); // aljava
   if (t === 'az') corpo.push( // elmo de cavaleiro com penacho
-    pinta(new THREE.SphereGeometry(0.33, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2).translate(0, 1.62, 0), metal),
+    pinta(new THREE.SphereGeometry(0.33, 8, 4, 0, Math.PI * 2, 0, Math.PI / 2).translate(0, 1.62, 0), metal),
     pinta(new THREE.BoxGeometry(0.08, 0.2, 0.36).translate(0, 1.96, -0.04), 0xffd23a),
     pinta(new THREE.BoxGeometry(0.42, 0.05, 0.05).translate(0, 1.6, 0.29), 0x3a3f45));
   if (t === 'arco') corpo.push(pinta(new THREE.ConeGeometry(0.36, 0.55, 8).translate(0, 1.88, -0.04), escura)); // capuz
@@ -45,7 +46,7 @@ function pecas(t) {
     pinta(new THREE.ConeGeometry(0.3, 0.8, 10).rotateX(-0.15).translate(0, 2.18, -0.05), roupa),
     pinta(new THREE.CylinderGeometry(0.31, 0.31, 0.08, 10).translate(0, 1.84, 0), 0xffd23a));
   if (t === 'vm') corpo.push( // orc: capacete com chifres e presas
-    pinta(new THREE.SphereGeometry(0.33, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2).translate(0, 1.64, 0), 0x3a2a22),
+    pinta(new THREE.SphereGeometry(0.33, 8, 4, 0, Math.PI * 2, 0, Math.PI / 2).translate(0, 1.64, 0), 0x3a2a22),
     pinta(new THREE.ConeGeometry(0.08, 0.36, 6).rotateZ(-0.9).translate(0.36, 1.9, 0), 0xf0e6d0),
     pinta(new THREE.ConeGeometry(0.08, 0.36, 6).rotateZ(0.9).translate(-0.36, 1.9, 0), 0xf0e6d0),
     pinta(new THREE.ConeGeometry(0.04, 0.12, 4).translate(0.1, 1.5, 0.27), 0xffffff),
@@ -80,7 +81,7 @@ const voando = [];
 export function criarTropas(c) {
   cena = c; const mat = new THREE.MeshLambertMaterial({ vertexColors: true });
   for (const t of TIPOS) {
-    const g = pecas(t), mk = (geo, n) => { const m = new THREE.InstancedMesh(geo, mat, n); m.count = 0; m.castShadow = true; m.frustumCulled = false; cena.add(m); return m; };
+    const g = pecas(t), mk = (geo, n) => { const m = new THREE.InstancedMesh(geo, mat, n); m.count = 0; m.castShadow = C.qualidadeAtual() === 'alta'; m.frustumCulled = false; /* sombra de centenas de soldados pesa: só no gráfico Bonito */ cena.add(m); return m; };
     const n = t === 'az' || t === 'vm' ? MAXU : 400, nv = t === 'az' || t === 'vm' ? MAXV : 120;
     T[t] = { corpo: mk(g.corpo, n), pe: mk(g.perna, n), pd: mk(g.perna, n), braco: mk(g.braco, n), voo: mk(g.inteiro, nv), max: n, maxV: nv };
   }
