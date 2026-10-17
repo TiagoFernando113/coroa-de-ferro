@@ -564,11 +564,13 @@ const liberado = id => !S.lib || S.lib.todos || (S.melhor || 0) >= faseLibera(id
 const toque = txt => { const t = document.createElement('div'); t.className = 'toast'; t.textContent = tr(txt); document.body.appendChild(t); setTimeout(() => t.remove(), 1800); };
 // tutorial: escurece a tela e deixa só o alvo aceso, com uma mãozinha e um balão
 const PASSOS_LIB = {
-  baus: [{ alvo: '.slotBau[data-bau]', txt: 'Você ganhou um baú! Toque para abrir' }],
-  up: [{ alvo: '[data-aba-lobby=up]', txt: 'Toque em Melhorias' }, { alvo: '.up.pode, .up', txt: 'Cada melhoria deixa o exército mais forte. Toque para comprar!' }],
+  baus: [{ alvo: '.slotBau[data-bau]', txt: 'Você ganhou um baú! Toque para abrir' }, { txt: 'Baús dão moedas e cartas para subir o nível dos poderes e das tropas. Toda vitória dá um baú (cabem 4 guardados)!' }],
+  up: [{ alvo: '[data-aba-lobby=up]', txt: 'Toque em Melhorias' }, { alvo: '.up.pode, .up', txt: 'Cada melhoria deixa o exército mais forte. Toque para comprar!' },
+    { txt: 'Tiro rápido: o herói atira mais vezes. Flechas por tiro: mais flechas de uma vez. Exército: mais soldados no começo. Muralha: mais vida. Escudos: soldados sobrevivem às lutas.' }],
   pets: [{ alvo: '[data-aba-lobby=pets]', txt: 'Toque em Pets' }, { alvo: '.ptOvo[data-ovo]', txt: 'Você ganhou um ovo! Toque para chocar' }, { txt: 'Os pets da equipe seguem o herói, atiram junto e dão bônus. Junte 3 iguais para ganhar uma estrela!' }],
-  cartas: [{ alvo: '[data-aba-lobby=cartas]', txt: 'Toque em Heróis' }, { txt: 'Cada herói tem um ataque e um poder diferente. Junte cartas para subir o nível dos poderes!' }],
-  missoes: [{ alvo: '.lbTopo .missoes', txt: 'Toque nas Missões' }, { txt: 'Complete missões para ganhar moedas e subir no passe de prêmios!' }],
+  cartas: [{ alvo: '[data-aba-lobby=cartas]', txt: 'Toque em Heróis' }, { txt: 'Cada herói tem um ataque e um poder diferente. Junte cartas para subir o nível dos poderes!' },
+    { txt: 'As tropas (arqueiros, lanceiros e magos) também sobem com cartas e entram na batalha junto com os soldados.' }],
+  missoes: [{ alvo: '.lbTopo .missoes', txt: 'Toque nas Missões' }, { txt: 'Complete missões para ganhar moedas e subir no passe de prêmios! Novas missões chegam todo dia e toda semana.' }],
   conquista: [{ alvo: '[data-a=modos]', txt: 'Toque em Modos' }, { alvo: '[data-modo=conquista]', txt: 'Na Conquista seus pets lutam sozinhos e juntam moedas até com o jogo fechado!' }],
   rank: [{ alvo: '[data-aba-lobby=rank]', txt: 'Toque em Ranking' }, { txt: 'Suba de fase e vença no modo Sem fim para aparecer no topo do mundo!' }],
   dupla: [{ alvo: '[data-a=modos]', txt: 'Toque em Modos' }, { alvo: '[data-modo=dupla]', txt: 'Na Dupla você joga junto com um amigo: chame pelo WhatsApp!' }],
@@ -1743,17 +1745,25 @@ function comecarFase(inf = false, dupla = null) {
   if (G.corrida) { faixa('CORRIDA! ARRASTE PARA ESCOLHER', '#ffd84a'); $('#jDica').textContent = 'Arraste: atire nos barris, escolha portões, fuja das serras'; }
 }
 // ---- tutorial da primeira partida: balão com dica + mãozinha apontando ----
-const PASSOS_TUT = [
+const naTela = sel => { const e = document.querySelector(sel); if (!e || e.offsetParent === null || e.style.display === 'none') return null; const r = e.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; };
+const PASSOS_TUT = [ // pular: passo que não faz sentido agora (ex.: não tem pilha roxa) é saltado
   { txt: 'Arraste o dedo para mover o herói', ok: T => Math.abs(G.heroi.x - T.x0) > 6, alvo: () => ({ arrasta: true }) },
-  { txt: 'As flechas saem sozinhas: acerte as pilhas +N para ganhar soldados', ok: T => T.pilhas >= 2, alvo: () => { const b = G.pistas.flat().sort((a, c) => c.z - a.z)[0]; return b && C.tela(b.mesh.position.x, 3, b.z); } },
-  { txt: 'Seus soldados (azul) marcham sozinhos contra os orcs (vermelho)', ok: T => T.t > 4, alvo: () => G.az[0] && C.tela(G.az[0].x, 2, G.az[0].z) },
-  { txt: 'Orcs derrotados dão ouro: toque no + para construir uma torre', ok: T => T.torre || T.t > 12, alvo: () => { const e = document.querySelector('.vaga.pode') || document.querySelector('.vaga'); if (!e || e.style.display === 'none') return null; const r = e.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }, quando: () => G.ouro >= 25 },
-  { txt: 'Use o poder do herói quando estiver pronto!', ok: T => T.poder || T.t > 10, alvo: () => { const r = document.querySelector('[data-pd=chuva]')?.getBoundingClientRect(); return r && [r.left + r.width / 2, r.top + r.height / 2]; }, quando: () => G.pd.chuva.cd <= 0 },
-  { txt: 'Derrote o chefe no fim da ponte antes que ele derrube sua muralha!', ok: T => T.t > 5, alvo: () => C.tela(0, 8, G.chefe.z) },
+  { txt: 'As flechas saem sozinhas. Mire nas pilhas: +N dá soldados e x2 dobra o seu exército!', ok: T => T.pilhas >= 2, alvo: () => { const b = G.pistas.flat().sort((a, c) => c.z - a.z)[0]; return b && C.tela(b.mesh.position.x, 3, b.z); } },
+  { txt: 'Pilha roxa é bônus do herói: FLECHA +1 atira mais flechas e RÁPIDO atira mais depressa', ok: T => T.t > 6, pular: () => !G.pistas.some(p => p.slice(0, 4).some(b => b.tipo === 'poder')),
+    alvo: () => { const b = G.pistas.flatMap(p => p.slice(0, 4)).find(b => b.tipo === 'poder'); return b && C.tela(b.mesh.position.x, 3, b.z); } },
+  { txt: 'Seus soldados (azul) marcham sozinhos e lutam com os orcs (vermelho). Quanto mais soldados, melhor!', ok: T => T.t > 5, alvo: () => G.az[0] && C.tela(G.az[0].x, 2, G.az[0].z) },
+  { txt: 'Orc que chega na muralha tira vida dela. Se a muralha cair, você perde!', ok: T => T.t > 5, alvo: () => naTela('#jMuroB') },
+  { txt: 'Orcs derrotados dão ouro: toque no + ao lado da ponte para construir uma torre', ok: T => T.torre || G.menuVaga != null || T.t > 14, alvo: () => naTela('.vaga.pode') || naTela('.vaga'), quando: () => G.ouro >= 25 },
+  { txt: 'Balista: tiro rápido em um orc. Catapulta: mais lenta, mas acerta vários de uma vez. Escolha uma!', ok: T => T.torre || T.t > 10, pular: T => T.torre || G.menuVaga == null, alvo: () => naTela('#jMenuT button') },
+  { txt: 'Toque de novo na torre (quando tiver ouro) para subir de nível até ★★★: ela fica mais forte!', ok: T => T.t > 6, pular: T => !T.torre, alvo: () => { const v = G.vagas.find(q => q.tipo); return v && C.tela(v.x, 1.5, v.z); } },
+  { txt: 'O botão de poder acende quando está pronto: toque para usar o poder do seu herói!', ok: T => T.poder || T.t > 10, alvo: () => naTela('[data-pd=chuva]'), quando: () => G.pd.chuva.cd <= 0 },
+  { txt: 'O Gigante aliado avança derrubando orcs e luta com o chefe. Use quando os orcs apertarem!', ok: T => T.t > 7, alvo: () => naTela('[data-pd=gigante]'), quando: () => G.pd.gigante.cd <= 0 },
+  { txt: 'Derrote o chefe no fim da ponte antes que ele chegue na muralha. Boa sorte!', ok: T => T.t > 5, alvo: () => C.tela(0, 8, G.chefe.z) },
 ];
 function passoTutorial(dt) {
   const T = G?.tut, el = $('#tut'); if (!T || G.fim) { if (el) el.hidden = true; return; }
   const P = PASSOS_TUT[T.passo]; if (!P) { G.tut = null; S.tut = true; salvar(); el.hidden = true; return; }
+  if (P.pular?.(T)) { T.passo++; T.t = 0; return; }
   if (P.quando && !P.quando()) { el.hidden = true; return; }
   T.t += dt; el.hidden = false;
   if (el.dataset.passo !== String(T.passo)) { el.dataset.passo = T.passo; el.querySelector('.tutBalao').textContent = tr(P.txt); el.querySelector('.tutBalao').classList.remove('entra'); void el.offsetWidth; el.querySelector('.tutBalao').classList.add('entra'); }
