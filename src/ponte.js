@@ -476,7 +476,7 @@ function limparFase() {
   for (const tn of G.tornados) cena.remove(tn.o); for (const fg of G.fogos) cena.remove(fg.o); if (G.chefe?.bolha) cena.remove(G.chefe.bolha); for (const c of G.chuvas) if (c.o) cena.remove(c.o); if (G.escudoO) cena.remove(G.escudoO);
   for (const v of G.vagas) { cena.remove(v.base); if (v.o) cena.remove(v.o); }
   for (const s of G.tiros) cena.remove(s.o); for (const m of G.meteoros || []) cena.remove(m.o);
-  if (G.forquilha) cena.remove(G.forquilha);
+  if (G.forquilha) { cena.remove(G.forquilha); G.forquilha.geometry.dispose(); }
   for (const k in texCache) { texCache[k].dispose(); delete texCache[k]; } // rótulos das pilhas e portões da fase
   limparTropas(); G = null;
 }

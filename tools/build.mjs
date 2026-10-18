@@ -5,7 +5,7 @@ const AQUI = path.dirname(fileURLToPath(import.meta.url));
 await build({
   entryPoints: [path.join(AQUI, '..', 'src', 'main.js')],
   outfile: path.join(AQUI, '..', 'jogo.js'),
-  bundle: true, minify: true, format: 'iife', target: ['es2019'], legalComments: 'none',
+  bundle: true, minify: !process.env.DEBUG, keepNames: !!process.env.DEBUG, format: 'iife', target: ['es2019'], legalComments: 'none',
   nodePaths: [path.join(AQUI, 'node_modules')],
   logLevel: 'info',
 });

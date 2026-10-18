@@ -564,7 +564,7 @@ export function heroi(v) {
   const ossos = H.nomes.map(n => rig.name === n ? rig : rig.getObjectByName(n));
   const esq = new THREE.Skeleton(ossos, H.inversos);
   const cabeca = ossos[H.nomes.indexOf('head')], bracos = ['upperarml', 'upperarmr'].map(n => ossos[H.nomes.indexOf(n)]).filter(Boolean);
-  let malhas = [], armas = [], mats = [], visual = v;
+  let malhas = [], armas = [], mats = [], geos = [], visual = v; // geos: só as dos acessórios (o resto é do kit, compartilhado)
   const mixer = new THREE.AnimationMixer(corpo), atualizarMixer = mixer.update.bind(mixer);
   mixer.update = dt => { // escala da cabeça e dos braços por cima da animação
     cabeca.scale.set(1, 1, 1); for (const b of bracos) b.scale.set(1, 1, 1);
@@ -577,7 +577,7 @@ export function heroi(v) {
   const acao = n => { n = H.clips[n] ? n : APELIDOS[n]; if (!n || !H.clips[n]) return null; return acoes[n] || (acoes[n] = mixer.clipAction(H.clips[n])); };
   function vestir(nv) {
     visual = nv;
-    for (const m of malhas) corpo.remove(m); for (const a of armas) a.parent?.remove(a); malhas = []; armas = []; mats = [];
+    for (const m of malhas) corpo.remove(m); for (const a of armas) a.parent?.remove(a); for (const m of mats) m.dispose(); for (const g of geos) g.dispose(); malhas = []; armas = []; mats = []; geos = [];
     // cor principal sorteada dos heróis da guilda: na zona maior do tronco
     const extra = {};
     if (nv.tinta) { const pt = H.partes[nv.tro + ':Body']; const z = pt?.zonas.find(z => { const [cx, cy] = z.split(',').map(Number); return !pt.atlas.pele[cy * 8 + cx]; }); if (z) extra[pt.atlas.id + ':' + z] = nv.tinta; }
@@ -596,7 +596,7 @@ export function heroi(v) {
       const r = ROT_ARMA[id]; if (r) a.rotation.set(r[0], r[1], r[2]);
       const osso = ossos[H.nomes.indexOf('handslot' + lado)]; if (osso) { osso.add(a); armas.push(a); }
     }
-    for (const [osso, l] of Object.entries(acessorios(nv))) { const o = ossos[H.nomes.indexOf(osso)]; if (!o) continue; for (const m of l) { o.add(m); armas.push(m); m.traverse(x => { if (x.isMesh) mats.push(x.material); }); } }
+    for (const [osso, l] of Object.entries(acessorios(nv))) { const o = ossos[H.nomes.indexOf(osso)]; if (!o) continue; for (const m of l) { o.add(m); armas.push(m); m.traverse(x => { if (x.isMesh) { mats.push(x.material); geos.push(x.geometry); } }); } }
     corpo.scale.set(ESC_HEROI * (nv.larg || 1), ESC_HEROI * (nv.alt || 1), ESC_HEROI * (nv.larg || 1));
   }
   vestir(v);
@@ -615,7 +615,7 @@ export function heroi(v) {
       atual = a; nomeAtual = n;
     },
     get anim() { return nomeAtual; },
-    remover() { scene.remove(raiz); mixer.stopAllAction(); liberar(raiz, mats); },
+    remover() { scene.remove(raiz); mixer.stopAllAction(); liberar(raiz, mats); for (const g of geos) g.dispose(); },
     brilho(x) { if (x === P._b) return; P._b = x; for (const m of mats) m.emissive?.setScalar(x); },
   };
   return P;
@@ -844,7 +844,7 @@ export function quadrosAnim(fonte, anim, { n = 12, tam = 112, cor = null, chave 
   const b = new THREE.Box3(); for (let i = 0; i < 6; i++) { mixer.setTime(0.01 + i * dur / 6); b.union(caixaPose(obj)); } mixer.setTime(0.01); // enquadra a animação inteira
   const c = b.getCenter(new THREE.Vector3()), sz = b.getSize(new THREE.Vector3()), r = Math.max(sz.y, sz.x * 0.85) * 0.56;
   const cm = new THREE.PerspectiveCamera(30, 1, 0.1, 100), d = r / Math.tan(Math.PI / 12); cm.position.set(c.x, c.y + r * 0.15, c.z + d); cm.lookAt(c.x, c.y, c.z);
-  const rt = new THREE.WebGLRenderTarget(tam, tam, { samples: 4 }); rt.texture.colorSpace = THREE.SRGBColorSpace;
+  const rt = new THREE.WebGLRenderTarget(tam, tam, { samples: qualidade === 'baixa' ? 0 : 4 }); rt.texture.colorSpace = THREE.SRGBColorSpace;
   const fundoAntes = renderer.getClearColor(new THREE.Color()), alfaAntes = renderer.getClearAlpha(), px = new Uint8Array(tam * tam * 4), q = [];
   const srgb = v => Math.round(255 * (v <= 0.0031308 ? 12.92 * v : 1.055 * v ** (1 / 2.4) - 0.055));
   for (let i = 0; i < n; i++) {
@@ -855,9 +855,11 @@ export function quadrosAnim(fonte, anim, { n = 12, tam = 112, cor = null, chave 
       if (!al) continue; for (let ci = 0; ci < 3; ci++) im.data[o + ci] = srgb(Math.min(1, px[a0 + ci] / al)); im.data[o + 3] = al; }
     g.putImageData(im, 0, 0); q.push(cv);
   }
-  renderer.setRenderTarget(null); renderer.setClearColor(fundoAntes, alfaAntes); rt.dispose(); h?.remover();
+  renderer.setRenderTarget(null); renderer.setClearColor(fundoAntes, alfaAntes); rt.dispose(); if (h) h.remover(); else soltarCopia(obj, cor != null);
   return (retratos[k] = { q, dur });
 }
+// cópia usada só para tirar a foto: libera a textura dos ossos (e os materiais pintados) na GPU
+function soltarCopia(raiz, mats) { const vistos = new Set(); raiz.traverse(o => { if (o.isSkinnedMesh && !vistos.has(o.skeleton)) { vistos.add(o.skeleton); o.skeleton.dispose(); } if (mats && o.isMesh) o.material.dispose(); }); }
 export function retrato(nome, { cor = null, tam = 160, anim = 'Idle', tempo = 0.4 } = {}) {
   const k = nome + (cor ?? '') + tam + anim + tempo; if (retratos[k]) return retratos[k];
   const gltf = modelos[nome]; if (!gltf || !renderer) return '';
@@ -868,11 +870,11 @@ export function retrato(nome, { cor = null, tam = 160, anim = 'Idle', tempo = 0.
   const b = caixaPose(corpo), c = b.getCenter(new THREE.Vector3()), s = b.getSize(new THREE.Vector3()), r = Math.max(s.y, s.x * 0.9) * 0.62;
   const cm = new THREE.PerspectiveCamera(30, 1, 0.1, 100), d = r / Math.tan(Math.PI / 12);
   cm.position.set(c.x, c.y + r * 0.25, c.z + d); cm.lookAt(c.x, c.y, c.z);
-  const rt = new THREE.WebGLRenderTarget(tam, tam, { samples: 4 }); rt.texture.colorSpace = THREE.SRGBColorSpace;
+  const rt = new THREE.WebGLRenderTarget(tam, tam, { samples: qualidade === 'baixa' ? 0 : 4 }); rt.texture.colorSpace = THREE.SRGBColorSpace;
   const fundoAntes = renderer.getClearColor(new THREE.Color()), alfaAntes = renderer.getClearAlpha();
   renderer.setRenderTarget(rt); renderer.setClearColor(0x000000, 0); renderer.clear(); renderer.render(cn, cm);
   const px = new Uint8Array(tam * tam * 4); renderer.readRenderTargetPixels(rt, 0, 0, tam, tam, px);
-  renderer.setRenderTarget(null); renderer.setClearColor(fundoAntes, alfaAntes); rt.dispose();
+  renderer.setRenderTarget(null); renderer.setClearColor(fundoAntes, alfaAntes); rt.dispose(); soltarCopia(corpo, cor != null);
   const cv = document.createElement('canvas'); cv.width = cv.height = tam; const g = cv.getContext('2d'), im = g.createImageData(tam, tam);
   // o alvo guarda cor linear e pré-multiplicada; WebGL lê de baixo para cima
   const srgb = v => Math.round(255 * (v <= 0.0031308 ? 12.92 * v : 1.055 * v ** (1 / 2.4) - 0.055));
