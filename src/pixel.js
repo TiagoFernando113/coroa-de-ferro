@@ -38,10 +38,11 @@ function sombrear(T, mats) {
     const gx = f(c.x + 1, c.y) - f(c.x - 1, c.y), gy = f(c.x, c.y + 1) - f(c.x, c.y - 1), nl = Math.hypot(gx, gy, 2), s = (-gx * LX - gy * LY + 2 * LZ) / nl;
     const M = mats[c.m] || { cor: '#ff00ff' }; let t = s > 0.8 ? 4 : s > 0.6 ? 3 : s > 0.3 ? 2 : 1;
     if (M.trama && (((c.x + c.y * 2) % 4) + 4) % 4 === 0) t = Math.max(1, t - 1); if (M.ruido && (((c.x * 7 + c.y * 13) % 5) + 5) % 5 === 0) t = Math.max(1, t - 1); if (M.liso) t = Math.max(2, Math.min(3, t));
-    g[c.y - y0][c.x - x0] = { c: rampa(M.cor)[t], luz: !!M.luz, m: c.m }; }
+    const n = d.get(c) || 1, z = c.modo === 'aresta' ? 1.4 + Math.min(n - 1, 4) * 1.15 : c.modo === 'redondo' ? 2 + Math.sqrt(n) * 1.5 : c.modo === 'plano' ? 2.4 : 2.2 + Math.min(n - 1, c.modo === 'bevel3' ? 3 : 2) * 1.1; // espessura: mais grossa no meio
+    g[c.y - y0][c.x - x0] = { c: rampa(M.cor)[t], luz: !!M.luz, m: c.m, z }; }
   // contorno da cor mais escura do material vizinho
   const out = []; for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (!g[y][x]) for (const [a, b] of V4) { const q = g[y + b]?.[x + a]; if (q) { out.push([x, y, rampa(mats[q.m]?.cor || '#000')[0]]); break; } }
-  for (const [x, y, c] of out) g[y][x] = { c, cont: true };
+  for (const [x, y, c] of out) { let z = 1; for (const [a, b] of V4) z = Math.max(z, (g[y + b]?.[x + a]?.z || 0) - 0.6); g[y][x] = { c, cont: true, z }; } // contorno acompanha a espessura do vizinho
   return { g, ox: -x0, oy: -y0 };
 }
 
@@ -131,7 +132,7 @@ function geos(chave) {
   if (cache.has(chave)) return cache.get(chave);
   const { g, ox, oy } = desenho(chave), base = [], luz = [], cor = new THREE.Color();
   for (let y = 0; y < g.length; y++) for (let x = 0; x < g[0].length; x++) { const c = g[y][x]; if (!c) continue;
-    const bx = new THREE.BoxGeometry(PX, PX, PX * (c.cont ? 1.3 : 1.9)).translate((x - ox) * PX, (y - oy) * PX, 0); bx.deleteAttribute('uv'); bx.deleteAttribute('normal');
+    const bx = new THREE.BoxGeometry(PX, PX, PX * c.z * 1.25).translate((x - ox) * PX, (y - oy) * PX, 0); bx.deleteAttribute('uv'); bx.deleteAttribute('normal');
     cor.set(c.c); const n = bx.attributes.position.count, a = new Float32Array(n * 3); for (let i = 0; i < n; i++) a.set([cor.r, cor.g, cor.b], i * 3); bx.setAttribute('color', new THREE.BufferAttribute(a, 3)); (c.luz ? luz : base).push(bx); }
   const junta = l => { if (!l.length) return null; const m = mergeGeometries(l); m.computeVertexNormals(); return m; };
   const r = { base: junta(base), luz: junta(luz) }; cache.set(chave, r); return r;
