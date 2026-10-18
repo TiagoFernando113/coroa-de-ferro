@@ -51,6 +51,9 @@ export const mapaReforcar = comConta((slot, tipo, alvo, cam, dur) => rpc('ponte_
 export const mapaRally = comConta((slot, tipo, alvo, px, py, cam, dur, cam0, dur0) => rpc('ponte_mapa_rally', { ...id(), p_slot: slot, p_tipo: tipo, p_alvo: alvo, p_px: px, p_py: py, p_cam: cam, p_dur: dur, p_cam0: cam0, p_dur0: dur0 }));
 export const mapaRallyEntrar = comConta((slot, rally, cam, dur) => rpc('ponte_mapa_rally_entrar', { ...id(), p_slot: slot, p_rally: rally, p_cam: cam, p_dur: dur }));
 export const mapaCaixa = comConta(() => rpc('ponte_mapa_caixa', id()));
+export const defEntrar = comConta(() => rpc('ponte_def_entrar', id()));
+export const defPing = comConta((sala, n, onda, aberta) => rpc('ponte_def_ping', { ...id(), p_sala: sala, p_n: n, p_onda: onda, p_aberta: aberta }));
+export const defAbertas = () => rpc('ponte_def_abertas');
 export const liga = comConta(() => rpc('ponte_liga_ver', id()));
 export const mapaBots = comConta(ordens => rpc('ponte_mapa_bots', { ...id(), p_ordens: ordens }));
 
@@ -163,6 +166,7 @@ export function conectarSala(sala, aoReceber, host = false) {
     get direto() { return ok(); },
   };
 }
+export const salaGrupo = (sala, aoReceber) => salaSupabase(sala, aoReceber); // várias pessoas na mesma sala (Defesa em Grupo)
 function salaSupabase(sala, aoReceber) {
   // sala de tempo real da dupla; se a internet oscilar, reconecta sozinha (até ~20 s) antes de desistir
   const topico = `realtime:ponte-${sala}`;
