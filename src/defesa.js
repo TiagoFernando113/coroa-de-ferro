@@ -15,6 +15,7 @@ import { ico, som, $, voarMoedas, flashTela } from './util.js';
 import { t as tr } from './i18n.js';
 import * as ON from './online.js';
 import * as A from './analise.js';
+import * as EQ from './equip.js';
 
 const OX = -6000, cn = () => C.obterCena();
 // caminho dos inimigos (zigue-zague) e lugares de torre
@@ -158,14 +159,17 @@ export function abrir(container, sair, modo = 'caminho') {
   const base = Math.round((modo === 'arvore' ? 300 : 100) * (1 + 0.15 * up.vida)); K.base = K.baseMax = base;
   K.heroi = { x: OX, z: 22, dir: Math.PI, cd: 0.6, cad: 1 / (tiros(up.fogo) * H.ataque.cad * 0.6 * (1 + (B.tiro || 0) / 100)), dano: 3 * H.ataque.dano * (1 + up.flechas * 0.35),
     area: H.ataque.area, perf: H.ataque.perf, cor: H.ataque.cor, alc: 15, anda: false, tiroT: 9, habT: 5, forma: /flecha|virote|adaga/.test(H.ataque.proj) ? 'flecha' : 'orbe' };
-  K.heroi.hp = K.heroi.hpMax = Math.round(100 * (1 + 0.2 * up.vida) * (1 + (B.vida || 0) / 100)); if (modo === 'arvore') { K.heroi.x = ARV.x; K.heroi.z = ARV.z + 9; }
+  K.heroi.hp = K.heroi.hpMax = Math.round(100 * (1 + 0.2 * up.vida) * (1 + (B.vida || 0) / 100));
+  // equipamentos (arma, armadura, anel, amuleto)
+  const G = EQ.atributos(); K.eqA = G; K.poderEq = EQ.poder(); K.rarEq = EQ.melhorRaridade();
+  K.heroi.dano *= 1 + G.dano / 100; K.heroi.cad /= 1 + G.cad / 100; K.heroi.hp = K.heroi.hpMax = Math.round(K.heroi.hpMax + G.vida); if (modo === 'arvore') { K.heroi.x = ARV.x; K.heroi.z = ARV.z + 9; }
   K.v = C.heroi(H.visual); K.v.raiz.scale.setScalar(0.8); K.H = H;
   K.cena = modo === 'arvore' ? montarArvore() : montarCenario(); C.ceu(0x9ad8f8); C.neblina(90, 220); C.diaNoite(0); intensidade(1); A.comecou(modo === 'arvore' ? 'arvore' : 'defesa');
   desenhar(); ligarToque(); conectar();
 }
 export function fechar() {
   if (!K) return; try { K.canal?.enviar('tchau', { p: K.eu }); } catch (e) {} setTimeout(((c) => () => c?.fechar())(K.canal), 300);
-  K.v.remover(); for (const j of K.jogs.values()) j.v?.remover(); for (const u of K.mobs) u.v?.remover(); for (const s of K.tiros) cn().remove(s.o); for (const r of K.raios) cn().remove(r.o); if (K.anel) { cn().remove(K.anel); K.anel.material.dispose(); } for (const m of Object.values(K.vis || {})) C.descartar(m); for (const t of K.torres.values()) cn().remove(t.o);
+  K.v.remover(); for (const j of K.jogs.values()) { j.v?.remover(); if (j.aro) cn().remove(j.aro); } if (K.aroEu) cn().remove(K.aroEu); for (const u of K.mobs) u.v?.remover(); for (const s of K.tiros) cn().remove(s.o); for (const r of K.raios) cn().remove(r.o); if (K.anel) { cn().remove(K.anel); K.anel.material.dispose(); } for (const m of Object.values(K.vis || {})) C.descartar(m); for (const t of K.torres.values()) cn().remove(t.o);
   C.descartar(K.cena[0]); C.removerGrupo(K.cena[1]); desligarToque(); limparTropas(); K = null; if (el) { el.hidden = true; el.innerHTML = ''; }
 }
 export const ativo = () => !!K;
@@ -185,7 +189,7 @@ function comecarSolo() { K.host = true; K.pronto = true; K.estado = 'pausa'; K.p
 function receber(ev, p) {
   if (!K) return;
   if (ev === 'h') { if (p.p === K.eu) return; let j = K.jogs.get(p.p); if (!j) { j = { p: p.p, nome: p.n || '?', h: p.h || 'lyra', x: p.x, z: p.z, r: p.r }; K.jogs.set(p.p, j); }
-    Object.assign(j, { tx: p.x, tz: p.z, r: p.r, visto: performance.now() }); if (p.n) j.nome = p.n; if (p.a >= 0) j.atira = p.a; return; }
+    Object.assign(j, { tx: p.x, tz: p.z, r: p.r, visto: performance.now() }); if (p.n) j.nome = p.n; if (p.a >= 0) j.atira = p.a; if (p.g != null) { j.g = p.g; j.rr = p.rr; } return; }
   if (K.host) {
     if (ev === 'oi') { if (!K.jogs.has(p.p) && K.jogs.size >= (K.modo === 'arvore' ? 5 : 3)) return; let j = K.jogs.get(p.p); if (!j) { j = { p: p.p, nome: p.n, h: p.h, x: OX, z: 22, tx: OX, tz: 22, visto: performance.now() }; K.jogs.set(p.p, j); toast(`${p.n} ${tr('entrou!')}`); sfx('brilho'); }
       if (!j.somou) { j.somou = true; K.cofre += 100; } K.canal.enviar('pl', { l: lista() }); K.canal.enviar('tw', { l: listaTorres() }); return; }
@@ -275,7 +279,7 @@ function vender(pad) {
 // ---- poder do herói: explosão em volta dele (recarga de 20 s) ----
 const RECARGA_HAB = 20;
 function usarHabilidade() {
-  const h = K.heroi; if (h.habT > 0 || K.estado === 'fim') { som('erro'); return; } h.habT = RECARGA_HAB;
+  const h = K.heroi; if (h.habT > 0 || K.estado === 'fim' || h.morto) { som('erro'); return; } h.habT = RECARGA_HAB * (1 - K.eqA.recarga / 100);
   sfx('magia'); C.camera.tremor = 0.6; C.onda(h.x, h.z, 12, h.cor, 0.5); C.onda(h.x, h.z, 7, 0xffffff, 0.35); C.faiscas(h.x, 2, h.z, h.cor, 40, 9);
   if (K.v.tem('Spellcast_Raise') || K.v.tem(K.H.tiro)) K.v.tocar(K.v.tem('Spellcast_Raise') ? 'Spellcast_Raise' : K.H.tiro, { loop: false, reinicia: true });
   K.banner = { txt: (K.H.poder?.nome || 'Poder').toUpperCase() + '!', cor: '#ffd84a', t: 0 };
@@ -385,7 +389,7 @@ export function passo(dt) {
   if (K.baseAnt != null && K.base < K.baseAnt - 0.5) { flashTela('#ff3a2a', 0.22); C.camera.tremor = Math.max(C.camera.tremor, 0.35); K.txt.push({ x: OX, y: 9, z: 33, txt: `-${Math.round(K.baseAnt - K.base)}`, cor: '#ff6a5a', t: 0 }); } K.baseAnt = K.base;
   // rede: herói (todos), foto da partida (anfitrião), dano (clientes)
   if (K.canal) {
-    if ((K.tH -= dt) <= 0) { K.tH = 0.1; const h = K.heroi; K.canal.enviar('h', { p: K.eu, n: K.nome, h: S.heroi || 'lyra', x: Math.round(h.x * 10) / 10, z: Math.round(h.z * 10) / 10, r: Math.round(h.dir * 100) / 100, a: K.atirou ?? -1 }); K.atirou = null; }
+    if ((K.tH -= dt) <= 0) { K.tH = 0.1; const h = K.heroi; K.canal.enviar('h', { p: K.eu, n: K.nome, h: S.heroi || 'lyra', x: Math.round(h.x * 10) / 10, z: Math.round(h.z * 10) / 10, r: Math.round(h.dir * 100) / 100, a: K.atirou ?? -1, g: K.poderEq, rr: K.rarEq }); K.atirou = null; }
     if (K.host && (K.tS -= dt) <= 0) { K.tS = 0.25; K.canal.enviar('s', { o: K.onda, e: K.estado, pt: Math.round(K.pausaT * 10) / 10, b: Math.round(K.base), bm: K.baseMax,
       m: K.mobs.filter(u => !u.morto).slice(0, 80).map(u => [u.id, LTIPOS.indexOf(u.tipo), Math.round(u.s * 10) / 10, Math.round(u.hp), u.max, u.porta ?? 0, Math.round((u.off || 0) * 10)]), c: K.cofre, pw: Math.round(K.poder), bf: K.buffs, bt: Math.round(K.buffT || 0) });
       if ((K.tTw = (K.tTw || 0) - 0.25) <= 0) { K.tTw = 3; K.canal.enviar('tw', { l: listaTorres() }); } }
@@ -406,9 +410,13 @@ function moverHeroi(dt) {
   h.tiroT += dt; K.v.mixer.update(dt); K.v.raiz.position.set(h.x, 0, h.z); K.v.raiz.rotation.y = h.dir;
   const an = h.anda ? 'Running_A' : h.tiroT < 0.5 ? null : K.v.tem(K.H.pose) ? K.H.pose : 'Idle_A'; if (an && K.anim !== an) { K.anim = an; K.v.tocar(an); }
 }
+const GEO_ARO = new THREE.RingGeometry(1.1, 1.6, 32).rotateX(-Math.PI / 2), matAro = {}, aroDe = r => matAro[r] ||= new THREE.MeshBasicMaterial({ color: EQ.RARIDADES[r].cor, transparent: true, opacity: 0.7, depthWrite: false });
+function aro(o, r, x, z, vis) { if (r == null || r < 1) return o; if (!o) { o = new THREE.Mesh(GEO_ARO, aroDe(r)); cn().add(o); } o.material = aroDe(r); o.position.set(x, 0.15, z); o.visible = vis; o.scale.setScalar(1 + 0.08 * Math.sin(C.tempo() * 4)); return o; }
 function outrosHerois(dt) {
+  K.aroEu = aro(K.aroEu, K.rarEq, K.heroi.x, K.heroi.z, !K.heroi.morto);
   for (const [pid, j] of K.jogs) {
-    if (performance.now() - (j.visto || 0) > 7000) { j.v?.remover(); K.jogs.delete(pid); if (K.host) toast(`${j.nome} ${tr('saiu')}`); continue; }
+    j.aro = aro(j.aro, j.rr, j.x, j.z, true);
+    if (performance.now() - (j.visto || 0) > 7000) { j.v?.remover(); if (j.aro) cn().remove(j.aro); K.jogs.delete(pid); if (K.host) toast(`${j.nome} ${tr('saiu')}`); continue; }
     if (!j.v) { j.v = C.heroi((HEROIS[j.h] || HEROIS.lyra).visual); j.v.raiz.scale.setScalar(0.8); j.x = j.tx ?? OX; j.z = j.tz ?? 22; }
     const ox = j.x, oz = j.z; j.x += ((j.tx ?? j.x) - j.x) * Math.min(1, dt * 10); j.z += ((j.tz ?? j.z) - j.z) * Math.min(1, dt * 10);
     const anda = Math.hypot(j.x - ox, j.z - oz) > dt * 1.5; j.v.mixer.update(dt); j.v.raiz.position.set(j.x, 0, j.z); j.v.raiz.rotation.y = j.r ?? 0;
@@ -423,7 +431,8 @@ function heroiAtira(dt) {
   for (const u of K.mobs) { if (u.morto) continue; const d = Math.hypot(u.x - h.x, u.z - h.z); if (d < dm) { dm = d; a = u; } }
   if (!a) { h.alvoDir = null; return; } h.cd = h.cad / (1 + 0.15 * bnv('pressa')); h.alvoDir = Math.atan2(a.x - h.x, a.z - h.z); h.tiroT = 0; K.atirou = a.id;
   if (!h.anda && K.v.tem(K.H.tiro)) { K.v.tocar(K.H.tiro, { loop: false, reinicia: true, vel: 1.6 }); K.anim = 'tiro'; } if (Math.random() < 0.35) sfx('arco');
-  disparo(h.x, h.z, a, h.cor, h.dano * (1 + 0.25 * bnv('furia')), { area: h.area, perf: h.perf, pid: K.eu, forma: h.forma, grande: true });
+  const crit = Math.random() * 100 < K.eqA.crit; if (crit) K.txt.push({ x: h.x, y: 4.5, z: h.z, txt: tr('CRÍTICO!'), cor: '#ff9a1a', t: 0 });
+  disparo(h.x, h.z, a, crit ? 0xff9a1a : h.cor, h.dano * (1 + 0.25 * bnv('furia')) * (crit ? 2.2 : 1), { area: h.area, perf: h.perf, pid: K.eu, forma: h.forma, grande: true });
 }
 function torresAtiram(dt) {
   if (K.estado === 'fim') return; const mult = 1.1 ** Math.max(0, K.onda - 1);
@@ -458,6 +467,7 @@ function acertar(s, a) { // o dano conta no anfitrião; o cliente mostra na hora
   const op = s.op || {}, pid = op.pid ?? (op.torre ? 'torre' : null), alvos = [a];
   if (op.area) for (const u of K.mobs) if (u !== a && !u.morto && Math.hypot(u.x - a.x, u.z - a.z) < op.area * 1.5) alvos.push(u);
   for (let k = 0, ult = a; k < (op.perf || 0); k++) { const n = K.mobs.find(u => !u.morto && !alvos.includes(u) && Math.hypot(u.x - ult.x, u.z - ult.z) < 6); if (!n) break; alvos.push(n); ult = n; }
+  if (pid === K.eu && K.eqA.roubo && !K.heroi.morto) K.heroi.hp = Math.min(K.heroi.hpMax, K.heroi.hp + s.dano * K.eqA.roubo / 100);
   for (const u of alvos) { const d = u === a ? s.dano : s.dano * 0.6; if (op.lento) u.lentoT = op.lento;
     if (K.host) ferir(u, d, pid === 'torre' ? K.eu : pid); else { u.hp -= d; u.flash = 0.12; K.danos.push([u.id, Math.round(d * 10) / 10]); if (u.v) K.txt.push({ x: u.x, y: u.y + u.alt + 1, z: u.z, txt: fmt(Math.round(d)), cor: '#fff', t: 0 }); } }
   C.impacto(a.x, a.y + a.alt * 0.5, a.z, s.cor, op.area ? 1 : 0.5);
@@ -491,8 +501,9 @@ function passoArvore(dt) { // vale para todos: herói apanha, cura, renasce; gua
   const h = K.heroi, mult = multAtk();
   if (h.morto) { if ((h.mortoT -= dt) <= 0) { h.morto = false; h.hp = h.hpMax; h.x = ARV.x; h.z = ARV.z + 9; K.v.raiz.visible = true; toast(tr('Você voltou!')); sfx('brilho'); } }
   else { let dano = 0; for (const u of K.mobs) if (!u.morto && !TIPOS[u.tipo].longe && Math.hypot(u.x - h.x, u.z - h.z) < 2.6) dano += TIPOS[u.tipo].atk * 0.6; 
-    if (dano) { h.hp -= dano * mult * dt; h.dor = (h.dor || 0) + dt; if (h.dor > 0.4) { h.dor = 0; K.v.brilho(0.5); setTimeout(() => K?.v.brilho(0), 90); } }
+    if (dano) { h.hp -= dano * mult * dt * (1 - K.eqA.def / 100); h.dor = (h.dor || 0) + dt; if (h.dor > 0.4) { h.dor = 0; K.v.brilho(0.5); setTimeout(() => K?.v.brilho(0), 90); } }
     const nc = bnv('cura'); if (nc && Math.hypot(h.x - ARV.x, h.z - ARV.z) < 13) h.hp = Math.min(h.hpMax, h.hp + 6 * nc * dt);
+    if (K.eqA.cura) h.hp = Math.min(h.hpMax, h.hp + K.eqA.cura * dt);
     if (h.hp <= 0) { h.morto = true; h.mortoT = 6; K.v.raiz.visible = false; C.faiscas(h.x, 2, h.z, 0xff5a4a, 30, 6); som('pancada'); toast(tr('Você caiu! Renascendo na árvore...')); } }
   if (K.host && bnv('cura')) K.base = Math.min(K.baseMax, K.base + K.baseMax * 0.004 * bnv('cura') * dt);
   // guardiões nascidos da árvore
@@ -529,11 +540,13 @@ function aplicarBuff(k, pid, nome) {
 function acabar(p) {
   if (!K || K.estado === 'fim') return; K.estado = 'fim'; const ondas = Math.max(0, (p.onda ?? K.onda) - 1), ab = p.ab ? Object.fromEntries(p.ab)[K.eu] || 0 : K.abates[K.eu] || 0;
   A.partida(K.modo === 'arvore' ? 'arvore' : 'defesa', ondas, null, { abates: ab, jogadores: 1 + K.jogs.size });
-  const premio = Math.round((20 + 14 * ondas + ab * 0.5) * (fimDeSemana() ? 2 : 1)); S.moedas += premio; S.defesa ||= { rec: 0 }; const rk = K.modo === 'arvore' ? 'arv' : 'rec', novo = ondas > (S.defesa[rk] || 0); if (novo) S.defesa[rk] = ondas; salvar();
+  const premio = Math.round((20 + 14 * ondas + ab * 0.5) * (fimDeSemana() ? 2 : 1)); S.moedas += premio;
+  const itens = []; for (let i = 0, n = ondas >= 2 ? Math.min(4, 1 + Math.floor(ondas / (K.modo === 'arvore' ? 4 : 6))) : 0; i < n; i++) itens.push(EQ.gerarItem(ondas)); S.defesa ||= { rec: 0 }; const rk = K.modo === 'arvore' ? 'arv' : 'rec', novo = ondas > (S.defesa[rk] || 0); if (novo) S.defesa[rk] = ondas; salvar();
   sfx(novo ? 'vitoria' : 'derrota'); C.camera.tremor = 1; K.banner = p.saiu ? null : { txt: K.modo === 'arvore' ? 'A ÁRVORE CAIU!' : 'O CASTELO CAIU!', cor: '#ff6a5a', t: 0 };
   setTimeout(() => { if (!K || !el) return; const j = $('#dfJanela'); j.hidden = false;
     j.innerHTML = `<div class="cqFim ${novo ? 'vit' : 'der'}"><h2>${p.host ? tr('O anfitrião saiu') : novo ? tr('NOVO RECORDE!') : tr(K.modo === 'arvore' ? 'A árvore caiu!' : 'O castelo caiu!')}</h2><p>${ondas} ${tr(ondas === 1 ? 'onda' : 'ondas')} · ${ab} ${tr('inimigos derrotados')}${K.jogs.size ? ` · ${1 + K.jogs.size} ${tr('jogadores')}` : ''}</p>
-      <div class="ganho">${ico('ouro')}<b>+${fmt(premio)}</b></div><p>${tr('Recorde')}: ${S.defesa[rk] || 0} ${tr('ondas')}</p>
+      <div class="ganho">${ico('ouro')}<b>+${fmt(premio)}</b></div>
+      ${itens.length ? `<div class="eqGanhos"><small>${tr('Equipamentos ganhos')}</small><div>${itens.map(it => EQ.itemHtml(it, 'novo')).join('')}</div></div>` : `<p class="eqDica">${tr('Passe da onda 2 para ganhar equipamentos!')}</p>`}<p>${tr('Recorde')}: ${S.defesa[rk] || 0} ${tr('ondas')}</p>
       <button class="btn verde grande" data-df="denovo">${tr('Jogar de novo')}</button><button class="btn azul" data-df="menuFim">${ico('guilda')} Menu</button></div>`;
     if (novo) flashTela('#ffe27a', 0.45); setTimeout(() => voarMoedas('#dfJanela .ganho', 8), 120); }, p.saiu ? 100 : 1400);
 }
@@ -542,7 +555,8 @@ export function desenharFx(g, dt) {
   if (!K) return; g.textAlign = 'center'; g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,.65)';
   for (const u of K.mobs) { if (u.morto || (!u.v && u.hp >= u.max)) continue; const p = C.tela(u.x, u.y + u.alt + 0.6, u.z); if (!p) continue; const w = u.tipo === 'chefe' ? 80 : u.v ? 40 : 22;
     g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(p[0] - w / 2 - 1, p[1] - 1, w + 2, 6); g.fillStyle = u.tipo === 'chefe' ? '#ff4a3a' : '#e8803a'; g.fillRect(p[0] - w / 2, p[1], w * Math.max(0, u.hp) / u.max, 4); }
-  for (const j of K.jogs.values()) { const p = C.tela(j.x, 3.2, j.z); if (!p) continue; g.font = '13px Titulo, sans-serif'; g.strokeText(j.nome, p[0], p[1]); g.fillStyle = '#9ad8ff'; g.fillText(j.nome, p[0], p[1]); }
+  for (const j of K.jogs.values()) { const p = C.tela(j.x, 3.2, j.z); if (!p) continue; g.font = '13px Titulo, sans-serif'; g.strokeText(j.nome, p[0], p[1]); g.fillStyle = '#9ad8ff'; g.fillText(j.nome, p[0], p[1]);
+    if (j.g) { g.font = '11px Titulo, sans-serif'; const t = `⚔️ ${fmt(j.g)}`; g.strokeText(t, p[0], p[1] + 13); g.fillStyle = j.rr >= 0 ? EQ.RARIDADES[j.rr].cor : '#fff'; g.fillText(t, p[0], p[1] + 13); } }
   { const p = C.tela(K.heroi.x, 3.2, K.heroi.z); if (p && K.jogs.size) { g.font = '13px Titulo, sans-serif'; g.strokeText(K.nome, p[0], p[1]); g.fillStyle = '#ffd84a'; g.fillText(K.nome, p[0], p[1]); } }
   // lugares de torre livres (perto do herói mostram o +)
   if (K.modo !== 'arvore') PADS.forEach(([x, z], i) => { if (K.torres.has(i)) { const t = K.torres.get(i), p = C.tela(t.x, 9, t.z); if (p) { g.font = '12px Titulo, sans-serif'; const s = '★'.repeat(t.nv); g.strokeText(s, p[0], p[1]); g.fillStyle = '#ffd84a'; g.fillText(s, p[0], p[1]); } return; }

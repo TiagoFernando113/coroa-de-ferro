@@ -18,6 +18,7 @@ import * as MP from './mapa.js';
 import * as Q from './queda.js';
 import * as MU from './mundo.js';
 import * as DF from './defesa.js';
+import * as EQ from './equip.js';
 import * as A from './analise.js';
 import { MEDALHAS, NIVEIS_MEDALHA, nivelMedalha, pegas, medalhasProntas, premioMedalha, pegarMedalha } from './perfil.js';
 import { ofertas, lojaDia, comprarOferta, temOferta } from './loja.js';
@@ -671,7 +672,7 @@ function htmlMelhorias() {
 const DESC_CARTA = { chuva: 'Sobe o poder especial do herói', gigante: 'Cavaleiro enorme aliado', arco: 'Atiram de longe', lanca: 'Aguentam mais duelos', mago: 'Explosão em área' };
 const ICONE_HEROI = { lyra: 'arq', brann: 'h_perfura', selene: 'mag', grom: 'r_orc', kira: 'lad', zarak: 'r_demonio', thalia: 'r_anjo', raiden: 'h_raio' };
 function htmlHerois() {
-  return `<h3>Herói <small>toque para escolher</small></h3><div class="heroisG">${Object.entries(HEROIS).map(([k, H]) => { const tem = S.herois.includes(k), sel = S.heroi === k;
+  return `<button class="eqBtn" data-eq="abrir">🎒 <b>Equipamentos</b><small>Poder ${fmt(EQ.poder())}</small></button><h3>Herói <small>toque para escolher</small></h3><div class="heroisG">${Object.entries(HEROIS).map(([k, H]) => { const tem = S.herois.includes(k), sel = S.heroi === k;
     return `<button class="heroiC ${sel ? 'sel' : ''} ${tem ? '' : 'bloq'}" data-heroi="${k}" style="--c:${H.cor}"><span>${ico(ICONE_HEROI[k])}</span><b>${H.nome}</b><small>${H.titulo}</small>
       <i>${ico('raio')} ${H.ataque.nome}</i><i>${ico(H.poder.icone)} ${H.poder.desc}</i>
       ${sel ? '<em class="esc">Escolhido</em>' : tem ? '<em class="esc">Escolher</em>' : `<em class="preco ${S.moedas >= H.preco ? 'pode' : ''}">${ico('ouro')} ${fmt(H.preco)}</em>`}</button>`; }).join('')}</div>`;
@@ -1714,6 +1715,7 @@ function clique(e) {
   if (b.dataset.ct || b.dataset.magia) CT.clique(b);
   if (b.dataset.mu || b.dataset.muEx || b.dataset.muTipo) MU.clique(b);
   if (b.dataset.df) DF.clique(b);
+  if (b.dataset.eq) { if (tela !== 'lobby' && b.dataset.eq === 'ver') { EQ.mostrar(+b.dataset.id); return; } EQ.clique(b); return; }
   if (a === 'conquista') { som('confirma'); abrirConquista(); }
   if (a === 'castelo') { som('confirma'); abrirCastelo(); }
   if (b.dataset.ovo) abrirOvo(b.dataset.ovo);
