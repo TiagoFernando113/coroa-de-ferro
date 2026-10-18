@@ -7,7 +7,7 @@ import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.j
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { ORIGENS, pecasDo } from './aparencia.js';
-import { armaPixel, tipoDe } from './pixel.js';
+import { armaModelo, tipoDe } from './itens3d.js';
 
 export const ESC_PERS = 0.75; // personagens KayKit (~2,5 u) → ~1,85 m
 let renderer, scene, cam, sol, hemi, relogio = 0;
@@ -594,7 +594,7 @@ export function heroi(v) {
     const arco = /bow/.test(nv.arma || '') || (nv.arma?.startsWith('P:') && tipoDe(nv.arma.slice(2)) === 'arco'); // o arco vai na mão esquerda (as animações de arco puxam a corda com a direita)
     for (const [id, lado] of arco ? [[nv.arma, 'l']] : [[nv.arma, 'r'], [nv.esq, 'l']]) {
       if (!id) continue;
-      if (id.startsWith('P:')) { const a = armaPixel(id.slice(2)); if (arco) a.rotation.set(Math.PI / 2, Math.PI, 0); /* arco deitado como os do KayKit */ const osso = ossos[H.nomes.indexOf('handslot' + lado)]; if (osso) { osso.add(a); armas.push(a); } continue; } // arma pixel (geometria compartilhada)
+      if (id.startsWith('P:')) { const a = armaModelo(id.slice(2)); if (arco) a.rotation.set(Math.PI / 2, Math.PI, 0); /* arco deitado como os do KayKit */ const osso = ossos[H.nomes.indexOf('handslot' + lado)]; if (osso) { osso.add(a); armas.push(a); } continue; } // arma pixel (geometria compartilhada)
       const src = pecas[id.replace(':', '')]; if (!src) continue;
       const a = clonar(src); a.traverse(o => { if (o.isMesh) { o.castShadow = true; o.material = o.material.clone(); mats.push(o.material); } });
       const r = ROT_ARMA[id]; if (r) a.rotation.set(r[0], r[1], r[2]);
@@ -836,7 +836,7 @@ export function tingirOuro(raiz, clonar = true, cor = 0xffd23a) { // pets com es
   raiz.traverse(o => { if (!o.isMesh) return; if (clonar) o.material = o.material.clone(); o.material.color?.lerp(c, 0.45); o.material.emissive?.copy(em); });
 }
 // figurinha animada: quadros de uma animação do herói (fonte = visual) ou de um modelo (fonte = nome do pet)
-export function quadrosAnim(fonte, anim, { n = 12, tam = 112, cor = null, chave = '' } = {}) {
+export function quadrosAnim(fonte, anim, { n = 12, tam = 112, cor = null, chave = '', giro = 0.45 } = {}) {
   const k = 'qa:' + (chave || fonte) + anim + n + tam; if (retratos[k]) return retratos[k];
   if (!renderer) return null;
   const cn = new THREE.Scene(); cn.add(new THREE.HemisphereLight(0xffffff, 0x6a5a8a, 2.2)); const l = new THREE.DirectionalLight(0xffffff, 2.4); l.position.set(3, 6, 8); cn.add(l);
@@ -844,7 +844,7 @@ export function quadrosAnim(fonte, anim, { n = 12, tam = 112, cor = null, chave 
   if (typeof fonte === 'string') { const g = modelos[fonte]; if (!g) return null; obj = SkeletonUtils.clone(g.scene); if (cor != null) tingirOuro(obj, true, cor);
     const clip = g.animations.find(a => a.name === anim) || g.animations.find(a => a.name === 'Idle'); mixer = new THREE.AnimationMixer(obj); if (clip) { mixer.clipAction(clip).play(); dur = clip.duration; } }
   else { h = heroi(fonte); scene.remove(h.raiz); obj = h.raiz; h.tocar(anim, { fade: 0.001 }); mixer = h.mixer; dur = H.clips[anim]?.duration || 1; }
-  cn.add(obj); obj.rotation.y = 0.45;
+  cn.add(obj); obj.rotation.y = giro;
   const b = new THREE.Box3(); for (let i = 0; i < 6; i++) { mixer.setTime(0.01 + i * dur / 6); b.union(caixaPose(obj)); } mixer.setTime(0.01); // enquadra a animação inteira
   const c = b.getCenter(new THREE.Vector3()), sz = b.getSize(new THREE.Vector3()), r = Math.max(sz.y, sz.x * 0.85) * 0.56;
   const cm = new THREE.PerspectiveCamera(30, 1, 0.1, 100), d = r / Math.tan(Math.PI / 12); cm.position.set(c.x, c.y + r * 0.15, c.z + d); cm.lookAt(c.x, c.y, c.z);
@@ -861,6 +861,22 @@ export function quadrosAnim(fonte, anim, { n = 12, tam = 112, cor = null, chave 
   }
   renderer.setRenderTarget(null); renderer.setClearColor(fundoAntes, alfaAntes); rt.dispose(); if (h) h.remover(); else soltarCopia(obj, cor != null);
   return (retratos[k] = { q, dur });
+}
+// foto de um objeto parado (ícones dos itens 3D)
+export function fotoObjeto(obj, { tam = 128, rot = [0.3, 0.55, 0] } = {}) {
+  if (!renderer) return null;
+  const cn = new THREE.Scene(); cn.add(new THREE.HemisphereLight(0xffffff, 0x5a4a7a, 1.6)); const l = new THREE.DirectionalLight(0xfff4e0, 2.8); l.position.set(-3, 5, 6); cn.add(l); const l2 = new THREE.DirectionalLight(0x9ac8ff, 1.1); l2.position.set(5, -1, -2); cn.add(l2);
+  const g = new THREE.Group(); g.add(obj); g.rotation.set(rot[0], rot[1], rot[2]); cn.add(g); g.updateMatrixWorld(true);
+  const b = new THREE.Box3().setFromObject(g), c = b.getCenter(new THREE.Vector3()), sz = b.getSize(new THREE.Vector3()), r = Math.max(sz.x, sz.y) * 0.5;
+  const cm = new THREE.PerspectiveCamera(30, 1, 0.01, 100); cm.position.set(c.x, c.y, c.z + r / Math.tan(Math.PI / 12) + sz.z / 2); cm.lookAt(c);
+  const rt = new THREE.WebGLRenderTarget(tam, tam, { samples: 4 }); rt.texture.colorSpace = THREE.SRGBColorSpace;
+  const fundoAntes = renderer.getClearColor(new THREE.Color()), alfaAntes = renderer.getClearAlpha(), px = new Uint8Array(tam * tam * 4);
+  const srgb = v => Math.round(255 * (v <= 0.0031308 ? 12.92 * v : 1.055 * v ** (1 / 2.4) - 0.055));
+  renderer.setRenderTarget(rt); renderer.setClearColor(0x000000, 0); renderer.clear(); renderer.render(cn, cm); renderer.readRenderTargetPixels(rt, 0, 0, tam, tam, px);
+  const cv = document.createElement('canvas'); cv.width = cv.height = tam; const gc = cv.getContext('2d'), im = gc.createImageData(tam, tam);
+  for (let y = 0; y < tam; y++) for (let x = 0; x < tam; x++) { const a0 = ((tam - 1 - y) * tam + x) * 4, o = (y * tam + x) * 4, al = px[a0 + 3]; if (!al) continue; for (let ci = 0; ci < 3; ci++) im.data[o + ci] = srgb(Math.min(1, px[a0 + ci] / al)); im.data[o + 3] = al; }
+  gc.putImageData(im, 0, 0); renderer.setRenderTarget(null); renderer.setClearColor(fundoAntes, alfaAntes); rt.dispose(); g.remove(obj);
+  return cv.toDataURL();
 }
 // cópia usada só para tirar a foto: libera a textura dos ossos (e os materiais pintados) na GPU
 function soltarCopia(raiz, mats) { const vistos = new Set(); raiz.traverse(o => { if (o.isSkinnedMesh && !vistos.has(o.skeleton)) { vistos.add(o.skeleton); o.skeleton.dispose(); } if (mats && o.isMesh) o.material.dispose(); }); }

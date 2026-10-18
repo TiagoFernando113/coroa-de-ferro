@@ -4,7 +4,7 @@
 import { S, salvar, fimDeSemana } from './meta.js';
 import * as C from './cena.js';
 import { heroiAtual } from './herois.js';
-import { iconePixel, iconeItem, tipoDe } from './pixel.js';
+import { modeloItem, armaModelo, tipoDe } from './itens3d.js';
 import { fmt } from './dados.js';
 import { som, $ } from './util.js';
 import { sfx } from './musica.js';
@@ -67,7 +67,7 @@ const MAX_NV = 10, MAX_MOCHILA = 40;
 const TIPO_ANTIGO = m => /bow/.test(m) ? 'arco' : /staff|wand/.test(m) ? 'cajado' : /axe/.test(m) ? 'machado' : /hammer/.test(m) ? 'martelo' : /spear|halberd/.test(m) ? 'lanca' : /dagger|knife/.test(m) ? 'adaga' : /scythe/.test(m) ? 'foice' : 'espada';
 function eq() {
   const E = (S.equip ||= { itens: [], usando: {}, id: 1 });
-  if (!E.armas) { E.armas = {}; // versão nova: armas em pixel e uma arma por classe
+  if (!E.armas) { E.armas = {}; // versão nova: armas 3D (modelo "P:tipo:raridade") e uma arma por classe
     for (const it of E.itens) if (it.slot === 'arma' && !it.modelo?.startsWith('P:')) it.modelo = it.lenda ? LENDAS[it.lenda].modelo : `P:${TIPO_ANTIGO(it.modelo || '')}:${it.r}`;
     const a = E.itens.find(x => x.id === E.usando.arma); if (a) E.armas[classeDaArma(a)] = a.id; delete E.usando.arma; }
   return E;
@@ -122,14 +122,20 @@ const custoUp = it => Math.round(80 * it.nv * (1 + it.r) * (1 + it.r * 0.5));
 const valorDesmontar = it => Math.round(20 * (1 + it.r) ** 2 * it.nv);
 
 // ---- tela da mochila ----
-export const itemHtml = (it, cls = '') => `<button class="eqItem r${it.r} ${cls} ${it.lenda ? 'lenda' : ''} ${serveNoHeroi(it) ? '' : 'naoServe'}" data-eq="ver" data-id="${it.id}" style="--r:${RARIDADES[it.r].cor}"><img class="${it.slot === 'arma' ? 'pxArma' : ''}" src="${iconeItem(it, 1)}" alt=""><em>${it.nv > 1 ? '+' + (it.nv - 1) : ''}</em>${it.lenda ? '<u>✨</u>' : ''}${it.slot === 'arma' ? `<s>${CLASSES[classeDaArma(it)].ic}</s>` : ''}</button>`;
+export const itemHtml = (it, cls = '') => `<button class="eqItem r${it.r} ${cls} ${it.lenda ? 'lenda' : ''} ${serveNoHeroi(it) ? '' : 'naoServe'}" data-eq="ver" data-id="${it.id}" style="--r:${RARIDADES[it.r].cor}"><img src="${iconeItem(it)}" alt=""><em>${it.nv > 1 ? '+' + (it.nv - 1) : ''}</em>${it.lenda ? '<u>✨</u>' : ''}${it.slot === 'arma' ? `<s>${CLASSES[classeDaArma(it)].ic}</s>` : ''}</button>`;
 const NOME_TIPO = { espada: 'Espadas', machado: 'Machados', martelo: 'Martelos', lanca: 'Lanças', arco: 'Arcos', cajado: 'Cajados', adaga: 'Adagas', foice: 'Foices' };
+// ícone = foto do modelo 3D do item (guardada)
+const fotos = new Map(), GIRO = { arma: [0.15, 0.35, -0.72], capa: [0.2, Math.PI + 0.5, 0] };
+export function iconeItem(it, tam = 96) {
+  const k = `${it.slot}:${it.modelo || it.vis || it.nome.split(' ')[0]}:${it.r}:${tam}`; if (fotos.has(k)) return fotos.get(k);
+  let u = ''; try { u = C.fotoObjeto(modeloItem(it), { tam, rot: GIRO[it.slot] || [0.3, 0.55, 0] }) || ''; } catch (e) {} if (u) fotos.set(k, u); return u;
+}
 const linhaSt = (it, k) => { const [n, u] = ST[k]; return `<span>${tr(n)} <b>+${fmt(Math.round(valor(it, k) * 10) / 10)}${u}</b></span>`; };
 export function mostrar(sel = null) {
   const E = eq(), j = $('#janela'); j.hidden = false; const U = usando(), emUsoAgora = new Set(Object.values(U)), A = atributos(), CL = CLASSES[classeAtual()];
   const it = sel != null && E.itens.find(x => x.id === sel);
   const det = it ? (() => { const R = RARIDADES[it.r], eq1 = emUsoAgora.has(it.id), serve = serveNoHeroi(it), CA = CLASSES[classeDaArma(it)], c = custoUp(it);
-    return `<div class="eqDet" style="--r:${R.cor}"><div class="eqDetT"><img class="eqPx ${it.slot === 'arma' ? 'pxArma' : ''}" src="${iconeItem(it, 2)}" alt=""><span><b>${it.nome}${it.nv > 1 ? ` +${it.nv - 1}` : ''}</b><small>${tr(R.nome)} · ${tr(SLOTS[it.slot].nome)} · ${tr('Poder')} ${fmt(poderItem(it))}</small>${it.slot === 'arma' ? `<small class="eqClasse ${serve ? '' : 'nao'}">${CA.ic} ${tr('Só para')} ${tr(CA.nome)}${CA.perto ? ` · ${tr('ataca de perto')}` : ` · ${tr('ataca de longe')}`}</small>` : ''}</span></div>
+    return `<div class="eqDet" style="--r:${R.cor}"><div class="eqDetT"><img class="eqPx" src="${iconeItem(it, 160)}" alt=""><span><b>${it.nome}${it.nv > 1 ? ` +${it.nv - 1}` : ''}</b><small>${tr(R.nome)} · ${tr(SLOTS[it.slot].nome)} · ${tr('Poder')} ${fmt(poderItem(it))}</small>${it.slot === 'arma' ? `<small class="eqClasse ${serve ? '' : 'nao'}">${CA.ic} ${tr('Só para')} ${tr(CA.nome)}${CA.perto ? ` · ${tr('ataca de perto')}` : ` · ${tr('ataca de longe')}`}</small>` : ''}</span></div>
       <div class="eqSt">${Object.keys(it.st).map(k => linhaSt(it, k)).join('')}</div>${it.lenda ? `<p class="eqLenda">✨ ${tr(LENDAS[it.lenda].desc)}</p>` : ''}
       <div class="eqBts">${eq1 ? `<button class="btn cinza peq" disabled>${tr('Equipado')}</button>` : serve ? `<button class="btn verde peq" data-eq="usar" data-id="${it.id}">${tr('Equipar')}</button>` : `<button class="btn cinza peq" disabled>${CA.ic} ${tr(CA.nome)}</button>`}
         ${it.nv < MAX_NV ? `<button class="btn amarelo peq" data-eq="up" data-id="${it.id}" ${S.moedas < c ? 'disabled' : ''}>⬆️ ${fmt(c)}</button>` : `<small>MAX</small>`}
@@ -141,7 +147,7 @@ export function mostrar(sel = null) {
     <div class="eqTot">${Object.entries(A).filter(([, v]) => v).map(([k, v]) => `<span>${tr(ST[k][0])} +${fmt(Math.round(v * 10) / 10)}${ST[k][1]}</span>`).join('') || `<span>${tr('Jogue a Árvore Sagrada para ganhar equipamentos!')}</span>`}</div>
     ${det}${(() => { const dk = destaque(), L = LENDAS[dk], est = estrelas(), gratis = E.dia !== hoje(), cus = n => est >= n ? `⭐ ${n}` : `🪙 ${fmt(PRECO_DESEJO * n * (n >= 10 ? 0.9 : 1))}`, pode = n => est >= n || S.moedas >= PRECO_DESEJO * n * (n >= 10 ? 0.9 : 1);
       return `<h3>🌠 ${tr('Desejos')} <small>⭐ ${fmt(est)}${fimDeSemana() ? ` · ${tr('fim de semana: estrelas em dobro!')}` : ''}</small></h3>
-      <div class="dsBanner" style="--r:${RARIDADES[5].cor}"><img src="${iconePixel(L.modelo.slice(2), 2)}" alt=""><div><small>${tr('Lenda da semana')}</small><b>${L.nome}</b><small>${tr(L.desc)}</small><small class="dsPity">${tr('Mítico garantido em')} <b>${PITY - (E.pity || 0)}</b> · ${tr('Lendário+ a cada 10')}</small></div></div>
+      <div class="dsBanner" style="--r:${RARIDADES[5].cor}"><img src="${iconeItem({ slot: 'arma', modelo: L.modelo, r: 5 }, 128)}" alt=""><div><small>${tr('Lenda da semana')}</small><b>${L.nome}</b><small>${tr(L.desc)}</small><small class="dsPity">${tr('Mítico garantido em')} <b>${PITY - (E.pity || 0)}</b> · ${tr('Lendário+ a cada 10')}</small></div></div>
       <div class="dsBts">${gratis ? `<button class="btn verde" data-eq="dj" data-n="0">🎁 ${tr('Grátis hoje')}</button>` : ''}<button class="btn azul" data-eq="dj" data-n="1" ${pode(1) ? '' : 'disabled'}>1x · ${cus(1)}</button><button class="btn roxo" data-eq="dj" data-n="10" ${pode(10) ? '' : 'disabled'}>10x · ${cus(10)}</button></div>
       <p class="eqDica">${tr('Ganhe estrelas ⭐ na Árvore Sagrada e na Defesa em Grupo')}</p>`; })()}
     <h3>🔨 ${tr('Forja')} <small>${tr('baús com raridade garantida')}</small></h3>
