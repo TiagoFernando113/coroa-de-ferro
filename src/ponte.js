@@ -586,11 +586,12 @@ const PASSOS_LIB = {
   cla: [{ alvo: '[data-aba-lobby=cla]', txt: 'Toque em Clã' }, { txt: 'Num clã vocês atacam um chefe juntos e todos ganham prêmios!' }],
 };
 let guia = null;
+const semNome = () => !S.lib?.nome && (!S.online?.apelido || /^Herói\d{0,4}$/.test(S.online.apelido));
 // venceu e abriu algo novo (ou falta escolher o nome): o jogador passa pelo menu antes da próxima fase
-const novidadePendente = () => !!S.lib && !S.lib.todos && ((S.melhor || 0) >= 1 && !S.lib.nome && !S.online?.apelido || LIBERA.some(l => (S.melhor || 0) >= l[1] && !S.lib.visto[l[0]]));
+const novidadePendente = () => !!S.lib && !S.lib.todos && ((S.melhor || 0) >= 1 && semNome() || LIBERA.some(l => (S.melhor || 0) >= l[1] && !S.lib.visto[l[0]]));
 function proximaLiberacao() { // comemora o que abriu (uma coisa por vez, só no menu e sem janela aberta)
   if (!S?.lib || S.lib.todos || tela !== 'lobby' || guia || !$('#janela').hidden) return;
-  if ((S.melhor || 0) >= 1 && !S.lib.nome && !S.online?.apelido) return pedirNome(); // depois da primeira vitória: escolher o nome
+  if ((S.melhor || 0) >= 1 && semNome()) return pedirNome(); // depois da primeira vitória: escolher o nome
   const L = LIBERA.find(l => (S.melhor || 0) >= l[1] && !S.lib.visto[l[0]]); if (!L) return;
   const [id, , nome, icone, frase] = L; S.lib.visto[id] = 1; if (id === 'castelo') S.lib.visto.infinito = 1;
   if (id === 'pets') S.ovos.comum = (S.ovos.comum || 0) + 1; // primeiro ovo de presente
@@ -1606,7 +1607,7 @@ function clique(e) {
   if (a === 'nomeSorte') { som('clique'); $('#apelido1').value = sugerirNome(); return; }
   if (a === 'nomeDepois') { som('fechar'); S.lib.nome = 1; salvar(); $('#janela').hidden = true; return; }
   if (a === 'nomeOk') { const ap = ($('#apelido1')?.value || '').trim(), er = $('#nomeErro'); if (ap.length < 2) { som('erro'); er.textContent = tr('Pelo menos 2 letras'); return; }
-    b.disabled = true; ON.registrar(ap).then(() => { S.lib.nome = 1; salvar(); sfx('vitoria'); $('#janela').hidden = true; desenharLobby(); toque(`${tr('Bem-vindo,')} ${ap}!`); })
+    b.disabled = true; ON.registrar(ap).then(() => { S.lib.nome = 1; salvar(); sfx('vitoria'); $('#janela').hidden = true; if (tela === 'lobby') desenharLobby(); toque(`${tr('Bem-vindo,')} ${ap}!`); })
       .catch(e => { b.disabled = false; som('erro'); er.textContent = msgNome(e.message); const d = document.querySelector('[data-a=nomeDepois]'); if (d) d.hidden = false; }); return; }
   if (a === 'pegarPremio') { const q = document.querySelector('#pcMoedas')?.getBoundingClientRect(); $('#janela').hidden = true; sfx('vitoria'); som('moedas');
     if (q) voarMoedas('.lbTopo .pilula.ouro', 14, { x: q.left + q.width / 2, y: q.top + q.height / 2 }); if (tela === 'lobby') desenharLobby(); return; }
@@ -1843,6 +1844,7 @@ function terminar(venceu) {
     sfx(venceu ? 'vitoria' : 'derrota');
     if (venceu) { flashTela('#ffe27a', 0.5); contarAte($('#fGanho'), ganho, 900, '+', fmt); setTimeout(() => voarMoedas('#fGanho', 12), 150); }
     atualizarRevanche();
+    if (venceu && !G.dupla && S.lib && !S.lib.todos && semNome()) setTimeout(() => { if (tela === 'fim' && $('#janela').hidden) pedirNome(); }, 1500); // primeira vitória: escolher o nome na hora
     if (venceu && !G.dupla) { roleta = { ganho, t0: performance.now(), m: 2 }; const gira = () => { if (!roleta || roleta.parada) return;
       const k = (Math.sin((performance.now() - roleta.t0) / 1000 * 3.2 - Math.PI / 2) + 1) / 2; roleta.m = ROLETA[Math.min(ROLETA.length - 1, Math.floor(k * ROLETA.length))];
       $('#rAgulha').style.left = (k * 100) + '%'; $('#rMult').textContent = 'x' + roleta.m; requestAnimationFrame(gira); }; gira(); }
