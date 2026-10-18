@@ -764,6 +764,7 @@ function abrirOvo(tipo) {
       <button class="btn verde" data-a="fecharJanela">Pegar</button></div>`;
     sfx(D.r >= 2 ? 'vitoria' : 'brilho'); if (D.r >= 3) som('lendario'); if (D.r >= 2) avisarCla(`tirou ${D.nome} (${R.nome}) num ovo!`); C.camera.tremor = 0.3; recriarPetsLobby(); }, 2100);
 }
+const MAPA_GUERRA = false; // Mapa de Guerra guardado por enquanto (o código continua em mundo.js)
 function abrirMundo() { // Mapa de Guerra (mundo.js)
   limparFase(); climaMapa = false; $('#janela').hidden = true;
   tela = 'mundo'; $('#lobby').hidden = true; $('#jogo').hidden = true; $('#fim').hidden = true; tema(2);
@@ -793,7 +794,7 @@ function mostrarModos() {
   const card = (k, cor, icone, nome, desc, info, livre, req) => `<button class="modoC ${livre ? '' : 'bloq'}" data-modo="${k}" style="--c:${cor}">${ico(livre ? icone : 'cadeado')}
     <span><b>${nome}</b><small>${desc}</small></span><em>${livre ? info : req}</em></button>`;
   j.innerHTML = `<div class="jOnline jModos"><h2>${ico('dado')} Modos</h2>
-    ${card('mundo', '#c8501a', 'bandeira', 'Mapa de Guerra', 'Seu exército marcha num mapa com todos os jogadores', 'Novo!', liberado('dupla'), `${tr('Fase')} ${faseLibera('dupla')}`)}
+    ${MAPA_GUERRA ? card('mundo', '#c8501a', 'bandeira', 'Mapa de Guerra', 'Seu exército marcha num mapa com todos os jogadores', 'Novo!', liberado('dupla'), `${tr('Fase')} ${faseLibera('dupla')}`) : ''}
     <h3>${ico('herois')} Com o herói</h3>
     ${card('infinito', '#8a4ae8', 'estrela', 'Ponte sem fim', 'Chefes sem parar até cair', `${ico('rank')} ${fmt(S.recInf || 0)}`, liberado('infinito'), `${tr('Fase')} ${faseLibera('infinito')}`)}
     ${card('castelo', '#4a6ae8', 'h_muralha', 'Castelo', 'Defenda a muralha em ondas', `Onda ${S.castelo?.rec || 0}`, liberado('castelo'), `${tr('Fase')} ${faseLibera('castelo')}`)}
