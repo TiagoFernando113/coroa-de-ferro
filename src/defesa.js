@@ -222,6 +222,7 @@ function receber(ev, p) {
     atualizarHud(); return; }
   if (ev === 'fim') { acabar(p); return; }
   if (ev === 'hab') { C.onda(p.x, p.z, 12, p.c, 0.5); C.faiscas(p.x, 2, p.z, p.c, 30, 8); return; }
+  if (ev === 'gp') { if (p.p !== K.eu) golpeDeOutro(p); return; }
   if (ev === 'cb') { K.txt.push({ x: p.x, y: 4, z: p.z, txt: `COMBO x${p.n}!`, cor: '#7affea', t: 0 }); return; }
   if (ev === 'pw') { efeitoPoder(); return; }
   if (ev === 'bfx') { if (BUFFS[p.k]) toast(`${p.n}: ${BUFFS[p.k].ic} ${tr(BUFFS[p.k].nome)}`); return; }
@@ -280,6 +281,31 @@ function vender(pad) {
 }
 // ---- poder do herói: explosão em volta dele (recarga de 20 s) ----
 const RECARGA_HAB = 20;
+// ---- combate ativo: golpe em combo (o 3º é um giro mais forte) e desviar (avanço rápido sem levar dano) ----
+const COMBO = [['Melee_1H_Attack_Slice_Diagonal', 1.4, 4.2, 140], ['Melee_1H_Attack_Slice_Horizontal', 1.7, 4.4, 180], ['Melee_2H_Attack_Spin', 3, 5.4, 360]], RECARGA_DESVIO = 2.5;
+function golpear() {
+  const h = K.heroi, agora = performance.now(); if (h.morto || K.estado === 'fim' || agora - (K.comboT || 0) < 280) return;
+  K.combo = agora - (K.comboT || 0) < 900 ? (K.combo + 1) % 3 : 0; K.comboT = agora;
+  const [an, mult, alc, graus] = COMBO[K.combo]; h.gT = 0.3; h.tiroT = -0.25; h.cd = Math.max(h.cd, 0.4);
+  let a = null, dm = alc + 4; for (const u of K.mobs) { if (u.morto) continue; const d = Math.hypot(u.x - h.x, u.z - h.z); if (d < dm) { dm = d; a = u; } } // mira sozinho no mais perto
+  if (a) { h.dir = Math.atan2(a.x - h.x, a.z - h.z); if (dm > alc - 1.5) { const p = Math.min(2.5, dm - alc + 1.5); h.x += Math.sin(h.dir) * p; h.z += Math.cos(h.dir) * p; limitar(h); } }
+  const ma = K.arma?.tipo === 'martelo' && K.combo < 2 ? 'Melee_2H_Attack_Chop' : an; if (K.v.tem(ma)) { K.v.tocar(ma, { loop: false, reinicia: true, vel: 1.5 }); K.anim = 'golpe'; }
+  const cor = K.arma?.cor ?? h.cor; C.arco(h.x, h.z, h.dir, alc, Math.min(graus, 359), cor); if (K.combo === 2) C.onda(h.x, h.z, alc, cor, 0.3); sfx('espada');
+  const crit = Math.random() * 100 < K.eqA.crit, d = h.dano * mult * (1 + 0.25 * bnv('furia')) * (crit ? 2.2 : 1); let n = 0;
+  for (const u of K.mobs) { if (u.morto) continue; const dx = u.x - h.x, dz = u.z - h.z, dd = Math.hypot(dx, dz); if (dd > alc + (u.tipo === 'gigante' || u.tipo === 'chefe' ? 1.5 : 0.5)) continue;
+    if (graus < 360 && dd > 1.2) { let da = Math.atan2(dx, dz) - h.dir; da = Math.atan2(Math.sin(da), Math.cos(da)); if (Math.abs(da) > graus * Math.PI / 360) continue; }
+    if (!K.host && u.v) K.txt.push({ x: u.x, y: u.y + u.alt + 1, z: u.z, txt: fmt(Math.round(d)), cor: crit ? '#ff9a1a' : '#fff', t: 0 });
+    danoEm(u, d); C.impacto(u.x, 1.2, u.z, crit ? 0xff9a1a : cor, 0.6); if (!n++ && K.arma?.lenda) efeitoLenda(K.arma.lenda, u, d); }
+  if (n) { C.camera.tremor = Math.max(C.camera.tremor, 0.12 + 0.12 * K.combo); if (K.eqA.roubo) h.hp = Math.min(h.hpMax, h.hp + d * n * K.eqA.roubo / 100); if (crit) K.txt.push({ x: h.x, y: 4.5, z: h.z, txt: tr('CRÍTICO!'), cor: '#ff9a1a', t: 0 }); }
+  K.canal?.enviar('gp', { p: K.eu, c: K.combo, x: Math.round(h.x * 10) / 10, z: Math.round(h.z * 10) / 10, r: Math.round(h.dir * 100) / 100, k: cor });
+}
+function desviar() {
+  const h = K.heroi; if (h.morto || K.estado === 'fim' || h.dsT > 0) return;
+  h.dsT = RECARGA_DESVIO * (1 - K.eqA.recarga / 200); h.invT = 0.45; h.dash = { t: 0.22, vx: Math.sin(h.dir) * 32, vz: Math.cos(h.dir) * 32 }; h.tiroT = -0.1;
+  if (K.v.tem('Dodge_Forward')) { K.v.tocar('Dodge_Forward', { loop: false, reinicia: true, vel: 1.6 }); K.anim = 'desvio'; } sfx('arco'); C.faiscas(h.x, 0.6, h.z, 0xffffff, 12, 4); C.onda(h.x, h.z, 2.5, 0xffffff, 0.25);
+}
+function golpeDeOutro(p) { const j = K.jogs.get(p.p), [an, , alc, graus] = COMBO[p.c] || COMBO[0]; C.arco(p.x, p.z, p.r, alc, Math.min(graus, 359), p.k ?? 0xffffff); if (p.c === 2) C.onda(p.x, p.z, alc, p.k ?? 0xffffff, 0.3);
+  if (j?.v?.tem(an)) { j.v.tocar(an, { loop: false, reinicia: true, vel: 1.5 }); j.anim = 'golpe'; j.tiroT = -0.25; } }
 function usarHabilidade() {
   const h = K.heroi; if (h.habT > 0 || K.estado === 'fim' || h.morto) { som('erro'); return; } h.habT = RECARGA_HAB * (1 - K.eqA.recarga / 100);
   sfx('magia'); C.camera.tremor = 0.6; C.onda(h.x, h.z, 12, h.cor, 0.5); C.onda(h.x, h.z, 7, 0xffffff, 0.35); C.faiscas(h.x, 2, h.z, h.cor, 40, 9);
@@ -308,7 +334,7 @@ function desenhar() {
     ${K.modo === 'arvore' ? `<div class="dfVida">❤️<div class="barra"><i id="dfHpB"></i><span id="dfHpT"></span></div></div>` : ''}
     <div class="dfAviso" id="dfAviso" hidden></div><div class="dfEspera" id="dfEspera" hidden></div>
     <div class="dfJoy" id="dfJoy" hidden><i></i></div><div class="dfDica" id="dfDica">${tr('Arraste do lado esquerdo para andar · do direito para girar a câmera')}</div>
-    <button class="dfHab" id="dfHab" data-df="hab"><i id="dfHabB"></i><span>🔥</span><small id="dfHabT"></small></button><button class="dfPoder" id="dfPoder" data-df="poder"><i id="dfPoderB"></i><span>⚡</span></button><div class="dfAcoes" id="dfAcoes"></div><div class="cqJanela" id="dfJanela" hidden></div>`;
+    <button class="dfHab" id="dfHab" data-df="hab"><i id="dfHabB"></i><span>🔥</span><small id="dfHabT"></small></button><button class="dfPoder" id="dfPoder" data-df="poder"><i id="dfPoderB"></i><span>⚡</span></button><button class="dfGolpe ${K.modo}" id="dfGolpe" data-df="golpe">⚔️</button><button class="dfDesvio ${K.modo}" id="dfDesvio" data-df="desviar"><i id="dfDesvioB"></i><span>💨</span></button><div class="dfAcoes" id="dfAcoes"></div><div class="cqJanela" id="dfJanela" hidden></div>`;
 }
 function avisar(t) { const a = $('#dfAviso'); if (!a) return; a.hidden = !t; a.textContent = t; }
 function toast(t) { const a = $('#dfAviso'); if (!a || !K) return; a.hidden = false; a.textContent = t; clearTimeout(K.tToast); K.tToast = setTimeout(() => { if (K && K.estado !== 'entrando') a.hidden = true; }, 2000); }
@@ -319,6 +345,7 @@ function atualizarHud() {
   { const bt = $('#dfBuffT'); if (bt) bt.textContent = K.estado === 'buff' ? `${Math.ceil(Math.max(0, K.buffT || 0))}s` : ''; } $('#dfJog').textContent = `👥 ${1 + K.jogs.size}/${K.modo === 'arvore' ? 6 : 4}`;
   const hp = $('#dfHpB'); if (hp) { hp.style.width = 100 * Math.max(0, K.heroi.hp) / K.heroi.hpMax + '%'; $('#dfHpT').textContent = K.heroi.morto ? `${tr('Renascendo em')} ${Math.ceil(K.heroi.mortoT)}s` : `${Math.ceil(K.heroi.hp)} / ${K.heroi.hpMax}`; }
   const hb = $('#dfHab'); if (hb) { const r = Math.max(0, K.heroi.habT || 0); hb.classList.toggle('pronto', !r); $('#dfHabB').style.height = (r / RECARGA_HAB * 100) + '%'; $('#dfHabT').textContent = r ? Math.ceil(r) : ''; }
+  const dv = $('#dfDesvio'); if (dv) { const r = Math.max(0, K.heroi.dsT || 0); dv.classList.toggle('pronto', !r); $('#dfDesvioB').style.height = (r / RECARGA_DESVIO * 100) + '%'; }
   const pw = $('#dfPoder'); if (pw) { pw.classList.toggle('pronto', K.poder >= 100); $('#dfPoderB').style.height = Math.min(100, K.poder) + '%'; }
   const e = $('#dfEspera'); if (e) { const v = K.estado === 'pausa' && K.pronto; e.hidden = !v; if (v) { const t = `${tr(K.onda ? 'Próxima onda em' : 'Começa em')} ${Math.ceil(Math.max(0, K.pausaT))}s`; if (e.dataset.t !== t) { e.dataset.t = t; const ic = { arqueiro: '🏹', orc: '🗡️', elite: '💪', voador: '🐝', escudeiro: '🛡️', xama: '🌿', sabotador: '💣', gigante: '👹', chefe: '💀' }, n = {}; for (const f of montarOnda(K.onda + 1, K.modo)) n[f.tipo] = (n[f.tipo] || 0) + 1;
       e.innerHTML = `<span>${t}<small>${Object.entries(n).map(([k, q]) => `${ic[k]}${q}`).join(' ')}</small></span><button class="btn verde peq" data-df="pular">${tr('Já!')}</button>`; } } }
@@ -353,6 +380,8 @@ export function clique(b, toque) {
   if (a === 'up') { const pad = +b.dataset.pad; if (K.host) { if (!melhorar(pad, K.eu)) som('erro'); } else { K.canal?.enviar('u', { p: K.eu, pad }); som('confirma'); } K.sigAcoes = null; atualizarHud(); return; }
   if (a === 'buff') { escolherBuff(b.dataset.k); return; }
   if (a === 'hab') { usarHabilidade(); atualizarHud(); return; }
+  if (a === 'golpe') { golpear(); return; }
+  if (a === 'desviar') { desviar(); atualizarHud(); return; }
   if (a === 'vender') { const pad = +b.dataset.pad; K.padSel = null; if (K.host) vender(pad); else { K.canal?.enviar('v', { p: K.eu, pad }); som('moedas'); } K.sigAcoes = null; return; }
   if (a === 'poder') { if (K.poder < 100) { som('erro'); toast(tr('Matem mais inimigos juntos para encher o poder')); return; } if (K.host) usarPoder(); else { K.canal?.enviar('poder', {}); K.poder = 0; } return; }
   if (a === 'pular') { som('clique'); if (K.host) K.pausaT = Math.min(K.pausaT, 1); else K.canal?.enviar('pular', {}); return; }
@@ -367,7 +396,7 @@ const dn = e => { if (!K) return; K.tq = { id: e.pointerId, x: e.clientX, y: e.c
 const mv = e => { if (!K) return; if (K.joy?.id === e.pointerId) { let dx = e.clientX - K.joy.x0, dy = e.clientY - K.joy.y0; const d = Math.hypot(dx, dy), m = 55; if (d > m) { dx *= m / d; dy *= m / d; } K.joy.dx = dx / m; K.joy.dy = dy / m; const k = document.querySelector('#dfJoy i'); if (k) k.style.transform = `translate(${dx}px,${dy}px)`; }
   else if (K.cam?.id === e.pointerId) { K.yaw -= (e.clientX - K.cam.x) * 0.008; K.cam.x = e.clientX; } };
 const up = e => { if (!K) return; const q = K.tq; if (q?.id === e.pointerId && Math.hypot(e.clientX - q.x, e.clientY - q.y) < 10 && performance.now() - q.t < 350) tocarMapa(e.clientX, e.clientY); if (K.joy?.id === e.pointerId) { K.joy = null; const j = $('#dfJoy'); if (j) j.hidden = true; const k = document.querySelector('#dfJoy i'); if (k) k.style.transform = ''; } if (K.cam?.id === e.pointerId) K.cam = null; };
-const kd = e => { if (/^(KeyW|KeyA|KeyS|KeyD|Arrow\w+|KeyQ|KeyE)$/.test(e.code)) teclas.add(e.code); }, ku = e => teclas.delete(e.code);
+const kd = e => { if (/^(KeyW|KeyA|KeyS|KeyD|Arrow\w+|KeyQ|KeyE)$/.test(e.code)) teclas.add(e.code); if (!K || e.repeat || /INPUT|TEXTAREA/.test(e.target?.tagName)) return; if (e.code === 'Space' || e.code === 'KeyJ') { e.preventDefault(); golpear(); } else if (/^Shift|^KeyK$/.test(e.code)) { desviar(); atualizarHud(); } }, ku = e => teclas.delete(e.code);
 function apertou(e) { const b = e.target.closest?.('[data-df]'); if (!b || b.disabled || !K) return; e.preventDefault(); K.pd = { b, t: performance.now() }; clique(b, true); }
 function ligarToque() { el.addEventListener('pointerdown', apertou); toqueEl = $('#toque'); for (const [ev, f] of [['pointerdown', dn], ['pointermove', mv], ['pointerup', up], ['pointercancel', up]]) toqueEl.addEventListener(ev, f); addEventListener('keydown', kd); addEventListener('keyup', ku); }
 function desligarToque() { el?.removeEventListener('pointerdown', apertou); if (toqueEl) for (const [ev, f] of [['pointerdown', dn], ['pointermove', mv], ['pointerup', up], ['pointercancel', up]]) toqueEl.removeEventListener(ev, f); toqueEl = null; removeEventListener('keydown', kd); removeEventListener('keyup', ku); teclas.clear(); }
@@ -400,17 +429,22 @@ export function passo(dt) {
   }
   if ((K.tHud = (K.tHud || 0) - dt) <= 0) { K.tHud = 0.25; atualizarHud(); }
 }
+function limitar(h) {
+  if (K.modo === 'arvore') { const dx = h.x - ARV.x, dz = h.z - ARV.z, d = Math.hypot(dx, dz) || 1; if (d > 52) { h.x = ARV.x + dx / d * 52; h.z = ARV.z + dz / d * 52; } if (d < R_ARV + 1.5) { h.x = ARV.x + dx / d * (R_ARV + 1.5); h.z = ARV.z + dz / d * (R_ARV + 1.5); } }
+  else { h.x = Math.max(OX - 48, Math.min(OX + 48, h.x)); h.z = Math.max(-58, Math.min(30, h.z)); }
+}
 function moverHeroi(dt) {
   const h = K.heroi; let jx = h.morto ? 0 : K.joy?.dx || 0, jy = h.morto ? 0 : K.joy?.dy || 0;
   if (teclas.has('KeyA') || teclas.has('ArrowLeft')) jx -= 1; if (teclas.has('KeyD') || teclas.has('ArrowRight')) jx += 1; if (teclas.has('KeyW') || teclas.has('ArrowUp')) jy -= 1; if (teclas.has('KeyS') || teclas.has('ArrowDown')) jy += 1;
   if (teclas.has('KeyQ')) K.yaw += dt * 2; if (teclas.has('KeyE')) K.yaw -= dt * 2;
   const m = Math.hypot(jx, jy); if (m > 1) { jx /= m; jy /= m; }
   const sy = Math.sin(K.yaw), cy = Math.cos(K.yaw), vel = 11 * (1 + 0.15 * bnv('pressa')), vx = (-cy * jx + sy * -jy) * vel, vz = (sy * jx + cy * -jy) * vel;
-  h.anda = m > 0.15; if (h.anda) { if (K.modo === 'arvore') { h.x += vx * dt; h.z += vz * dt; const dx = h.x - ARV.x, dz = h.z - ARV.z, d = Math.hypot(dx, dz); if (d > 52) { h.x = ARV.x + dx / d * 52; h.z = ARV.z + dz / d * 52; } if (d < R_ARV + 1.5) { h.x = ARV.x + dx / d * (R_ARV + 1.5); h.z = ARV.z + dz / d * (R_ARV + 1.5); } }
-    else { h.x = Math.max(OX - 48, Math.min(OX + 48, h.x + vx * dt)); h.z = Math.max(-58, Math.min(30, h.z + vz * dt)); } h.dir = Math.atan2(vx, vz); }
-  else if (h.alvoDir != null) h.dir = h.alvoDir;
+  h.anda = m > 0.15 && !h.dash; if (h.anda) { h.x += vx * dt; h.z += vz * dt; limitar(h); h.dir = Math.atan2(vx, vz); }
+  else if (h.alvoDir != null && !h.dash && !(h.gT > -0.3)) h.dir = h.alvoDir;
+  if (h.dash) { h.x += h.dash.vx * dt; h.z += h.dash.vz * dt; limitar(h); if ((h.dash.t -= dt) <= 0) h.dash = null; }
+  for (const k of ['gT', 'dsT', 'invT']) if (h[k] > -1) h[k] -= dt;
   h.tiroT += dt; K.v.mixer.update(dt); K.v.raiz.position.set(h.x, 0, h.z); K.v.raiz.rotation.y = h.dir;
-  const an = h.anda ? 'Running_A' : h.tiroT < 0.5 ? null : K.v.tem(K.H.pose) ? K.H.pose : 'Idle_A'; if (an && K.anim !== an) { K.anim = an; K.v.tocar(an); }
+  const an = h.gT > -0.3 || h.dash ? null : h.anda ? 'Running_A' : h.tiroT < 0.5 ? null : K.v.tem(K.H.pose) ? K.H.pose : 'Idle_A'; if (an && K.anim !== an) { K.anim = an; K.v.tocar(an); }
 }
 const GEO_ARO = new THREE.RingGeometry(1.1, 1.6, 32).rotateX(-Math.PI / 2), matAro = {}, aroDe = r => matAro[r] ||= new THREE.MeshBasicMaterial({ color: EQ.RARIDADES[r].cor, transparent: true, opacity: 0.7, depthWrite: false });
 function aro(o, r, x, z, vis) { if (r == null || r < 1) return o; if (!o) { o = new THREE.Mesh(GEO_ARO, aroDe(r)); cn().add(o); } o.material = aroDe(r); o.position.set(x, 0.15, z); o.visible = vis; o.scale.setScalar(1 + 0.08 * Math.sin(C.tempo() * 4)); return o; }
@@ -430,7 +464,7 @@ function outrosHerois(dt) {
 }
 function alvoPerto(x, z, alc) { let m = null, ms = -1; for (const u of K.mobs) { if (u.morto || Math.hypot(u.x - x, u.z - z) > alc) continue; if (u.s > ms) { ms = u.s; m = u; } } return m; }
 function heroiAtira(dt) {
-  const h = K.heroi; if ((h.cd -= dt) > 0 || K.estado === 'fim' || h.morto) return; let a = null, dm = h.alc;
+  const h = K.heroi; if ((h.cd -= dt) > 0 || K.estado === 'fim' || h.morto || h.dash) return; let a = null, dm = h.alc;
   for (const u of K.mobs) { if (u.morto) continue; const d = Math.hypot(u.x - h.x, u.z - h.z); if (d < dm) { dm = d; a = u; } }
   if (!a) { h.alvoDir = null; return; } h.cd = h.cad / (1 + 0.15 * bnv('pressa')); h.alvoDir = Math.atan2(a.x - h.x, a.z - h.z); h.tiroT = 0; K.atirou = a.id;
   const at = K.animTiro || K.H.tiro; if (!h.anda && K.v.tem(at)) { K.v.tocar(at, { loop: false, reinicia: true, vel: 1.6 }); K.anim = 'tiro'; } if (Math.random() < 0.35) sfx(K.arma?.tipo === 'corte' ? 'espada' : 'arco');
@@ -523,6 +557,7 @@ function passoArvore(dt) { // vale para todos: herói apanha, cura, renasce; gua
   const h = K.heroi, mult = multAtk();
   if (h.morto) { if ((h.mortoT -= dt) <= 0) { h.morto = false; h.hp = h.hpMax; h.x = ARV.x; h.z = ARV.z + 9; K.v.raiz.visible = true; toast(tr('Você voltou!')); sfx('brilho'); } }
   else { let dano = 0; for (const u of K.mobs) if (!u.morto && !TIPOS[u.tipo].longe && Math.hypot(u.x - h.x, u.z - h.z) < 2.6) dano += TIPOS[u.tipo].atk * 0.6; 
+    if (dano && h.invT > 0) dano = 0;
     if (dano) { h.hp -= dano * mult * dt * (1 - K.eqA.def / 100); h.dor = (h.dor || 0) + dt; if (h.dor > 0.4) { h.dor = 0; K.v.brilho(0.5); setTimeout(() => K?.v.brilho(0), 90); } }
     const nc = bnv('cura'); if (nc && Math.hypot(h.x - ARV.x, h.z - ARV.z) < 13) h.hp = Math.min(h.hpMax, h.hp + 6 * nc * dt);
     if (K.eqA.cura) h.hp = Math.min(h.hpMax, h.hp + K.eqA.cura * dt);
