@@ -135,7 +135,7 @@ export function abrir(container, opcoes) {
   C.ceu(0x9ad8f8); C.neblina(180, 520); C.diaNoite(0);
   el.innerHTML = `<div class="muTopo"><button class="lSair" data-mu="sair">${ico('fechar')}</button><b>${tr('Mapa de Guerra')}</b><small id="muOn"></small><button class="muCmdB" data-mu="cmd">⭐ <span id="muNv">Nv 1</span></button><button class="muLigaB" data-mu="liga">🏆 <span id="muPts">${tr('Liga')}</span></button></div>
     <div class="muAviso" id="muAviso">${tr('Carregando o mapa...')}</div>
-    <div class="muRally" id="muRally" hidden></div><div class="muConf" id="muConf" hidden></div><div class="muInfo" id="muInfo" hidden></div><div class="muExs" id="muExs"></div><div class="cqJanela" id="muRel" hidden></div><canvas class="muMini" id="muMini" width="128" height="128"></canvas>
+    <div class="muMissao" id="muMissao" hidden></div><div class="muRally" id="muRally" hidden></div><div class="muConf" id="muConf" hidden></div><div class="muInfo" id="muInfo" hidden></div><div class="muExs" id="muExs"></div><div class="cqJanela" id="muRel" hidden></div><canvas class="muMini" id="muMini" width="128" height="128"></canvas>
     <button class="muCaixaB" data-mu="caixa" aria-label="${tr('Relatórios')}">✉️<i id="muCxN" hidden></i></button>`;
   ligarToque(); ligarMini(); atualizar(true);
 }
@@ -221,7 +221,7 @@ async function enviar(e, cam, alvoId) {
 function marchar(e, alvo) {
   if (emBatalha(e)) { som('erro'); toast(tr('Em batalha! Use Recuar')); return; }
   const p = posicao(e), cam = caminho([p.x, p.y], alvo); if (!cam || cam.length < 2) { som('erro'); toast(tr('Não dá para chegar lá')); return; }
-  sfx('brilho'); som('confirma'); enviar(e, cam, null);
+  sfx('brilho'); som('confirma'); enviar(e, cam, null); missao('marchar');
 }
 function atacar(e, a, quieto) {
   if (emBatalha(e)) { if (!quieto) { som('erro'); toast(tr('Em batalha! Use Recuar')); } return; }
@@ -309,7 +309,7 @@ async function reforcar(e, tipo, id) {
   const alvo = posAlvo(tipo === 'def' ? 'band' : 'cast', id), p = posicao(e); if (!alvo) return; const cam = pertoDe(alvo, tipo === 'def' ? 1.6 : 3.2, [p.x, p.y]);
   if (!cam) { som('erro'); toast(tr('Não dá para chegar lá')); return; } const dur = comprimento(cam) / VEL;
   try { const r = await ON.mapaReforcar(e.slot, tipo, id, cam, dur); if (r) { som('erro'); toast(tr(r)); return; }
-    Object.assign(e, { cam, t0: agora(), t1: agora() + dur, local: true, alvo: null, cerco_tipo: tipo, cerco_id: id, cercando: false, rally: null }); sfx('brilho'); som('confirma'); toast(tr('Indo reforçar!')); cards(); }
+    Object.assign(e, { cam, t0: agora(), t1: agora() + dur, local: true, alvo: null, cerco_tipo: tipo, cerco_id: id, cercando: false, rally: null }); sfx('brilho'); som('confirma'); toast(tr('Indo reforçar!')); cards(); missao('reforco'); }
   catch (er) { toast(tr(er.message)); }
 }
 function pontoRally(cla) { const c = K.castelos.find(q => q.id === cla); if (!c) return null; for (const [dx, dy] of [[0, 3], [3, 0], [-3, 0], [0, -3], [2.5, 2.5], [-2.5, 2.5]]) { const x = c.x + dx, y = c.y + dy; if (livre(Math.floor(x), Math.floor(y))) return [x, y]; } return null; }
@@ -321,7 +321,7 @@ async function criarRally(e, tipo, id) {
   if (!cam || !cam0) { som('erro'); toast(tr('Não dá para chegar lá')); return; }
   const dur = comprimento(cam) / VEL, dur0 = comprimento(cam0) / VEL;
   try { const r = await ON.mapaRally(e.slot, tipo, id, pt[0], pt[1], cam, dur, cam0, dur0); if (r) { som('erro'); toast(tr(r)); return; }
-    Object.assign(e, { cam: cam0, t0: agora(), t1: agora() + dur0, local: true, alvo: null, cerco_tipo: 'rally', cercando: false }); sfx('vitoria'); toast(tr('Rally aberto! O clã tem 1 minuto para entrar')); atualizar(); }
+    Object.assign(e, { cam: cam0, t0: agora(), t1: agora() + dur0, local: true, alvo: null, cerco_tipo: 'rally', cercando: false }); sfx('vitoria'); toast(tr('Rally aberto! O clã tem 1 minuto para entrar')); atualizar(); missao('rally'); }
   catch (er) { toast(tr(er.message)); }
 }
 async function entrarRally(e, rl) {
@@ -330,7 +330,7 @@ async function entrarRally(e, rl) {
   const p = posicao(e), cam = Math.hypot(p.x - rl.px, p.y - rl.py) < 0.3 ? [[p.x, p.y], [rl.px + 0.01, rl.py]] : caminho([p.x, p.y], [rl.px, rl.py]); if (!cam) { som('erro'); toast(tr('Não dá para chegar lá')); return; }
   const dur = comprimento(cam) / VEL; if (agora() + dur > rl.parte) { som('erro'); toast(tr('não chega a tempo')); return; }
   try { const r = await ON.mapaRallyEntrar(e.slot, rl.id, cam, dur); if (r) { som('erro'); toast(tr(r)); return; }
-    Object.assign(e, { cam, t0: agora(), t1: agora() + dur, local: true, alvo: null, cerco_tipo: 'rally', cerco_id: rl.id, cercando: false }); sfx('brilho'); toast(tr('Entrou no rally!')); atualizar(); }
+    Object.assign(e, { cam, t0: agora(), t1: agora() + dur, local: true, alvo: null, cerco_tipo: 'rally', cerco_id: rl.id, cercando: false }); sfx('brilho'); toast(tr('Entrou no rally!')); atualizar(); missao('rally'); }
   catch (er) { toast(tr(er.message)); }
 }
 function nomeAlvo(tipo, id) { if (tipo === 'band') { const f = K.bandeiras.find(q => q.id === id), c = f && K.clas.find(q => q.id === f.cla); return `${tr('Bandeira')} ${c ? `[${c.tag}]` : ''}`; } const c = K.clas.find(q => q.id === id); return `${tr('Castelo')} ${c ? `[${c.tag}]` : ''}`; }
@@ -446,6 +446,12 @@ function selecionar(id) {
   K.sel = K.sel === id ? null : id; K.prev = null; $('#muConf').hidden = true; $('#muInfo').hidden = true; som('clique');
   const e = K.ex.get(K.sel); if (e) { const p = posicao(e); K.cam = { x: wx(p.x), z: wz(p.y) + 10 }; toast(tr('Toque no mapa ou num inimigo')); } cards();
 }
+function infoEx(perto) { // painel ao tocar num exército de outro jogador ou num acampamento bárbaro
+  const c = K.clas.find(q => q.id === perto.cla), i = $('#muInfo'), amigo = meus()[0]?.cla != null && perto.cla === meus()[0].cla, T0 = TIPOS[perto.tipo] || TIPOS.esp; i.hidden = false; $('#muConf').hidden = true; som('clique');
+    i.innerHTML = `<b data-nt>${perto.barb != null ? `🔥 ${tr('Acampamento bárbaro')} Nv ${perto.barb}` : `${c ? `[${esc(c.tag)}] ` : ''}${esc(perto.nome)}`}</b>${perto.barb != null ? `<small class="muBom">${tr('Prêmio')}: ${ico('ouro')}${fmt(150 * perto.barb)} + ${60 * perto.barb} XP</small>` : ''}<small>${ico(T0.icone)} ${fmt(tropasAgora(perto))} ${tr(T0.nome).toLowerCase()} · ${HEROIS[perto.heroi]?.nome || ''}</small>
+      ${amigo ? `<small>${tr('É do seu clã')}</small>` : emBatalha(perto) ? `<small class="muBreve">${tr('Já está em batalha')}</small>` : `<div class="muAtk">${meus().map(e => `<button class="btn vermelho peq" data-mu="atacar" data-slot="${e.slot}" data-alvo="${perto.id}" ${e.tropas <= 0 || emBatalha(e) ? 'disabled' : ''}>${ico('h_lamina')} ${tr('Atacar com')} ${e.slot + 1}${chanceEx(e, perto)}</button>`).join('')}</div>
+      <small class="muDica">${tr('Espadachim vence arqueiro, arqueiro vence lanceiro, lanceiro vence espadachim')}</small>`}`;
+}
 function tocar(sx, sy) {
   let perto = null, dm = 34; for (const e of K.ex.values()) { const p = posicao(e), q = C.tela(wx(p.x), 1.5, wz(p.y)); if (!q) continue; const d = Math.hypot(q[0] - sx, q[1] - sy); if (d < dm) { dm = d; perto = e; } }
   if (perto?.eu) { selecionar(perto.id); return; }
@@ -454,10 +460,7 @@ function tocar(sx, sy) {
     for (const m of K.recursos) { const q = C.tela(wx(m.x), 1.5, wz(m.y)); if (q) { const d = Math.hypot(q[0] - sx, q[1] - sy); if (d < da) { da = d; alvo = m; tipo = 'rec'; } } }
     for (const c of K.castelos) { const q = C.tela(wx(c.x), 4, wz(c.y)); if (q) { const d = Math.hypot(q[0] - sx, q[1] - sy); if (d < Math.max(da, 46)) { da = d; alvo = c; tipo = 'cast'; } } }
     if (alvo && !(K.sel && tipo === 'band' && alvo.cla === meus()[0]?.cla)) { infoAlvo(tipo, alvo); return; } }
-  if (perto) { const c = K.clas.find(q => q.id === perto.cla), i = $('#muInfo'), amigo = meus()[0]?.cla != null && perto.cla === meus()[0].cla, T0 = TIPOS[perto.tipo] || TIPOS.esp; i.hidden = false; $('#muConf').hidden = true; som('clique');
-    i.innerHTML = `<b data-nt>${perto.barb != null ? `🔥 ${tr('Acampamento bárbaro')} Nv ${perto.barb}` : `${c ? `[${esc(c.tag)}] ` : ''}${esc(perto.nome)}`}</b>${perto.barb != null ? `<small class="muBom">${tr('Prêmio')}: ${ico('ouro')}${fmt(150 * perto.barb)} + ${60 * perto.barb} XP</small>` : ''}<small>${ico(T0.icone)} ${fmt(tropasAgora(perto))} ${tr(T0.nome).toLowerCase()} · ${HEROIS[perto.heroi]?.nome || ''}</small>
-      ${amigo ? `<small>${tr('É do seu clã')}</small>` : emBatalha(perto) ? `<small class="muBreve">${tr('Já está em batalha')}</small>` : `<div class="muAtk">${meus().map(e => `<button class="btn vermelho peq" data-mu="atacar" data-slot="${e.slot}" data-alvo="${perto.id}" ${e.tropas <= 0 || emBatalha(e) ? 'disabled' : ''}>${ico('h_lamina')} ${tr('Atacar com')} ${e.slot + 1}${chanceEx(e, perto)}</button>`).join('')}</div>
-      <small class="muDica">${tr('Espadachim vence arqueiro, arqueiro vence lanceiro, lanceiro vence espadachim')}</small>`}`; return; }
+  if (perto) { infoEx(perto); return; }
   const e = K.ex.get(K.sel); if (!e) { $('#muInfo').hidden = true; return; }
   const g = C.chaoEm(sx, sy); if (!g) return; const alvo = [(g.x - WX) / T + N / 2, (g.z - WZ) / T + N / 2];
   if (!livre(Math.floor(alvo[0]), Math.floor(alvo[1]))) { som('erro'); toast(tr('Não dá para ir aí')); return; }
@@ -471,12 +474,78 @@ function mostrarLinha(cam, cor) {
   C.descartar(K.linha); const pts = cam.map(p => new THREE.Vector3(wx(p[0]), 0.35, wz(p[1])));
   K.linha = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineDashedMaterial({ color: cor, dashSize: 1.2, gapSize: 0.8 })); K.linha.computeLineDistances(); cn().add(K.linha);
 }
+// ---- missões: sempre mostram o próximo passo e um botão "Ir" que leva até lá ----
+const MISSOES = [
+  { ev: 'marchar', meta: 1, txt: 'Selecione um exército e marche pelo mapa', premio: 100 },
+  { ev: 'ouro', meta: 200, txt: 'Colete ouro numa mina', premio: 150 },
+  { ev: 'barbaro', meta: 1, txt: 'Derrote um acampamento bárbaro', premio: 250 },
+  { ev: 'nivel', meta: 2, txt: 'Suba o comandante para o nível 2', premio: 200 },
+  { ev: 'quartel', meta: 1, txt: 'Melhore o quartel (mais tropas)', premio: 300 },
+  { ev: 'ouro', meta: 800, txt: 'Colete mais ouro nas minas', premio: 300 },
+  { ev: 'barbaro', meta: 3, txt: 'Derrote 3 acampamentos bárbaros', premio: 500 },
+  { ev: 'cla', meta: 1, txt: 'Entre num clã (aba Clã no menu)', premio: 300 },
+  { ev: 'reforco', meta: 1, txt: 'Reforce uma bandeira do seu clã', premio: 300 },
+  { ev: 'vitoria', meta: 1, txt: 'Vença uma batalha contra outro exército', premio: 500 },
+  { ev: 'rally', meta: 1, txt: 'Abra ou entre num rally do clã', premio: 600 },
+  { ev: 'bandeira', meta: 1, txt: 'Derrube uma bandeira inimiga', premio: 800 },
+  { ev: 'nivel', meta: 5, txt: 'Suba o comandante para o nível 5', premio: 800 },
+  { ev: 'liga', meta: 500, txt: 'Faça 500 pontos na Liga desta semana', premio: 1000 },
+  { ev: 'castelo', meta: 1, txt: 'Conquiste um castelo inimigo com o clã', premio: 3000 },
+];
+const DIARIAS = [{ ev: 'ouro', meta: 1000, txt: 'Diária: colete 1000 de ouro', premio: 400 }, { ev: 'barbaro', meta: 3, txt: 'Diária: derrote 3 bárbaros', premio: 400 },
+  { ev: 'vitoria', meta: 2, txt: 'Diária: vença 2 batalhas', premio: 500 }, { ev: 'reforco', meta: 1, txt: 'Diária: reforce uma bandeira', premio: 300 }, { ev: 'rally', meta: 1, txt: 'Diária: participe de um rally', premio: 500 }];
+const hoje = () => new Date().toLocaleDateString('sv');
+function missaoAtual() {
+  S.mm ||= { i: 0, n: 0 }; if (S.mm.i < MISSOES.length) return { ...MISSOES[S.mm.i], n: S.mm.n, cap: S.mm.i + 1 };
+  if (S.mm.dia !== hoje()) { const d = new Date(), k = (d.getFullYear() * 400 + d.getMonth() * 31 + d.getDate()) % DIARIAS.length; S.mm.dia = hoje(); S.mm.d = [k, (k + 1) % DIARIAS.length, (k + 3) % DIARIAS.length].map(i => ({ i, n: 0, ok: false })); salvar(); }
+  const d = S.mm.d.find(x => !x.ok); return d ? { ...DIARIAS[d.i], n: d.n, diaria: d } : null;
+}
+function checarMissao() { // as que dependem de estado (nível, clã, liga)
+  const m = missaoAtual(); if (!m || m.n >= m.meta) return;
+  const v = m.ev === 'nivel' ? K.heroi?.nivel || 1 : m.ev === 'cla' ? (meus()[0]?.cla != null ? 1 : 0) : m.ev === 'liga' ? K.liga?.eu?.pontos || 0 : null;
+  if (v != null && v !== m.n) { if (m.diaria) m.diaria.n = v; else S.mm.n = v; salvar(); }
+}
+function missao(ev, q = 1) {
+  if (!K) return; const m = missaoAtual(); if (!m || m.ev !== ev || m.n >= m.meta) return;
+  const n = Math.min(m.meta, m.n + q); if (m.diaria) m.diaria.n = n; else S.mm.n = n; salvar();
+  if (n >= m.meta) { sfx('vitoria'); flashTela('#ffe27a', 0.25); toast(`📜 ${tr('Missão cumprida!')} ${tr('Pegue o prêmio')}`); }
+  K.missaoSig = null;
+}
+function pegarMissao() {
+  const m = missaoAtual(); if (!m || m.n < m.meta) return; S.moedas += m.premio;
+  if (m.diaria) m.diaria.ok = true; else S.mm = { ...S.mm, i: S.mm.i + 1, n: 0 }; salvar(); som('moedas'); sfx('brilho'); toast(`${ico('ouro')} +${fmt(m.premio)}`); K.missaoSig = null; checarMissao();
+}
+function irMissao() { // leva até onde a missão acontece
+  const m = missaoAtual(); if (!m) return; const eu = meus()[0], p0 = eu ? posicao(eu) : { x: N / 2, y: N / 2 }, perto = l => l.sort((a, b) => Math.hypot(a.x - p0.x, a.y - p0.y) - Math.hypot(b.x - p0.x, b.y - p0.y))[0];
+  const olhar = (x, y) => { K.cam = { x: wx(x), z: wz(y) + 10 }; K.zoom = Math.min(K.zoom, 75); }; som('clique');
+  if (m.ev === 'marchar') { if (eu) { K.sel = null; selecionar(eu.id); } return; }
+  if (m.ev === 'ouro') { const r = perto(K.recursos.filter(q => !q.ex)); if (r) { olhar(r.x, r.y); infoAlvo('rec', r); } return; }
+  if (m.ev === 'barbaro') { const b = perto([...K.ex.values()].filter(o => o.barb != null && tropasAgora(o) > 0).map(o => ({ o, x: posicao(o).x, y: posicao(o).y })).sort((a, b) => a.o.barb - b.o.barb).slice(0, 5)); if (b) { olhar(b.x, b.y); infoEx(b.o); } return; }
+  if (m.ev === 'nivel' || m.ev === 'quartel') { K.abaRel = 'cmd'; abrirCmd(); return; }
+  if (m.ev === 'cla') { toast(tr('Saia do mapa e entre num clã na aba Clã do menu')); return; }
+  if (m.ev === 'liga') { abrirLiga(); return; }
+  if (m.ev === 'reforco') { const f = perto(K.bandeiras.filter(f => eu && f.cla === eu.cla && f.pronta <= agora())); if (f) { olhar(f.x, f.y); infoAlvo('band', f); } else toast(tr('Seu clã ainda não tem bandeiras')); return; }
+  if (m.ev === 'vitoria') { const o = perto([...K.ex.values()].filter(o => !o.eu && o.barb == null && (eu?.cla == null || o.cla !== eu.cla) && tropasAgora(o) > 0 && !naBase(o)).map(o => ({ o, x: posicao(o).x, y: posicao(o).y }))); if (o) { olhar(o.x, o.y); infoEx(o.o); } return; }
+  if (m.ev === 'rally' || m.ev === 'bandeira') { const rl = eu && K.rallies.find(q => q.cla === eu.cla); if (rl && m.ev === 'rally') { olhar(rl.px, rl.py); return; } const f = perto(K.bandeiras.filter(f => eu && f.cla !== eu.cla && f.pronta <= agora())); if (f) { olhar(f.x, f.y); infoAlvo('band', f); } return; }
+  if (m.ev === 'castelo') { const c = perto(K.castelos.filter(c => eu && c.id !== eu.cla)); if (c) { olhar(c.x, c.y); infoAlvo('cast', c); } }
+}
+function barraMissao() {
+  const b = $('#muMissao'); if (!b || !K.carregou) return; checarMissao(); const m = missaoAtual();
+  const sig = m ? `${m.txt}|${m.n}|${m.meta}` : '-'; if (sig === K.missaoSig) return; K.missaoSig = sig; b.hidden = !m; if (!m) return;
+  const pronta = m.n >= m.meta, pct = Math.min(100, m.n / m.meta * 100);
+  b.className = `muMissao${pronta ? ' pronta' : ''}`;
+  b.innerHTML = `<i>📜</i><span><b>${m.cap ? `${m.cap}/${MISSOES.length} · ` : ''}${tr(m.txt)}</b><em><u style="width:${pct}%"></u><s>${fmt(m.n)}/${fmt(m.meta)}</s></em></span>
+    ${pronta ? `<button class="btn amarelo peq" data-mu="pegarMissao">${ico('ouro')}${fmt(m.premio)}</button>` : `<button class="btn verde peq" data-mu="irMissao">${tr('Ir')}</button>`}`;
+}
+
 // ---- caixa de mensagens (relatórios ficam guardados; chega um novo → aviso e número no ícone) ----
 function novosRelatorios(lista) {
   K.vistos ||= new Set(); const novos = lista.filter(r => !K.vistos.has(r.id)); for (const r of novos) K.vistos.add(r.id);
   const n = $('#muCxN'); if (n) { n.hidden = !lista.length; n.textContent = lista.length > 9 ? '9+' : lista.length; }
   if (!novos.length) return; const ult = novos[novos.length - 1].dados, bom = ['coleta', 'barbaro', 'rallySaiu', 'rallyNovo'].includes(ult.tipo) || ult.venceu || ult.derrubou || ult.conquistou;
   if (K.carregou) { toast(`✉️ ${tr('Novo relatório')}: ${tituloRel(ult)}`); sfx(bom ? 'brilho' : 'nota', bom ? undefined : 1); const b = document.querySelector('.muCaixaB'); if (b) { b.classList.remove('pulsa'); void b.offsetWidth; b.classList.add('pulsa'); } }
+  for (const { dados: d } of novos) { if (d.tipo === 'coleta') missao('ouro', d.ouro); if (d.tipo === 'barbaro') missao('barbaro'); if (d.tipo === 'bandeira' && d.derrubou) missao('bandeira');
+    if (d.tipo === 'castelo' && d.conquistou) missao('castelo'); if ((d.tipo || 'batalha') === 'batalha' && d.ataque && d.venceu && d.contra !== 'Bárbaros') missao('vitoria'); }
   if (novos.some(r => r.dados.tipo === 'coleta' || r.dados.tipo === 'barbaro')) ON.premios().then(l => { const m = (l || []).reduce((a, p) => a + p.moedas, 0); if (m) { S.moedas += m; salvar(); som('moedas'); } }).catch(() => {}); // o ouro entra na hora
   if (!$('#muRel').hidden && K.abaRel === 'caixa') abrirCaixa();
 }
@@ -536,7 +605,7 @@ function abrirCmd() {
 }
 async function quartel() {
   const c = custoQuartel(K.heroi?.cap_nv || 0); if ((S.moedas || 0) < c) { som('erro'); toast(`${tr('Precisa de')} ${fmt(c)} ${tr('moedas')}`); return; }
-  try { const nv = await ON.mapaQuartel(); S.moedas -= c; salvar(); K.heroi.cap_nv = nv; sfx('vitoria'); toast(`🏰 ${tr('Quartel')} ${nv}! +40 ${tr('tropas')}`); abrirCmd(); await atualizar(); }
+  try { const nv = await ON.mapaQuartel(); S.moedas -= c; salvar(); K.heroi.cap_nv = nv; sfx('vitoria'); toast(`🏰 ${tr('Quartel')} ${nv}! +40 ${tr('tropas')}`); abrirCmd(); missao('quartel'); await atualizar(); }
   catch (er) { som('erro'); toast(tr(er.message)); }
 }
 async function acelerar(slot, tipo) {
@@ -592,6 +661,8 @@ export function clique(b) {
   if (a === 'reforcar' || a === 'rally') { const e = meus().find(q => q.slot === +b.dataset.slot); $('#muInfo').hidden = true; if (e) { K.sel = e.id; (a === 'rally' ? criarRally : reforcar)(e, b.dataset.tipo, +b.dataset.alvo); } return; }
   if (a === 'rallyEntrar') { const e = meus().find(q => q.slot === +b.dataset.slot), rl = K.rallies.find(q => q.cla === e?.cla); if (e && rl) entrarRally(e, rl); return; }
   if (a === 'coletar') { const e = meus().find(q => q.slot === +b.dataset.slot); $('#muInfo').hidden = true; if (e) { K.sel = e.id; coletar(e, +b.dataset.alvo); } return; }
+  if (a === 'irMissao') { irMissao(); return; }
+  if (a === 'pegarMissao') { pegarMissao(); return; }
   if (a === 'caixa') { som('clique'); abrirCaixa(); return; }
   if (a === 'cmd') { K.abaRel = 'cmd'; som('clique'); abrirCmd(); return; }
   if (a === 'quartel') { quartel(); return; }
@@ -640,7 +711,7 @@ export function passo(dt) {
   if (K.cam) { K.cam.x = Math.max(wx(0), Math.min(wx(N), K.cam.x)); K.cam.z = Math.max(wz(0) + 10, Math.min(wz(N) + 18, K.cam.z)); }
   passoBatalhas(); if ((K.tTerr = (K.tTerr || 0) - dt) <= 0) { K.tTerr = 1; atualizarTerritorio(); }
   for (const f of K.flags.values()) f.pano.rotation.y = Math.sin(t * 2.2 + f.fase) * 0.3;
-  if ((K.tMini = (K.tMini || 0) - dt) <= 0) { K.tMini = 0.4; desenharMini(); bannerRally(); }
+  if ((K.tMini = (K.tMini || 0) - dt) <= 0) { K.tMini = 0.4; desenharMini(); bannerRally(); barraMissao(); }
   const az = [], vm = [], meuCla = meus()[0]?.cla;
   for (const e of K.ex.values()) {
     const p = posicao(e), x = wx(p.x), z = wz(p.y), amigo = e.eu || (meuCla != null && e.cla === meuCla), b = emBatalha(e), n0 = tropasAgora(e);
