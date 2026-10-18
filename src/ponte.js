@@ -1145,7 +1145,7 @@ function menuDupla() {
 async function chamarAmigo() {
   const j = $('#janela'); j.hidden = false; j.innerHTML = `<div class="jOnline"><h2>${ico('festa')} Chamar amigo</h2><p class="sub">Conectando...</p></div>`;
   try { await ON.garantir(); } catch (e) { j.innerHTML = `<div class="jOnline"><p class="erro">${esc(e.message)}</p><button class="btn azul" data-a="fecharJanela">Fechar</button></div>`; som('erro'); return; }
-  const cod = S.online.codigo, txt = `${tr('Bora jogar Batalha da Ponte em dupla comigo! No jogo, toque em Modos > Dupla > Tenho um código e digite:')} ${cod}\n${tr('Baixe o jogo:')} ${LINK_APP}`;
+  const cod = S.online.codigo, txt = `${tr('Bora jogar Rise of the Bridge em dupla comigo! No jogo, toque em Modos > Dupla > Tenho um código e digite:')} ${cod}\n${tr('Baixe o jogo:')} ${LINK_APP}`;
   let enviou = false; try { if (window.App?.compartilhar) { window.App.compartilhar(txt); enviou = true; } else if (navigator.share) { navigator.share({ text: txt }).catch(() => {}); enviou = true; } else await navigator.clipboard.writeText(txt); } catch (e) {}
   j.innerHTML = `<div class="jOnline jDupla"><h2>${ico('festa')} Chamar amigo</h2><p class="sub">${enviou ? 'Mande a mensagem para seu amigo. Ele digita este código na Dupla:' : 'Mensagem copiada! Cole no WhatsApp. Seu amigo digita este código na Dupla:'}</p>
     <div class="codAmigo" data-nt>${cod}</div><div class="radar"><i></i><i></i>${ico('herois')}</div><p id="amigoTxt">Esperando seu amigo entrar...</p>

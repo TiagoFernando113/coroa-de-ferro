@@ -1,4 +1,4 @@
-# Batalha da Ponte
+# Rise of the Bridge
 
 Jogo 3D de celular (Android, via WebView). Seu arqueiro atira sozinho: arraste para mirar nas
 pilhas das laterais (+1, +99, x2, barricadas) e ganhar soldados. O exército azul marcha pelo
