@@ -4,7 +4,7 @@
 import { S, salvar, fimDeSemana } from './meta.js';
 import * as C from './cena.js';
 import { heroiAtual } from './herois.js';
-import { iconePixel, tipoDe } from './pixel.js';
+import { iconePixel, iconeItem, tipoDe } from './pixel.js';
 import { fmt } from './dados.js';
 import { som, $ } from './util.js';
 import { sfx } from './musica.js';
@@ -99,13 +99,13 @@ const custoUp = it => Math.round(80 * it.nv * (1 + it.r) * (1 + it.r * 0.5));
 const valorDesmontar = it => Math.round(20 * (1 + it.r) ** 2 * it.nv);
 
 // ---- tela da mochila ----
-export const itemHtml = (it, cls = '') => `<button class="eqItem r${it.r} ${cls} ${it.lenda ? 'lenda' : ''}" data-eq="ver" data-id="${it.id}" style="--r:${RARIDADES[it.r].cor}">${it.modelo?.startsWith('P:') ? `<img src="${iconePixel(it.modelo.slice(2), 2)}" alt="">` : `<i>${SLOTS[it.slot].ic}</i>`}<em>${it.nv > 1 ? '+' + (it.nv - 1) : ''}</em>${it.lenda ? '<u>✨</u>' : ''}</button>`;
+export const itemHtml = (it, cls = '') => `<button class="eqItem r${it.r} ${cls} ${it.lenda ? 'lenda' : ''}" data-eq="ver" data-id="${it.id}" style="--r:${RARIDADES[it.r].cor}"><img class="${it.slot === 'arma' ? 'pxArma' : ''}" src="${iconeItem(it, it.slot === 'arma' ? 2 : 3)}" alt=""><em>${it.nv > 1 ? '+' + (it.nv - 1) : ''}</em>${it.lenda ? '<u>✨</u>' : ''}</button>`;
 const linhaSt = (it, k) => { const [n, u] = ST[k]; return `<span>${tr(n)} <b>+${fmt(Math.round(valor(it, k) * 10) / 10)}${u}</b></span>`; };
 export function mostrar(sel = null) {
   const E = eq(), j = $('#janela'); j.hidden = false; const usando = new Set(Object.values(E.usando)), A = atributos();
   const it = sel != null && E.itens.find(x => x.id === sel);
   const det = it ? (() => { const R = RARIDADES[it.r], eq1 = usando.has(it.id), c = custoUp(it);
-    return `<div class="eqDet" style="--r:${R.cor}"><div class="eqDetT">${it.modelo?.startsWith('P:') ? `<img class="eqPx" src="${iconePixel(it.modelo.slice(2), 3)}" alt="">` : SLOTS[it.slot].ic}<span><b>${it.nome}${it.nv > 1 ? ` +${it.nv - 1}` : ''}</b><small>${tr(R.nome)} · ${tr(SLOTS[it.slot].nome)} · ${tr('Poder')} ${fmt(poderItem(it))}</small></span></div>
+    return `<div class="eqDet" style="--r:${R.cor}"><div class="eqDetT"><img class="eqPx ${it.slot === 'arma' ? 'pxArma' : ''}" src="${iconeItem(it, it.slot === 'arma' ? 3 : 4)}" alt=""><span><b>${it.nome}${it.nv > 1 ? ` +${it.nv - 1}` : ''}</b><small>${tr(R.nome)} · ${tr(SLOTS[it.slot].nome)} · ${tr('Poder')} ${fmt(poderItem(it))}</small></span></div>
       <div class="eqSt">${Object.keys(it.st).map(k => linhaSt(it, k)).join('')}</div>${it.lenda ? `<p class="eqLenda">✨ ${tr(LENDAS[it.lenda].desc)}</p>` : ''}
       <div class="eqBts">${eq1 ? `<button class="btn cinza peq" disabled>${tr('Equipado')}</button>` : `<button class="btn verde peq" data-eq="usar" data-id="${it.id}">${tr('Equipar')}</button>`}
         ${it.nv < MAX_NV ? `<button class="btn amarelo peq" data-eq="up" data-id="${it.id}" ${S.moedas < c ? 'disabled' : ''}>⬆️ ${fmt(c)}</button>` : `<small>MAX</small>`}

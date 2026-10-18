@@ -84,3 +84,53 @@ export function iconePixel(chave, esc = 3) {
   const url = cv.toDataURL(); icones.set(chave, url); return url;
 }
 export const tipoDe = chave => { const [a, b] = chave.split(':'); return a === 'L' ? LENDA[b]?.tipo : a; };
+
+// ---- ícones pixel dos outros equipamentos (elmo, armadura, capa, anel, amuleto) ----
+// mapas 16x16: m metal, o enfeite, g gema, c pano, w couro, f pelo, p pele clara, k fresta escura; sombra e brilho são automáticos
+const MAPAS = {
+  elmo: ['.......gg.......', '.....mmmmmm.....', '....mmmmmmmm....', '...mmmmmmmmmm...', '...mmmmmmmmmm...', '..oooooooooooo..', '..mmmkkmmkkmmm..', '..mmkkkmmkkkmm..', '..mmkkkmmkkkmm..', '..mm.kkmmkk.mm..', '..mm...mm...mm..', '..mm........mm..', '...m........m...'],
+  viseira: ['.......cc.......', '......cccc......', '.....cmmmmc.....', '....mmmmmmmm....', '...mmmmmmmmmm...', '...mmmmggmmmm...', '..mmmmmmmmmmmm..', '..oooooooooooo..', '..mkkkkkkkkkkm..', '..mmmmmmmmmmmm..', '..mmkmkmmkmkmm..', '..mmmmmmmmmmmm..', '...mmmmmmmmmm...', '....oooooooo....'],
+  mago: ['...........cc...', '..........ccc...', '.........ccc....', '........cccc....', '.......ccccc....', '.......cccccc...', '......cccgccc...', '......ccccccc...', '.....cccccccc...', '....oooooooooo..', '..cccccccccccccc', '.cccccccccccccc.', '..cccccccccccc..'],
+  urso: ['..ff........ff..', '.fppf......fppf.', '.ffffffffffffff.', 'ffffffffffffffff', 'fffkffffffffkfff', 'ffffffffffffffff', 'fffffffppfffffff', '.ffffppkkppffff.', '.fff.pppppp.fff.', '.ff..........ff.', '.fff........fff.', '..ff........ff..'],
+  lenco: ['................', '...cccc..cccc...', '.cccccccccccccc.', 'cccckkcccckkcccc', 'ccckkkkcckkkkccc', '.cccccc..cccccc.', '..cccc....cccc.c', '.............cc.', '............cc..'],
+  Knight: ['..mmmo....ommm..', '.mmmmmo..ommmmm.', 'mmmmmmmmmmmmmmmm', 'mmmmmmmmmmmmmmmm', 'mm.mmmmggmmmm.mm', 'mm.mmmmggmmmm.mm', 'mm.mmmmmmmmmm.mm', 'mm.mmmmmmmmmm.mm', '...oooooooooo...', '...mmmmmmmmmm...', '...mmm.mm.mmm...', '...mmm....mmm...'],
+  Barbarian: ['ffff........ffff', 'fffffff..fffffff', '.wwwwwwffwwwwww.', '.wwwwwoowwwwwww.', '.wwwwwwoowwwwww.', '.ww.wwwwoowww.ww', '.ww.wwwwwoowwww.', '.ww.wwwwwwoww.ww', '....oooooooooo..', '....wwwwgwwwww..', '....www.ww.www..', '....www....www..'],
+  Mage: ['...ccc....ccc...', '..ccccco.occccc.', '.cccccco.occcccc', '.cccccco.occcccc', 'ccc.ccco.occc.cc', 'ccc.cccoooccc.cc', 'ccc.cccogocccc.c', '....cccoooccc...', '....ccccccccc...', '...ccccccccccc..', '..ccccccccccccc.', '..ooooooooooooo.'],
+  Ranger: ['..ww........ww..', '.wwwc......cwww.', 'wwwwcc....ccwwww', 'wwwwccccccccwwww', 'ww.wwwwwwwwww.ww', 'ww.wccccccccw.ww', 'ww.wccccccccw.ww', '...oooogoooo....', '...wccccccccw...', '...wccc..cccw...', '...www....www...'],
+  Rogue: ['...cc......cc...', '..cccc....cccc..', '.cccccckkcccccc.', '.ccccccckcccccc.', 'cc.ccccckccccc.c', 'cc.cwwwwwwwwcc.c', 'cc.ccccckccccc.c', '...ccccckccccc..', '...oooooooooo...', '...ccccccccccc..', '...cccc..cccc...'],
+  capa: ['.....oooooo.....', '....ocgccgco....', '....cccccccc....', '...cccccccccc...', '...ccCccccCcc...', '..cccCccccCccc..', '..ccCccccccCcc..', '.cccCccccccCccc.', '.ccCccccccccCcc.', 'cccCccccccccCccc', 'ccCccccccccccCcc', 'cc.ccccc.cccc.cc', 'c...ccc...cc...c'],
+  capuz: ['......cccc......', '....cccccccc....', '...cckkkkkkcc...', '...ckkkkkkkkc...', '...cckkkkkkcc...', '....ocgccgco....', '...cccccccccc...', '..cccCccccCccc..', '.cccCccccccCccc.', '.ccCccccccccCcc.', 'cccCccccccccCccc', 'cc.ccccc.cccc.cc', 'c...ccc...cc...c'],
+  Anel: ['......gg......', '.....gGGg.....', '....ogggggo...', '.....ooooo....', '....o.....o...', '...o.......o..', '...o.......o..', '...o.......o..', '....o.....o...', '.....ooooo....'],
+  'Aliança': ['................', '.....oooooo.....', '...oooooooooo...', '..ooo......ooo..', '..oo........oo..', '..oo........oo..', '..oo........oo..', '..ooo......ooo..', '...oooooooooo...', '.....oooooo.....'],
+  Selo: ['....oooooo....', '....oggggo....', '....ogGggo....', '....oggggo....', '....oooooo....', '.....o..o.....', '....o....o....', '...o......o...', '...o......o...', '....o....o....', '.....oooo.....'],
+  Amuleto: ['o..............o', '.o............o.', '..o..........o..', '...o........o...', '....o......o....', '.....o....o.....', '......oooo......', '.....oggggo.....', '....ogGGgggo....', '....oggggggo....', '.....oggggo.....', '......oggo......', '.......oo.......'],
+  'Talismã': ['o..............o', '.o............o.', '..o..........o..', '...o........o...', '....o......o....', '.....oo..oo.....', '......oooo......', '....oommmmoo....', '...ommkmmkmmo...', '...ommmkkmmmo...', '...ommkmmkmmo...', '....oommmmoo....', '......oooo......'],
+  Pingente: ['o..............o', '.o............o.', '..o..........o..', '...o........o...', '....o......o....', '.....o....o.....', '......o..o......', '.......oo.......', '.......gg.......', '......gGgg......', '.....gGgggg.....', '......gggg......', '.......gg.......'],
+  'Relíquia': ['o..............o', '..o..........o..', '....o......o....', '......oooo......', '.......oo.......', '.......mm.......', '.....mmmmmm.....', '.....mmggmm.....', '.......mm.......', '.......mm.......', '.......mm.......', '........m.......'],
+};
+const PANOS = { Knight: '#c83a3a', Barbarian: '#8a5a3a', Mage: '#4a5ad8', Ranger: '#3a8a4a', Rogue: '#4a4a5a', Rogue_Hooded: '#3a3a4a', mago: '#4a5ad8', lenco: '#3a3a4a', viseira: '#c83a3a', urso: '#7a4a2a' };
+const misturar = (a, b, t) => '#' + new THREE.Color(a).lerp(new THREE.Color(b), t).getHexString();
+const clarear = (c, t) => misturar(c, '#ffffff', t), escurecer = (c, t) => misturar(c, '#000000', t);
+function desenharItem(slot, vis, r) {
+  const cr = CORES_R[r], key = slot === 'capa' ? (vis === 'Rogue_Hooded' ? 'capuz' : 'capa') : vis, mapa = MAPAS[key] || MAPAS[slot === 'anel' ? 'Anel' : slot === 'amuleto' ? 'Amuleto' : slot === 'elmo' ? 'elmo' : 'Knight'];
+  const metal = r >= 4 ? misturar('#ffd23a', cr, r === 5 ? 0.35 : 0) : misturar('#a8b0bc', cr, 0.12 * r), enfeite = r >= 3 ? (r >= 4 ? '#fff0a0' : OURO) : r >= 1 ? '#c8904a' : '#8a6a4a';
+  const pano = misturar(PANOS[vis] || '#c83a3a', cr, r >= 2 ? 0.3 : 0), pal = { m: metal, o: enfeite, g: cr, G: '#ffffff', c: pano, C: escurecer(pano, 0.3), w: misturar('#9a6a3a', cr, 0.1 * r), f: misturar('#8a5a32', cr, 0.08 * r), p: '#f0c8a8', k: '#2a1a2a' };
+  const H = mapa.length + 4, W = Math.max(...mapa.map(l => l.length)) + 4, g = grade(W, H);
+  mapa.forEach((l, i) => { const y = H - 3 - i, dx = Math.floor((W - 4 - l.length) / 2) + 2; for (let x = 0; x < l.length; x++) { const q = l[x]; if (q !== '.') g.p(x + dx, y, pal[q], q === 'g' && r >= 3); g[y][x + dx] && (g[y][x + dx].q = q); } });
+  // sombra e brilho: borda de cima/esquerda clara, de baixo/direita escura (fica com cara de pixel art "de verdade")
+  const cel = (x, y) => g[y]?.[x];
+  const novo = g.map((lin, y) => lin.map((c, x) => { if (!c || c.q === 'k' || c.q === 'G') return c;
+    const cima = !cel(x, y + 1) || cel(x, y + 1).q !== c.q, esq = !cel(x - 1, y) || cel(x - 1, y).q !== c.q, baixo = !cel(x, y - 1), dir = !cel(x + 1, y);
+    if (cima && esq) return { ...c, c: clarear(c.c, 0.55) }; if (cima || esq) return { ...c, c: clarear(c.c, 0.28) }; if (baixo || dir) return { ...c, c: escurecer(c.c, 0.32) }; return c; }));
+  novo.p = g.p; for (let y = 0; y < H; y++) g[y] = novo[y];
+  // reflexo diagonal no metal/gema dos raros
+  if (r >= 2) for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const c = g[y][x]; if (c && (c.q === 'm' || c.q === 'g') && (x + (H - y)) % 7 === 0) g[y][x] = { ...c, c: clarear(c.c, 0.6) }; }
+  contorno(g); return g;
+}
+export function iconeItem(it, esc = 3) {
+  if (it.modelo?.startsWith('P:')) return iconePixel(it.modelo.slice(2), esc);
+  const vis = it.vis || it.nome.split(' ')[0], chave = `I:${it.slot}:${vis}:${it.r}:${esc}`; if (icones.has(chave)) return icones.get(chave);
+  const g = desenharItem(it.slot, vis, it.r), H = g.length, W = g[0].length, cv = document.createElement('canvas'); cv.width = W * esc; cv.height = H * esc; const c = cv.getContext('2d');
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const p = g[y][x]; if (!p) continue; c.fillStyle = p.c; c.fillRect(x * esc, (H - 1 - y) * esc, esc, esc); }
+  const url = cv.toDataURL(); icones.set(chave, url); return url;
+}
