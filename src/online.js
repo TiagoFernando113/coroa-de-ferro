@@ -42,6 +42,8 @@ export const mapaLidos = comConta(() => rpc('ponte_mapa_lidos', id()));
 export const mapaCercar = comConta((slot, tipo, alvo, cam, dur) => rpc('ponte_mapa_cercar', { ...id(), p_slot: slot, p_tipo: tipo, p_alvo: alvo, p_cam: cam, p_dur: dur }));
 export const mapaCastelos = comConta(lista => rpc('ponte_mapa_castelos', { ...id(), p_lista: lista }));
 export const mapaBandeira = comConta((slot, x, y, cam, dur) => rpc('ponte_mapa_bandeira', { ...id(), p_slot: slot, p_x: x, p_y: y, p_cam: cam, p_dur: dur }));
+export const mapaAcelerar = comConta((slot, tipo) => rpc('ponte_mapa_acelerar', { ...id(), p_slot: slot, p_tipo: tipo }));
+export const mapaQuartel = comConta(() => rpc('ponte_mapa_quartel', id()));
 export const liga = comConta(() => rpc('ponte_liga_ver', id()));
 export const mapaBots = comConta(ordens => rpc('ponte_mapa_bots', { ...id(), p_ordens: ordens }));
 

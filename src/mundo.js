@@ -130,10 +130,10 @@ export function abrir(container, opcoes) {
   el = container; op = opcoes; el.hidden = false; gerarMapa();
   K = { ex: new Map(), bat: new Map(), bandeiras: [], flags: new Map(), clas: [], castelos: [], livresSitios: [], dif: 0, sel: null, prev: null, zoom: 95, cam: null, toques: new Map(), arrasto: null, tPoll: 0, carregou: false, txt: [], erro: '' };
   C.ceu(0x9ad8f8); C.neblina(180, 520); C.diaNoite(0);
-  el.innerHTML = `<div class="muTopo"><button class="lSair" data-mu="sair">${ico('fechar')}</button><b>${tr('Mapa de Guerra')}</b><small id="muOn"></small><button class="muLigaB" data-mu="liga">🏆 <span id="muPts">${tr('Liga')}</span></button></div>
+  el.innerHTML = `<div class="muTopo"><button class="lSair" data-mu="sair">${ico('fechar')}</button><b>${tr('Mapa de Guerra')}</b><small id="muOn"></small><button class="muCmdB" data-mu="cmd">⭐ <span id="muNv">Nv 1</span></button><button class="muLigaB" data-mu="liga">🏆 <span id="muPts">${tr('Liga')}</span></button></div>
     <div class="muAviso" id="muAviso">${tr('Carregando o mapa...')}</div>
-    <div class="muConf" id="muConf" hidden></div><div class="muInfo" id="muInfo" hidden></div><div class="muExs" id="muExs"></div><div class="cqJanela" id="muRel" hidden></div>`;
-  ligarToque(); atualizar(true);
+    <div class="muConf" id="muConf" hidden></div><div class="muInfo" id="muInfo" hidden></div><div class="muExs" id="muExs"></div><div class="cqJanela" id="muRel" hidden></div><canvas class="muMini" id="muMini" width="128" height="128"></canvas>`;
+  ligarToque(); ligarMini(); atualizar(true);
 }
 export function fechar() {
   if (K) { for (const e of K.ex.values()) limparEx(e); if (K.cena) { C.descartar(K.cena[0]); C.removerGrupo(K.cena[1]); } C.descartar(K.linha); C.descartar(K.terr); for (const f of K.flags.values()) C.descartar(f.o); desenharTropas('az', [], 0, 0); desenharTropas('vm', [], 0, 0); }
@@ -148,6 +148,8 @@ async function atualizar() {
   try {
     const r = await ON.mapaEstado(S.heroi || 'lyra', minhasTropas()); if (!K) return;
     K.dif = r.agora - Date.now() / 1000; K.erro = '';
+    if (r.heroi) { if (K.heroi && r.heroi.nivel > K.heroi.nivel) { sfx('vitoria'); flashTela('#ffe27a', 0.35); toast(`⭐ ${tr('Comandante subiu para o nível')} ${r.heroi.nivel}!`); }
+      K.heroi = r.heroi; const nv = $('#muNv'); if (nv) nv.textContent = `Nv ${r.heroi.nivel}`; if (!$('#muRel').hidden && K.abaRel === 'cmd') abrirCmd(); }
     if (!K.carregou || JSON.stringify(r.clas) !== K.clasSig) { K.clasSig = JSON.stringify(r.clas); K.clas = r.clas; bases(); if (!K.carregou) { K.cena = montarTerreno(); } }
     const vistos = new Set();
     for (const d of r.exercitos) { vistos.add(d.id); let e = K.ex.get(d.id);
@@ -243,16 +245,25 @@ function atualizarTerritorio() {
   C.descartar(K.terr); K.terr = new THREE.Group();
   if (pos.length) { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(cor, 3));
     K.terr.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.4, depthWrite: false }))); }
-  if (lp.length) { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(lp, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(lc, 3)); K.terr.add(new THREE.LineSegments(g, new THREE.LineBasicMaterial({ vertexColors: true }))); }
+  if (lp.length) { const fp = [], fc = [], w = 0.45; // borda em faixas largas (linha de 1 px some no celular)
+    for (let i = 0; i < lp.length; i += 6) { const [x0, , z0, x1, , z1] = lp.slice(i, i + 6), h = z0 === z1, a = h ? [x0, z0 - w, x1, z0 - w, x1, z0 + w, x0, z0 + w] : [x0 - w, z0, x0 + w, z0, x0 + w, z1, x0 - w, z1];
+      for (const v of [0, 1, 2, 0, 2, 3]) { fp.push(a[v * 2], 0.2, a[v * 2 + 1]); fc.push(lc[i / 3 * 3], lc[i / 3 * 3 + 1], lc[i / 3 * 3 + 2]); } }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(fp, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(fc, 3));
+    K.terr.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }))); }
+  K.donoMini = dono;
   cn().add(K.terr);
   // bandeiras: mastro alto com o pano do clã; em construção fica com andaime e meio transparente
   const vivas = new Set(K.bandeiras.map(f => f.id));
   for (const [id, f] of K.flags) if (!vivas.has(id) || f.pronta !== (K.bandeiras.find(b => b.id === id).pronta <= t)) { C.descartar(f.o); K.flags.delete(id); }
   for (const b of K.bandeiras) { if (K.flags.has(b.id)) continue; const pronta = b.pronta <= t, g = new THREE.Group(), al = pronta ? 1 : 0.55;
     const m = (geo, c, x, y, z) => { const o = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: c, transparent: !pronta, opacity: al, side: THREE.DoubleSide })); o.position.set(x, y, z); o.castShadow = true; g.add(o); return o; };
-    m(new THREE.CylinderGeometry(1.1, 1.4, 0.8, 8), 0x8f8a84, 0, 0.4, 0); m(new THREE.CylinderGeometry(0.12, 0.12, 7, 6), 0x5a3a1a, 0, 3.5, 0); m(new THREE.PlaneGeometry(2.6, 1.6), corCla(b.cla), 1.35, 5.9, 0);
-    if (!pronta) for (const [x, z] of [[-1.2, -1.2], [1.2, -1.2], [-1.2, 1.2], [1.2, 1.2]]) m(new THREE.BoxGeometry(0.15, 4, 0.15), 0xb08a5a, x, 2, z);
-    g.position.set(wx(b.x + 0.5), 0, wz(b.y + 0.5)); cn().add(g); K.flags.set(b.id, { o: g, pronta }); }
+    const cor = corCla(b.cla);
+    m(new THREE.CylinderGeometry(1.5, 1.9, 1, 8), 0x8f8a84, 0, 0.5, 0); m(new THREE.CylinderGeometry(1.1, 1.3, 0.5, 8), 0xa8a29a, 0, 1.2, 0); m(new THREE.CylinderGeometry(0.18, 0.18, 12, 6), 0x5a3a1a, 0, 6, 0);
+    m(new THREE.SphereGeometry(0.42, 8, 6), 0xffd23a, 0, 12.2, 0); const pano = m(new THREE.PlaneGeometry(4.2, 2.6, 4, 1).translate(2.1, 0, 0), cor, 0.15, 10.4, 0);
+    const anel = new THREE.Mesh(new THREE.RingGeometry(2.2, 2.9, 24).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: cor, transparent: true, opacity: al * 0.85, depthWrite: false })); anel.position.y = 0.25; g.add(anel);
+    if (pronta) { const luz = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 1.6, 34, 10, 1, true), new THREE.MeshBasicMaterial({ color: cor, transparent: true, opacity: 0.14, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); luz.position.y = 17; g.add(luz); }
+    if (!pronta) for (const [x, z] of [[-1.6, -1.6], [1.6, -1.6], [-1.6, 1.6], [1.6, 1.6]]) m(new THREE.BoxGeometry(0.2, 6, 0.2), 0xb08a5a, x, 3, z);
+    g.position.set(wx(b.x + 0.5), 0, wz(b.y + 0.5)); cn().add(g); K.flags.set(b.id, { o: g, pronta, pano, fase: b.id % 7 }); }
 }
 function pontoBandeira(cla, tx, ty) { // as mesmas regras do servidor, para avisar na hora
   if (!livre(tx, ty)) return 'Não dá para ir aí';
@@ -313,9 +324,9 @@ function estadoTxt(e) {
 function cards() {
   const b = $('#muExs'); if (!b) return; const H = HEROIS[S.heroi] || HEROIS.lyra;
   b.innerHTML = meus().map(e => { const T0 = TIPOS[e.tipo] || TIPOS.esp, bat = emBatalha(e), rec = (e.feridos || 0) + (e.mortos || 0);
-    return `<div class="muEx ${K.sel === e.id ? 'sel' : ''}"><button class="muExI" data-mu-tipo="${e.id}" title="${tr(T0.nome)}">${ico(T0.icone)}</button><button class="muExD" data-mu-ex="${e.id}"><b>${tr('Exército')} ${e.slot + 1} <small>${H.nome}</small></b>
+    return `<div class="muEx ${K.sel === e.id ? 'sel' : ''}"><button class="muExI" data-mu-tipo="${e.id}" title="${tr(T0.nome)}">${ico(T0.icone)}</button><button class="muExD" data-mu-ex="${e.id}"><b>${tr('Exército')} ${e.slot + 1} <small>${H.nome} · Nv ${K.heroi?.nivel || 1}</small></b>
       <small>${ico('forca')} <span data-mu-n="${e.id}">${fmt(tropasAgora(e))}</span>/${fmt(e.cap || e.tropas)}${rec ? ` · <i class="muFer">+${fmt(rec)} ${tr('feridos')}</i>` : ''}</small>
-      <em data-mu-t="${e.id}">${estadoTxt(e)}</em></button>${bat ? `<button class="btn vermelho peq" data-mu="recuar" data-slot="${e.slot}">${tr('Recuar')}</button>` : ''}</div>`; }).join('');
+      <em data-mu-t="${e.id}">${estadoTxt(e)}</em></button>${rec && !bat ? `<button class="muHosp" data-mu="cmd" title="${tr('Hospital')}">🏥</button>` : ''}${bat ? `<button class="btn vermelho peq" data-mu="recuar" data-slot="${e.slot}">${tr('Recuar')}</button>` : ''}</div>`; }).join('');
 }
 function toast(t) { const a = $('#muAviso'); if (!a) return; a.hidden = false; a.textContent = t; clearTimeout(K.tToast); K.tToast = setTimeout(() => { if (K?.carregou) a.hidden = true; }, 1800); }
 function selecionar(id) {
@@ -358,13 +369,67 @@ function mostrarRelatorios(lista) { // relatório de batalha (como o "battle rep
     venceu ||= d.venceu; const perdi = d.eu0 - d.eu1, matei = d.ele0 - d.ele1;
     return `<div class="muRelL ${d.venceu ? 'vit' : 'der'}"><b>${d.venceu ? tr('VITÓRIA') : d.recuou ? tr('RECUO') : tr('DERROTA')}</b> · ${d.ataque ? tr('você atacou') : tr('você foi atacado por')} <b data-nt>${esc(d.contra)}</b>
       <small>${tr('Exército')} ${d.slot + 1}: ${fmt(d.eu0)} → ${fmt(d.eu1)} (${tr('feridos')} ${fmt(Math.round(perdi * 0.8))}, ${tr('mortos')} ${fmt(perdi - Math.round(perdi * 0.8))})</small>
-      <small>${tr('Inimigos derrotados')}: ${fmt(matei)} · +${fmt(matei)} ${tr('pontos')}</small></div>`; }).join('')}
+      <small>${tr('Inimigos derrotados')}: ${fmt(matei)} · +${fmt(matei)} ${tr('pontos')} · +${fmt(matei)} XP</small></div>`; }).join('')}
     <button class="btn verde grande" data-mu="relOk">OK</button></div>`;
   sfx(venceu ? 'vitoria' : 'derrota'); ON.mapaLidos().catch(() => {});
 }
+// ---- comandante (sobe de nível com XP do mapa), quartel (capacidade), hospital (feridos) e treino (repor mortos) ----
+const xpNivel = n => 50 * n * (n - 1); // XP total para chegar no nível n (igual ao servidor)
+const custoQuartel = nv => 400 * (nv + 1), custoCura = f => Math.ceil(f / 2), custoTreino = m => m;
+function abrirCmd() {
+  const j = $('#muRel'), h = K.heroi; if (!j || !h) return; j.hidden = false; const H = HEROIS[S.heroi] || HEROIS.lyra, n = h.nivel, max = n >= 30;
+  const de = xpNivel(n), ate = xpNivel(n + 1), f = max ? 1 : (h.xp - de) / (ate - de);
+  const ex = meus().map(e => { const cap = e.cap || 1, fe = e.feridos || 0, mo = e.mortos || 0, bat = emBatalha(e);
+    const tf = fe / (cap * 0.002), tm = mo / (cap * 0.0007);
+    return `<div class="muCmdEx"><b>${tr('Exército')} ${e.slot + 1}</b> <span>${ico('forca')} ${fmt(tropasAgora(e))}/${fmt(cap)}</span>
+      <div class="muCmdL"><span>🏥 ${tr('Hospital')}: <b>${fmt(fe)}</b> ${tr('feridos')}${fe ? `<small>${tr('voltam sozinhos em')} ${tempoTxt(tf)}</small>` : `<small>${tr('ninguém ferido')}</small>`}</span>
+        ${fe ? `<button class="btn verde peq" data-mu="acelerar" data-slot="${e.slot}" data-tipo="cura" ${bat ? 'disabled' : ''}>${tr('Curar já')} ${ico('ouro')}${fmt(custoCura(fe))}</button>` : ''}</div>
+      <div class="muCmdL"><span>⚔️ ${tr('Treino')}: <b>${fmt(mo)}</b> ${tr('soldados novos')}${mo ? `<small>${tr('prontos em')} ${tempoTxt(tm)}</small>` : `<small>${tr('exército completo')}</small>`}</span>
+        ${mo ? `<button class="btn azul peq" data-mu="acelerar" data-slot="${e.slot}" data-tipo="treino" ${bat ? 'disabled' : ''}>${tr('Treinar já')} ${ico('ouro')}${fmt(custoTreino(mo))}</button>` : ''}</div></div>`; }).join('');
+  j.innerHTML = `<div class="cqFim muRelC muCmd"><h2>⭐ ${tr('Comandante')}</h2>
+    <div class="muCmdNv"><b>${H.nome}</b><i>${tr('Nível')} ${n}</i><div class="muXp"><div style="width:${Math.round(f * 100)}%"></div><span>${max ? 'MAX' : `${fmt(h.xp - de)}/${fmt(ate - de)} XP`}</span></div>
+      <small>${tr('Força')} +${(n - 1) * 3}% · ${tr('Capacidade')} +${(n - 1) * 2}%</small><small class="muDica">${tr('Ganhe XP derrotando inimigos, cercando, erguendo bandeiras e conquistando castelos')}</small></div>
+    <div class="muCmdQ"><span>🏰 ${tr('Quartel')} ${h.cap_nv}/20<small>+40 ${tr('tropas por nível em cada exército')}</small></span>
+      ${h.cap_nv < 20 ? `<button class="btn amarelo peq" data-mu="quartel">${tr('Melhorar')} ${ico('ouro')}${fmt(custoQuartel(h.cap_nv))}</button>` : '<b>MAX</b>'}</div>
+    ${ex}<small class="muDica">${tr('Os feridos voltam sozinhos com o tempo; os mortos são repostos pelo treino')}</small>
+    <button class="btn verde grande" data-mu="relOk">OK</button></div>`;
+}
+async function quartel() {
+  const c = custoQuartel(K.heroi?.cap_nv || 0); if ((S.moedas || 0) < c) { som('erro'); toast(`${tr('Precisa de')} ${fmt(c)} ${tr('moedas')}`); return; }
+  try { const nv = await ON.mapaQuartel(); S.moedas -= c; salvar(); K.heroi.cap_nv = nv; sfx('vitoria'); toast(`🏰 ${tr('Quartel')} ${nv}! +40 ${tr('tropas')}`); abrirCmd(); await atualizar(); }
+  catch (er) { som('erro'); toast(tr(er.message)); }
+}
+async function acelerar(slot, tipo) {
+  const e = meus().find(q => q.slot === slot); if (!e) return; const c = tipo === 'cura' ? custoCura(e.feridos || 0) : custoTreino(e.mortos || 0);
+  if ((S.moedas || 0) < c) { som('erro'); toast(`${tr('Precisa de')} ${fmt(c)} ${tr('moedas')}`); return; }
+  try { const n = await ON.mapaAcelerar(slot, tipo); S.moedas -= c; salvar(); Object.assign(e, { tropas: n }, tipo === 'cura' ? { feridos: 0 } : { mortos: 0 }); sfx('brilho'); som('moedas');
+    toast(tipo === 'cura' ? tr('Feridos curados!') : tr('Soldados treinados!')); cards(); abrirCmd(); }
+  catch (er) { som('erro'); toast(tr(er.message)); }
+}
+
+// ---- minimapa: terreno, território, bandeiras, castelos e exércitos; tocar leva a câmera até lá ----
+function ligarMini() {
+  const cv = $('#muMini'); if (!cv) return; const fundo = document.createElement('canvas'); fundo.width = fundo.height = N; const g = fundo.getContext('2d');
+  const cores = { [GRAMA]: '#7cc24a', [FLORESTA]: '#4f9a3a', [MONTANHA]: '#9a8a76', [AGUA]: '#3aa8e0', [PONTE]: '#9a6a3a' };
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { g.fillStyle = cores[MAPA.at(x, y)]; g.fillRect(x, y, 1, 1); }
+  K.mini = { cv, fundo };
+  cv.addEventListener('pointerdown', ev => { if (!K) return; ev.stopPropagation(); const r = cv.getBoundingClientRect(), x = (ev.clientX - r.left) / r.width * N, y = (ev.clientY - r.top) / r.height * N;
+    K.cam = { x: wx(x), z: wz(y) + 10 }; som('clique'); });
+}
+function desenharMini() {
+  const m = K.mini; if (!m) return; const g = m.cv.getContext('2d'), k = m.cv.width / N, hex = c => '#' + c.toString(16).padStart(6, '0');
+  g.imageSmoothingEnabled = false; g.drawImage(m.fundo, 0, 0, m.cv.width, m.cv.height);
+  if (K.donoMini) { g.globalAlpha = 0.45; for (let i = 0; i < N * N; i++) { const d = K.donoMini[i]; if (d == null) continue; g.fillStyle = hex(corCla(d)); g.fillRect((i % N) * k, ((i / N) | 0) * k, k, k); } g.globalAlpha = 1; }
+  for (const c of K.castelos) { g.fillStyle = hex(CORES_CLA[(c.cor || 0) % 8]); g.strokeStyle = '#fff'; g.lineWidth = 1.5; g.fillRect(c.x * k - 4, c.y * k - 4, 8, 8); g.strokeRect(c.x * k - 4, c.y * k - 4, 8, 8); }
+  for (const f of K.bandeiras) { g.fillStyle = hex(corCla(f.cla)); g.beginPath(); g.moveTo((f.x + 0.5) * k, (f.y - 0.6) * k); g.lineTo((f.x + 1.6) * k, (f.y + 0.2) * k); g.lineTo((f.x + 0.5) * k, (f.y + 0.9) * k); g.fill(); g.strokeStyle = '#fff'; g.lineWidth = 1; g.stroke(); }
+  const meuCla = meus()[0]?.cla;
+  for (const e of K.ex.values()) { if (tropasAgora(e) <= 0) continue; const p = posicao(e); g.fillStyle = e.eu ? '#ffd23a' : meuCla != null && e.cla === meuCla ? '#4aa8ff' : '#ff4a3a'; g.beginPath(); g.arc(p.x * k, p.y * k, e.eu ? 3.2 : 2, 0, 7); g.fill(); if (e.eu) { g.strokeStyle = '#000'; g.lineWidth = 1; g.stroke(); } }
+  if (K.cam) { const w = K.zoom / T * 0.55, cx = (K.cam.x - WX) / T + N / 2, cy = (K.cam.z - 10 - WZ) / T + N / 2; g.strokeStyle = '#fff'; g.lineWidth = 1.5; g.strokeRect((cx - w / 2) * k, (cy - w * 0.6) * k, w * k, w * 1.2 * k); }
+}
+
 // ---- Liga da Guerra: pontos da semana (derrotar inimigos, cercar, conquistar castelo, erguer bandeira) ----
 async function abrirLiga(aba = K.abaLiga || 'jog') {
-  const j = $('#muRel'); if (!j) return; K.abaLiga = aba; j.hidden = false; som('clique');
+  const j = $('#muRel'); if (!j) return; K.abaLiga = aba; K.abaRel = 'liga'; j.hidden = false; som('clique');
   if (!K.liga) j.innerHTML = `<div class="cqFim muRelC"><h2>🏆 ${tr('Liga da Guerra')}</h2><p>${tr('Carregando...')}</p></div>`;
   try { K.liga = await ON.liga(); } catch (e) { if (!K.liga) { j.innerHTML = `<div class="cqFim muRelC"><h2>🏆 ${tr('Liga da Guerra')}</h2><p>${tr('Sem conexão com o mapa')} 😢</p><button class="btn verde grande" data-mu="relOk">OK</button></div>`; return; } }
   if (!K || j.hidden) return; const l = K.liga, falta = Math.max(0, l.fim - agora()), d = Math.floor(falta / 86400), h = Math.floor(falta % 86400 / 3600), m = Math.floor(falta % 3600 / 60);
@@ -383,8 +448,11 @@ export function clique(b) {
   const a = b.dataset.mu, tp = b.dataset.muTipo, ex = b.dataset.muEx;
   if (tp) { const e = K.ex.get(+tp); if (!e || emBatalha(e)) { som('erro'); return; } const ks = Object.keys(TIPOS); e.tipo = ks[(ks.indexOf(e.tipo) + 1) % ks.length]; som('clique'); toast(tr(TIPOS[e.tipo].nome)); ON.mapaTipo(e.slot, e.tipo).catch(() => {}); cards(); return; }
   if (a === 'sair') { som('fechar'); op.sair(); return; }
+  if (a === 'cmd') { K.abaRel = 'cmd'; som('clique'); abrirCmd(); return; }
+  if (a === 'quartel') { quartel(); return; }
+  if (a === 'acelerar') { acelerar(+b.dataset.slot, b.dataset.tipo); return; }
   if (a === 'liga' || a === 'ligaJog' || a === 'ligaCla') { abrirLiga(a === 'ligaCla' ? 'cla' : a === 'ligaJog' ? 'jog' : undefined); return; }
-  if (a === 'relOk') { som('clique'); $('#muRel').hidden = true; return; }
+  if (a === 'relOk') { som('clique'); $('#muRel').hidden = true; K.abaRel = null; return; }
   if (a === 'recuar') { const e = meus().find(q => q.slot === +b.dataset.slot); if (e) recuar(e); return; }
   if (a === 'cercar') { const e = meus().find(q => q.slot === +b.dataset.slot); $('#muInfo').hidden = true; if (e) { K.sel = e.id; cercar(e, b.dataset.tipo, +b.dataset.alvo); } return; }
   if (a === 'atacar') { const e = meus().find(q => q.slot === +b.dataset.slot), alvo = K.ex.get(+b.dataset.alvo); $('#muInfo').hidden = true; if (e && alvo) { K.sel = e.id; atacar(e, alvo); } return; }
@@ -426,6 +494,8 @@ export function passo(dt) {
   if (!K.carregou) return;
   if (K.cam) { K.cam.x = Math.max(wx(0), Math.min(wx(N), K.cam.x)); K.cam.z = Math.max(wz(0) + 10, Math.min(wz(N) + 18, K.cam.z)); }
   passoBatalhas(); if ((K.tTerr = (K.tTerr || 0) - dt) <= 0) { K.tTerr = 1; atualizarTerritorio(); }
+  for (const f of K.flags.values()) f.pano.rotation.y = Math.sin(t * 2.2 + f.fase) * 0.3;
+  if ((K.tMini = (K.tMini || 0) - dt) <= 0) { K.tMini = 0.4; desenharMini(); }
   const az = [], vm = [], meuCla = meus()[0]?.cla;
   for (const e of K.ex.values()) {
     const p = posicao(e), x = wx(p.x), z = wz(p.y), amigo = e.eu || (meuCla != null && e.cla === meuCla), b = emBatalha(e), n0 = tropasAgora(e);
@@ -455,10 +525,12 @@ export function desenharFx(g, dt) {
   for (const c of K.castelos) { const q = C.tela(wx(c.x), 13, wz(c.y)); if (!q || q[1] < 60) continue; g.font = '14px Titulo, sans-serif'; const t = `[${c.tag}] ${c.nome}`; g.strokeText(t, q[0], q[1]); g.fillStyle = '#' + CORES_CLA[(c.cor || 0) % 8].toString(16).padStart(6, '0'); g.fillText(t, q[0], q[1]); }
   if (K.zoom <= 130) for (const e of K.ex.values()) { const p = posicao(e), q = C.tela(wx(p.x), 4.2, wz(p.y)), n0 = tropasAgora(e); if (!q || q[1] < 60 || q[1] > innerHeight - 90 || (n0 <= 0 && !p.anda)) continue; const b = emBatalha(e);
     if (e.eu) { g.fillStyle = '#ffd23a'; g.beginPath(); g.arc(q[0], q[1] - 4, 9, 0, 7); g.fill(); g.stroke(); g.font = '13px Titulo, sans-serif'; g.fillStyle = '#3a1a08'; g.fillText(e.slot + 1, q[0], q[1] + 1); g.strokeStyle = 'rgba(0,0,0,.65)'; }
-    else { g.font = '11px Titulo, sans-serif'; g.strokeText(e.nome, q[0], q[1]); g.fillStyle = '#fff'; g.fillText(e.nome, q[0], q[1]); }
+    else { g.font = '11px Titulo, sans-serif'; const nm = `Nv${e.nivel || 1} ${e.nome}`; g.strokeText(nm, q[0], q[1]); g.fillStyle = '#fff'; g.fillText(nm, q[0], q[1]); }
     if (b || !e.eu) { const w = 40, f = Math.max(0, n0 / Math.max(1, e.cap || n0)); g.fillStyle = 'rgba(0,0,0,.55)'; g.fillRect(q[0] - w / 2 - 1, q[1] + 6, w + 2, 6); g.fillStyle = e.eu ? '#4ae86a' : '#ff5a4a'; g.fillRect(q[0] - w / 2, q[1] + 7, w * f, 4);
       g.font = '10px Titulo, sans-serif'; g.fillStyle = '#fff'; g.strokeText(fmt(n0), q[0], q[1] + 22); g.fillText(fmt(n0), q[0], q[1] + 22); }
     if (K.sel === e.id) { g.strokeStyle = '#ffd84a'; g.lineWidth = 3; g.beginPath(); g.arc(q[0], q[1] + 26, 18, 0, 7); g.stroke(); g.strokeStyle = 'rgba(0,0,0,.65)'; } }
+  for (const b of K.bandeiras) { if (b.pronta > agora()) continue; const q = C.tela(wx(b.x + 0.5), 13.5, wz(b.y + 0.5)); if (!q || q[1] < 60) continue; const c = K.clas.find(x => x.id === b.cla); if (!c) continue;
+    g.font = '13px Titulo, sans-serif'; const t = `🚩 ${c.tag}`; g.strokeText(t, q[0], q[1]); g.fillStyle = '#' + corCla(b.cla).toString(16).padStart(6, '0'); g.fillText(t, q[0], q[1]); }
   for (const b of K.bandeiras) if (b.hp < 1000 && b.pronta <= agora()) { const q = C.tela(wx(b.x + 0.5), 8, wz(b.y + 0.5)); if (!q) continue; const w = 44;
     g.fillStyle = 'rgba(0,0,0,.55)'; g.fillRect(q[0] - w / 2 - 1, q[1] - 1, w + 2, 7); g.fillStyle = '#ffb03a'; g.fillRect(q[0] - w / 2, q[1], w * Math.max(0, b.hp) / 1000, 5); }
   for (const c of K.castelos) { const q = C.tela(wx(c.x), 13, wz(c.y)); if (!q || q[1] < 60) continue; const prot = (c.protegido || 0) - agora();
