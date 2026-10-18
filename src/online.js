@@ -46,6 +46,9 @@ export const mapaAcelerar = comConta((slot, tipo) => rpc('ponte_mapa_acelerar', 
 export const mapaQuartel = comConta(() => rpc('ponte_mapa_quartel', id()));
 export const mapaColetar = comConta((slot, ponto, cam, dur) => rpc('ponte_mapa_coletar', { ...id(), p_slot: slot, p_ponto: ponto, p_cam: cam, p_dur: dur }));
 export const mapaPontos = comConta(lista => rpc('ponte_mapa_pontos', { ...id(), p_lista: lista }));
+export const mapaReforcar = comConta((slot, tipo, alvo, cam, dur) => rpc('ponte_mapa_reforcar', { ...id(), p_slot: slot, p_tipo: tipo, p_alvo: alvo, p_cam: cam, p_dur: dur }));
+export const mapaRally = comConta((slot, tipo, alvo, px, py, cam, dur, cam0, dur0) => rpc('ponte_mapa_rally', { ...id(), p_slot: slot, p_tipo: tipo, p_alvo: alvo, p_px: px, p_py: py, p_cam: cam, p_dur: dur, p_cam0: cam0, p_dur0: dur0 }));
+export const mapaRallyEntrar = comConta((slot, rally, cam, dur) => rpc('ponte_mapa_rally_entrar', { ...id(), p_slot: slot, p_rally: rally, p_cam: cam, p_dur: dur }));
 export const liga = comConta(() => rpc('ponte_liga_ver', id()));
 export const mapaBots = comConta(ordens => rpc('ponte_mapa_bots', { ...id(), p_ordens: ordens }));
 
