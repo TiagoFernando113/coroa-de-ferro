@@ -1,7 +1,7 @@
 // Equipamentos (estilo RPG): arma, armadura, anel e amuleto com raridade, atributos e nível.
 // Caem no fim da Árvore Sagrada e da Defesa em Grupo (ou saem dos baús da Forja) e deixam o herói mais forte nesses modos.
 // Elmo, armadura e capa mudam a aparência do herói (com a cor da raridade); a arma aparece na mão.
-import { S, salvar } from './meta.js';
+import { S, salvar, fimDeSemana } from './meta.js';
 import * as C from './cena.js';
 import { heroiAtual } from './herois.js';
 import { iconePixel, tipoDe } from './pixel.js';
@@ -53,15 +53,15 @@ const eq = () => (S.equip ||= { itens: [], usando: {}, id: 1 });
 export const valor = (it, k) => (it.st[k] || 0) * (1 + 0.1 * (it.nv - 1));
 
 // novo item: quanto mais longe foi a partida, mais chance de raridade alta
-export function gerarItem(onda, minR = 0, maxR = 5) {
-  const E = eq(), slots = Object.keys(SLOTS), slot = slots[Math.floor(Math.random() * slots.length)], sorte = onda / 2.4 + Math.random() * 4 + Math.random() * Math.random() * 6;
+export function gerarItem(onda, minR = 0, maxR = 5, lk = null) { // lk: lenda garantida (Desejos)
+  const E = eq(), slots = Object.keys(SLOTS), slot = lk ? 'arma' : slots[Math.floor(Math.random() * slots.length)], sorte = onda / 2.4 + Math.random() * 4 + Math.random() * Math.random() * 6;
   const r = Math.min(maxR, Math.max(minR, sorte > 11 ? 5 : sorte > 8.5 ? 4 : sorte > 6.2 ? 3 : sorte > 4.2 ? 2 : sorte > 2.4 ? 1 : 0)), R = RARIDADES[r], D = SLOTS[slot], st = {};
   for (const [k, v] of Object.entries(D.st)) st[k] = Math.round(v * R.m * (0.8 + Math.random() * 0.4) * 10) / 10;
   const [nm, vis, gen] = D.nomes[Math.floor(Math.random() * D.nomes.length)];
   const it = { id: E.id++, slot, r, nv: 1, st, nome: `${nm} ${R.adj[gen === 'f' ? 1 : 0]}` };
   if (vis && slot !== 'arma') it.vis = vis;
   if (slot === 'arma') { it.modelo = `P:${vis}:${r}`;
-    const ls = Object.entries(LENDAS).filter(([, L]) => L.r <= r); if (r >= 3 && ls.length && Math.random() < 0.5) { const [k, L] = ls[Math.floor(Math.random() * ls.length)]; Object.assign(it, { lenda: k, nome: L.nome, modelo: L.modelo }); } }
+    const ls = Object.entries(LENDAS).filter(([, L]) => L.r <= r); if (lk || (r >= 3 && ls.length && Math.random() < 0.5)) { const [k, L] = lk ? [lk, LENDAS[lk]] : ls[Math.floor(Math.random() * ls.length)]; Object.assign(it, { lenda: k, nome: L.nome, modelo: L.modelo }); } }
   E.itens.push(it); if (E.itens.length > MAX_MOCHILA) { const pior = E.itens.filter(x => !Object.values(E.usando).includes(x.id)).sort((a, b) => a.r - b.r || poderItem(a) - poderItem(b))[0]; if (pior) E.itens.splice(E.itens.indexOf(pior), 1); }
   if (!E.usando[slot] || poderItem(it) > poderItem(E.itens.find(x => x.id === E.usando[slot]) || { st: {}, nv: 1, r: 0 })) E.usando[slot] = it.id; // equipa sozinho se for melhor
   salvar(); return it;
@@ -76,6 +76,25 @@ export function atributos() {
 export function poder() { const E = eq(); let p = 0; for (const id of Object.values(E.usando)) { const it = E.itens.find(x => x.id === id); if (it) p += poderItem(it); } return p; }
 export function melhorRaridade() { const E = eq(); let m = -1; for (const id of Object.values(E.usando)) { const it = E.itens.find(x => x.id === id); if (it) m = Math.max(m, it.r); } return m; }
 export const BAUS = [{ nome: 'Baú de Ferro', preco: 400, min: 0, max: 2, ic: '📦' }, { nome: 'Baú Raro', preco: 1500, min: 2, max: 3, ic: '🎁' }, { nome: 'Baú Épico', preco: 5000, min: 3, max: 4, ic: '💜' }, { nome: 'Baú Lendário', preco: 15000, min: 4, max: 5, ic: '🌟' }];
+// ---- Desejos: estrelas ganhas nas partidas (ou moedas), 1 grátis por dia, lenda da semana em destaque e garantia ----
+export const PRECO_DESEJO = 600, PITY = 50;
+const hoje = () => new Date().toISOString().slice(0, 10);
+export const destaque = () => { const ks = Object.keys(LENDAS); return ks[Math.floor((Date.now() / 864e5 + 3) / 7) % ks.length]; };
+export const estrelas = () => eq().est || 0;
+export const estrelasPartida = ondas => ondas < 2 ? 0 : Math.max(1, Math.floor(ondas / 3)) * (fimDeSemana() ? 2 : 1);
+export function ganharEstrelas(n) { if (n > 0) { const E = eq(); E.est = (E.est || 0) + n; salvar(); } }
+function desejar() { // Mítico 1,5% (garantido em 50), Lendário+ garantido a cada 10
+  const E = eq(), x = Math.random(); E.pity = (E.pity || 0) + 1; E.p4 = (E.p4 || 0) + 1;
+  const r = E.pity >= PITY || x < 0.015 ? 5 : E.p4 >= 10 || x < 0.085 ? 4 : x < 0.265 ? 3 : x < 0.565 ? 2 : 1;
+  if (r >= 4) E.p4 = 0; if (r === 5) E.pity = 0;
+  const dk = destaque(); return gerarItem(0, r, r, r === 5 || (r >= LENDAS[dk].r && Math.random() < 0.25) ? dk : null);
+}
+function revelar(itens) {
+  const j = $('#janela'), m = Math.max(...itens.map(i => i.r));
+  j.innerHTML = `<div class="jOnline eqTela dsTela r${m}" style="--r:${RARIDADES[m].cor}"><h2>🌠 ${tr('Desejos')}</h2><div class="dsRev">${itens.map((it, i) => `<div class="dsCarta r${it.r}" style="--i:${i};--r:${RARIDADES[it.r].cor}">${itemHtml(it, 'novo')}<small>${tr(RARIDADES[it.r].nome)}</small></div>`).join('')}</div>
+    ${m >= 4 ? `<p class="dsUau">✨ ${itens.filter(i => i.r >= 4).map(i => `<b style="color:${RARIDADES[i.r].cor}">${i.nome}</b>`).join(' · ')}</p>` : ''}<button class="btn verde grande" data-eq="abrir">OK</button></div>`;
+  setTimeout(() => sfx(m >= 4 ? 'vitoria' : 'brilho'), itens.length * 180);
+}
 const custoUp = it => Math.round(80 * it.nv * (1 + it.r) * (1 + it.r * 0.5));
 const valorDesmontar = it => Math.round(20 * (1 + it.r) ** 2 * it.nv);
 
@@ -96,7 +115,12 @@ export function mostrar(sel = null) {
     ${foto ? `<img class="eqFoto" src="${foto}" alt="">` : ''}
     <div class="eqSlots">${Object.entries(SLOTS).map(([k, D]) => { const x = E.itens.find(i => i.id === E.usando[k]); return `<div class="eqSlot"><small>${tr(D.nome)}</small>${x ? itemHtml(x, sel === x.id ? 'sel' : '') : `<span class="eqVazio">${D.ic}</span>`}</div>`; }).join('')}</div>
     <div class="eqTot">${Object.entries(A).filter(([, v]) => v).map(([k, v]) => `<span>${tr(ST[k][0])} +${fmt(Math.round(v * 10) / 10)}${ST[k][1]}</span>`).join('') || `<span>${tr('Jogue a Árvore Sagrada para ganhar equipamentos!')}</span>`}</div>
-    ${det}<h3>🔨 ${tr('Forja')} <small>${tr('baús com raridade garantida')}</small></h3>
+    ${det}${(() => { const dk = destaque(), L = LENDAS[dk], est = estrelas(), gratis = E.dia !== hoje(), cus = n => est >= n ? `⭐ ${n}` : `🪙 ${fmt(PRECO_DESEJO * n * (n >= 10 ? 0.9 : 1))}`, pode = n => est >= n || S.moedas >= PRECO_DESEJO * n * (n >= 10 ? 0.9 : 1);
+      return `<h3>🌠 ${tr('Desejos')} <small>⭐ ${fmt(est)}${fimDeSemana() ? ` · ${tr('fim de semana: estrelas em dobro!')}` : ''}</small></h3>
+      <div class="dsBanner" style="--r:${RARIDADES[5].cor}"><img src="${iconePixel(L.modelo.slice(2), 3)}" alt=""><div><small>${tr('Lenda da semana')}</small><b>${L.nome}</b><small>${tr(L.desc)}</small><small class="dsPity">${tr('Mítico garantido em')} <b>${PITY - (E.pity || 0)}</b> · ${tr('Lendário+ a cada 10')}</small></div></div>
+      <div class="dsBts">${gratis ? `<button class="btn verde" data-eq="dj" data-n="0">🎁 ${tr('Grátis hoje')}</button>` : ''}<button class="btn azul" data-eq="dj" data-n="1" ${pode(1) ? '' : 'disabled'}>1x · ${cus(1)}</button><button class="btn roxo" data-eq="dj" data-n="10" ${pode(10) ? '' : 'disabled'}>10x · ${cus(10)}</button></div>
+      <p class="eqDica">${tr('Ganhe estrelas ⭐ na Árvore Sagrada e na Defesa em Grupo')}</p>`; })()}
+    <h3>🔨 ${tr('Forja')} <small>${tr('baús com raridade garantida')}</small></h3>
     <div class="eqForja">${BAUS.map((B, i) => `<button class="eqBau" data-eq="bau" data-n="${i}" ${S.moedas < B.preco ? 'disabled' : ''} style="--r:${RARIDADES[B.min].cor}"><i>${B.ic}</i><b>${tr(B.nome)}</b><small>${tr(RARIDADES[B.min].nome)}+</small><em>🪙 ${fmt(B.preco)}</em></button>`).join('')}</div>
     <h3>${tr('Mochila')} <small>${E.itens.length}/${MAX_MOCHILA}</small></h3>
     <div class="eqMochila">${[...E.itens].sort((a, b) => b.r - a.r || poderItem(b) - poderItem(a)).map(x => itemHtml(x, `${usando.has(x.id) ? 'usando' : ''} ${sel === x.id ? 'sel' : ''}`)).join('') || `<p>${tr('Vazia')}</p>`}</div>
@@ -107,6 +131,9 @@ export function clique(b) {
   if (a === 'abrir') { som('abrir'); mostrar(); return true; }
   if (a === 'ver') { som('clique'); mostrar(id); return true; }
   if (a === 'bau') { const B = BAUS[+b.dataset.n]; if (!B || S.moedas < B.preco) { som('erro'); return true; } S.moedas -= B.preco; const novo = gerarItem(B.min * 4, B.min, B.max); salvar(); som('compra'); sfx(novo.r >= 4 ? 'vitoria' : 'brilho'); mostrar(novo.id); return true; }
+  if (a === 'dj') { const n = +b.dataset.n; if (n === 0) { if (E.dia === hoje()) return true; E.dia = hoje(); }
+    else if (estrelas() >= n) E.est -= n; else { const c = PRECO_DESEJO * n * (n >= 10 ? 0.9 : 1); if (S.moedas < c) { som('erro'); return true; } S.moedas -= c; }
+    som('compra'); const itens = []; for (let i = 0; i < Math.max(1, n); i++) itens.push(desejar()); salvar(); revelar(itens); return true; }
   if (!it) return false;
   if (a === 'usar') { E.usando[it.slot] = it.id; salvar(); sfx('brilho'); mostrar(id); return true; }
   if (a === 'up') { const c = custoUp(it); if (S.moedas < c || it.nv >= MAX_NV) { som('erro'); return true; } S.moedas -= c; it.nv++; salvar(); som('compra'); sfx('vitoria'); mostrar(id); return true; }

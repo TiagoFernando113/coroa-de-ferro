@@ -1140,3 +1140,15 @@ input{font:inherit;user-select:text;-webkit-user-select:text}
 .eqBau{display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto auto;column-gap:8px;align-items:center;text-align:left;padding:8px;border-radius:12px;background:linear-gradient(#fff,color-mix(in srgb,var(--r) 25%,#fff));border:3px solid var(--r);box-shadow:0 3px 0 color-mix(in srgb,var(--r) 60%,#000)}
 .eqBau i{grid-row:1/4;font-style:normal;font-size:28px}.eqBau b{font-family:var(--fT);font-weight:400;font-size:14px;color:#3a1a08}.eqBau small{font-size:11px;color:var(--r);font-weight:700}.eqBau em{font-style:normal;font-size:12px;font-weight:700;color:#8a5a10}.eqBau:disabled{opacity:.5}
 .eqItem img{max-width:44px;max-height:48px;image-rendering:pixelated;transform:rotate(35deg);filter:drop-shadow(0 2px 0 #0003)}.eqPx{height:72px;image-rendering:pixelated;transform:rotate(35deg)}
+
+.dsBanner{display:flex;gap:12px;align-items:center;padding:10px 12px;border-radius:14px;background:linear-gradient(135deg,#1e0f3a,#4a1a5a 60%,color-mix(in srgb,var(--r) 55%,#4a1a5a));border:3px solid var(--r);color:#fff;text-align:left;box-shadow:0 0 18px color-mix(in srgb,var(--r) 50%,transparent);position:relative;overflow:hidden;flex-shrink:0}
+.dsBanner::after{content:'';position:absolute;inset:0;background:linear-gradient(105deg,transparent 40%,#fff4 50%,transparent 60%);animation:dsBrilho 3s infinite}
+@keyframes dsBrilho{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
+.dsBanner img{width:46px;image-rendering:pixelated;transform:rotate(35deg);filter:drop-shadow(0 0 8px #ffd23a)}
+.dsBanner b{display:block;font-family:var(--fT);font-weight:400;font-size:17px;color:#ffe27a}.dsBanner small{display:block;font-size:11px;opacity:.92}.dsPity{margin-top:3px;color:#ffd0f0}.dsPity b{display:inline;font-size:12px;font-family:inherit;font-weight:700}
+.dsBts{flex-shrink:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:8px;margin:8px 0 2px}
+.dsRev{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:14px 0;perspective:600px}
+.dsCarta{display:flex;flex-direction:column;align-items:center;gap:2px;animation:dsVira .55s backwards;animation-delay:calc(var(--i)*.18s)}.dsCarta small{font-size:10px;font-weight:700;color:var(--r)}
+.dsCarta.r4 .eqItem,.dsCarta.r5 .eqItem{box-shadow:0 0 16px var(--r),0 0 4px #fff}
+@keyframes dsVira{from{transform:rotateY(90deg) scale(.5);opacity:0}60%{transform:rotateY(-10deg) scale(1.15);opacity:1}to{transform:none}}
+.dsTela.r5,.dsTela.r4{background:radial-gradient(circle at 50% 30%,color-mix(in srgb,var(--r) 30%,#fff8ec),#fff8ec 70%)}.dsUau{font-size:13px}.dsGanho{margin-left:10px;color:#b07a00}
