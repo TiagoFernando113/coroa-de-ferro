@@ -34,22 +34,44 @@ export const LENDAS = {
   vulcao: { nome: 'Machado Vulcânico', r: 3, modelo: 'P:L:vulcao', cor: 0xff5a1a, desc: '20% de chance de explodir em área' },
   sombra: { nome: 'Adagas da Sombra', r: 3, modelo: 'P:L:sombra', cor: 0x9a5ae8, desc: '15% de chance de golpe triplo' },
 };
+// classes: cada herói só usa as armas da sua classe (mago de cajado, arqueiro de arco...)
+export const CLASSES = { guerreiro: { nome: 'Guerreiro', ic: '🛡️', armas: ['espada', 'machado', 'martelo', 'lanca'], perto: true }, ladino: { nome: 'Ladino', ic: '🗡️', armas: ['adaga', 'foice'], perto: true },
+  arqueiro: { nome: 'Arqueiro', ic: '🏹', armas: ['arco'] }, mago: { nome: 'Mago', ic: '🔮', armas: ['cajado'] } };
+const CLASSE_HEROI = { lyra: 'arqueiro', brann: 'arqueiro', grom: 'arqueiro', selene: 'mago', zarak: 'mago', raiden: 'mago', kira: 'ladino', thalia: 'guerreiro' };
+export const classeAtual = () => CLASSE_HEROI[S.heroi] || 'arqueiro';
+export const tipoArma = it => it?.modelo?.startsWith('P:') ? tipoDe(it.modelo.slice(2)) : null;
+export const classeDaArma = it => Object.keys(CLASSES).find(c => CLASSES[c].armas.includes(tipoArma(it))) || 'guerreiro';
+export const serveNoHeroi = it => it.slot !== 'arma' || classeDaArma(it) === classeAtual();
+// o que está em uso: a arma é guardada por classe (trocar de herói troca a arma)
+const usando = () => { const E = eq(), u = { ...E.usando }, c = classeAtual(); delete u.arma;
+  if (!E.itens.some(x => x.id === E.armas[c])) { const m = E.itens.filter(x => x.slot === 'arma' && classeDaArma(x) === c).sort((p, q) => poderItem(q) - poderItem(p))[0]; if (m) E.armas[c] = m.id; else delete E.armas[c]; } // sem arma da classe: usa a melhor que tiver
+  if (E.armas[c]) u.arma = E.armas[c]; return u; };
+const emUso = id => { const E = eq(); return Object.values(E.usando).includes(id) || Object.values(E.armas).includes(id); };
+function equipar(it) { const E = eq(); if (it.slot === 'arma') E.armas[classeDaArma(it)] = it.id; else E.usando[it.slot] = it.id; }
 // aparência do herói com o que está equipado (comArma: só nos modos em grupo, onde o golpe muda junto)
 export function visualHeroi(base, comArma = false) {
-  const E = eq(), v = { ...base }, de = s => E.itens.find(x => x.id === E.usando[s]);
+  const E = eq(), U = usando(), v = { ...base }, de = s => E.itens.find(x => x.id === U[s]);
   const ar = de('armadura'); if (ar?.vis) { v.tro = v.bra = v.per = ar.vis; if (ar.r >= 1) v.tinta = RARIDADES[ar.r].cor; v.cores = {}; }
   const el = de('elmo'); if (el?.vis) { if (el.vis === 'lenco') v.mas = 'lenco'; else v.cha = el.vis; }
   const ca = de('capa'); if (ca?.vis) { v.capa = ca.vis; if (ca.r >= 4) v.aura = 'sim'; if (ca.r >= 5 && !v.asas) v.asas = 'anjo'; }
   const a = de('arma'); if (comArma && a?.modelo) return visualCom(v, a.modelo);
   return v;
 }
-export const assinatura = () => { const E = eq(); return Object.entries(E.usando).map(([s, id]) => { const it = E.itens.find(x => x.id === id); return it ? `${s}${it.vis || it.modelo || ''}${it.r}` : ''; }).join('|'); };
-export function armaEquipada() { const E = eq(), it = E.itens.find(x => x.id === E.usando.arma); return it || null; }
+export const assinatura = () => { const E = eq(); return Object.entries(usando()).map(([s, id]) => { const it = E.itens.find(x => x.id === id); return it ? `${s}${it.vis || it.modelo || ''}${it.r}` : ''; }).join('|'); };
+export function armaEquipada() { const E = eq(), it = E.itens.find(x => x.id === usando().arma); return it || null; }
+export const armaDePerto = () => { const a = armaEquipada(); return !!a && !!CLASSES[classeDaArma(a)].perto; };
 export function visualCom(v, modelo) { if (!modelo) return v; return { ...v, arma: modelo, esq: tipoGolpe(modelo) === 'arco' || tipoGolpe(modelo) === 'martelo' ? '' : v.esq }; }
 export const tipoGolpe = modelo => !modelo ? null : modelo.startsWith('P:') ? ({ arco: 'arco', cajado: 'cajado', martelo: 'martelo' }[tipoDe(modelo.slice(2))] || 'corte') : /bow/.test(modelo) ? 'arco' : /staff|wand/.test(modelo) ? 'cajado' : /hammer/.test(modelo) ? 'martelo' : 'corte';
 const ST = { dano: ['Dano', '%'], cad: ['Velocidade de ataque', '%'], vida: ['Vida', ''], def: ['Defesa', '%'], crit: ['Crítico', '%'], roubo: ['Roubo de vida', '%'], recarga: ['Recarga do poder', '%'], cura: ['Cura', '/s'] };
 const MAX_NV = 10, MAX_MOCHILA = 40;
-const eq = () => (S.equip ||= { itens: [], usando: {}, id: 1 });
+const TIPO_ANTIGO = m => /bow/.test(m) ? 'arco' : /staff|wand/.test(m) ? 'cajado' : /axe/.test(m) ? 'machado' : /hammer/.test(m) ? 'martelo' : /spear|halberd/.test(m) ? 'lanca' : /dagger|knife/.test(m) ? 'adaga' : /scythe/.test(m) ? 'foice' : 'espada';
+function eq() {
+  const E = (S.equip ||= { itens: [], usando: {}, id: 1 });
+  if (!E.armas) { E.armas = {}; // versão nova: armas em pixel e uma arma por classe
+    for (const it of E.itens) if (it.slot === 'arma' && !it.modelo?.startsWith('P:')) it.modelo = it.lenda ? LENDAS[it.lenda].modelo : `P:${TIPO_ANTIGO(it.modelo || '')}:${it.r}`;
+    const a = E.itens.find(x => x.id === E.usando.arma); if (a) E.armas[classeDaArma(a)] = a.id; delete E.usando.arma; }
+  return E;
+}
 export const valor = (it, k) => (it.st[k] || 0) * (1 + 0.1 * (it.nv - 1));
 
 // novo item: quanto mais longe foi a partida, mais chance de raridade alta
@@ -60,21 +82,22 @@ export function gerarItem(onda, minR = 0, maxR = 5, lk = null) { // lk: lenda ga
   const [nm, vis, gen] = D.nomes[Math.floor(Math.random() * D.nomes.length)];
   const it = { id: E.id++, slot, r, nv: 1, st, nome: `${nm} ${R.adj[gen === 'f' ? 1 : 0]}` };
   if (vis && slot !== 'arma') it.vis = vis;
-  if (slot === 'arma') { it.modelo = `P:${vis}:${r}`;
+  if (slot === 'arma') { const minhas = CLASSES[classeAtual()].armas, tp = Math.random() < 0.75 ? minhas[Math.floor(Math.random() * minhas.length)] : vis, nn = D.nomes.find(n => n[1] === tp) || [nm, vis, gen];
+    it.modelo = `P:${tp}:${r}`; it.nome = `${nn[0]} ${R.adj[nn[2] === 'f' ? 1 : 0]}`;
     const ls = Object.entries(LENDAS).filter(([, L]) => L.r <= r); if (lk || (r >= 3 && ls.length && Math.random() < 0.5)) { const [k, L] = lk ? [lk, LENDAS[lk]] : ls[Math.floor(Math.random() * ls.length)]; Object.assign(it, { lenda: k, nome: L.nome, modelo: L.modelo }); } }
-  E.itens.push(it); if (E.itens.length > MAX_MOCHILA) { const pior = E.itens.filter(x => !Object.values(E.usando).includes(x.id)).sort((a, b) => a.r - b.r || poderItem(a) - poderItem(b))[0]; if (pior) E.itens.splice(E.itens.indexOf(pior), 1); }
-  if (!E.usando[slot] || poderItem(it) > poderItem(E.itens.find(x => x.id === E.usando[slot]) || { st: {}, nv: 1, r: 0 })) E.usando[slot] = it.id; // equipa sozinho se for melhor
+  E.itens.push(it); if (E.itens.length > MAX_MOCHILA) { const pior = E.itens.filter(x => !emUso(x.id)).sort((a, b) => a.r - b.r || poderItem(a) - poderItem(b))[0]; if (pior) E.itens.splice(E.itens.indexOf(pior), 1); }
+  const atual = slot === 'arma' ? E.armas[classeDaArma(it)] : E.usando[slot]; if (!atual || poderItem(it) > poderItem(E.itens.find(x => x.id === atual) || { st: {}, nv: 1, r: 0 })) equipar(it); // equipa sozinho se for melhor
   salvar(); return it;
 }
 export function poderItem(it) { let p = 0; for (const k of Object.keys(it.st)) p += valor(it, k) * ({ vida: 2, cura: 40, def: 8, crit: 8, roubo: 15 }[k] || 6); return Math.round(p * (it.lenda ? 1.35 : 1)); }
 // soma dos atributos do que está equipado
 export function atributos() {
   const E = eq(), a = { dano: 0, cad: 0, vida: 0, def: 0, crit: 0, roubo: 0, recarga: 0, cura: 0 };
-  for (const id of Object.values(E.usando)) { const it = E.itens.find(x => x.id === id); if (it) for (const k of Object.keys(it.st)) a[k] += valor(it, k); }
+  for (const id of Object.values(usando())) { const it = E.itens.find(x => x.id === id); if (it) for (const k of Object.keys(it.st)) a[k] += valor(it, k); }
   a.def = Math.min(60, a.def); a.crit = Math.min(60, a.crit); a.recarga = Math.min(60, a.recarga); return a;
 }
-export function poder() { const E = eq(); let p = 0; for (const id of Object.values(E.usando)) { const it = E.itens.find(x => x.id === id); if (it) p += poderItem(it); } return p; }
-export function melhorRaridade() { const E = eq(); let m = -1; for (const id of Object.values(E.usando)) { const it = E.itens.find(x => x.id === id); if (it) m = Math.max(m, it.r); } return m; }
+export function poder() { const E = eq(); let p = 0; for (const id of Object.values(usando())) { const it = E.itens.find(x => x.id === id); if (it) p += poderItem(it); } return p; }
+export function melhorRaridade() { const E = eq(); let m = -1; for (const id of Object.values(usando())) { const it = E.itens.find(x => x.id === id); if (it) m = Math.max(m, it.r); } return m; }
 export const BAUS = [{ nome: 'Baú de Ferro', preco: 400, min: 0, max: 2, ic: '📦' }, { nome: 'Baú Raro', preco: 1500, min: 2, max: 3, ic: '🎁' }, { nome: 'Baú Épico', preco: 5000, min: 3, max: 4, ic: '💜' }, { nome: 'Baú Lendário', preco: 15000, min: 4, max: 5, ic: '🌟' }];
 // ---- Desejos: estrelas ganhas nas partidas (ou moedas), 1 grátis por dia, lenda da semana em destaque e garantia ----
 export const PRECO_DESEJO = 600, PITY = 50;
@@ -99,21 +122,22 @@ const custoUp = it => Math.round(80 * it.nv * (1 + it.r) * (1 + it.r * 0.5));
 const valorDesmontar = it => Math.round(20 * (1 + it.r) ** 2 * it.nv);
 
 // ---- tela da mochila ----
-export const itemHtml = (it, cls = '') => `<button class="eqItem r${it.r} ${cls} ${it.lenda ? 'lenda' : ''}" data-eq="ver" data-id="${it.id}" style="--r:${RARIDADES[it.r].cor}"><img class="${it.slot === 'arma' ? 'pxArma' : ''}" src="${iconeItem(it, 1)}" alt=""><em>${it.nv > 1 ? '+' + (it.nv - 1) : ''}</em>${it.lenda ? '<u>✨</u>' : ''}</button>`;
+export const itemHtml = (it, cls = '') => `<button class="eqItem r${it.r} ${cls} ${it.lenda ? 'lenda' : ''} ${serveNoHeroi(it) ? '' : 'naoServe'}" data-eq="ver" data-id="${it.id}" style="--r:${RARIDADES[it.r].cor}"><img class="${it.slot === 'arma' ? 'pxArma' : ''}" src="${iconeItem(it, 1)}" alt=""><em>${it.nv > 1 ? '+' + (it.nv - 1) : ''}</em>${it.lenda ? '<u>✨</u>' : ''}${it.slot === 'arma' ? `<s>${CLASSES[classeDaArma(it)].ic}</s>` : ''}</button>`;
+const NOME_TIPO = { espada: 'Espadas', machado: 'Machados', martelo: 'Martelos', lanca: 'Lanças', arco: 'Arcos', cajado: 'Cajados', adaga: 'Adagas', foice: 'Foices' };
 const linhaSt = (it, k) => { const [n, u] = ST[k]; return `<span>${tr(n)} <b>+${fmt(Math.round(valor(it, k) * 10) / 10)}${u}</b></span>`; };
 export function mostrar(sel = null) {
-  const E = eq(), j = $('#janela'); j.hidden = false; const usando = new Set(Object.values(E.usando)), A = atributos();
+  const E = eq(), j = $('#janela'); j.hidden = false; const U = usando(), emUsoAgora = new Set(Object.values(U)), A = atributos(), CL = CLASSES[classeAtual()];
   const it = sel != null && E.itens.find(x => x.id === sel);
-  const det = it ? (() => { const R = RARIDADES[it.r], eq1 = usando.has(it.id), c = custoUp(it);
-    return `<div class="eqDet" style="--r:${R.cor}"><div class="eqDetT"><img class="eqPx ${it.slot === 'arma' ? 'pxArma' : ''}" src="${iconeItem(it, 2)}" alt=""><span><b>${it.nome}${it.nv > 1 ? ` +${it.nv - 1}` : ''}</b><small>${tr(R.nome)} · ${tr(SLOTS[it.slot].nome)} · ${tr('Poder')} ${fmt(poderItem(it))}</small></span></div>
+  const det = it ? (() => { const R = RARIDADES[it.r], eq1 = emUsoAgora.has(it.id), serve = serveNoHeroi(it), CA = CLASSES[classeDaArma(it)], c = custoUp(it);
+    return `<div class="eqDet" style="--r:${R.cor}"><div class="eqDetT"><img class="eqPx ${it.slot === 'arma' ? 'pxArma' : ''}" src="${iconeItem(it, 2)}" alt=""><span><b>${it.nome}${it.nv > 1 ? ` +${it.nv - 1}` : ''}</b><small>${tr(R.nome)} · ${tr(SLOTS[it.slot].nome)} · ${tr('Poder')} ${fmt(poderItem(it))}</small>${it.slot === 'arma' ? `<small class="eqClasse ${serve ? '' : 'nao'}">${CA.ic} ${tr('Só para')} ${tr(CA.nome)}${CA.perto ? ` · ${tr('ataca de perto')}` : ` · ${tr('ataca de longe')}`}</small>` : ''}</span></div>
       <div class="eqSt">${Object.keys(it.st).map(k => linhaSt(it, k)).join('')}</div>${it.lenda ? `<p class="eqLenda">✨ ${tr(LENDAS[it.lenda].desc)}</p>` : ''}
-      <div class="eqBts">${eq1 ? `<button class="btn cinza peq" disabled>${tr('Equipado')}</button>` : `<button class="btn verde peq" data-eq="usar" data-id="${it.id}">${tr('Equipar')}</button>`}
+      <div class="eqBts">${eq1 ? `<button class="btn cinza peq" disabled>${tr('Equipado')}</button>` : serve ? `<button class="btn verde peq" data-eq="usar" data-id="${it.id}">${tr('Equipar')}</button>` : `<button class="btn cinza peq" disabled>${CA.ic} ${tr(CA.nome)}</button>`}
         ${it.nv < MAX_NV ? `<button class="btn amarelo peq" data-eq="up" data-id="${it.id}" ${S.moedas < c ? 'disabled' : ''}>⬆️ ${fmt(c)}</button>` : `<small>MAX</small>`}
-        ${eq1 ? '' : `<button class="btn vermelho peq" data-eq="des" data-id="${it.id}">${tr('Desmontar')} +${fmt(valorDesmontar(it))}</button>`}</div></div>`; })() : '';
+        ${emUso(it.id) ? '' : `<button class="btn vermelho peq" data-eq="des" data-id="${it.id}">${tr('Desmontar')} +${fmt(valorDesmontar(it))}</button>`}</div></div>`; })() : '';
   let foto = ''; try { const q = C.quadrosAnim(visualHeroi(heroiAtual(S).visual, true), 'Idle_A', { n: 1, tam: 150, chave: 'eqv:' + S.heroi + assinatura() }); if (q?.q?.[0]) foto = q.q[0].toDataURL(); } catch (e) {}
   j.innerHTML = `<div class="jOnline eqTela"><h2>🎒 ${tr('Equipamentos')}</h2><p class="eqPoder">${tr('Poder')} <b>${fmt(poder())}</b> · <small>${tr('vale na Árvore Sagrada e na Defesa em Grupo')}</small></p>
-    ${foto ? `<img class="eqFoto" src="${foto}" alt="">` : ''}
-    <div class="eqSlots">${Object.entries(SLOTS).map(([k, D]) => { const x = E.itens.find(i => i.id === E.usando[k]); return `<div class="eqSlot"><small>${tr(D.nome)}</small>${x ? itemHtml(x, sel === x.id ? 'sel' : '') : `<span class="eqVazio">${D.ic}</span>`}</div>`; }).join('')}</div>
+    ${foto ? `<img class="eqFoto" src="${foto}" alt="">` : ''}<p class="eqClasseH">${CL.ic} <b>${tr(CL.nome)}</b> · ${tr('usa')} ${CL.armas.map(a => tr(NOME_TIPO[a])).join(', ')}${CL.perto ? ` · ${tr('ataca de perto')}` : ''}</p>
+    <div class="eqSlots">${Object.entries(SLOTS).map(([k, D]) => { const x = E.itens.find(i => i.id === U[k]); return `<div class="eqSlot"><small>${tr(D.nome)}</small>${x ? itemHtml(x, sel === x.id ? 'sel' : '') : `<span class="eqVazio">${D.ic}</span>`}</div>`; }).join('')}</div>
     <div class="eqTot">${Object.entries(A).filter(([, v]) => v).map(([k, v]) => `<span>${tr(ST[k][0])} +${fmt(Math.round(v * 10) / 10)}${ST[k][1]}</span>`).join('') || `<span>${tr('Jogue a Árvore Sagrada para ganhar equipamentos!')}</span>`}</div>
     ${det}${(() => { const dk = destaque(), L = LENDAS[dk], est = estrelas(), gratis = E.dia !== hoje(), cus = n => est >= n ? `⭐ ${n}` : `🪙 ${fmt(PRECO_DESEJO * n * (n >= 10 ? 0.9 : 1))}`, pode = n => est >= n || S.moedas >= PRECO_DESEJO * n * (n >= 10 ? 0.9 : 1);
       return `<h3>🌠 ${tr('Desejos')} <small>⭐ ${fmt(est)}${fimDeSemana() ? ` · ${tr('fim de semana: estrelas em dobro!')}` : ''}</small></h3>
@@ -123,7 +147,7 @@ export function mostrar(sel = null) {
     <h3>🔨 ${tr('Forja')} <small>${tr('baús com raridade garantida')}</small></h3>
     <div class="eqForja">${BAUS.map((B, i) => `<button class="eqBau" data-eq="bau" data-n="${i}" ${S.moedas < B.preco ? 'disabled' : ''} style="--r:${RARIDADES[B.min].cor}"><i>${B.ic}</i><b>${tr(B.nome)}</b><small>${tr(RARIDADES[B.min].nome)}+</small><em>🪙 ${fmt(B.preco)}</em></button>`).join('')}</div>
     <h3>${tr('Mochila')} <small>${E.itens.length}/${MAX_MOCHILA}</small></h3>
-    <div class="eqMochila">${[...E.itens].sort((a, b) => b.r - a.r || poderItem(b) - poderItem(a)).map(x => itemHtml(x, `${usando.has(x.id) ? 'usando' : ''} ${sel === x.id ? 'sel' : ''}`)).join('') || `<p>${tr('Vazia')}</p>`}</div>
+    <div class="eqMochila">${[...E.itens].sort((a, b) => serveNoHeroi(b) - serveNoHeroi(a) || b.r - a.r || poderItem(b) - poderItem(a)).map(x => itemHtml(x, `${emUsoAgora.has(x.id) ? 'usando' : ''} ${sel === x.id ? 'sel' : ''}`)).join('') || `<p>${tr('Vazia')}</p>`}</div>
     <button class="btn verde grande" data-a="fecharJanela">OK</button></div>`;
 }
 export function clique(b) {
@@ -135,8 +159,8 @@ export function clique(b) {
     else if (estrelas() >= n) E.est -= n; else { const c = PRECO_DESEJO * n * (n >= 10 ? 0.9 : 1); if (S.moedas < c) { som('erro'); return true; } S.moedas -= c; }
     som('compra'); const itens = []; for (let i = 0; i < Math.max(1, n); i++) itens.push(desejar()); salvar(); revelar(itens); return true; }
   if (!it) return false;
-  if (a === 'usar') { E.usando[it.slot] = it.id; salvar(); sfx('brilho'); mostrar(id); return true; }
+  if (a === 'usar') { if (!serveNoHeroi(it)) { som('erro'); return true; } equipar(it); salvar(); sfx('brilho'); mostrar(id); return true; }
   if (a === 'up') { const c = custoUp(it); if (S.moedas < c || it.nv >= MAX_NV) { som('erro'); return true; } S.moedas -= c; it.nv++; salvar(); som('compra'); sfx('vitoria'); mostrar(id); return true; }
-  if (a === 'des') { if (Object.values(E.usando).includes(it.id)) return true; S.moedas += valorDesmontar(it); E.itens.splice(E.itens.indexOf(it), 1); salvar(); som('moedas'); mostrar(); return true; }
+  if (a === 'des') { if (emUso(it.id)) return true; S.moedas += valorDesmontar(it); E.itens.splice(E.itens.indexOf(it), 1); salvar(); som('moedas'); mostrar(); return true; }
   return false;
 }

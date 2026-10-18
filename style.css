@@ -1157,3 +1157,6 @@ input{font:inherit;user-select:text;-webkit-user-select:text}
 .dfDesvio{position:absolute;right:104px;bottom:calc(max(14px,env(safe-area-inset-bottom)) + 12px);width:58px;height:58px;padding:0;border-radius:50%;overflow:hidden;background:linear-gradient(#9ae8ff,#3a8ac8);border:3px solid #fff3dc;box-shadow:0 3px 0 #0006}
 .dfDesvio i{position:absolute;left:0;right:0;bottom:0;height:0;background:rgba(0,0,0,.55)}.dfDesvio span{position:relative;font-size:26px;line-height:52px}.dfDesvio:active{transform:scale(.9)}
 .dfGolpe.caminho{right:88px;bottom:calc(max(14px,env(safe-area-inset-bottom)) + 140px);width:70px;height:70px;font-size:32px}.dfDesvio.caminho{right:96px;bottom:calc(max(14px,env(safe-area-inset-bottom)) + 220px);width:52px;height:52px}
+
+.eqItem.naoServe{opacity:.5;filter:grayscale(.7)}.eqItem s{position:absolute;right:1px;top:-1px;text-decoration:none;font-size:12px}
+.eqClasse{display:block;color:#2a8a3a;font-weight:700}.eqClasse.nao{color:#c8301a}.eqClasseH{font-size:12px;margin:0 0 6px;color:#5a3a1a}
