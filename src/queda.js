@@ -6,7 +6,7 @@ import { S, salvar } from './meta.js';
 const VIVO = 'ponte_vivo';
 let onde = () => '', enviados = 0;
 const vistos = new Set();
-export const aparelho = () => { const u = navigator.userAgent; return `${(u.match(/\(([^)]*)\)/) || [])[1] || ''} ${(u.match(/Chrome\/[\d]+/) || [''])[0]} mem=${navigator.deviceMemory || '?'} tela=${screen.width}x${screen.height} q=${lerLocal('guilda_q') || 'media'}`; };
+export const aparelho = () => { const u = navigator.userAgent; return `${(u.match(/\(([^)]*)\)/) || [])[1] || ''} ${(u.match(/Chrome\/[\d]+/) || [''])[0]} mem=${navigator.deviceMemory || '?'} tela=${screen.width}x${screen.height} q=${lerLocal('guilda_q') || 'media'}${navigator.webdriver ? ' TESTE' : ''}`; };
 const memoria = () => (performance.memory ? ` heap=${Math.round(performance.memory.usedJSHeapSize / 1048576)}MB` : '') + gpu();
 const gpu = () => { try { const i = window.__C?.info?.(); return i ? ` gpu: tex=${i.tex} geo=${i.geos} desenhos=${i.calls}` : ''; } catch (e) { return ''; } };
 // rastro: as últimas telas por onde o jogador passou (vai junto com o erro)

@@ -15,6 +15,7 @@ const pecas = {};   // 'kit:nome' → Object3D modelo
 let qualidade = 'media';
 
 export const qualidadeAtual = () => qualidade;
+export function gpuNome() { try { const gl = renderer.getContext(), e = gl.getExtension('WEBGL_debug_renderer_info'); return e ? gl.getParameter(e.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER); } catch (er) { return ''; } }
 // altura do chão (relevo do mundo aberto); 0 fora do mundo
 let fnChao = () => 0;
 export const chao = (x, z) => fnChao(x, z);
