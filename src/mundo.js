@@ -135,7 +135,8 @@ export function abrir(container, opcoes) {
   C.ceu(0x9ad8f8); C.neblina(180, 520); C.diaNoite(0);
   el.innerHTML = `<div class="muTopo"><button class="lSair" data-mu="sair">${ico('fechar')}</button><b>${tr('Mapa de Guerra')}</b><small id="muOn"></small><button class="muCmdB" data-mu="cmd">⭐ <span id="muNv">Nv 1</span></button><button class="muLigaB" data-mu="liga">🏆 <span id="muPts">${tr('Liga')}</span></button></div>
     <div class="muAviso" id="muAviso">${tr('Carregando o mapa...')}</div>
-    <div class="muRally" id="muRally" hidden></div><div class="muConf" id="muConf" hidden></div><div class="muInfo" id="muInfo" hidden></div><div class="muExs" id="muExs"></div><div class="cqJanela" id="muRel" hidden></div><canvas class="muMini" id="muMini" width="128" height="128"></canvas>`;
+    <div class="muRally" id="muRally" hidden></div><div class="muConf" id="muConf" hidden></div><div class="muInfo" id="muInfo" hidden></div><div class="muExs" id="muExs"></div><div class="cqJanela" id="muRel" hidden></div><canvas class="muMini" id="muMini" width="128" height="128"></canvas>
+    <button class="muCaixaB" data-mu="caixa" aria-label="${tr('Relatórios')}">✉️<i id="muCxN" hidden></i></button>`;
   ligarToque(); ligarMini(); atualizar(true);
 }
 export function fechar() {
@@ -168,7 +169,7 @@ async function atualizar() {
     if (!K.carregou) { K.carregou = true; $('#muAviso').hidden = true; const m = meus()[0]; if (m) { const p = posicao(m); K.cam = { x: wx(p.x), z: wz(p.y) + 10 }; } }
     $('#muOn').textContent = `${[...K.ex.values()].filter(e => !e.bot).length / 2 | 0} ${tr('jogadores')} · ${[...K.ex.values()].filter(e => e.bot && e.barb == null).length} bots`;
     perseguir(); darOrdensBots(r.livres || []); cards();
-    if (r.relatorios?.length) mostrarRelatorios(r.relatorios);
+    novosRelatorios(r.relatorios || []);
     if (agora() > (K.tLiga || 0)) { K.tLiga = agora() + 30; ON.liga().then(l => { if (!K) return; K.liga = l; const p = $('#muPts'); if (p) p.textContent = l.eu ? `${l.eu.pos}º · ${fmt(l.eu.pontos)}` : tr('Liga'); }).catch(() => {}); }
   } catch (e) { if (K) { K.erro = e.message; const a = $('#muAviso'); if (a && !K.carregou) a.textContent = tr('Sem conexão com o mapa') + ' 😢'; } }
   finally { if (K) K.buscando = false; }
@@ -448,26 +449,47 @@ function mostrarLinha(cam, cor) {
   C.descartar(K.linha); const pts = cam.map(p => new THREE.Vector3(wx(p[0]), 0.35, wz(p[1])));
   K.linha = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineDashedMaterial({ color: cor, dashSize: 1.2, gapSize: 0.8 })); K.linha.computeLineDistances(); cn().add(K.linha);
 }
-function mostrarRelatorios(lista) { // relatório de batalha (como o "battle report" do RoK)
-  const j = $('#muRel'); if (!j) return; j.hidden = false; let venceu = false, ganhou = false;
-  j.innerHTML = `<div class="cqFim muRelC"><h2>${ico('pergaminho')} ${tr('Relatório')}</h2>${lista.slice(-4).map(({ dados: d }) => {
-    if (d.tipo === 'guarnicao') { venceu ||= d.venceu; return `<div class="muRelL ${d.venceu ? 'vit' : 'der'}"><b>${d.venceu ? tr('GUARNIÇÃO VENCIDA') : tr('DERROTA')}</b> · ${tr('castelo de')} <b data-nt>${esc(d.contra)}</b>
+// ---- caixa de mensagens (relatórios ficam guardados; chega um novo → aviso e número no ícone) ----
+function novosRelatorios(lista) {
+  K.vistos ||= new Set(); const novos = lista.filter(r => !K.vistos.has(r.id)); for (const r of novos) K.vistos.add(r.id);
+  const n = $('#muCxN'); if (n) { n.hidden = !lista.length; n.textContent = lista.length > 9 ? '9+' : lista.length; }
+  if (!novos.length) return; const ult = novos[novos.length - 1].dados, bom = ['coleta', 'barbaro', 'rallySaiu', 'rallyNovo'].includes(ult.tipo) || ult.venceu || ult.derrubou || ult.conquistou;
+  if (K.carregou) { toast(`✉️ ${tr('Novo relatório')}: ${tituloRel(ult)}`); sfx(bom ? 'brilho' : 'nota', bom ? undefined : 1); const b = document.querySelector('.muCaixaB'); if (b) { b.classList.remove('pulsa'); void b.offsetWidth; b.classList.add('pulsa'); } }
+  if (novos.some(r => r.dados.tipo === 'coleta' || r.dados.tipo === 'barbaro')) ON.premios().then(l => { const m = (l || []).reduce((a, p) => a + p.moedas, 0); if (m) { S.moedas += m; salvar(); som('moedas'); } }).catch(() => {}); // o ouro entra na hora
+  if (!$('#muRel').hidden && K.abaRel === 'caixa') abrirCaixa();
+}
+function tituloRel(d) {
+  return { guarnicao: d.venceu ? tr('GUARNIÇÃO VENCIDA') : tr('DERROTA'), defesa: tr('CASTELO ATACADO'), bandeira: d.derrubou ? tr('BANDEIRA DERRUBADA!') : tr('PERDEMOS UMA BANDEIRA'),
+    castelo: d.conquistou ? tr('CASTELO CONQUISTADO!') : tr('NOSSO CASTELO CAIU!'), rallyNovo: tr('RALLY ABERTO!'), rallySaiu: tr('O RALLY SAIU!'), coleta: tr('COLETA TERMINADA'), barbaro: tr('BÁRBAROS DERROTADOS!'),
+    fugiu: tr('Escapou'), batalha: d.venceu ? tr('VITÓRIA') : d.recuou ? tr('RECUO') : tr('DERROTA') }[d.tipo || 'batalha'] || tr('Relatório');
+}
+const haQuanto = t => { const s = Math.max(0, agora() - t); return s < 60 ? tr('agora') : s < 3600 ? `${Math.floor(s / 60)} min` : s < 86400 ? `${Math.floor(s / 3600)} h` : `${Math.floor(s / 86400)} d`; };
+async function abrirCaixa() {
+  const j = $('#muRel'); if (!j) return; K.abaRel = 'caixa'; j.hidden = false;
+  if (!K.caixa) j.innerHTML = `<div class="cqFim muRelC muCaixa"><h2>✉️ ${tr('Relatórios')}</h2><p>${tr('Carregando...')}</p></div>`;
+  try { K.caixa = await ON.mapaCaixa(); } catch (e) { if (!K.caixa) { j.innerHTML = `<div class="cqFim muRelC muCaixa"><h2>✉️ ${tr('Relatórios')}</h2><p>${tr('Sem conexão com o mapa')} 😢</p><button class="btn verde grande" data-mu="relOk">OK</button></div>`; return; } }
+  if (!K || j.hidden || K.abaRel !== 'caixa') return;
+  j.innerHTML = `<div class="cqFim muRelC muCaixa"><h2>✉️ ${tr('Relatórios')}</h2><div class="muCxLista">${K.caixa.length ? K.caixa.map(r => linhaRel(r.dados, r)).join('') : `<p>${tr('Nenhum relatório ainda')}</p>`}</div>
+    <button class="btn verde grande" data-mu="relOk">OK</button></div>`;
+  if (K.caixa.some(r => !r.lido)) { ON.mapaLidos().catch(() => {}); const n = $('#muCxN'); if (n) n.hidden = true; }
+}
+function linhaRel(d, r) { // uma mensagem da caixa (como o "battle report" do RoK)
+  const h = `<em class="muCxT">${haQuanto(r.t)}</em>`, cls = r.lido ? '' : ' novo';
+  return (() => {
+    if (d.tipo === 'guarnicao') { return `<div class="muRelL ${d.venceu ? 'vit' : 'der'}"><b>${d.venceu ? tr('GUARNIÇÃO VENCIDA') : tr('DERROTA')}</b> · ${tr('castelo de')} <b data-nt>${esc(d.contra)}</b>
       <small>${tr('Exército')} ${d.slot + 1}: ${fmt(d.eu0)} → ${fmt(d.eu1)} · ${tr('guarnição')} ${fmt(d.ele0)} → ${fmt(d.ele1)}</small>${d.venceu ? `<small>${tr('Agora o cerco começa: derrubem a muralha!')}</small>` : ''}</div>`; }
     if (d.tipo === 'defesa') return `<div class="muRelL der"><b>${tr('CASTELO ATACADO')}</b> · <b data-nt>${esc(d.contra)}</b> ${tr('atacou a guarnição')} <small>${tr('Guarnição')}: -${fmt(d.perdeu)} (${tr('restam')} ${fmt(d.resta)})</small></div>`;
-    if (d.tipo === 'bandeira') { venceu ||= d.derrubou; return `<div class="muRelL ${d.derrubou ? 'vit' : 'der'}"><b>${d.derrubou ? tr('BANDEIRA DERRUBADA!') : tr('PERDEMOS UMA BANDEIRA')}</b> · <b data-nt>${esc(d.cla || '')}</b></div>`; }
-    if (d.tipo === 'castelo') { venceu ||= d.conquistou; return `<div class="muRelL ${d.conquistou ? 'vit' : 'der'}"><b>${d.conquistou ? tr('CASTELO CONQUISTADO!') + ' 👑 +2000 ' + tr('pontos') : tr('NOSSO CASTELO CAIU!')}</b> · <b data-nt>${esc(d.cla || '')}</b></div>`; }
+    if (d.tipo === 'bandeira') { return `<div class="muRelL ${d.derrubou ? 'vit' : 'der'}"><b>${d.derrubou ? tr('BANDEIRA DERRUBADA!') : tr('PERDEMOS UMA BANDEIRA')}</b> · <b data-nt>${esc(d.cla || '')}</b></div>`; }
+    if (d.tipo === 'castelo') { return `<div class="muRelL ${d.conquistou ? 'vit' : 'der'}"><b>${d.conquistou ? tr('CASTELO CONQUISTADO!') + ' 👑 +2000 ' + tr('pontos') : tr('NOSSO CASTELO CAIU!')}</b> · <b data-nt>${esc(d.cla || '')}</b></div>`; }
     if (d.tipo === 'rallyNovo') return `<div class="muRelL vit"><b>📯 ${tr('RALLY ABERTO!')}</b> <b data-nt>${esc(d.nome)}</b> ${tr('chamou o clã para atacar. Entre pelo aviso no topo!')}</div>`;
-    if (d.tipo === 'rallySaiu') { venceu = true; return `<div class="muRelL vit"><b>📯 ${tr('O RALLY SAIU!')}</b> ${d.n} ${tr('exércitos juntos')} · +${Math.min(60, 15 * Math.max(0, d.n - 1))}% ${tr('dano')}</div>`; }
-    if (d.tipo === 'coleta') { venceu = true; ganhou = true; return `<div class="muRelL vit"><b>⛏️ ${tr('COLETA TERMINADA')}</b> · ${tr('Exército')} ${d.slot + 1}<small>${ico('ouro')} +${fmt(d.ouro)} ${tr('moedas')} · +${fmt(Math.max(1, Math.floor(d.ouro / 10)))} XP</small></div>`; }
-    if (d.tipo === 'barbaro') { venceu = true; ganhou = true; return `<div class="muRelL vit"><b>🔥 ${tr('BÁRBAROS DERROTADOS!')}</b> Nv ${d.nivel}<small>${ico('ouro')} +${fmt(d.ouro)} ${tr('moedas')} · +${fmt(d.xp)} XP</small></div>`; }
+    if (d.tipo === 'rallySaiu') { return `<div class="muRelL vit"><b>📯 ${tr('O RALLY SAIU!')}</b> ${d.n} ${tr('exércitos juntos')} · +${Math.min(60, 15 * Math.max(0, d.n - 1))}% ${tr('dano')}</div>`; }
+    if (d.tipo === 'coleta') { return `<div class="muRelL vit"><b>⛏️ ${tr('COLETA TERMINADA')}</b> · ${tr('Exército')} ${d.slot + 1}<small>${ico('ouro')} +${fmt(d.ouro)} ${tr('moedas')} · +${fmt(Math.max(1, Math.floor(d.ouro / 10)))} XP</small></div>`; }
+    if (d.tipo === 'barbaro') { return `<div class="muRelL vit"><b>🔥 ${tr('BÁRBAROS DERROTADOS!')}</b> Nv ${d.nivel}<small>${ico('ouro')} +${fmt(d.ouro)} ${tr('moedas')} · +${fmt(d.xp)} XP</small></div>`; }
     if (d.tipo === 'fugiu') return `<div class="muRelL">${tr('Exército')} ${d.slot + 1}: <b data-nt>${esc(d.nome)}</b> ${tr('escapou antes do ataque')}</div>`;
-    venceu ||= d.venceu; const perdi = d.eu0 - d.eu1, matei = d.ele0 - d.ele1;
+    const perdi = d.eu0 - d.eu1, matei = d.ele0 - d.ele1;
     return `<div class="muRelL ${d.venceu ? 'vit' : 'der'}"><b>${d.venceu ? tr('VITÓRIA') : d.recuou ? tr('RECUO') : tr('DERROTA')}</b> · ${d.ataque ? tr('você atacou') : tr('você foi atacado por')} <b data-nt>${esc(d.contra)}</b>
       <small>${tr('Exército')} ${d.slot + 1}: ${fmt(d.eu0)} → ${fmt(d.eu1)} (${tr('feridos')} ${fmt(Math.round(perdi * 0.8))}, ${tr('mortos')} ${fmt(perdi - Math.round(perdi * 0.8))})</small>
-      <small>${tr('Inimigos derrotados')}: ${fmt(matei)} · +${fmt(matei)} ${tr('pontos')} · +${fmt(matei)} XP</small></div>`; }).join('')}
-    <button class="btn verde grande" data-mu="relOk">OK</button></div>`;
-  sfx(venceu ? 'vitoria' : 'derrota'); ON.mapaLidos().catch(() => {});
-  if (ganhou) ON.premios().then(l => { const m = (l || []).reduce((a, p) => a + p.moedas, 0); if (m) { S.moedas += m; salvar(); som('moedas'); } }).catch(() => {});
+      <small>${tr('Inimigos derrotados')}: ${fmt(matei)} · +${fmt(matei)} ${tr('pontos')} · +${fmt(matei)} XP</small></div>`; })().replace('<div class="muRelL', `<div class="muRelL${cls}`).replace(/<\/div>$/, `${h}</div>`);
 }
 // ---- comandante (sobe de nível com XP do mapa), quartel (capacidade), hospital (feridos) e treino (repor mortos) ----
 const xpNivel = n => 50 * n * (n - 1); // XP total para chegar no nível n (igual ao servidor)
@@ -548,6 +570,7 @@ export function clique(b) {
   if (a === 'reforcar' || a === 'rally') { const e = meus().find(q => q.slot === +b.dataset.slot); $('#muInfo').hidden = true; if (e) { K.sel = e.id; (a === 'rally' ? criarRally : reforcar)(e, b.dataset.tipo, +b.dataset.alvo); } return; }
   if (a === 'rallyEntrar') { const e = meus().find(q => q.slot === +b.dataset.slot), rl = K.rallies.find(q => q.cla === e?.cla); if (e && rl) entrarRally(e, rl); return; }
   if (a === 'coletar') { const e = meus().find(q => q.slot === +b.dataset.slot); $('#muInfo').hidden = true; if (e) { K.sel = e.id; coletar(e, +b.dataset.alvo); } return; }
+  if (a === 'caixa') { som('clique'); abrirCaixa(); return; }
   if (a === 'cmd') { K.abaRel = 'cmd'; som('clique'); abrirCmd(); return; }
   if (a === 'quartel') { quartel(); return; }
   if (a === 'acelerar') { acelerar(+b.dataset.slot, b.dataset.tipo); return; }

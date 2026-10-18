@@ -1066,6 +1066,10 @@ input{font:inherit;user-select:text;-webkit-user-select:text}
 .muColeta{color:#b8860b}.muBom{color:#2a8a3a!important;font-weight:700}
 .muRally{position:absolute;left:124px;right:8px;top:calc(max(10px,env(safe-area-inset-top)) + 52px);padding:6px 10px;border-radius:12px;background:linear-gradient(#fff3c8,#ffd87a);border:3px solid #b8860b;box-shadow:0 3px 0 #0005;pointer-events:auto;text-align:center}
 .muRally b{display:block;font-size:13px;color:#5a2e08}.muRally small{display:block;font-size:11px;color:#7a4a10}.muRally div{display:flex;gap:6px;justify-content:center;margin-top:4px}.muRally .btn{margin:0;font-size:11px;padding:4px 8px}
+.muCaixaB{position:absolute;left:8px;top:calc(max(10px,env(safe-area-inset-top)) + 168px);width:46px;height:46px;border-radius:14px;background:linear-gradient(#fff8e0,#f2d8a0);border:3px solid var(--madeira);box-shadow:0 3px 0 #0005;font-size:22px;padding:0}
+.muCaixaB i{position:absolute;right:-7px;top:-7px;min-width:20px;height:20px;padding:0 4px;border-radius:10px;background:#e8301a;color:#fff;font-style:normal;font-size:12px;font-weight:700;line-height:20px;border:2px solid #fff}
+.muCaixaB.pulsa{animation:muPulsa .6s 2}@keyframes muPulsa{50%{transform:scale(1.25)}}
+.muCaixa{width:min(420px,92vw)}.muCxLista{max-height:58vh;overflow:auto}.muRelL{position:relative}.muRelL.novo{background:#fff3c8;box-shadow:inset 3px 0 0 #e8a020}.muCxT{position:absolute;right:8px;top:8px;font-style:normal;font-size:11px;color:#8a6a50}
 .muLigaB{flex:none;padding:5px 10px;border-radius:12px;background:linear-gradient(#ffe07a,#e8a020);border:2px solid #fff3dc;color:#5a2e08;font-family:var(--fT);font-size:14px;box-shadow:0 3px 0 #8a5a10}
 .muLiga{width:min(420px,92vw)}.muLgT{display:flex;align-items:center;justify-content:center;gap:4px;color:#6a5040}.muLgT .ico{width:14px;height:14px}
 .muLgEu{margin:6px 0;padding:8px;border-radius:12px;background:linear-gradient(#fff3c8,#ffe08a);font-size:14px;color:#5a2e08}.muLgEu .ico{width:14px;height:14px;vertical-align:-2px}

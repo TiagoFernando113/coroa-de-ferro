@@ -154,6 +154,7 @@ const T = {
   'RALLY ABERTO!': L('RALLY OPEN!', '¡RALLY ABIERTO!'), 'chamou o clã para atacar. Entre pelo aviso no topo!': L('called the clan to attack. Join from the banner at the top!', 'llamó al clan a atacar. ¡Entra desde el aviso de arriba!'),
   'O RALLY SAIU!': L('THE RALLY LEFT!', '¡EL RALLY SALIÓ!'), 'exércitos juntos': L('armies together', 'ejércitos juntos'), 'seu clã já tem um rally': L('your clan already has a rally', 'tu clan ya tiene un rally'),
   'o rally já saiu': L('the rally already left', 'el rally ya salió'), 'não é do seu clã': L("it's not your clan's", 'no es de tu clan'),
+  'Relatórios': L('Reports', 'Informes'), 'Novo relatório': L('New report', 'Nuevo informe'), 'Escapou': L('Escaped', 'Escapó'), 'Nenhum relatório ainda': L('No reports yet', 'Aún no hay informes'),
   'Liga': L('League', 'Liga'), 'Liga da Guerra': L('War League', 'Liga de Guerra'), 'Termina em': L('Ends in', 'Termina en'), 'Campeões da semana passada': L("Last week's champions", 'Campeones de la semana pasada'),
   'faça 50 pontos para ganhar prêmio': L('score 50 points to earn a prize', 'haz 50 puntos para ganar premio'), 'Você ainda não pontuou nesta semana': L("You haven't scored this week yet", 'Aún no puntuaste esta semana'),
   'Ninguém pontuou ainda. Seja o primeiro!': L('Nobody has scored yet. Be the first!', 'Nadie puntuó aún. ¡Sé el primero!'),
