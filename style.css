@@ -1051,6 +1051,10 @@ input{font:inherit;user-select:text;-webkit-user-select:text}
 .dfJoy{position:fixed;width:120px;height:120px;margin:-60px 0 0 -60px;border-radius:50%;background:rgba(255,255,255,.18);border:3px solid rgba(255,255,255,.55);pointer-events:none}
 .dfJoy i{position:absolute;left:30px;top:30px;width:60px;height:60px;border-radius:50%;background:radial-gradient(#fff,#cfe4ff);box-shadow:0 3px 8px #0006}
 .dfDica{position:absolute;left:12px;right:12px;bottom:calc(max(12px,env(safe-area-inset-bottom)) + 70px);text-align:center;color:#fff;font-size:13px;text-shadow:0 1px 3px #000;animation:pronto 1.4s infinite}
+.dfHab{position:absolute;right:12px;bottom:calc(max(14px,env(safe-area-inset-bottom)) + 222px);width:58px;height:58px;padding:0;border-radius:50%;overflow:hidden;background:linear-gradient(#ff9a5a,#c8501a);border:3px solid #fff3dc;box-shadow:0 3px 0 #0006}
+.dfHab i{position:absolute;left:0;right:0;bottom:0;height:0;background:rgba(0,0,0,.55)}.dfHab span{position:relative;font-size:26px;line-height:52px}.dfHab small{position:absolute;inset:0;display:grid;place-items:center;color:#fff;font-family:var(--fT);font-size:20px;text-shadow:0 2px 0 #000}
+.dfHab.pronto{box-shadow:0 0 14px #ffb03a,0 3px 0 #0006}
+.dfEspera > span{display:flex;flex-direction:column;align-items:center}.dfEspera small{font-family:inherit;font-size:12px;color:#6a4a20}
 .dfPoder{position:absolute;right:12px;bottom:calc(max(14px,env(safe-area-inset-bottom)) + 150px);width:64px;height:64px;padding:0;border-radius:50%;overflow:hidden;background:rgba(40,20,0,.6);border:3px solid #ffd84a;box-shadow:0 3px 0 #0006}
 .dfPoder i{position:absolute;left:0;right:0;bottom:0;height:0;background:linear-gradient(#ffd84a,#ff7a2a);transition:height .3s}.dfPoder span{position:relative;font-size:30px;line-height:58px}
 .dfPoder.pronto{animation:muPulsa .7s infinite;box-shadow:0 0 18px #ffb03a,0 3px 0 #0006}
