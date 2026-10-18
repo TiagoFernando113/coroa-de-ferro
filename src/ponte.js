@@ -576,7 +576,7 @@ const toque = txt => { const t = document.createElement('div'); t.className = 't
 const PASSOS_LIB = {
   baus: [{ alvo: '.slotBau[data-bau]', txt: 'Você ganhou um baú! Toque para abrir' }, { txt: 'Baús dão moedas e cartas para subir o nível dos poderes e das tropas. Toda vitória dá um baú (cabem 4 guardados)!' }],
   up: [{ alvo: '[data-aba-lobby=up]', txt: 'Toque em Melhorias' }, { alvo: '.up.pode, .up', txt: 'Cada melhoria deixa o exército mais forte. Toque para comprar!' },
-    { txt: 'Tiro rápido: o herói atira mais vezes. Flechas por tiro: mais flechas de uma vez. Exército: mais soldados no começo. Muralha: mais vida. Escudos: soldados sobrevivem às lutas.' }],
+    { txt: 'Seu herói: ataca mais rápido e solta mais projéteis de uma vez (vale em todos os modos). Sua defesa: mais soldados no começo, muralha mais forte e soldados que sobrevivem às lutas.' }],
   pets: [{ alvo: '[data-aba-lobby=pets]', txt: 'Toque em Pets' }, { alvo: '.ptOvo[data-ovo]', txt: 'Você ganhou um ovo! Toque para chocar' }, { txt: 'Os pets da equipe seguem o herói, atiram junto e dão bônus. Junte 3 iguais para ganhar uma estrela!' }],
   cartas: [{ alvo: '[data-aba-lobby=cartas]', txt: 'Toque em Heróis' }, { txt: 'Cada herói tem um ataque e um poder diferente. Junte cartas para subir o nível dos poderes!' },
     { txt: 'As tropas (arqueiros, lanceiros e magos) também sobem com cartas e entram na batalha junto com os soldados.' }],
@@ -667,9 +667,21 @@ function renascer(b) {
   S.renasc = (S.renasc || 0) + 1; S.fase = 1; S.moedas = 0; for (const k of Object.keys(S.up)) S.up[k] = 0; S.ovos.magico++; salvar();
   sfx('vitoria'); som('lendario'); C.camera.tremor = 0.6; iniciarFase(1); desenharLobby(); if (G) faixa(`RENASCEU! ×${S.renasc}`, '#c88aff');
 }
+// melhorias com o nome da sua classe: as do herói valem em todos os modos; as da defesa, na ponte
+const PROJ = { lyra: ['flecha', 'flechas'], grom: ['flecha', 'flechas'], brann: ['virote', 'virotes'], selene: ['orbe', 'orbes'], zarak: ['bola de fogo', 'bolas de fogo'], raiden: ['raio', 'raios'], thalia: ['martelo', 'martelos'], kira: ['adaga', 'adagas'] };
+const RAPIDO = { arqueiro: ['Tiro rápido', 'raio'], mago: ['Magia rápida', 'mag'], guerreiro: ['Arremesso rápido', 'raio'], ladino: ['Lâminas rápidas', 'raio'] };
+function infoUp(k) {
+  const U = UPGRADES[k], cl = EQ.classeAtual(), [um, varios] = PROJ[S.heroi] || PROJ.lyra;
+  if (k === 'fogo') return { nome: RAPIDO[cl][0], icone: RAPIDO[cl][1], desc: n => `${tiros(n).toFixed(1)} ataques/s` };
+  if (k === 'flechas') return { nome: `${varios[0].toUpperCase() + varios.slice(1)} por ataque`, icone: U.icone, desc: n => `${1 + n} ${n ? varios : um}` };
+  return U;
+}
 function htmlMelhorias() {
-  return `${htmlRenascer()}<div class="ups">${Object.entries(UPGRADES).map(([k, U]) => { const n = S.up[k], max = n >= U.max, c = U.custo(n);
-    return `<button class="up ${!max && S.moedas >= c ? 'pode' : ''}" data-up="${k}"><span class="upIco">${ico(U.icone)}</span><b>${U.nome}</b><small>${U.desc(n)}</small><em>${max ? 'MÁX' : `${ico('ouro')}${fmt(c)}`}</em><i>Nv ${n}</i></button>`; }).join('')}</div>`;
+  const CL = EQ.CLASSES[EQ.classeAtual()], card = k => { const U = UPGRADES[k], I = infoUp(k), n = S.up[k], max = n >= U.max, c = U.custo(n);
+    return `<button class="up ${!max && S.moedas >= c ? 'pode' : ''}" data-up="${k}"><span class="upIco">${ico(I.icone)}</span><b>${I.nome}</b><small>${I.desc(n)}</small><em>${max ? 'MÁX' : `${ico('ouro')}${fmt(c)}`}</em><i>Nv ${n}</i></button>`; };
+  return `${htmlRenascer()}<button class="upHeroi" data-aba-lobby="cartas"><span>${CL.ic}</span><div><b>${HEROIS[S.heroi]?.nome || ''} · ${CL.nome}</b><small>Poder dos equipamentos ${fmt(EQ.poder())}</small></div><em>Equipamentos ›</em></button>
+    <h3>${CL.ic} Seu herói <small>vale em todos os modos</small></h3><div class="ups">${['fogo', 'flechas'].map(card).join('')}</div>
+    <h3>🏰 Sua defesa <small>na batalha da ponte</small></h3><div class="ups">${['exercito', 'vida', 'escudos'].map(card).join('')}</div>`;
 }
 const DESC_CARTA = { chuva: 'Sobe o poder especial do herói', gigante: 'Cavaleiro enorme aliado', arco: 'Atiram de longe', lanca: 'Aguentam mais duelos', mago: 'Explosão em área' };
 const ICONE_HEROI = { lyra: 'arq', brann: 'h_perfura', selene: 'mag', grom: 'r_orc', kira: 'lad', zarak: 'r_demonio', thalia: 'r_anjo', raiden: 'h_raio' };
