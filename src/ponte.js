@@ -322,7 +322,7 @@ export function iniciarFase(n, inf = false, semCorrida = false) {
   if (corrida) montarCorrida(F, n);
   // herói arqueiro
   G.heroiDef = heroiAtual(S); G.tiro *= G.heroiDef.ataque.cad; G.tiroMax *= G.heroiDef.ataque.cad;
-  { const A = EQ.atributos(); G.eqTiro = 1 + A.cad / 200; G.eqDano = 1 + A.dano / 100; G.tiro *= G.eqTiro; G.tiroMax *= G.eqTiro; } // equipamentos: velocidade (metade) e dano no chefe
+  { const A = EQ.atributos(); G.eqTiro = 1 + Math.min(A.cad, 60) / 200; G.eqDano = 1 + Math.min(A.dano, 120) / 200; G.tiro *= G.eqTiro; G.tiroMax *= G.eqTiro; } // equipamentos na ponte (com teto): até +30% de velocidade e +60% de dano no chefe
   if (!G.heroiV) { const v = C.heroi(EQ.visualHeroi(G.heroiDef.visual, true)); v.raiz.scale.setScalar(2.4); v.raiz.rotation.y = Math.PI; v.tocar(v.tem(G.heroiDef.pose) ? G.heroiDef.pose : 'Idle_A'); G.heroiV = v; }
   G.heroiV.raiz.position.set(0, 0, ZH);
   criarPetsHeroi();
@@ -1468,7 +1468,7 @@ function mostrarPerfil() {
   setTimeout(carregarAmigos, 0); j.innerHTML = `<div class="jMissoes jPerfil ${re ? 'semAnim' : ''}"><div class="pfTopo"><img src="${fotoPet(avatarAtual(), 256)}" alt=""><div><b data-nt>${esc(O?.apelido || 'Herói')}</b>
       <small>${S.renasc ? `${ico('girar')} ×${S.renasc} · ` : ''}Fase ${S.fase}</small></div></div>
     <div class="pfAvatares">${vars.map(k => `<button class="${k === avatarAtual() ? 'sel' : ''}" data-avatar="${k}"><img src="${fotoPet(k)}" alt=""></button>`).join('')}</div>
-    <div class="pfLista"><h3>Estatísticas</h3>${htmlStats(dadosPerfil())}
+    <div class="pfLista"><h3>Herói</h3>${EQ.htmlVitrine(EQ.vitrine(), 'eu')}<h3>Estatísticas</h3>${htmlStats(dadosPerfil())}
     <h3>Amigos ${O?.codigo ? `<small>seu código: <b data-nt>${O.codigo}</b></small>` : ''}</h3>
     <div class="codigo"><input id="amCod" maxlength="6" inputmode="numeric" placeholder="Código do amigo"><button class="btn verde peq" data-a="amigoCod">${ico('herois')}</button></div><p class="erro" id="amErro"></p>
     <div id="amLista"><p class="sub">Carregando...</p></div>
@@ -1524,7 +1524,7 @@ async function acaoConta(a, b) {
 }
 // perfil público: o que os outros veem ao tocar no seu nome (enviado ao abrir o lobby)
 function dadosPerfil() { const E = S.est || {}; return { fase: Math.max(S.melhor || 0, S.fase - 1), renasc: S.renasc || 0, recInf: S.recInf || 0, cq: S.cq.est - 1, orcs: E.orcs || 0, chefes: E.chefes || 0, ovos: E.ovos || 0,
-  pets: Object.keys(S.pets).length, medalhas: Object.fromEntries(Object.keys(MEDALHAS).map(k => [k, nivelMedalha(k)])), equipe: S.equipe.slice(0, 5), forca: forcaEquipe(), heroi: S.heroi }; }
+  pets: Object.keys(S.pets).length, medalhas: Object.fromEntries(Object.keys(MEDALHAS).map(k => [k, nivelMedalha(k)])), equipe: S.equipe.slice(0, 5), forca: forcaEquipe(), heroi: S.heroi, vt: EQ.vitrine() }; }
 let perfilEnviado = '';
 function enviarPerfil() { if (!S.online?.codigo) return; const d = dadosPerfil(), a = avatarAtual(), k = a + JSON.stringify(d); if (k === perfilEnviado) return; perfilEnviado = k; ON.perfilSalvar(a, d).catch(() => { perfilEnviado = ''; }); }
 const petValido = k => { if (k && typeof k === 'object') k = k.k; return typeof k === 'string' && PETS[base(k)] ? k : 'cao'; };
@@ -1545,7 +1545,7 @@ function pintarPerfil(codigo, P) {
   const meds = Object.keys(MEDALHAS).map(k => { const nv = d.medalhas?.[k] || 0; return nv ? `<span class="pfMedP" style="--m:${NIVEIS_MEDALHA[nv - 1][1]}" title="${MEDALHAS[k].nome}">${ico(MEDALHAS[k].icone)}</span>` : ''; }).join('');
   j.innerHTML = `<div class="jMissoes jPerfil ${re ? 'semAnim' : ''}"><div class="pfTopo"><img src="${fotoPet(petValido(P.avatar), 256)}" alt=""><div><b data-nt>${tagHtml(P.tag, P.cor)}${esc(P.apelido)}</b>
       <small><i class="pontoOn ${P.online ? 'on' : ''}"></i>${P.online ? 'online' : 'offline'}${P.cla ? ` · <span data-nt>${esc(P.cla)}</span>` : ''}${d.renasc ? ` · ${ico('girar')} ×${d.renasc}` : ''}</small></div></div>
-    <div class="pfLista">${(d.equipe || []).length ? `<h3>Equipe <small>${ico('forca')} ${fmt(d.forca || 0)}</small></h3><div class="pfEquipe">${d.equipe.filter(k => PETS[base(k)]).map(k => `<span class="r${PETS[base(k)].r}" style="--r:${RARIDADES[PETS[base(k)].r].cor}"><img src="${fotoPet(k)}" alt="">${est(k) ? `<i style="color:${ESTRELAS[est(k)].cor}">${'★'.repeat(est(k))}</i>` : ''}</span>`).join('')}</div>` : ''}
+    <div class="pfLista">${d.vt ? `<h3>Herói</h3>${EQ.htmlVitrine(d.vt, codigo)}` : ''}${(d.equipe || []).length ? `<h3>Equipe <small>${ico('forca')} ${fmt(d.forca || 0)}</small></h3><div class="pfEquipe">${d.equipe.filter(k => PETS[base(k)]).map(k => `<span class="r${PETS[base(k)].r}" style="--r:${RARIDADES[PETS[base(k)].r].cor}"><img src="${fotoPet(k)}" alt="">${est(k) ? `<i style="color:${ESTRELAS[est(k)].cor}">${'★'.repeat(est(k))}</i>` : ''}</span>`).join('')}</div>` : ''}
       <h3>Estatísticas</h3>${htmlStats(d)}${meds ? `<h3>Medalhas</h3><div class="pfMeds">${meds}</div>` : ''}</div>
     ${P.online ? `<button class="btn amarelo" data-convidar="${codigo}" data-nome="${esc(P.apelido)}">${ico('h_triplo')} Jogar junto (Dupla)</button>` : ''}
     ${(S.amigosC || []).includes(codigo) ? `<button class="btn cinza" data-amigo="${codigo}" data-ativo="0">${ico('check')} Amigo · remover</button>` : `<button class="btn verde" data-amigo="${codigo}" data-ativo="1">${ico('herois')} Adicionar amigo</button>`}

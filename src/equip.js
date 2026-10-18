@@ -5,7 +5,7 @@ import { S, salvar, fimDeSemana } from './meta.js';
 import * as C from './cena.js';
 import { heroiAtual, HEROIS } from './herois.js';
 import { modeloItem, armaModelo, tipoDe } from './itens3d.js';
-import { fmt } from './dados.js';
+import { fmt, tiros } from './dados.js';
 import { som, $ } from './util.js';
 import { sfx } from './musica.js';
 import { t as tr } from './i18n.js';
@@ -151,6 +151,41 @@ export function iconeItem(it, tam = 96) {
     if (kit) u = C.fotoPeca({ ...heroiAtual(S).visual, cab: '', tro: it.slot === 'armadura' ? vis : '', bra: '', per: '', cha: kit === 'cha' ? vis : '', mas: kit === 'mas' ? vis : '', capa: kit === 'capa' ? vis : '', cos: '', cores: {}, tinta: '', tintaCha: '', tintaCapa: '', [{ armadura: 'tinta', elmo: 'tintaCha', capa: 'tintaCapa' }[it.slot]]: it.r >= 1 ? RARIDADES[it.r].cor : '' }, kit, { tam, rot: it.slot === 'capa' ? [0.2, Math.PI + 0.35, 0] : [0.15, 0.45, 0] }) || '';
     if (!u) u = C.fotoObjeto(modeloItem(it), { tam, rot: GIRO[it.slot] || [0.3, 0.55, 0] }) || ''; } catch (e) {} if (u) fotos.set(k, u); return u;
 }
+// ficha: os números finais do herói nos modos com equipamento (nível das melhorias + equipamentos + conjunto)
+export function ficha() {
+  const H = heroiAtual(S), A = atributos(), up = S.up || {}, perto = armaDePerto();
+  const dano = 3 * H.ataque.dano * (1 + (up.flechas || 0) * 0.35) * (1 + A.dano / 100) * (perto ? 1.6 : 1), vel = tiros(up.fogo || 0) * H.ataque.cad * 0.6 * (1 + A.cad / 100);
+  return { dano, vel, dps: dano * vel * (1 + A.crit / 100 * 1.2), vida: Math.round(100 * (1 + 0.2 * (up.vida || 0)) + A.vida), def: A.def, crit: A.crit, roubo: A.roubo };
+}
+function htmlFicha() { const F = ficha(), c = (ic, n, v) => `<div><i>${ic}</i><b>${v}</b><small>${tr(n)}</small></div>`;
+  return `<div class="eqFicha">${c('💥', 'Dano por segundo', fmt(Math.round(F.dps * 10)))}${c('⚔️', 'Dano', fmt(Math.round(F.dano * 10)))}${c('⚡', 'Ataques/s', F.vel.toFixed(1))}${c('❤️', 'Vida', fmt(F.vida))}${c('🛡️', 'Defesa', Math.round(F.def) + '%')}${c('🎯', 'Crítico', Math.round(F.crit) + '%')}</div>`; }
+// vitrine: o herói equipado que os outros veem no perfil (ranking, clã, chat)
+const CHAVES_VIS = ['cab', 'tro', 'bra', 'per', 'cha', 'mas', 'capa', 'cos', 'tinta', 'tintaCha', 'tintaCapa', 'aura', 'asas', 'arma', 'esq', 'pele', 'corPelo', 'orelha', 'barba', 'chifre', 'presas', 'rabo', 'alt', 'larg', 'cabT', 'musc'];
+export function vitrine() {
+  const v = visualHeroi(heroiAtual(S).visual, true), E = eq(), U = usando();
+  return { c: classeAtual(), h: S.heroi, p: poder(), v: Object.fromEntries(CHAVES_VIS.filter(k => v[k] != null && v[k] !== '').map(k => [k, v[k]])),
+    it: Object.entries(U).map(([sl, id]) => { const x = E.itens.find(i => i.id === id); return x ? [sl, x.modelo || x.vis || '', x.r, x.nv, x.nome.slice(0, 30), x.lenda || ''] : null; }).filter(Boolean) };
+}
+export function htmlVitrine(d, chave) {
+  if (!d?.v) return ''; const CL = CLASSES[d.c] || CLASSES.arqueiro; let foto = '';
+  try { const q = C.quadrosAnim({ ...(HEROIS[d.h] || HEROIS.lyra).visual, ...d.v }, 'Idle_A', { n: 1, tam: 180, chave: 'vt:' + chave + JSON.stringify(d.v).length + d.p }); foto = q?.q?.[0]?.toDataURL() || ''; } catch (e) {}
+  const itens = (d.it || []).map(([sl, m, r, nv, nome, lenda]) => ({ id: -1, slot: sl, modelo: sl === 'arma' ? m : undefined, vis: sl !== 'arma' ? m : undefined, r: Math.min(5, r | 0), nv: nv | 0 || 1, nome: String(nome || ''), lenda: LENDAS[lenda] ? lenda : undefined, st: {} }));
+  return `<div class="vtHeroi">${foto ? `<img class="eqFoto" src="${foto}" alt="">` : ''}<div><b>${CL.ic} ${tr(CL.nome)}</b><small>${tr('Poder')} <b>${fmt(d.p || 0)}</b></small>
+    <div class="vtItens">${itens.map(it => `<span class="eqItem r${it.r} ${it.lenda ? 'lenda' : ''}" style="--r:${RARIDADES[it.r].cor}" title="${it.nome.replace(/"/g, '')}"><img src="${iconeItem(it, 72)}" alt=""><em>${it.nv > 1 ? '+' + (it.nv - 1) : ''}</em></span>`).join('')}</div></div></div>`;
+}
+// item novo que caiu: modelo girando, atributos comparados com o equipado e "Equipar agora"
+export function novoItem(it) {
+  if (!it) return; const E = eq(), cur = E.itens.find(x => x.id === usando()[it.slot]), serve = serveNoHeroi(it), R = RARIDADES[it.r], d = poderItem(it) - (cur ? poderItem(cur) : 0);
+  const quadros = []; for (let i = 0; i < 8; i++) { try { quadros.push(C.fotoObjeto(modeloItem(it), { tam: 200, rot: [0.15, i * Math.PI / 4, it.slot === 'arma' ? -0.5 : 0] })); } catch (e) {} }
+  const ks = new Set([...Object.keys(it.st), ...Object.keys(cur?.st || {})]), j = $('#janela'); j.hidden = false; sfx(it.r >= 4 ? 'vitoria' : 'brilho');
+  j.innerHTML = `<div class="jOnline eqNovo r${it.r}" style="--r:${R.cor}"><div class="novoRaios"></div><em class="eqNovoTag">${tr(R.nome)}</em><img class="eqGira" src="${quadros[0] || iconeItem(it, 200)}" alt="">
+    <h2>${it.nome}</h2>${it.lenda ? `<p class="eqLenda">✨ ${tr(LENDAS[it.lenda].desc)}</p>` : ''}
+    <div class="eqCmpT">${[...ks].map(k => { const a = valor(it, k), b = cur ? valor(cur, k) : 0, df = Math.round((a - b) * 10) / 10; return `<span>${tr(ST[k][0])} <b>${fmt(Math.round(a * 10) / 10)}${ST[k][1]}</b>${df ? `<i class="${df > 0 ? 'mais' : 'menos'}">${df > 0 ? '▲' : '▼'}${fmt(Math.abs(df))}</i>` : ''}</span>`; }).join('')}</div>
+    <p class="eqPoderD">${tr('Poder')} ${fmt(poderItem(it))} ${d ? `<i class="${d > 0 ? 'mais' : 'menos'}">${d > 0 ? '▲' : '▼'}${fmt(Math.abs(d))}</i>` : ''}</p>
+    ${serve ? `<button class="btn verde grande" data-eq="usarNovo" data-id="${it.id}">${tr('Equipar agora')}</button>` : `<p class="eqClasse nao">${tr('Não serve para sua classe')}</p>`}<button class="btn cinza" data-eq="fecharNovo">${tr('Guardar na mochila')}</button></div>`;
+  if (quadros.length > 1) { let i = 0; const img = j.querySelector('.eqGira'), t = setInterval(() => { if (!img.isConnected) return clearInterval(t); i = (i + 1) % quadros.length; img.src = quadros[i]; }, 140); }
+}
+export const melhorQueEquipado = it => { if (!serveNoHeroi(it)) return false; const cur = eq().itens.find(x => x.id === usando()[it.slot]); return !cur || poderItem(it) > poderItem(cur); };
 // seta no item: melhor (verde) ou pior (vermelha) que o que está equipado no mesmo lugar
 function comparar(it) {
   if (!serveNoHeroi(it) || emUso(it.id)) return ''; const E = eq(), cur = E.itens.find(x => x.id === usando()[it.slot]);
@@ -175,7 +210,7 @@ export function painel(sel = null) {
         ${emUso(it.id) ? '' : `<button class="btn vermelho peq" data-eq="des" data-id="${it.id}">${tr('Desmontar')} +${fmt(valorDesmontar(it))}</button>`}</div></div>`; })() : '';
   let foto = ''; try { const q = C.quadrosAnim(visualHeroi(heroiAtual(S).visual, true), 'Idle_A', { n: 1, tam: 200, chave: 'eqv:' + S.heroi + assinatura() }); if (q?.q?.[0]) foto = q.q[0].toDataURL(); } catch (e) {}
   return `<p class="eqPoder">${tr('Poder')} <b>${fmt(poder())}</b> · <small>${tr('vale na Árvore Sagrada e na Defesa em Grupo')}</small></p>
-    ${foto ? `<img class="eqFoto" src="${foto}" alt="">` : ''}<p class="eqClasseH">${CL.ic} <b>${tr(CL.nome)}</b> <button class="eqTrocaC" data-eq="classes">${tr('trocar')}</button> · ${tr('usa')} ${CL.armas.map(a => tr(NOME_TIPO[a])).join(', ')}${CL.perto ? ` · ${tr('ataca de perto')}` : ''}</p>
+    ${foto ? `<img class="eqFoto" src="${foto}" alt="">` : ''}${htmlFicha()}<p class="eqClasseH">${CL.ic} <b>${tr(CL.nome)}</b> <button class="eqTrocaC" data-eq="classes">${tr('trocar')}</button> · ${tr('usa')} ${CL.armas.map(a => tr(NOME_TIPO[a])).join(', ')}${CL.perto ? ` · ${tr('ataca de perto')}` : ''}</p>
     <div class="eqSlots">${Object.entries(SLOTS).map(([k, D]) => { const x = E.itens.find(i => i.id === U[k]); return `<div class="eqSlot"><small>${tr(D.nome)}</small>${x ? itemHtml(x, sel === x.id ? 'sel' : '') : `<span class="eqVazio">${D.ic}</span>`}</div>`; }).join('')}</div>
     <div class="eqTot">${Object.entries(A).filter(([, v]) => v).map(([k, v]) => `<span>${tr(ST[k][0])} +${fmt(Math.round(v * 10) / 10)}${ST[k][1]}</span>`).join('') || `<span>${tr('Jogue a Árvore Sagrada para ganhar equipamentos!')}</span>`}</div>
     ${det}${(() => { const dk = destaque(), L = LENDAS[dk], est = estrelas(), gratis = E.dia !== hoje(), cus = n => est >= n ? `⭐ ${n}` : `🪙 ${fmt(PRECO_DESEJO * n * (n >= 10 ? 0.9 : 1))}`, pode = n => est >= n || S.moedas >= PRECO_DESEJO * n * (n >= 10 ? 0.9 : 1);
@@ -202,12 +237,13 @@ export function clique(b) {
   const a = b.dataset.eq, id = +b.dataset.id, E = eq(), it = E.itens.find(x => x.id === id);
   if (a === 'abrir') { som('abrir'); mostrar(); return true; }
   if (a === 'classes') { som('clique'); escolherClasse(); return true; }
+  if (a === 'usarNovo' || a === 'fecharNovo') { const x = E.itens.find(y => y.id === id); if (a === 'usarNovo' && x && serveNoHeroi(x)) { equipar(x); salvar(); sfx('brilho'); } else som('fechar'); $('#janela').hidden = true; mostrar(); return 'heroi'; }
   if (a === 'melhores') { melhores(); salvar(); sfx('brilho'); mostrar(); return true; }
   if (a === 'fracos') { const f = fracos(); for (const x of f) { S.moedas += valorDesmontar(x); E.itens.splice(E.itens.indexOf(x), 1); } salvar(); som('moedas'); mostrar(); return true; }
   if (a === 'classe') { const c = b.dataset.c; if (!CLASSES[c]) return true; S.classe = c; const h = BASE_CLASSE[c]; if (!S.herois.includes(h)) S.herois.push(h);
     if (CLASSE_HEROI[S.heroi] !== c) S.heroi = h; salvar(); sfx('vitoria'); $('#janela').hidden = true; return 'heroi'; }
   if (a === 'ver') { som('clique'); mostrar(id); return true; }
-  if (a === 'bau') { const B = BAUS[+b.dataset.n]; if (!B || S.moedas < B.preco) { som('erro'); return true; } S.moedas -= B.preco; const novo = gerarItem(B.min * 4, B.min, B.max); salvar(); som('compra'); sfx(novo.r >= 4 ? 'vitoria' : 'brilho'); mostrar(novo.id); return true; }
+  if (a === 'bau') { const B = BAUS[+b.dataset.n]; if (!B || S.moedas < B.preco) { som('erro'); return true; } S.moedas -= B.preco; const novo = gerarItem(B.min * 4, B.min, B.max); salvar(); som('compra'); mostrar(); novoItem(novo); return true; }
   if (a === 'dj') { const n = +b.dataset.n; if (n === 0) { if (E.dia === hoje()) return true; E.dia = hoje(); }
     else if (estrelas() >= n) E.est -= n; else { const c = PRECO_DESEJO * n * (n >= 10 ? 0.9 : 1); if (S.moedas < c) { som('erro'); return true; } S.moedas -= c; }
     som('compra'); const itens = []; for (let i = 0; i < Math.max(1, n); i++) itens.push(desejar()); salvar(); revelar(itens); return true; }

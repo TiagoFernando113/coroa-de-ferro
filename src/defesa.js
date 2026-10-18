@@ -620,7 +620,8 @@ function acabar(p) {
       <div class="ganho">${ico('ouro')}<b>+${fmt(premio)}</b>${est ? `<b class="dsGanho">⭐ +${est}</b>` : ''}</div>
       ${itens.length ? `<div class="eqGanhos"><small>${tr('Equipamentos ganhos')}</small><div>${itens.map(it => EQ.itemHtml(it, 'novo')).join('')}</div></div>` : `<p class="eqDica">${tr('Passe da onda 2 para ganhar equipamentos!')}</p>`}<p>${tr('Recorde')}: ${S.defesa[rk] || 0} ${tr('ondas')}</p>
       <button class="btn verde grande" data-df="denovo">${tr('Jogar de novo')}</button><button class="btn azul" data-df="menuFim">${ico('guilda')} Menu</button></div>`;
-    if (novo) flashTela('#ffe27a', 0.45); setTimeout(() => voarMoedas('#dfJanela .ganho', 8), 120); }, p.saiu ? 100 : 1400);
+    if (novo) flashTela('#ffe27a', 0.45); setTimeout(() => voarMoedas('#dfJanela .ganho', 8), 120);
+    const bom = itens.filter(EQ.melhorQueEquipado).sort((x, y) => EQ.poderItem(y) - EQ.poderItem(x))[0]; if (bom) setTimeout(() => { if (K && $('#janela').hidden) EQ.novoItem(bom); }, 1600); }, p.saiu ? 100 : 1400);
 }
 export function vista() {
   const h = K?.heroi || { x: OX, z: 0 }, y = K?.yaw ?? Math.PI, foco = { x: h.x + Math.sin(y) * 10, z: h.z + Math.cos(y) * 10 }; let dist = 38;
