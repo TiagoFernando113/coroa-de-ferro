@@ -1070,6 +1070,7 @@ input{font:inherit;user-select:text;-webkit-user-select:text}
 .muCaixaB i{position:absolute;right:-7px;top:-7px;min-width:20px;height:20px;padding:0 4px;border-radius:10px;background:#e8301a;color:#fff;font-style:normal;font-size:12px;font-weight:700;line-height:20px;border:2px solid #fff}
 .muCaixaB.pulsa{animation:muPulsa .6s 2}@keyframes muPulsa{50%{transform:scale(1.25)}}
 .muCaixa{width:min(420px,92vw)}.muCxLista{max-height:58vh;overflow:auto}.muRelL{position:relative}.muRelL.novo{background:#fff3c8;box-shadow:inset 3px 0 0 #e8a020}.muCxT{position:absolute;right:8px;top:8px;font-style:normal;font-size:11px;color:#8a6a50}
+.muAtk .btn{flex-wrap:wrap;justify-content:center;row-gap:2px}.muChance{display:block;flex-basis:100%;text-align:center;font-style:normal;font-size:10px;font-weight:700;margin-top:2px;padding:1px 6px;border-radius:8px;background:#fff}.muChance.f{color:#1a8a2a}.muChance.p{color:#3a8a1a}.muChance.e{color:#b88a00}.muChance.r{color:#d8601a}.muChance.d{color:#c8201a}
 .muLigaB{flex:none;padding:5px 10px;border-radius:12px;background:linear-gradient(#ffe07a,#e8a020);border:2px solid #fff3dc;color:#5a2e08;font-family:var(--fT);font-size:14px;box-shadow:0 3px 0 #8a5a10}
 .muLiga{width:min(420px,92vw)}.muLgT{display:flex;align-items:center;justify-content:center;gap:4px;color:#6a5040}.muLgT .ico{width:14px;height:14px}
 .muLgEu{margin:6px 0;padding:8px;border-radius:12px;background:linear-gradient(#fff3c8,#ffe08a);font-size:14px;color:#5a2e08}.muLgEu .ico{width:14px;height:14px;vertical-align:-2px}
@@ -1079,7 +1080,7 @@ input{font:inherit;user-select:text;-webkit-user-select:text}
 .muLgL span{font-weight:700;color:#2a5a9a}.muLgL em{font-style:normal;text-align:right;font-size:12px;color:#8a5a10;display:flex;align-items:center;justify-content:flex-end;gap:2px}.muLgL em .ico{width:13px;height:13px}
 .muLgP{margin-top:8px;font-size:12px;color:#6a5040}.muRelL{text-align:left;padding:8px;border-radius:10px;background:rgba(0,0,0,.05);margin:6px 0;font-size:13px}.muRelL.vit > b:first-child{color:#2a8a3a}.muRelL.der > b:first-child{color:#c8301a}.muRelL small{display:block;font-size:12px;color:#6a5040}
 .muConf{position:absolute;left:8px;right:8px;bottom:calc(max(10px,env(safe-area-inset-bottom)) + 74px);display:flex;gap:8px;justify-content:center}.muConf .btn{margin:0}
-.muInfo{position:absolute;left:50%;bottom:calc(max(10px,env(safe-area-inset-bottom)) + 74px);transform:translateX(-50%);padding:8px 14px;border-radius:14px;background:var(--creme);border:3px solid var(--madeira);text-align:center;min-width:200px}
+.muInfo{position:absolute;left:50%;bottom:calc(max(10px,env(safe-area-inset-bottom)) + 74px);transform:translateX(-50%);padding:8px 14px;border-radius:14px;background:var(--creme);border:3px solid var(--madeira);text-align:center;min-width:min(290px,92vw);max-width:94vw}
 .muInfo b{display:block;font-family:var(--fT);font-weight:400;font-size:16px;color:#3a1a08}.muInfo small{display:block;font-size:12px;color:#6a5040}.muInfo .muBreve{color:#c8501a;font-weight:700}
 .muConf{flex-wrap:wrap}.muSemCla{flex-basis:100%;text-align:center;color:#fff;font-size:12px;text-shadow:0 1px 2px #000}
 .dicaIos{margin:10px auto 0;max-width:300px;padding:8px 12px;border-radius:12px;background:rgba(0,0,0,.45);color:#fff;font-size:13px;text-align:center}

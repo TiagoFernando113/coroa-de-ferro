@@ -378,6 +378,28 @@ async function cercar(e, tipo, id) {
     Object.assign(e, { cam, t0: agora(), t1: agora() + dur, local: true, alvo: null, cerco_tipo: tipo, cerco_id: id, cercando: false }); sfx('vitoria'); toast(tipo === 'band' ? tr('Rumo à bandeira inimiga!') : tr('Ataque ao castelo!')); cards(); }
   catch (er) { toast(tr(er.message)); }
 }
+// ---- previsão da luta: a mesma conta do servidor, sem a sorte (±12% para mostrar o risco) ----
+const forcaNv = nv => 1 + 0.03 * ((nv || 1) - 1), VENCE = { esp: 'arc', arc: 'lan', lan: 'esp' };
+function simular(a, b, ta, tb, ma, mb) {
+  ma *= VENCE[ta] === tb ? 1.3 : 1; mb *= VENCE[tb] === ta ? 1.3 : 1; let ra = 0, rb = 0;
+  for (let i = 0; i < 240 && a > 0 && b > 0; i++) { let da = 0.75 * Math.sqrt(a) * ma, db = 0.75 * Math.sqrt(b) * mb; ra += 100; rb += 130;
+    if (ra >= 1000) { da += 3 * Math.sqrt(a) * ma; ra = 0; } if (rb >= 1000) { db += 3 * Math.sqrt(b) * mb; rb = 0; }
+    a = Math.max(0, a - Math.round(db)); b = Math.max(0, b - Math.round(da)); }
+  return [a, b];
+}
+function chance(e, nb, tb, mb) { // nb tropas do inimigo, tb tipo, mb multiplicador dele
+  const na = tropasAgora(e), ma = forcaNv(K.heroi?.nivel); if (na <= 0 || nb <= 0) return '';
+  const [a, b] = simular(na, nb, e.tipo, tb, ma, mb), [, b1] = simular(na, nb, e.tipo, tb, ma * 0.88, mb), [, b2] = simular(na, nb, e.tipo, tb, ma * 1.12, mb), perde = Math.round((na - a) / na * 100);
+  const [cls, txt] = b1 === 0 ? (perde < 30 ? ['f', tr('Fácil')] : perde < 60 ? ['p', tr('Vitória provável')] : ['e', tr('Vitória apertada')]) : b === 0 ? ['e', tr('Equilibrado')] : b2 === 0 ? ['r', tr('Arriscado')] : ['d', tr('Difícil')];
+  return `<i class="muChance ${cls}">${txt}${b === 0 ? ` · −${perde}%` : ''}</i>`;
+}
+const chanceEx = (e, o) => { const q = posicao(o), terr = o.cla != null && donoTile(Math.floor(q.x), Math.floor(q.y)) === o.cla ? 1.1 : 1; return chance(e, tropasAgora(o), o.tipo, forcaNv(o.barb != null ? 1 : o.nivel) * terr); };
+function chanceCerco(e, tipo, alvo) { // primeiro o defensor mais forte; no castelo, depois a guarnição
+  const ds = [...K.ex.values()].filter(o => o.cerco_tipo === (tipo === 'band' ? 'def' : 'defc') && o.cerco_id === alvo.id && o.cercando && o.tropas > 0).sort((a, b) => b.tropas - a.tropas);
+  if (ds.length) return chance(e, ds[0].tropas, ds[0].tipo, forcaNv(ds[0].nivel) * 1.2 * Math.min(1.6, 1 + 0.15 * (ds.length - 1)));
+  if (tipo === 'cast' && (alvo.guarnicao || 0) > 0) return chance(e, alvo.guarnicao, 'esp', 1.15);
+  return '';
+}
 function infoAlvo(tipo, alvo) { // painel ao tocar numa bandeira, castelo ou mina
   const i = $('#muInfo'), eu = meus()[0], meuCla = eu?.cla; i.hidden = false; $('#muConf').hidden = true; som('clique');
   if (tipo === 'rec') { const ocupada = alvo.ex && !meus().some(e => e.id === alvo.ex), terr = meuCla != null && donoTile(Math.floor(alvo.x), Math.floor(alvo.y)) === meuCla;
@@ -385,7 +407,7 @@ function infoAlvo(tipo, alvo) { // painel ao tocar numa bandeira, castelo ou min
       ${ocupada ? `<small class="muBreve">${tr('Alguém já está coletando aí — ataque para tomar!')}</small>` : `<div class="muAtk">${meus().map(e => `<button class="btn amarelo peq" data-mu="coletar" data-slot="${e.slot}" data-alvo="${alvo.id}" ${e.tropas <= 0 || emBatalha(e) ? 'disabled' : ''}>⛏️ ${tr('Coletar com')} ${e.slot + 1}</button>`).join('')}</div>`}
       <small class="muDica">${tr('Mais tropas = coleta mais rápida e carrega mais ouro')}</small>`; return; }
   const temRally = meuCla != null && K.rallies.some(q => q.cla === meuCla);
-  const botoes = () => `<div class="muAtk">${meus().map(e => `<button class="btn vermelho peq" data-mu="cercar" data-slot="${e.slot}" data-tipo="${tipo}" data-alvo="${alvo.id}" ${e.tropas <= 0 || emBatalha(e) ? 'disabled' : ''}>${ico('h_lamina')} ${tr('Atacar com')} ${e.slot + 1}</button>`).join('')}</div>
+  const botoes = () => `<div class="muAtk">${meus().map(e => `<button class="btn vermelho peq" data-mu="cercar" data-slot="${e.slot}" data-tipo="${tipo}" data-alvo="${alvo.id}" ${e.tropas <= 0 || emBatalha(e) ? 'disabled' : ''}>${ico('h_lamina')} ${tr('Atacar com')} ${e.slot + 1}${chanceCerco(e, tipo, alvo)}</button>`).join('')}</div>
     ${temRally ? '' : `<div class="muAtk">${meus().map(e => `<button class="btn amarelo peq" data-mu="rally" data-slot="${e.slot}" data-tipo="${tipo}" data-alvo="${alvo.id}" ${e.tropas <= 0 || emBatalha(e) ? 'disabled' : ''}>📯 ${tr('Rally com')} ${e.slot + 1}</button>`).join('')}</div>`}`;
   const reforco = t => { const n = defensores(t, alvo.id); return `<small>🛡️ ${tr('Defensores')}: ${n}${n ? ` · −${Math.round(100 - 100 / (1 + 0.3 * n))}% ${tr('dano do cerco')}` : ''}</small><div class="muAtk">${meus().map(e => `<button class="btn azul peq" data-mu="reforcar" data-slot="${e.slot}" data-tipo="${t}" data-alvo="${alvo.id}" ${e.tropas <= 0 || emBatalha(e) || (e.cerco_tipo === t && e.cerco_id === alvo.id) ? 'disabled' : ''}>🛡️ ${tr('Reforçar com')} ${e.slot + 1}</button>`).join('')}</div>`; };
   if (tipo === 'band') { const c = K.clas.find(q => q.id === alvo.cla);
@@ -409,7 +431,7 @@ function estadoTxt(e) {
   if (e.cerco_tipo === 'rally') { const rl = K.rallies.find(q => q.id === e.cerco_id); return p.anda ? `📯 ${tr('Indo pro rally')} ${tempoTxt(p.falta)}` : `<b class="muColeta">📯 ${tr('Rally sai em')} ${tempoTxt(Math.max(0, (rl?.parte || agora()) - agora()))}</b>`; }
   if (e.cerco_tipo === 'rec') return p.anda ? `⛏️ ${tr('Indo coletar')} ${tempoTxt(p.falta)}` : `<b class="muColeta">⛏️ ${tr('Coletando')} ${fmt(e.carga || 0)}/${fmt(Math.max(60, e.tropas * 3))}</b>`;
   if (e.cercando) return `<b class="muLuta">${e.cerco_tipo === 'band' ? tr('Cercando bandeira') : tr('Cercando castelo')}</b>`;
-  if (p.anda) return `${e.rally ? '📯 ' : ''}${e.alvo || e.cerco_tipo ? tr('Atacando') : tr('Marchando')} ${tempoTxt(p.falta)}`;
+  if (p.anda) return `${e.rally && (e.cerco_tipo === 'band' || e.cerco_tipo === 'cast') ? '📯 ' : ''}${e.alvo || e.cerco_tipo ? tr('Atacando') : tr('Marchando')} ${tempoTxt(p.falta)}`;
   return naBase(e, p) ? tr('Na base') : tr('Parado');
 }
 function cards() {
@@ -434,7 +456,7 @@ function tocar(sx, sy) {
     if (alvo && !(K.sel && tipo === 'band' && alvo.cla === meus()[0]?.cla)) { infoAlvo(tipo, alvo); return; } }
   if (perto) { const c = K.clas.find(q => q.id === perto.cla), i = $('#muInfo'), amigo = meus()[0]?.cla != null && perto.cla === meus()[0].cla, T0 = TIPOS[perto.tipo] || TIPOS.esp; i.hidden = false; $('#muConf').hidden = true; som('clique');
     i.innerHTML = `<b data-nt>${perto.barb != null ? `🔥 ${tr('Acampamento bárbaro')} Nv ${perto.barb}` : `${c ? `[${esc(c.tag)}] ` : ''}${esc(perto.nome)}`}</b>${perto.barb != null ? `<small class="muBom">${tr('Prêmio')}: ${ico('ouro')}${fmt(150 * perto.barb)} + ${60 * perto.barb} XP</small>` : ''}<small>${ico(T0.icone)} ${fmt(tropasAgora(perto))} ${tr(T0.nome).toLowerCase()} · ${HEROIS[perto.heroi]?.nome || ''}</small>
-      ${amigo ? `<small>${tr('É do seu clã')}</small>` : emBatalha(perto) ? `<small class="muBreve">${tr('Já está em batalha')}</small>` : `<div class="muAtk">${meus().map(e => `<button class="btn vermelho peq" data-mu="atacar" data-slot="${e.slot}" data-alvo="${perto.id}" ${e.tropas <= 0 || emBatalha(e) ? 'disabled' : ''}>${ico('h_lamina')} ${tr('Atacar com')} ${e.slot + 1}</button>`).join('')}</div>
+      ${amigo ? `<small>${tr('É do seu clã')}</small>` : emBatalha(perto) ? `<small class="muBreve">${tr('Já está em batalha')}</small>` : `<div class="muAtk">${meus().map(e => `<button class="btn vermelho peq" data-mu="atacar" data-slot="${e.slot}" data-alvo="${perto.id}" ${e.tropas <= 0 || emBatalha(e) ? 'disabled' : ''}>${ico('h_lamina')} ${tr('Atacar com')} ${e.slot + 1}${chanceEx(e, perto)}</button>`).join('')}</div>
       <small class="muDica">${tr('Espadachim vence arqueiro, arqueiro vence lanceiro, lanceiro vence espadachim')}</small>`}`; return; }
   const e = K.ex.get(K.sel); if (!e) { $('#muInfo').hidden = true; return; }
   const g = C.chaoEm(sx, sy); if (!g) return; const alvo = [(g.x - WX) / T + N / 2, (g.z - WZ) / T + N / 2];
@@ -670,6 +692,14 @@ export function desenharFx(g, dt) {
     else if (c.hp < c.hpMax) { const w = 70; g.fillStyle = 'rgba(0,0,0,.55)'; g.fillRect(q[0] - w / 2 - 1, q[1] + 8, w + 2, 8); g.fillStyle = '#ff5a4a'; g.fillRect(q[0] - w / 2, q[1] + 9, w * c.hp / c.hpMax, 6); } }
   for (const b of K.bandeiras) { const falta = b.pronta - agora(); if (falta <= 0 || b.id < 0) continue; const q = C.tela(wx(b.x + 0.5), 8, wz(b.y + 0.5)); if (!q) continue;
     g.font = '12px Titulo, sans-serif'; const t = `${tr('Construindo')} ${tempoTxt(falta)}`; g.strokeText(t, q[0], q[1]); g.fillStyle = '#ffd84a'; g.fillText(t, q[0], q[1]); }
+  for (const b of K.bat.values()) { if (agora() < b.t0 || agora() > b.fim + 1.5) continue; const a = K.ex.get(b.a), cast = b.b < 0 && K.castelos.find(c => c.id === -b.b), d = cast ? null : K.ex.get(b.b); if (!a || (!d && !cast)) continue;
+    const pa = posicao(a), pd = cast ? { x: cast.x, y: cast.y } : posicao(d), q = C.tela(wx((pa.x + pd.x) / 2), 7, wz((pa.y + pd.y) / 2)); if (!q || q[1] < 70) continue;
+    const k = Math.max(0, Math.min(b.linha.length - 1, Math.floor(agora() - b.t0))), [ta, tb] = b.linha[k], meuCla = meus()[0]?.cla, amigo = o => o && (o.eu || (meuCla != null && o.cla === meuCla));
+    const w = 96, fa = ta / Math.max(1, ta + tb), ca = amigo(a) ? '#3a8aff' : '#ff4a3a', cb = cast ? (meuCla === -b.b ? '#3a8aff' : '#ff4a3a') : amigo(d) ? '#3a8aff' : '#ff4a3a';
+    g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(q[0] - w / 2 - 2, q[1] - 2, w + 4, 12); g.fillStyle = ca; g.fillRect(q[0] - w / 2, q[1], w * fa, 8); g.fillStyle = cb; g.fillRect(q[0] - w / 2 + w * fa, q[1], w * (1 - fa), 8);
+    g.font = '13px Titulo, sans-serif'; const t = `⚔️ ${fmt(ta)}  ×  ${fmt(tb)}`; g.strokeText(t, q[0], q[1] - 5); g.fillStyle = '#fff'; g.fillText(t, q[0], q[1] - 5);
+    if (agora() > b.fim) { const ganhou = tb === 0 ? a : ta === 0 ? (cast ? null : d) : null; if (ganhou !== undefined && (tb === 0 || ta === 0)) { const v = (tb === 0 ? amigo(a) : cast ? meuCla === -b.b : amigo(d));
+      g.font = '18px Titulo, sans-serif'; const tt = v ? `🏆 ${tr('VITÓRIA')}` : `💀 ${tr('DERROTA')}`; g.strokeText(tt, q[0], q[1] - 24); g.fillStyle = v ? '#7aff8a' : '#ff8a7a'; g.fillText(tt, q[0], q[1] - 24); } } }
   for (const t of K.txt) { t.t += dt; const p = C.tela(t.x, t.y + t.t * 3, t.z); if (!p) continue; g.globalAlpha = Math.max(0, 1 - t.t / 1); g.font = `${t.grande ? 18 : 14}px Titulo, sans-serif`; g.strokeText(t.txt, p[0], p[1]); g.fillStyle = t.cor; g.fillText(t.txt, p[0], p[1]); g.globalAlpha = 1; }
   K.txt = K.txt.filter(t => t.t < 1);
 }
