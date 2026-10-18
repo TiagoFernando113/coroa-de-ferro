@@ -1160,3 +1160,10 @@ input{font:inherit;user-select:text;-webkit-user-select:text}
 
 .eqItem.naoServe{opacity:.5;filter:grayscale(.7)}.eqItem s{position:absolute;right:1px;top:-1px;text-decoration:none;font-size:12px}
 .eqClasse{display:block;color:#2a8a3a;font-weight:700}.eqClasse.nao{color:#c8301a}.eqClasseH{font-size:12px;margin:0 0 6px;color:#5a3a1a}
+
+.jClasse h2{margin-bottom:2px}.clGrade{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:10px 0}
+.clCard{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 6px;border-radius:14px;background:linear-gradient(#fff,#f3e6cf);border:3px solid #d8b88a;box-shadow:0 3px 0 #b08a5a}
+.clCard img{width:96px;height:96px}.clCard b{font-family:var(--fT);font-weight:400;font-size:16px;color:#3a1a08}.clCard small{font-size:11px;color:#6a4a2a}.clCard em{font-style:normal;font-size:10px;font-weight:700;color:#8a5a10}
+.clCard.sel{border-color:#3ac85a;box-shadow:0 3px 0 #2a8a3a,0 0 12px #3ac85a88}.clCard:active{transform:scale(.96)}
+.eqTrocaC{margin-left:6px;padding:2px 8px;border-radius:10px;border:2px solid #d8b88a;background:#fff;font-size:11px;font-weight:700;color:#8a5a10}
+.hrPainel{text-align:center}.hrPainel .eqFoto{width:200px;height:200px}

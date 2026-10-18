@@ -3,7 +3,7 @@
 // Elmo, armadura e capa mudam a aparência do herói (com a cor da raridade); a arma aparece na mão.
 import { S, salvar, fimDeSemana } from './meta.js';
 import * as C from './cena.js';
-import { heroiAtual } from './herois.js';
+import { heroiAtual, HEROIS } from './herois.js';
 import { modeloItem, armaModelo, tipoDe } from './itens3d.js';
 import { fmt } from './dados.js';
 import { som, $ } from './util.js';
@@ -37,8 +37,12 @@ export const LENDAS = {
 // classes: cada herói só usa as armas da sua classe (mago de cajado, arqueiro de arco...)
 export const CLASSES = { guerreiro: { nome: 'Guerreiro', ic: '🛡️', armas: ['espada', 'machado', 'martelo', 'lanca'], perto: true }, ladino: { nome: 'Ladino', ic: '🗡️', armas: ['adaga', 'foice'], perto: true },
   arqueiro: { nome: 'Arqueiro', ic: '🏹', armas: ['arco'] }, mago: { nome: 'Mago', ic: '🔮', armas: ['cajado'] } };
-const CLASSE_HEROI = { lyra: 'arqueiro', brann: 'arqueiro', grom: 'arqueiro', selene: 'mago', zarak: 'mago', raiden: 'mago', kira: 'ladino', thalia: 'guerreiro' };
-export const classeAtual = () => CLASSE_HEROI[S.heroi] || 'arqueiro';
+export const CLASSE_HEROI = { lyra: 'arqueiro', brann: 'arqueiro', grom: 'arqueiro', selene: 'mago', zarak: 'mago', raiden: 'mago', kira: 'ladino', thalia: 'guerreiro' };
+export const BASE_CLASSE = { guerreiro: 'thalia', arqueiro: 'lyra', mago: 'selene', ladino: 'kira' }; // herói que vem com a classe (os outros são visuais dela)
+const DESC_CLASSE = { guerreiro: 'Luta de perto, aguenta muito', arqueiro: 'Ataca de longe, rápido', mago: 'Magias em área', ladino: 'Golpes rápidos de perto' };
+const VISUAIS_CLASSE = { guerreiro: ['Knight', 'Barbarian', 'elmo', 'viseira'], arqueiro: ['Ranger', 'urso', 'elmo'], mago: ['Mage', 'mago'], ladino: ['Rogue', 'Rogue_Hooded', 'lenco'] };
+export const classeAtual = () => S.classe || CLASSE_HEROI[S.heroi] || 'arqueiro';
+const lendasDaClasse = () => Object.entries(LENDAS).filter(([, L]) => CLASSES[classeAtual()].armas.includes(tipoDe(L.modelo.slice(2))));
 export const tipoArma = it => it?.modelo?.startsWith('P:') ? tipoDe(it.modelo.slice(2)) : null;
 export const classeDaArma = it => Object.keys(CLASSES).find(c => CLASSES[c].armas.includes(tipoArma(it))) || 'guerreiro';
 export const serveNoHeroi = it => it.slot !== 'arma' || classeDaArma(it) === classeAtual();
@@ -79,12 +83,12 @@ export function gerarItem(onda, minR = 0, maxR = 5, lk = null) { // lk: lenda ga
   const E = eq(), slots = Object.keys(SLOTS), slot = lk ? 'arma' : slots[Math.floor(Math.random() * slots.length)], sorte = onda / 2.4 + Math.random() * 4 + Math.random() * Math.random() * 6;
   const r = Math.min(maxR, Math.max(minR, sorte > 11 ? 5 : sorte > 8.5 ? 4 : sorte > 6.2 ? 3 : sorte > 4.2 ? 2 : sorte > 2.4 ? 1 : 0)), R = RARIDADES[r], D = SLOTS[slot], st = {};
   for (const [k, v] of Object.entries(D.st)) st[k] = Math.round(v * R.m * (0.8 + Math.random() * 0.4) * 10) / 10;
-  const [nm, vis, gen] = D.nomes[Math.floor(Math.random() * D.nomes.length)];
+  const vc = VISUAIS_CLASSE[classeAtual()], nomes = D.nomes.filter(n => !n[1] || slot === 'arma' || vc.includes(n[1])), [nm, vis, gen] = (nomes.length ? nomes : D.nomes)[Math.floor(Math.random() * (nomes.length || D.nomes.length))];
   const it = { id: E.id++, slot, r, nv: 1, st, nome: `${nm} ${R.adj[gen === 'f' ? 1 : 0]}` };
   if (vis && slot !== 'arma') it.vis = vis;
-  if (slot === 'arma') { const minhas = CLASSES[classeAtual()].armas, tp = Math.random() < 0.75 ? minhas[Math.floor(Math.random() * minhas.length)] : vis, nn = D.nomes.find(n => n[1] === tp) || [nm, vis, gen];
+  if (slot === 'arma') { const minhas = CLASSES[classeAtual()].armas, tp = minhas[Math.floor(Math.random() * minhas.length)], nn = D.nomes.find(n => n[1] === tp) || [nm, vis, gen];
     it.modelo = `P:${tp}:${r}`; it.nome = `${nn[0]} ${R.adj[nn[2] === 'f' ? 1 : 0]}`;
-    const ls = Object.entries(LENDAS).filter(([, L]) => L.r <= r); if (lk || (r >= 3 && ls.length && Math.random() < 0.5)) { const [k, L] = lk ? [lk, LENDAS[lk]] : ls[Math.floor(Math.random() * ls.length)]; Object.assign(it, { lenda: k, nome: L.nome, modelo: L.modelo }); } }
+    const ls = lendasDaClasse().filter(([, L]) => L.r <= r); if (lk || (r >= 3 && ls.length && Math.random() < 0.5)) { const [k, L] = lk ? [lk, LENDAS[lk]] : ls[Math.floor(Math.random() * ls.length)]; Object.assign(it, { lenda: k, nome: L.nome, modelo: L.modelo }); } }
   E.itens.push(it); if (E.itens.length > MAX_MOCHILA) { const pior = E.itens.filter(x => !emUso(x.id)).sort((a, b) => a.r - b.r || poderItem(a) - poderItem(b))[0]; if (pior) E.itens.splice(E.itens.indexOf(pior), 1); }
   const atual = slot === 'arma' ? E.armas[classeDaArma(it)] : E.usando[slot]; if (!atual || poderItem(it) > poderItem(E.itens.find(x => x.id === atual) || { st: {}, nv: 1, r: 0 })) equipar(it); // equipa sozinho se for melhor
   salvar(); return it;
@@ -102,7 +106,7 @@ export const BAUS = [{ nome: 'Baú de Ferro', preco: 400, min: 0, max: 2, ic: '�
 // ---- Desejos: estrelas ganhas nas partidas (ou moedas), 1 grátis por dia, lenda da semana em destaque e garantia ----
 export const PRECO_DESEJO = 600, PITY = 50;
 const hoje = () => new Date().toISOString().slice(0, 10);
-export const destaque = () => { const ks = Object.keys(LENDAS); return ks[Math.floor((Date.now() / 864e5 + 3) / 7) % ks.length]; };
+export const destaque = () => { const ks = lendasDaClasse().map(([k]) => k); return ks[Math.floor((Date.now() / 864e5 + 3) / 7) % ks.length] || 'fenda'; }; // lenda da semana da sua classe
 export const estrelas = () => eq().est || 0;
 export const estrelasPartida = ondas => ondas < 2 ? 0 : Math.max(1, Math.floor(ondas / 3)) * (fimDeSemana() ? 2 : 1);
 export function ganharEstrelas(n) { if (n > 0) { const E = eq(); E.est = (E.est || 0) + n; salvar(); } }
@@ -135,7 +139,11 @@ export function iconeItem(it, tam = 96) {
 }
 const linhaSt = (it, k) => { const [n, u] = ST[k]; return `<span>${tr(n)} <b>+${fmt(Math.round(valor(it, k) * 10) / 10)}${u}</b></span>`; };
 export function mostrar(sel = null) {
-  const E = eq(), j = $('#janela'); j.hidden = false; const U = usando(), emUsoAgora = new Set(Object.values(U)), A = atributos(), CL = CLASSES[classeAtual()];
+  const p = $('#eqPainel'); if (p && !p.closest('[hidden]')) { p.innerHTML = painel(sel); return; } // na aba Herói: atualiza ali mesmo
+  const j = $('#janela'); j.hidden = false; j.innerHTML = `<div class="jOnline eqTela">${painel(sel)}<button class="btn verde grande" data-a="fecharJanela">OK</button></div>`;
+}
+export function painel(sel = null) {
+  const E = eq(), U = usando(), emUsoAgora = new Set(Object.values(U)), A = atributos(), CL = CLASSES[classeAtual()];
   const it = sel != null && E.itens.find(x => x.id === sel);
   const det = it ? (() => { const R = RARIDADES[it.r], eq1 = emUsoAgora.has(it.id), serve = serveNoHeroi(it), CA = CLASSES[classeDaArma(it)], c = custoUp(it);
     return `<div class="eqDet" style="--r:${R.cor}"><div class="eqDetT"><img class="eqPx" src="${iconeItem(it, 160)}" alt=""><span><b>${it.nome}${it.nv > 1 ? ` +${it.nv - 1}` : ''}</b><small>${tr(R.nome)} · ${tr(SLOTS[it.slot].nome)} · ${tr('Poder')} ${fmt(poderItem(it))}</small>${it.slot === 'arma' ? `<small class="eqClasse ${serve ? '' : 'nao'}">${CA.ic} ${tr('Só para')} ${tr(CA.nome)}${CA.perto ? ` · ${tr('ataca de perto')}` : ` · ${tr('ataca de longe')}`}</small>` : ''}</span></div>
@@ -143,9 +151,9 @@ export function mostrar(sel = null) {
       <div class="eqBts">${eq1 ? `<button class="btn cinza peq" disabled>${tr('Equipado')}</button>` : serve ? `<button class="btn verde peq" data-eq="usar" data-id="${it.id}">${tr('Equipar')}</button>` : `<button class="btn cinza peq" disabled>${CA.ic} ${tr(CA.nome)}</button>`}
         ${it.nv < MAX_NV ? `<button class="btn amarelo peq" data-eq="up" data-id="${it.id}" ${S.moedas < c ? 'disabled' : ''}>⬆️ ${fmt(c)}</button>` : `<small>MAX</small>`}
         ${emUso(it.id) ? '' : `<button class="btn vermelho peq" data-eq="des" data-id="${it.id}">${tr('Desmontar')} +${fmt(valorDesmontar(it))}</button>`}</div></div>`; })() : '';
-  let foto = ''; try { const q = C.quadrosAnim(visualHeroi(heroiAtual(S).visual, true), 'Idle_A', { n: 1, tam: 150, chave: 'eqv:' + S.heroi + assinatura() }); if (q?.q?.[0]) foto = q.q[0].toDataURL(); } catch (e) {}
-  j.innerHTML = `<div class="jOnline eqTela"><h2>🎒 ${tr('Equipamentos')}</h2><p class="eqPoder">${tr('Poder')} <b>${fmt(poder())}</b> · <small>${tr('vale na Árvore Sagrada e na Defesa em Grupo')}</small></p>
-    ${foto ? `<img class="eqFoto" src="${foto}" alt="">` : ''}<p class="eqClasseH">${CL.ic} <b>${tr(CL.nome)}</b> · ${tr('usa')} ${CL.armas.map(a => tr(NOME_TIPO[a])).join(', ')}${CL.perto ? ` · ${tr('ataca de perto')}` : ''}</p>
+  let foto = ''; try { const q = C.quadrosAnim(visualHeroi(heroiAtual(S).visual, true), 'Idle_A', { n: 1, tam: 200, chave: 'eqv:' + S.heroi + assinatura() }); if (q?.q?.[0]) foto = q.q[0].toDataURL(); } catch (e) {}
+  return `<p class="eqPoder">${tr('Poder')} <b>${fmt(poder())}</b> · <small>${tr('vale na Árvore Sagrada e na Defesa em Grupo')}</small></p>
+    ${foto ? `<img class="eqFoto" src="${foto}" alt="">` : ''}<p class="eqClasseH">${CL.ic} <b>${tr(CL.nome)}</b> <button class="eqTrocaC" data-eq="classes">${tr('trocar')}</button> · ${tr('usa')} ${CL.armas.map(a => tr(NOME_TIPO[a])).join(', ')}${CL.perto ? ` · ${tr('ataca de perto')}` : ''}</p>
     <div class="eqSlots">${Object.entries(SLOTS).map(([k, D]) => { const x = E.itens.find(i => i.id === U[k]); return `<div class="eqSlot"><small>${tr(D.nome)}</small>${x ? itemHtml(x, sel === x.id ? 'sel' : '') : `<span class="eqVazio">${D.ic}</span>`}</div>`; }).join('')}</div>
     <div class="eqTot">${Object.entries(A).filter(([, v]) => v).map(([k, v]) => `<span>${tr(ST[k][0])} +${fmt(Math.round(v * 10) / 10)}${ST[k][1]}</span>`).join('') || `<span>${tr('Jogue a Árvore Sagrada para ganhar equipamentos!')}</span>`}</div>
     ${det}${(() => { const dk = destaque(), L = LENDAS[dk], est = estrelas(), gratis = E.dia !== hoje(), cus = n => est >= n ? `⭐ ${n}` : `🪙 ${fmt(PRECO_DESEJO * n * (n >= 10 ? 0.9 : 1))}`, pode = n => est >= n || S.moedas >= PRECO_DESEJO * n * (n >= 10 ? 0.9 : 1);
@@ -156,12 +164,22 @@ export function mostrar(sel = null) {
     <h3>🔨 ${tr('Forja')} <small>${tr('baús com raridade garantida')}</small></h3>
     <div class="eqForja">${BAUS.map((B, i) => `<button class="eqBau" data-eq="bau" data-n="${i}" ${S.moedas < B.preco ? 'disabled' : ''} style="--r:${RARIDADES[B.min].cor}"><i>${B.ic}</i><b>${tr(B.nome)}</b><small>${tr(RARIDADES[B.min].nome)}+</small><em>🪙 ${fmt(B.preco)}</em></button>`).join('')}</div>
     <h3>${tr('Mochila')} <small>${E.itens.length}/${MAX_MOCHILA}</small></h3>
-    <div class="eqMochila">${[...E.itens].sort((a, b) => serveNoHeroi(b) - serveNoHeroi(a) || b.r - a.r || poderItem(b) - poderItem(a)).map(x => itemHtml(x, `${emUsoAgora.has(x.id) ? 'usando' : ''} ${sel === x.id ? 'sel' : ''}`)).join('') || `<p>${tr('Vazia')}</p>`}</div>
-    <button class="btn verde grande" data-a="fecharJanela">OK</button></div>`;
+    <div class="eqMochila">${[...E.itens].sort((a, b) => serveNoHeroi(b) - serveNoHeroi(a) || b.r - a.r || poderItem(b) - poderItem(a)).map(x => itemHtml(x, `${emUsoAgora.has(x.id) ? 'usando' : ''} ${sel === x.id ? 'sel' : ''}`)).join('') || `<p>${tr('Vazia')}</p>`}</div>`;
+}
+// escolha da classe (no começo do jogo, ou trocar depois na aba Herói)
+export function escolherClasse(primeira = false) {
+  const j = $('#janela'); j.hidden = false; sfx('brilho'); const atual = S.classe || CLASSE_HEROI[S.heroi];
+  const foto = c => { try { const q = C.quadrosAnim(HEROIS[BASE_CLASSE[c]].visual, 'Idle_A', { n: 1, tam: 150, chave: 'cl:' + c }); return q?.q?.[0]?.toDataURL() || ''; } catch (e) { return ''; } };
+  j.innerHTML = `<div class="jOnline jClasse"><h2>${tr(primeira ? 'Escolha sua classe' : 'Trocar de classe')}</h2><p>${tr('Os equipamentos que caem são da sua classe')}</p>
+    <div class="clGrade">${Object.entries(CLASSES).map(([k, CL]) => `<button class="clCard ${k === atual ? 'sel' : ''}" data-eq="classe" data-c="${k}"><img src="${foto(k)}" alt=""><b>${CL.ic} ${tr(CL.nome)}</b><small>${tr(DESC_CLASSE[k])}</small><em>${CL.armas.map(a => tr(NOME_TIPO[a])).join(' · ')}</em></button>`).join('')}</div>
+    ${primeira ? '' : `<button class="btn cinza" data-a="fecharJanela">${tr('Cancelar')}</button>`}</div>`;
 }
 export function clique(b) {
   const a = b.dataset.eq, id = +b.dataset.id, E = eq(), it = E.itens.find(x => x.id === id);
   if (a === 'abrir') { som('abrir'); mostrar(); return true; }
+  if (a === 'classes') { som('clique'); escolherClasse(); return true; }
+  if (a === 'classe') { const c = b.dataset.c; if (!CLASSES[c]) return true; S.classe = c; const h = BASE_CLASSE[c]; if (!S.herois.includes(h)) S.herois.push(h);
+    if (CLASSE_HEROI[S.heroi] !== c) S.heroi = h; salvar(); sfx('vitoria'); $('#janela').hidden = true; return 'heroi'; }
   if (a === 'ver') { som('clique'); mostrar(id); return true; }
   if (a === 'bau') { const B = BAUS[+b.dataset.n]; if (!B || S.moedas < B.preco) { som('erro'); return true; } S.moedas -= B.preco; const novo = gerarItem(B.min * 4, B.min, B.max); salvar(); som('compra'); sfx(novo.r >= 4 ? 'vitoria' : 'brilho'); mostrar(novo.id); return true; }
   if (a === 'dj') { const n = +b.dataset.n; if (n === 0) { if (E.dia === hoje()) return true; E.dia = hoje(); }

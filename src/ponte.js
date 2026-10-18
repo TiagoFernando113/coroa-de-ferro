@@ -590,10 +590,12 @@ const PASSOS_LIB = {
 let guia = null;
 const semNome = () => !S.lib?.nome && (!S.online?.apelido || /^Herói\d{0,4}$/.test(S.online.apelido));
 // venceu e abriu algo novo (ou falta escolher o nome): o jogador passa pelo menu antes da próxima fase
-const novidadePendente = () => !!S.lib && !S.lib.todos && ((S.melhor || 0) >= 1 && semNome() || LIBERA.some(l => (S.melhor || 0) >= l[1] && !S.lib.visto[l[0]]));
+const novidadePendente = () => !!S.lib && ((S.melhor || 0) >= 1 && (!S.lib.todos && semNome() || !S.classe) || !S.lib.todos && LIBERA.some(l => (S.melhor || 0) >= l[1] && !S.lib.visto[l[0]]));
 function proximaLiberacao() { // comemora o que abriu (uma coisa por vez, só no menu e sem janela aberta)
-  if (!S?.lib || S.lib.todos || tela !== 'lobby' || guia || !$('#janela').hidden) return;
-  if ((S.melhor || 0) >= 1 && semNome()) return pedirNome(); // depois da primeira vitória: escolher o nome
+  if (!S?.lib || tela !== 'lobby' || guia || !$('#janela').hidden) return;
+  if (!S.lib.todos && (S.melhor || 0) >= 1 && semNome()) return pedirNome(); // depois da primeira vitória: escolher o nome
+  if ((S.melhor || 0) >= 1 && !S.classe) return EQ.escolherClasse(true); // e a classe (quem já jogava também escolhe uma vez)
+  if (S.lib.todos) return;
   const L = LIBERA.find(l => (S.melhor || 0) >= l[1] && !S.lib.visto[l[0]]); if (!L) return;
   const [id, , nome, icone, frase] = L; S.lib.visto[id] = 1; if (id === 'castelo') S.lib.visto.infinito = 1;
   if (id === 'pets') S.ovos.comum = (S.ovos.comum || 0) + 1; // primeiro ovo de presente
@@ -646,7 +648,7 @@ setInterval(() => { let b = $('#btnVersao'); const ver = versaoNova && tela === 
   b.innerHTML = `${ico('seta', 'up')} ${tr('Nova versão! Toque para atualizar')}`; b.hidden = false; }, 1000);
 // mãozinha dos tutoriais (Kenney Input Prompts, CC0): a ponta do dedo fica no ponto, com o anel de toque
 const MAO = `<i class="maoOnda"></i><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M37.55 30.55 L36.95 29.05 37 28 Q37 24.8 34.8 22.55 L34.7 22.45 34.6 22.35 Q32.3 20 29 20 25.7 20 23.35 22.4 21 24.7 21 28 21 31.35 23.3 33.6 L23.35 33.65 Q24.75 35.05 26.5 35.65 L27.75 38.95 Q24 38.55 21.2 35.75 18 32.6 18 28 18 23.45 21.2 20.25 24.45 17 29 17 33.55 17 36.75 20.25 L36.95 20.45 Q40 23.55 40 28 L39.85 30 Q38.6 30.1 37.55 30.55 M36 34.75 L36.8 34.8 Q37.65 33.8 38.65 33.35 39.4 33 40.3 33 42.65 32.95 43.65 34.65 44.75 33.75 46.25 33.75 47.75 33.75 48.65 34.95 50.7 37.75 52.4 41.8 54 47.75 51.1 51.55 49.45 53.45 46.95 54.35 L41.7 54.75 Q39.65 54.2 37.8 53.1 34.1 50.85 30.45 50.65 24.95 51 25 47.65 25 46.5 25.7 45.65 26.45 44.95 27.55 44.7 29.05 44.5 30.75 44.7 32.85 44.6 32.4 43 L30.9 38.85 29.8 36 27.85 30.65 Q27.35 29.35 27.85 28.3 28.25 27.55 29.95 27.15 31.6 26.75 32.5 27.45 L33.7 29.05 36 34.75" fill="#fff" stroke="#2a1608" stroke-width="2.6" stroke-linejoin="round" paint-order="stroke"/></svg>`;
-const ABAS = [['home', 'Batalha', 'h_triplo'], ['up', 'Melhorias', 'raio'], ['cartas', 'Heróis', 'herois'], ['pets', 'Pets', 'pata'], ['cla', 'Clã', 'escudo'], ['rank', 'Ranking', 'rank']];
+const ABAS = [['home', 'Batalha', 'h_triplo'], ['up', 'Melhorias', 'raio'], ['cartas', 'Herói', 'herois'], ['pets', 'Pets', 'pata'], ['cla', 'Clã', 'escudo'], ['rank', 'Ranking', 'rank']];
 // ---- renascer: volta para a fase 1 com bônus permanentes ----
 const reqRenascer = () => 20 + 10 * (S.renasc || 0);
 const bonusRenasc = r => ({ moedas: 50 * r, tiro: 10 * r, chefe: 25 * r, soldados: 20 * r });
@@ -671,11 +673,12 @@ function htmlMelhorias() {
 }
 const DESC_CARTA = { chuva: 'Sobe o poder especial do herói', gigante: 'Cavaleiro enorme aliado', arco: 'Atiram de longe', lanca: 'Aguentam mais duelos', mago: 'Explosão em área' };
 const ICONE_HEROI = { lyra: 'arq', brann: 'h_perfura', selene: 'mag', grom: 'r_orc', kira: 'lad', zarak: 'r_demonio', thalia: 'r_anjo', raiden: 'h_raio' };
-function htmlHerois() {
-  return `<button class="eqBtn" data-eq="abrir">🎒 <b>Equipamentos</b><small>Poder ${fmt(EQ.poder())}</small></button><h3>Herói <small>toque para escolher</small></h3><div class="heroisG">${Object.entries(HEROIS).map(([k, H]) => { const tem = S.herois.includes(k), sel = S.heroi === k;
+function htmlHerois() { // aba Herói: o herói da sua classe com os equipamentos; os outros heróis da classe são visuais
+  const cl = EQ.classeAtual(), meus = Object.entries(HEROIS).filter(([k]) => EQ.CLASSE_HEROI[k] === cl);
+  return `<div class="hrPainel" id="eqPainel">${EQ.painel()}</div>${meus.length > 1 ? `<h3>Visual <small>heróis da sua classe</small></h3><div class="heroisG">${meus.map(([k, H]) => { const tem = S.herois.includes(k), sel = S.heroi === k;
     return `<button class="heroiC ${sel ? 'sel' : ''} ${tem ? '' : 'bloq'}" data-heroi="${k}" style="--c:${H.cor}"><span>${ico(ICONE_HEROI[k])}</span><b>${H.nome}</b><small>${H.titulo}</small>
       <i>${ico('raio')} ${H.ataque.nome}</i><i>${ico(H.poder.icone)} ${H.poder.desc}</i>
-      ${sel ? '<em class="esc">Escolhido</em>' : tem ? '<em class="esc">Escolher</em>' : `<em class="preco ${S.moedas >= H.preco ? 'pode' : ''}">${ico('ouro')} ${fmt(H.preco)}</em>`}</button>`; }).join('')}</div>`;
+      ${sel ? '<em class="esc">Escolhido</em>' : tem ? '<em class="esc">Escolher</em>' : `<em class="preco ${S.moedas >= H.preco ? 'pode' : ''}">${ico('ouro')} ${fmt(H.preco)}</em>`}</button>`; }).join('')}</div>` : ''}`;
 }
 function htmlCartas() {
   const carta = ([k, nome, icone]) => { const P = S.pd[k], need = cartasPara(P.nv), tropa = !!TROPAS[k], sel = S.deck.includes(k);
@@ -1703,7 +1706,7 @@ function clique(e) {
     if (D.bau) mostrarBau(D.bau, 'Presente do dia!', () => pegarDiario());
     else { const p = pegarDiario(); if (p) { sfx('vitoria'); mostrarDiario(); $('#janela .jDiario h2').insertAdjacentHTML('afterend', `<div class="premio grande">${ico('ouro')}<b>+${fmt(p.moedas)}</b></div>`); } } }
   if (b.dataset.bonus) escolherBonus(b.dataset.bonus);
-  if (b.dataset.heroi) { const k = b.dataset.heroi, H = HEROIS[k];
+  if (b.dataset.heroi) { const k = b.dataset.heroi, H = HEROIS[k]; if (EQ.CLASSE_HEROI[k] !== EQ.classeAtual()) { som('erro'); return; }
     if (!S.herois.includes(k)) { if (S.moedas < H.preco) { som('erro'); return; } S.moedas -= H.preco; S.herois.push(k); sfx('vitoria'); }
     else som('clique');
     S.heroi = k; salvar(); if (G && tela === 'lobby') { G.heroiV?.remover(); G.heroiV = null; iniciarFase(S.fase); } desenharLobby(); return; }
@@ -1715,7 +1718,7 @@ function clique(e) {
   if (b.dataset.ct || b.dataset.magia) CT.clique(b);
   if (b.dataset.mu || b.dataset.muEx || b.dataset.muTipo) MU.clique(b);
   if (b.dataset.df) DF.clique(b);
-  if (b.dataset.eq) { if (tela !== 'lobby' && b.dataset.eq === 'ver') { EQ.mostrar(+b.dataset.id); return; } EQ.clique(b); return; }
+  if (b.dataset.eq) { if (tela !== 'lobby' && b.dataset.eq === 'ver') { EQ.mostrar(+b.dataset.id); return; } if (EQ.clique(b) === 'heroi') { if (G && tela === 'lobby') { G.heroiV?.remover(); G.heroiV = null; iniciarFase(S.fase); } desenharLobby(); proximaLiberacao(); } return; }
   if (a === 'conquista') { som('confirma'); abrirConquista(); }
   if (a === 'castelo') { som('confirma'); abrirCastelo(); }
   if (b.dataset.ovo) abrirOvo(b.dataset.ovo);
