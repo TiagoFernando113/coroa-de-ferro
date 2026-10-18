@@ -262,7 +262,7 @@ let climaMapa = false, mapaCam = null, mapaVel = 0, arrastoMapa = null, mapaAnda
 const mapaVisivel = () => tela === 'lobby';
 function vistaMapa(dt) {
   if (!climaMapa) { climaMapa = true; C.diaNoite(0); C.ceu(0x9ad8f8); C.neblina(170, 470); }
-  MP.montarMapa(cena, { atual: S.fase, biomas: BIOMAS, biomaDe, chefeDe: n => dadosFase(n).chefe.modelo, heroi: EQ.visualHeroi(heroiAtual(S).visual), heroiK: S.heroi + EQ.assinatura(), texAgua, andar: mapaAndar === S.fase });
+  MP.montarMapa(cena, { atual: S.fase, biomas: BIOMAS, biomaDe, chefeDe: n => dadosFase(n).chefe.modelo, heroi: EQ.visualHeroi(heroiAtual(S).visual, true), heroiK: S.heroi + EQ.assinatura(), texAgua, andar: mapaAndar === S.fase });
   if (mapaAndar === S.fase) { mapaAndar = 0; mapaCam = MP.xDaFase(S.fase - 1); }
   const ax = MP.andando(); if (ax != null) { mapaCam += (ax - mapaCam) * Math.min(1, dt * 4); mapaVel = 0; }
   const x0 = MP.xDaFase(1), x1 = MP.xDaFase(MP.ultimaFase());
@@ -322,7 +322,8 @@ export function iniciarFase(n, inf = false, semCorrida = false) {
   if (corrida) montarCorrida(F, n);
   // herói arqueiro
   G.heroiDef = heroiAtual(S); G.tiro *= G.heroiDef.ataque.cad; G.tiroMax *= G.heroiDef.ataque.cad;
-  if (!G.heroiV) { const v = C.heroi(EQ.visualHeroi(G.heroiDef.visual)); v.raiz.scale.setScalar(2.4); v.raiz.rotation.y = Math.PI; v.tocar(v.tem(G.heroiDef.pose) ? G.heroiDef.pose : 'Idle_A'); G.heroiV = v; }
+  { const A = EQ.atributos(); G.eqTiro = 1 + A.cad / 200; G.eqDano = 1 + A.dano / 100; G.tiro *= G.eqTiro; G.tiroMax *= G.eqTiro; } // equipamentos: velocidade (metade) e dano no chefe
+  if (!G.heroiV) { const v = C.heroi(EQ.visualHeroi(G.heroiDef.visual, true)); v.raiz.scale.setScalar(2.4); v.raiz.rotation.y = Math.PI; v.tocar(v.tem(G.heroiDef.pose) ? G.heroiDef.pose : 'Idle_A'); G.heroiV = v; }
   G.heroiV.raiz.position.set(0, 0, ZH);
   criarPetsHeroi();
 }
@@ -668,7 +669,7 @@ function renascer(b) {
   sfx('vitoria'); som('lendario'); C.camera.tremor = 0.6; iniciarFase(1); desenharLobby(); if (G) faixa(`RENASCEU! ×${S.renasc}`, '#c88aff');
 }
 // melhorias com o nome da sua classe: as do herói valem em todos os modos; as da defesa, na ponte
-const PROJ = { lyra: ['flecha', 'flechas'], grom: ['flecha', 'flechas'], brann: ['virote', 'virotes'], selene: ['orbe', 'orbes'], zarak: ['bola de fogo', 'bolas de fogo'], raiden: ['raio', 'raios'], thalia: ['martelo', 'martelos'], kira: ['adaga', 'adagas'] };
+const PROJ = { bjorn: ['machado', 'machados'], nyx: ['adaga', 'adagas'], lyra: ['flecha', 'flechas'], grom: ['flecha', 'flechas'], brann: ['virote', 'virotes'], selene: ['orbe', 'orbes'], zarak: ['bola de fogo', 'bolas de fogo'], raiden: ['raio', 'raios'], thalia: ['martelo', 'martelos'], kira: ['adaga', 'adagas'] };
 const RAPIDO = { arqueiro: ['Tiro rápido', 'raio'], mago: ['Magia rápida', 'mag'], guerreiro: ['Arremesso rápido', 'raio'], ladino: ['Lâminas rápidas', 'raio'] };
 function infoUp(k) {
   const U = UPGRADES[k], cl = EQ.classeAtual(), [um, varios] = PROJ[S.heroi] || PROJ.lyra;
@@ -684,7 +685,7 @@ function htmlMelhorias() {
     <h3>🏰 Sua defesa <small>na batalha da ponte</small></h3><div class="ups">${['exercito', 'vida', 'escudos'].map(card).join('')}</div>`;
 }
 const DESC_CARTA = { chuva: 'Sobe o poder especial do herói', gigante: 'Cavaleiro enorme aliado', arco: 'Atiram de longe', lanca: 'Aguentam mais duelos', mago: 'Explosão em área' };
-const ICONE_HEROI = { lyra: 'arq', brann: 'h_perfura', selene: 'mag', grom: 'r_orc', kira: 'lad', zarak: 'r_demonio', thalia: 'r_anjo', raiden: 'h_raio' };
+const ICONE_HEROI = { bjorn: 'r_orc', nyx: 'lad', lyra: 'arq', brann: 'h_perfura', selene: 'mag', grom: 'r_orc', kira: 'lad', zarak: 'r_demonio', thalia: 'r_anjo', raiden: 'h_raio' };
 function htmlHerois() { // aba Herói: o herói da sua classe com os equipamentos; os outros heróis da classe são visuais
   const cl = EQ.classeAtual(), meus = Object.entries(HEROIS).filter(([k]) => EQ.CLASSE_HEROI[k] === cl);
   return `<div class="hrPainel" id="eqPainel">${EQ.painel()}</div>${meus.length > 1 ? `<h3>Visual <small>heróis da sua classe</small></h3><div class="heroisG">${meus.map(([k, H]) => { const tem = S.herois.includes(k), sel = S.heroi === k;
@@ -2168,7 +2169,7 @@ function passoFlechas(dt, vis, grade, K) {
       if (alvo && f.area) { let n = 0; for (const v of G.vm) if (!v.morto && Math.hypot(v.x - alvo.x, v.z - alvo.z) < f.area) { v.morto = true; G.mortesVm++; n++; if (v !== alvo) voar('vm', v.x, v.z, (v.x - alvo.x) * 3, 6, -3); }
         C.faiscas(alvo.x, 1.4, alvo.z, f.o.material.color.getHex(), 8, 4); }
       if (alvo) { alvo.morto = true; G.mortesVm++; if ((f.perf = (f.perf ?? 0) - 1) < 0) f.morta = true; voar('vm', alvo.x, alvo.z, (Math.random() - 0.5) * 3, 5, -6); C.faiscas(alvo.x, 1.4, alvo.z, 0xff6a4a, 6, 3); }
-      else if (f.z <= ch.z + 3) { f.morta = true; ferirChefe(f.dano || 1, f.x, ch.z + 3, false, f.dono); }
+      else if (f.z <= ch.z + 3) { f.morta = true; ferirChefe((f.dano || 1) * (f.dono ? 1 : G.eqDano || 1), f.x, ch.z + 3, false, f.dono); }
     }
   }
   for (const f of G.flechas) if (f.morta) cena.remove(f.o);

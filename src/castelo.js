@@ -29,9 +29,9 @@ const GEO_MET = new THREE.IcosahedronGeometry(2.6, 1), MAT_MET = new THREE.MeshB
 // ---- defensores (herói escolhido + até 5 pets da equipe) ----
 function criarDefensores() {
   const H = heroiAtual(S), up = S.up, B = bonusEquipe(), L = [];
-  const hv = C.heroi(EQ.visualHeroi(H.visual)); hv.raiz.scale.setScalar(2.4); hv.raiz.rotation.y = Math.PI; hv.tocar(hv.tem(H.pose) ? H.pose : 'Idle_A');
+  const hv = C.heroi(EQ.visualHeroi(H.visual, true)), EA = EQ.atributos(); hv.raiz.scale.setScalar(2.4); hv.raiz.rotation.y = Math.PI; hv.tocar(hv.tem(H.pose) ? H.pose : 'Idle_A');
   // herói: tiros por segundo das melhorias x cadência do herói; flechas por tiro viram dano
-  L.push({ heroi: true, v: hv, x: SLOTS[2], z: Z_DEF, cd: 0.5, cad: 1 / (tiros(up.fogo) * H.ataque.cad * 0.6 * (1 + (B.tiro || 0) / 100)), dano: 3 * H.ataque.dano * (1 + up.flechas * 0.35),
+  L.push({ heroi: true, v: hv, x: SLOTS[2], z: Z_DEF, cd: 0.5, cad: 1 / (tiros(up.fogo) * H.ataque.cad * 0.6 * (1 + (B.tiro || 0) / 100) * (1 + EA.cad / 100)), dano: 3 * H.ataque.dano * (1 + up.flechas * 0.35) * (1 + EA.dano / 100),
     area: H.ataque.area, perf: H.ataque.perf, alc: 75, cor: H.ataque.cor, anim: H.tiro });
   const xs = SLOTS.filter((_, i) => i !== 2);
   S.equipe.slice(0, 5).forEach((k, i) => {

@@ -37,7 +37,7 @@ export const LENDAS = {
 // classes: cada herói só usa as armas da sua classe (mago de cajado, arqueiro de arco...)
 export const CLASSES = { guerreiro: { nome: 'Guerreiro', ic: '🛡️', armas: ['espada', 'machado', 'martelo', 'lanca'], perto: true }, ladino: { nome: 'Ladino', ic: '🗡️', armas: ['adaga', 'foice'], perto: true },
   arqueiro: { nome: 'Arqueiro', ic: '🏹', armas: ['arco'] }, mago: { nome: 'Mago', ic: '🔮', armas: ['cajado'] } };
-export const CLASSE_HEROI = { lyra: 'arqueiro', brann: 'arqueiro', grom: 'arqueiro', selene: 'mago', zarak: 'mago', raiden: 'mago', kira: 'ladino', thalia: 'guerreiro' };
+export const CLASSE_HEROI = { lyra: 'arqueiro', brann: 'arqueiro', grom: 'arqueiro', selene: 'mago', zarak: 'mago', raiden: 'mago', kira: 'ladino', nyx: 'ladino', thalia: 'guerreiro', bjorn: 'guerreiro' };
 export const BASE_CLASSE = { guerreiro: 'thalia', arqueiro: 'lyra', mago: 'selene', ladino: 'kira' }; // herói que vem com a classe (os outros são visuais dela)
 const DESC_CLASSE = { guerreiro: 'Luta de perto, aguenta muito', arqueiro: 'Ataca de longe, rápido', mago: 'Magias em área', ladino: 'Golpes rápidos de perto' };
 const VISUAIS_CLASSE = { guerreiro: ['Knight', 'Barbarian', 'elmo', 'viseira'], arqueiro: ['Ranger', 'urso', 'elmo'], mago: ['Mage', 'mago'], ladino: ['Rogue', 'Rogue_Hooded', 'lenco'] };
@@ -58,6 +58,7 @@ export function visualHeroi(base, comArma = false) {
   const ar = de('armadura'); if (ar?.vis) { v.tro = v.bra = v.per = ar.vis; if (ar.r >= 1) v.tinta = RARIDADES[ar.r].cor; v.cores = {}; }
   const el = de('elmo'); if (el?.vis) { if (el.vis === 'lenco') v.mas = 'lenco'; else v.cha = el.vis; if (el.r >= 1) v.tintaCha = RARIDADES[el.r].cor; }
   const ca = de('capa'); if (ca?.vis) { v.capa = ca.vis; if (ca.r >= 1) v.tintaCapa = RARIDADES[ca.r].cor; if (ca.r >= 4) v.aura = 'sim'; if (ca.r >= 5 && !v.asas) v.asas = 'anjo'; }
+  const cj = conjunto(); if (cj?.n >= 3) v.aura = 'sim';
   const a = de('arma'); if (comArma && a?.modelo) return visualCom(v, a.modelo);
   return v;
 }
@@ -95,9 +96,22 @@ export function gerarItem(onda, minR = 0, maxR = 5, lk = null) { // lk: lenda ga
 }
 export function poderItem(it) { let p = 0; for (const k of Object.keys(it.st)) p += valor(it, k) * ({ vida: 2, cura: 40, def: 8, crit: 8, roubo: 15 }[k] || 6); return Math.round(p * (it.lenda ? 1.35 : 1)); }
 // soma dos atributos do que está equipado
+// conjuntos: elmo + armadura + capa da mesma linha dão bônus (2 peças: metade; 3 peças: tudo e o herói brilha)
+export const CONJUNTOS = {
+  cavaleiro: { nome: 'Cavaleiro', ic: '🛡️', pecas: { elmo: ['elmo', 'viseira'], armadura: ['Knight', 'Barbarian'], capa: ['Knight'] }, bonus: { vida: 40, def: 8 } },
+  mago: { nome: 'Arcano', ic: '🔮', pecas: { elmo: ['mago'], armadura: ['Mage'], capa: ['Mage'] }, bonus: { dano: 14, recarga: 12 } },
+  patrulheiro: { nome: 'Patrulheiro', ic: '🏹', pecas: { elmo: ['urso'], armadura: ['Ranger'], capa: ['Ranger'] }, bonus: { cad: 14, crit: 8 } },
+  ladino: { nome: 'Sombra', ic: '🗡️', pecas: { elmo: ['lenco'], armadura: ['Rogue'], capa: ['Rogue', 'Rogue_Hooded'] }, bonus: { crit: 10, roubo: 4 } },
+};
+export function conjunto() {
+  const E = eq(), U = usando(); let m = null;
+  for (const [k, C] of Object.entries(CONJUNTOS)) { const n = Object.entries(C.pecas).filter(([sl, l]) => { const it = E.itens.find(x => x.id === U[sl]); return it && l.includes(it.vis); }).length; if (n >= 2 && (!m || n > m.n)) m = { k, n, ...C }; }
+  return m;
+}
 export function atributos() {
   const E = eq(), a = { dano: 0, cad: 0, vida: 0, def: 0, crit: 0, roubo: 0, recarga: 0, cura: 0 };
   for (const id of Object.values(usando())) { const it = E.itens.find(x => x.id === id); if (it) for (const k of Object.keys(it.st)) a[k] += valor(it, k); }
+  const cj = conjunto(); if (cj) for (const [k, v] of Object.entries(cj.bonus)) a[k] += v * (cj.n >= 3 ? 1 : 0.5);
   a.def = Math.min(60, a.def); a.crit = Math.min(60, a.crit); a.recarga = Math.min(60, a.recarga); return a;
 }
 export function poder() { const E = eq(); let p = 0; for (const id of Object.values(usando())) { const it = E.itens.find(x => x.id === id); if (it) p += poderItem(it); } return p; }
@@ -126,7 +140,7 @@ const custoUp = it => Math.round(80 * it.nv * (1 + it.r) * (1 + it.r * 0.5));
 const valorDesmontar = it => Math.round(20 * (1 + it.r) ** 2 * it.nv);
 
 // ---- tela da mochila ----
-export const itemHtml = (it, cls = '') => `<button class="eqItem r${it.r} ${cls} ${it.lenda ? 'lenda' : ''} ${serveNoHeroi(it) ? '' : 'naoServe'}" data-eq="ver" data-id="${it.id}" style="--r:${RARIDADES[it.r].cor}"><img src="${iconeItem(it)}" alt=""><em>${it.nv > 1 ? '+' + (it.nv - 1) : ''}</em>${it.lenda ? '<u>✨</u>' : ''}${it.slot === 'arma' ? `<s>${CLASSES[classeDaArma(it)].ic}</s>` : ''}</button>`;
+export const itemHtml = (it, cls = '') => `<button class="eqItem r${it.r} ${cls} ${it.lenda ? 'lenda' : ''} ${serveNoHeroi(it) ? '' : 'naoServe'}" data-eq="ver" data-id="${it.id}" style="--r:${RARIDADES[it.r].cor}"><img src="${iconeItem(it)}" alt=""><em>${it.nv > 1 ? '+' + (it.nv - 1) : ''}</em>${it.lenda ? '<u>✨</u>' : ''}${it.slot === 'arma' ? `<s>${CLASSES[classeDaArma(it)].ic}</s>` : ''}${comparar(it)}</button>`;
 const NOME_TIPO = { espada: 'Espadas', machado: 'Machados', martelo: 'Martelos', lanca: 'Lanças', arco: 'Arcos', cajado: 'Cajados', adaga: 'Adagas', foice: 'Foices' };
 // ícone = foto do modelo 3D do item (guardada)
 const fotos = new Map(), GIRO = { arma: [0.15, 0.35, -0.72], capa: [0.2, Math.PI + 0.5, 0] };
@@ -137,6 +151,14 @@ export function iconeItem(it, tam = 96) {
     if (kit) u = C.fotoPeca({ ...heroiAtual(S).visual, cab: '', tro: it.slot === 'armadura' ? vis : '', bra: '', per: '', cha: kit === 'cha' ? vis : '', mas: kit === 'mas' ? vis : '', capa: kit === 'capa' ? vis : '', cos: '', cores: {}, tinta: '', tintaCha: '', tintaCapa: '', [{ armadura: 'tinta', elmo: 'tintaCha', capa: 'tintaCapa' }[it.slot]]: it.r >= 1 ? RARIDADES[it.r].cor : '' }, kit, { tam, rot: it.slot === 'capa' ? [0.2, Math.PI + 0.35, 0] : [0.15, 0.45, 0] }) || '';
     if (!u) u = C.fotoObjeto(modeloItem(it), { tam, rot: GIRO[it.slot] || [0.3, 0.55, 0] }) || ''; } catch (e) {} if (u) fotos.set(k, u); return u;
 }
+// seta no item: melhor (verde) ou pior (vermelha) que o que está equipado no mesmo lugar
+function comparar(it) {
+  if (!serveNoHeroi(it) || emUso(it.id)) return ''; const E = eq(), cur = E.itens.find(x => x.id === usando()[it.slot]);
+  if (!cur) return '<b class="eqCmp mais">▲</b>'; const d = poderItem(it) - poderItem(cur); return d > 0 ? '<b class="eqCmp mais">▲</b>' : d < 0 ? '<b class="eqCmp menos">▼</b>' : '';
+}
+// ações em massa: equipar o melhor de cada lugar e desmontar os fracos (até Raro, sem lenda, piores que o equipado)
+function melhores() { const E = eq(); for (const sl of Object.keys(SLOTS)) { const m = E.itens.filter(x => x.slot === sl && serveNoHeroi(x)).sort((a, b) => poderItem(b) - poderItem(a))[0]; if (m) equipar(m); } }
+function fracos() { const E = eq(), U = usando(); return E.itens.filter(x => !emUso(x.id) && !x.lenda && x.r <= 2 && (() => { const cur = E.itens.find(y => y.id === U[x.slot]); return cur && poderItem(x) < poderItem(cur); })()); }
 const linhaSt = (it, k) => { const [n, u] = ST[k]; return `<span>${tr(n)} <b>+${fmt(Math.round(valor(it, k) * 10) / 10)}${u}</b></span>`; };
 export function mostrar(sel = null) {
   const p = $('#eqPainel'); if (p && !p.closest('[hidden]')) { p.innerHTML = painel(sel); return; } // na aba Herói: atualiza ali mesmo
@@ -163,7 +185,9 @@ export function painel(sel = null) {
       <p class="eqDica">${tr('Ganhe estrelas ⭐ na Árvore Sagrada e na Defesa em Grupo')}</p>`; })()}
     <h3>🔨 ${tr('Forja')} <small>${tr('baús com raridade garantida')}</small></h3>
     <div class="eqForja">${BAUS.map((B, i) => `<button class="eqBau" data-eq="bau" data-n="${i}" ${S.moedas < B.preco ? 'disabled' : ''} style="--r:${RARIDADES[B.min].cor}"><i>${B.ic}</i><b>${tr(B.nome)}</b><small>${tr(RARIDADES[B.min].nome)}+</small><em>🪙 ${fmt(B.preco)}</em></button>`).join('')}</div>
+    ${(() => { const cj = conjunto(); return cj ? `<p class="eqConj">${cj.ic} ${tr('Conjunto')} <b>${tr(cj.nome)}</b> ${cj.n}/3 · ${Object.entries(cj.bonus).map(([k, v]) => `${tr(ST[k][0])} +${fmt(v * (cj.n >= 3 ? 1 : 0.5))}${ST[k][1]}`).join(' · ')}${cj.n < 3 ? ` · <small>${tr('3 peças: bônus completo e brilho')}</small>` : ' ✨'}</p>` : `<p class="eqConj vazio">${tr('Vista elmo, armadura e capa da mesma linha para ganhar bônus de conjunto')}</p>`; })()}
     <h3>${tr('Mochila')} <small>${E.itens.length}/${MAX_MOCHILA}</small></h3>
+    <div class="eqMassa"><button class="btn azul peq" data-eq="melhores">⚡ ${tr('Equipar melhores')}</button>${(() => { const f = fracos(); return f.length ? `<button class="btn vermelho peq" data-eq="fracos">♻️ ${tr('Desmontar fracos')} (${f.length}) +${fmt(f.reduce((t, x) => t + valorDesmontar(x), 0))}</button>` : ''; })()}</div>
     <div class="eqMochila">${[...E.itens].sort((a, b) => serveNoHeroi(b) - serveNoHeroi(a) || b.r - a.r || poderItem(b) - poderItem(a)).map(x => itemHtml(x, `${emUsoAgora.has(x.id) ? 'usando' : ''} ${sel === x.id ? 'sel' : ''}`)).join('') || `<p>${tr('Vazia')}</p>`}</div>`;
 }
 // escolha da classe (no começo do jogo, ou trocar depois na aba Herói)
@@ -178,6 +202,8 @@ export function clique(b) {
   const a = b.dataset.eq, id = +b.dataset.id, E = eq(), it = E.itens.find(x => x.id === id);
   if (a === 'abrir') { som('abrir'); mostrar(); return true; }
   if (a === 'classes') { som('clique'); escolherClasse(); return true; }
+  if (a === 'melhores') { melhores(); salvar(); sfx('brilho'); mostrar(); return true; }
+  if (a === 'fracos') { const f = fracos(); for (const x of f) { S.moedas += valorDesmontar(x); E.itens.splice(E.itens.indexOf(x), 1); } salvar(); som('moedas'); mostrar(); return true; }
   if (a === 'classe') { const c = b.dataset.c; if (!CLASSES[c]) return true; S.classe = c; const h = BASE_CLASSE[c]; if (!S.herois.includes(h)) S.herois.push(h);
     if (CLASSE_HEROI[S.heroi] !== c) S.heroi = h; salvar(); sfx('vitoria'); $('#janela').hidden = true; return 'heroi'; }
   if (a === 'ver') { som('clique'); mostrar(id); return true; }

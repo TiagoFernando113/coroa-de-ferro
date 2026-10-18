@@ -163,7 +163,7 @@ export function abrir(container, sair, modo = 'caminho') {
   // equipamentos (arma, armadura, anel, amuleto)
   const G = EQ.atributos(); K.eqA = G; K.poderEq = EQ.poder(); K.rarEq = EQ.melhorRaridade();
   K.heroi.dano *= 1 + G.dano / 100; K.heroi.cad /= 1 + G.cad / 100; K.heroi.hp = K.heroi.hpMax = Math.round(K.heroi.hpMax + G.vida); if (modo === 'arvore') { K.heroi.x = ARV.x; K.heroi.z = ARV.z + 9; }
-  const ARM = EQ.armaEquipada(); K.arma = ARM ? { modelo: ARM.modelo, lenda: ARM.lenda, tipo: EQ.tipoGolpe(ARM.modelo), cor: ARM.lenda ? EQ.LENDAS[ARM.lenda].cor : null } : null; K.perto = EQ.armaDePerto(); // arma de perto: só acerta quem está do lado (e bate mais forte)
+  const ARM = EQ.armaEquipada(); K.arma = ARM ? { modelo: ARM.modelo, lenda: ARM.lenda, tipo: EQ.tipoGolpe(ARM.modelo), cor: ARM.lenda ? EQ.LENDAS[ARM.lenda].cor : ARM.r >= 4 ? [0, 0, 0, 0, 0xffc23a, 0xff4a5a][ARM.r] : null, r: ARM.r } : null; K.perto = EQ.armaDePerto(); // arma de perto: só acerta quem está do lado (e bate mais forte)
   K.visH = EQ.visualHeroi(H.visual, true); K.v = C.heroi(K.visH); K.v.raiz.scale.setScalar(0.8); K.H = H;
   if (K.arma) { const an = { corte: 'Melee_1H_Attack_Chop', martelo: 'Melee_2H_Attack_Chop', cajado: 'Ranged_Magic_Shoot', arco: 'Ranged_Bow_Release' }[K.arma.tipo]; K.animTiro = K.v.tem(an) ? an : K.v.tem('Melee_1H_Attack_Chop') && K.arma.tipo !== 'arco' ? 'Melee_1H_Attack_Chop' : null; }
   K.cena = modo === 'arvore' ? montarArvore() : montarCenario(); C.ceu(0x9ad8f8); C.neblina(90, 220); C.diaNoite(0); intensidade(1); A.comecou(modo === 'arvore' ? 'arvore' : 'defesa');
@@ -292,12 +292,12 @@ function golpear() {
   let a = null, dm = alc + 4; for (const u of K.mobs) { if (u.morto) continue; const d = Math.hypot(u.x - h.x, u.z - h.z); if (d < dm) { dm = d; a = u; } } // mira sozinho no mais perto
   if (a) { h.dir = Math.atan2(a.x - h.x, a.z - h.z); if (dm > alc - 1.5) { const p = Math.min(2.5, dm - alc + 1.5); h.x += Math.sin(h.dir) * p; h.z += Math.cos(h.dir) * p; limitar(h); } }
   const ma = K.arma?.tipo === 'martelo' && K.combo < 2 ? 'Melee_2H_Attack_Chop' : an; if (K.v.tem(ma)) { K.v.tocar(ma, { loop: false, reinicia: true, vel: 1.5 }); K.anim = 'golpe'; }
-  const cor = K.arma?.cor ?? h.cor; C.arco(h.x, h.z, h.dir, alc, Math.min(graus, 359), cor); if (K.combo === 2) C.onda(h.x, h.z, alc, cor, 0.3); sfx('espada');
+  const cor = K.arma?.cor ?? h.cor, forte = K.arma?.r >= 4; C.arco(h.x, h.z, h.dir, alc, Math.min(graus, 359), cor); if (forte) C.arco(h.x, h.z, h.dir, alc * 0.78, Math.min(graus, 359), 0xffffff); if (K.combo === 2) C.onda(h.x, h.z, alc, cor, 0.3); sfx('espada');
   const crit = Math.random() * 100 < K.eqA.crit, d = h.dano * mult * (1 + 0.25 * bnv('furia')) * (crit ? 2.2 : 1); let n = 0;
   for (const u of K.mobs) { if (u.morto) continue; const dx = u.x - h.x, dz = u.z - h.z, dd = Math.hypot(dx, dz); if (dd > alc + (u.tipo === 'gigante' || u.tipo === 'chefe' ? 1.5 : 0.5)) continue;
     if (graus < 360 && dd > 1.2) { let da = Math.atan2(dx, dz) - h.dir; da = Math.atan2(Math.sin(da), Math.cos(da)); if (Math.abs(da) > graus * Math.PI / 360) continue; }
     if (!K.host && u.v) K.txt.push({ x: u.x, y: u.y + u.alt + 1, z: u.z, txt: fmt(Math.round(d)), cor: crit ? '#ff9a1a' : '#fff', t: 0 });
-    danoEm(u, d); C.impacto(u.x, 1.2, u.z, crit ? 0xff9a1a : cor, 0.6); if (!n++ && K.arma?.lenda) efeitoLenda(K.arma.lenda, u, d); }
+    danoEm(u, d); C.impacto(u.x, 1.2, u.z, crit ? 0xff9a1a : cor, 0.6); if (forte) C.faiscas(u.x, 1.6, u.z, cor, 8, 5); if (!n++ && K.arma?.lenda) efeitoLenda(K.arma.lenda, u, d); }
   if (n) { C.camera.tremor = Math.max(C.camera.tremor, 0.12 + 0.12 * K.combo); if (K.eqA.roubo) h.hp = Math.min(h.hpMax, h.hp + d * n * K.eqA.roubo / 100); if (crit) K.txt.push({ x: h.x, y: 4.5, z: h.z, txt: tr('CRÍTICO!'), cor: '#ff9a1a', t: 0 }); }
   K.canal?.enviar('gp', { p: K.eu, c: K.combo, x: Math.round(h.x * 10) / 10, z: Math.round(h.z * 10) / 10, r: Math.round(h.dir * 100) / 100, k: cor });
 }
@@ -485,10 +485,10 @@ function heroiAtira(dt) {
   let d = h.dano * (1 + 0.25 * bnv('furia')) * (crit ? 2.2 : 1), lenda = K.arma?.lenda;
   if (lenda === 'celeste') { K.serie = performance.now() - (K.serieT || 0) < 2000 ? Math.min(10, (K.serie || 0) + 1) : 1; K.serieT = performance.now(); d *= 1 + 0.05 * K.serie; }
   if (lenda === 'sombra' && Math.random() < 0.15) { d *= 3; K.txt.push({ x: h.x, y: 5, z: h.z, txt: tr('TRIPLO!'), cor: '#c89aff', t: 0 }); }
-  if (K.perto) { const cor = crit ? 0xff9a1a : K.arma.cor ?? 0xffffff; C.arco(h.x, h.z, h.alvoDir, ALC_PERTO, 150, cor); acertar({ dano: d * 1.6, cor, op: { area: K.arma.tipo === 'martelo' ? 2 : 1.3, pid: K.eu, lenda } }, a);
+  if (K.perto) { const cor = crit ? 0xff9a1a : K.arma.cor ?? 0xffffff; C.arco(h.x, h.z, h.alvoDir, ALC_PERTO, 150, cor); if (K.arma.r >= 4) C.arco(h.x, h.z, h.alvoDir, ALC_PERTO * 0.78, 150, 0xffffff); acertar({ dano: d * 1.6, cor, op: { area: K.arma.tipo === 'martelo' ? 2 : 1.3, pid: K.eu, lenda, brilho: K.arma.r >= 4 } }, a);
     K.canal?.enviar('gp', { p: K.eu, c: 0, x: Math.round(h.x * 10) / 10, z: Math.round(h.z * 10) / 10, r: Math.round(h.alvoDir * 100) / 100, k: cor }); return; }
   const forma = K.arma ? { corte: 'corte', martelo: 'orbe', cajado: 'orbe', arco: 'flecha' }[K.arma.tipo] : h.forma;
-  disparo(h.x, h.z, a, crit ? 0xff9a1a : K.arma?.cor ?? h.cor, d, { area: h.area + (K.arma?.tipo === 'martelo' ? 1.5 : 0), perf: h.perf, pid: K.eu, forma, grande: true, lenda });
+  disparo(h.x, h.z, a, crit ? 0xff9a1a : K.arma?.cor ?? h.cor, d, { area: h.area + (K.arma?.tipo === 'martelo' ? 1.5 : 0), perf: h.perf, pid: K.eu, forma, grande: true, lenda, brilho: K.arma?.r >= 4 });
 }
 function torresAtiram(dt) {
   if (K.estado === 'fim') return; const mult = 1.1 ** Math.max(0, K.onda - 1);
@@ -527,7 +527,7 @@ function acertar(s, a) { // o dano conta no anfitrião; o cliente mostra na hora
   if (pid === K.eu && op.lenda) efeitoLenda(op.lenda, a, s.dano);
   for (const u of alvos) { const d = u === a ? s.dano : s.dano * 0.6; if (op.lento) u.lentoT = op.lento;
     if (K.host) ferir(u, d, pid === 'torre' ? K.eu : pid); else { u.hp -= d; u.flash = 0.12; K.danos.push([u.id, Math.round(d * 10) / 10]); if (u.v) K.txt.push({ x: u.x, y: u.y + u.alt + 1, z: u.z, txt: fmt(Math.round(d)), cor: '#fff', t: 0 }); } }
-  C.impacto(a.x, a.y + a.alt * 0.5, a.z, s.cor, op.area ? 1 : 0.5);
+  C.impacto(a.x, a.y + a.alt * 0.5, a.z, s.cor, op.area ? 1 : 0.5); if (op.brilho) C.faiscas(a.x, a.y + a.alt * 0.6, a.z, s.cor, 8, 5); // armas Lendárias e Míticas soltam faíscas
 }
 // ---- efeitos das armas únicas (só o dono calcula; o dano vai para o anfitrião como os outros) ----
 function danoEm(u, d) { if (u.morto) return; if (K.host) ferir(u, d, K.eu); else { u.hp -= d; u.flash = 0.12; K.danos.push([u.id, Math.round(d * 10) / 10]); } }
