@@ -594,7 +594,7 @@ export function heroi(v) {
     const arco = /bow/.test(nv.arma || '') || (nv.arma?.startsWith('P:') && tipoDe(nv.arma.slice(2)) === 'arco'); // o arco vai na mão esquerda (as animações de arco puxam a corda com a direita)
     for (const [id, lado] of arco ? [[nv.arma, 'l']] : [[nv.arma, 'r'], [nv.esq, 'l']]) {
       if (!id) continue;
-      if (id.startsWith('P:')) { const a = armaPixel(id.slice(2)); if (arco) { a.rotation.set(Math.PI / 2, Math.PI, 0); a.scale.setScalar(1.4); } /* arco deitado como os do KayKit */ const osso = ossos[H.nomes.indexOf('handslot' + lado)]; if (osso) { osso.add(a); armas.push(a); } continue; } // arma pixel (geometria compartilhada)
+      if (id.startsWith('P:')) { const a = armaPixel(id.slice(2)); if (arco) a.rotation.set(Math.PI / 2, Math.PI, 0); /* arco deitado como os do KayKit */ const osso = ossos[H.nomes.indexOf('handslot' + lado)]; if (osso) { osso.add(a); armas.push(a); } continue; } // arma pixel (geometria compartilhada)
       const src = pecas[id.replace(':', '')]; if (!src) continue;
       const a = clonar(src); a.traverse(o => { if (o.isMesh) { o.castShadow = true; o.material = o.material.clone(); mats.push(o.material); } });
       const r = ROT_ARMA[id]; if (r) a.rotation.set(r[0], r[1], r[2]);

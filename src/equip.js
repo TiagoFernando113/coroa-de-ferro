@@ -99,13 +99,13 @@ const custoUp = it => Math.round(80 * it.nv * (1 + it.r) * (1 + it.r * 0.5));
 const valorDesmontar = it => Math.round(20 * (1 + it.r) ** 2 * it.nv);
 
 // ---- tela da mochila ----
-export const itemHtml = (it, cls = '') => `<button class="eqItem r${it.r} ${cls} ${it.lenda ? 'lenda' : ''}" data-eq="ver" data-id="${it.id}" style="--r:${RARIDADES[it.r].cor}"><img class="${it.slot === 'arma' ? 'pxArma' : ''}" src="${iconeItem(it, it.slot === 'arma' ? 2 : 3)}" alt=""><em>${it.nv > 1 ? '+' + (it.nv - 1) : ''}</em>${it.lenda ? '<u>✨</u>' : ''}</button>`;
+export const itemHtml = (it, cls = '') => `<button class="eqItem r${it.r} ${cls} ${it.lenda ? 'lenda' : ''}" data-eq="ver" data-id="${it.id}" style="--r:${RARIDADES[it.r].cor}"><img class="${it.slot === 'arma' ? 'pxArma' : ''}" src="${iconeItem(it, 1)}" alt=""><em>${it.nv > 1 ? '+' + (it.nv - 1) : ''}</em>${it.lenda ? '<u>✨</u>' : ''}</button>`;
 const linhaSt = (it, k) => { const [n, u] = ST[k]; return `<span>${tr(n)} <b>+${fmt(Math.round(valor(it, k) * 10) / 10)}${u}</b></span>`; };
 export function mostrar(sel = null) {
   const E = eq(), j = $('#janela'); j.hidden = false; const usando = new Set(Object.values(E.usando)), A = atributos();
   const it = sel != null && E.itens.find(x => x.id === sel);
   const det = it ? (() => { const R = RARIDADES[it.r], eq1 = usando.has(it.id), c = custoUp(it);
-    return `<div class="eqDet" style="--r:${R.cor}"><div class="eqDetT"><img class="eqPx ${it.slot === 'arma' ? 'pxArma' : ''}" src="${iconeItem(it, it.slot === 'arma' ? 3 : 4)}" alt=""><span><b>${it.nome}${it.nv > 1 ? ` +${it.nv - 1}` : ''}</b><small>${tr(R.nome)} · ${tr(SLOTS[it.slot].nome)} · ${tr('Poder')} ${fmt(poderItem(it))}</small></span></div>
+    return `<div class="eqDet" style="--r:${R.cor}"><div class="eqDetT"><img class="eqPx ${it.slot === 'arma' ? 'pxArma' : ''}" src="${iconeItem(it, 2)}" alt=""><span><b>${it.nome}${it.nv > 1 ? ` +${it.nv - 1}` : ''}</b><small>${tr(R.nome)} · ${tr(SLOTS[it.slot].nome)} · ${tr('Poder')} ${fmt(poderItem(it))}</small></span></div>
       <div class="eqSt">${Object.keys(it.st).map(k => linhaSt(it, k)).join('')}</div>${it.lenda ? `<p class="eqLenda">✨ ${tr(LENDAS[it.lenda].desc)}</p>` : ''}
       <div class="eqBts">${eq1 ? `<button class="btn cinza peq" disabled>${tr('Equipado')}</button>` : `<button class="btn verde peq" data-eq="usar" data-id="${it.id}">${tr('Equipar')}</button>`}
         ${it.nv < MAX_NV ? `<button class="btn amarelo peq" data-eq="up" data-id="${it.id}" ${S.moedas < c ? 'disabled' : ''}>⬆️ ${fmt(c)}</button>` : `<small>MAX</small>`}
@@ -117,7 +117,7 @@ export function mostrar(sel = null) {
     <div class="eqTot">${Object.entries(A).filter(([, v]) => v).map(([k, v]) => `<span>${tr(ST[k][0])} +${fmt(Math.round(v * 10) / 10)}${ST[k][1]}</span>`).join('') || `<span>${tr('Jogue a Árvore Sagrada para ganhar equipamentos!')}</span>`}</div>
     ${det}${(() => { const dk = destaque(), L = LENDAS[dk], est = estrelas(), gratis = E.dia !== hoje(), cus = n => est >= n ? `⭐ ${n}` : `🪙 ${fmt(PRECO_DESEJO * n * (n >= 10 ? 0.9 : 1))}`, pode = n => est >= n || S.moedas >= PRECO_DESEJO * n * (n >= 10 ? 0.9 : 1);
       return `<h3>🌠 ${tr('Desejos')} <small>⭐ ${fmt(est)}${fimDeSemana() ? ` · ${tr('fim de semana: estrelas em dobro!')}` : ''}</small></h3>
-      <div class="dsBanner" style="--r:${RARIDADES[5].cor}"><img src="${iconePixel(L.modelo.slice(2), 3)}" alt=""><div><small>${tr('Lenda da semana')}</small><b>${L.nome}</b><small>${tr(L.desc)}</small><small class="dsPity">${tr('Mítico garantido em')} <b>${PITY - (E.pity || 0)}</b> · ${tr('Lendário+ a cada 10')}</small></div></div>
+      <div class="dsBanner" style="--r:${RARIDADES[5].cor}"><img src="${iconePixel(L.modelo.slice(2), 2)}" alt=""><div><small>${tr('Lenda da semana')}</small><b>${L.nome}</b><small>${tr(L.desc)}</small><small class="dsPity">${tr('Mítico garantido em')} <b>${PITY - (E.pity || 0)}</b> · ${tr('Lendário+ a cada 10')}</small></div></div>
       <div class="dsBts">${gratis ? `<button class="btn verde" data-eq="dj" data-n="0">🎁 ${tr('Grátis hoje')}</button>` : ''}<button class="btn azul" data-eq="dj" data-n="1" ${pode(1) ? '' : 'disabled'}>1x · ${cus(1)}</button><button class="btn roxo" data-eq="dj" data-n="10" ${pode(10) ? '' : 'disabled'}>10x · ${cus(10)}</button></div>
       <p class="eqDica">${tr('Ganhe estrelas ⭐ na Árvore Sagrada e na Defesa em Grupo')}</p>`; })()}
     <h3>🔨 ${tr('Forja')} <small>${tr('baús com raridade garantida')}</small></h3>
