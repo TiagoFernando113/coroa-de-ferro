@@ -59,23 +59,45 @@ function montarOnda(n) {
 const GEO_TIRO = new THREE.SphereGeometry(0.35, 8, 6), GEO_ORBE = new THREE.IcosahedronGeometry(0.35, 1), matT = {}, matTiro = c => matT[c] ||= new THREE.MeshBasicMaterial({ color: c });
 let K = null, el = null, aoSair = null;
 
-// ---- cenário ----
+// ---- cenário: chão com manchas, caminho de pedra, cercas, lanternas, flores, acampamento orc e castelo ----
+function longeDoCaminho(x, z, m) { return SEGS.every(q => { const minx = Math.min(q.ax, q.bx) - m, maxx = Math.max(q.ax, q.bx) + m, minz = Math.min(q.az, q.bz) - m, maxz = Math.max(q.az, q.bz) + m; return !(x > minx && x < maxx && z > minz && z < maxz); }); }
+const longeDosPads = (x, z, m) => PADS.every(([px, pz]) => Math.hypot(x - px, z - pz) > m);
 function montarCenario() {
-  const g = [], cor = new THREE.Color(), add = (geo, c) => { const n = geo.attributes.position.count, a = new Float32Array(n * 3); cor.set(c); for (let i = 0; i < n; i++) a.set([cor.r, cor.g, cor.b], i * 3); geo.setAttribute('color', new THREE.BufferAttribute(a, 3)); geo.deleteAttribute('uv'); g.push(geo); };
-  add(new THREE.BoxGeometry(110, 4, 110).translate(OX, -2, -10), 0x7cc24a);
-  for (const q of SEGS) { const cx = (q.ax + q.bx) / 2, cz = (q.az + q.bz) / 2, w = Math.abs(q.bx - q.ax) + 6, d = Math.abs(q.bz - q.az) + 6; add(new THREE.BoxGeometry(w, 0.2, d).translate(OX + cx, 0.05, cz), 0xd8b47a); }
-  for (const [x, z] of PADS) add(new THREE.CylinderGeometry(2.6, 2.8, 0.3, 16).translate(OX + x, 0.12, z), 0x9a8a76);
+  let sd = 11; const r = () => ((sd = (sd * 16807) % 2147483647) / 2147483647), cor = new THREE.Color();
+  // chão: grama em tons diferentes (manchas) e terra embaixo
+  const pl = new THREE.PlaneGeometry(130, 130, 52, 52).rotateX(-Math.PI / 2).translate(OX, 0, -10), pos = pl.attributes.position, cs = new Float32Array(pos.count * 3);
+  for (let i = 0; i < pos.count; i++) { const x = pos.getX(i) - OX, z = pos.getZ(i), n = Math.sin(x * 0.13) * Math.cos(z * 0.11) + Math.sin(x * 0.31 + z * 0.27) * 0.5;
+    cor.setHSL(0.27 + n * 0.02, 0.55, 0.42 + n * 0.05 + r() * 0.03); cs.set([cor.r, cor.g, cor.b], i * 3); }
+  pl.setAttribute('color', new THREE.BufferAttribute(cs, 3)); pl.deleteAttribute('uv');
+  const g = [pl], add = (geo, c) => { const n = geo.attributes.position.count, a = new Float32Array(n * 3); cor.set(c); for (let i = 0; i < n; i++) a.set([cor.r, cor.g, cor.b], i * 3); geo.setAttribute('color', new THREE.BufferAttribute(a, 3)); geo.deleteAttribute('uv'); g.push(geo); };
+  add(new THREE.BoxGeometry(130, 6, 130).translate(OX, -3.05, -10), 0x8a6a48);
+  for (const [x, z] of PADS) { add(new THREE.CylinderGeometry(2.7, 3, 0.35, 20).translate(OX + x, 0.15, z), 0x9a8a76); add(new THREE.CylinderGeometry(2.2, 2.2, 0.38, 20).translate(OX + x, 0.17, z), 0xb8a888); }
+  add(new THREE.CylinderGeometry(5, 5, 0.1, 24).translate(OX - 36, 0.03, 16), 0x3aa8e0); // laguinho
   const chao = new THREE.Mesh(mergeGeometries(g), new THREE.MeshLambertMaterial({ vertexColors: true })); chao.receiveShadow = true;
   const grupo = new THREE.Group(); grupo.add(chao); cn().add(grupo);
-  // árvores na borda, portal de onde vêm os inimigos e o castelo que defendemos
-  let sd = 11; const r = () => ((sd = (sd * 16807) % 2147483647) / 2147483647), pecas = [], arv = ['N:tree_pineRoundB', 'N:tree_oak', 'N:tree_default', 'N:tree_pineTallA', 'N:tree_fat'];
-  for (let i = 0; i < 140; i++) { const a = r() * 6.283, d = 50 + r() * 12, x = Math.cos(a) * d, z = -10 + Math.sin(a) * d; pecas.push({ m: arv[Math.floor(r() * arv.length)], x: OX + x, z, s: 3 + r() * 2, ry: r() * 6 }); }
-  for (let i = 0; i < 18; i++) pecas.push({ m: r() < 0.5 ? 'N:plant_bush' : 'N:rock_largeA', x: OX - 40 + r() * 80, z: -52 + r() * 80, s: 1.6 + r() * 1.5, ry: r() * 6 });
-  const filtrar = p => PADS.every(([x, z]) => Math.hypot(p.x - OX - x, p.z - z) > 5) && SEGS.every(q => { const minx = Math.min(q.ax, q.bx) - 5, maxx = Math.max(q.ax, q.bx) + 5, minz = Math.min(q.az, q.bz) - 5, maxz = Math.max(q.az, q.bz) + 5; return !(p.x - OX > minx && p.x - OX < maxx && p.z > minz && p.z < maxz); });
-  const ok = pecas.filter(filtrar);
-  ok.push({ m: 'C:tower-square', x: OX, z: 33, s: 5 }, { m: 'C:tower-square', x: OX - 5, z: 34, s: 3.5 }, { m: 'C:tower-square', x: OX + 5, z: 34, s: 3.5 }, { m: 'C:flag', x: OX, y: 10.5, z: 33, s: 3.5 },
-    { m: 'C:gate', x: OX - 46, z: -48, s: 4, ry: Math.PI / 2 });
-  return [grupo, C.montarEstatico(ok)];
+  // caminho de pedras (o mesmo zigue-zague dos inimigos, com as curvas)
+  const pts = []; for (let k = 0; k < CAM.length; k++) { const [x, z] = CAM[k]; if (k && k < CAM.length - 1) { const [ax, az] = CAM[k - 1], [bx, bz] = CAM[k + 1], la = Math.hypot(x - ax, z - az), lb = Math.hypot(bx - x, bz - z);
+      pts.push({ x: OX + x - (x - ax) / la * 1.2, z: z - (z - az) / la * 1.2 }, { x: OX + x, z }, { x: OX + x + (bx - x) / lb * 1.2, z: z + (bz - z) / lb * 1.2 }); } else pts.push({ x: OX + x, z }); }
+  const estrada = C.estrada(pts, 6.4); grupo.add(estrada.grupo);
+  const pecas = [], arv = ['F:Tree_1_A_Color1', 'F:Tree_2_A_Color1', 'F:Tree_3_A_Color1', 'F:Tree_4_A_Color1', 'F:Tree_2_C_Color1', 'N:tree_pineTallA', 'N:tree_oak'];
+  const enfeites = ['Q:Grass_Common_Tall', 'Q:Grass_Wispy_Tall', 'Q:Flower_3_Group', 'Q:Flower_4_Group', 'Q:Clover_1', 'Q:Fern_1', 'N:mushroom_redGroup', 'F:Bush_1_A_Color1', 'F:Bush_2_C_Color1', 'Q:Rock_Medium_1', 'Q:Rock_Medium_2', 'Q:Pebble_Round_2', 'N:stump_round', 'N:log'];
+  for (let i = 0; i < 170; i++) { const a = r() * 6.283, d = 54 + r() * 12; pecas.push({ m: arv[Math.floor(r() * arv.length)], x: OX + Math.cos(a) * d, z: -10 + Math.sin(a) * d, s: 2.4 + r() * 1.6, ry: r() * 6 }); }
+  for (let i = 0; i < 260; i++) { const x = -50 + r() * 100, z = -60 + r() * 92; if (!longeDoCaminho(x, z, 4.2) || !longeDosPads(x, z, 4) || Math.hypot(x, z - 33) < 12 || Math.hypot(x + 36, z - 16) < 6) continue;
+    const m = enfeites[Math.floor(r() * enfeites.length)]; pecas.push({ m, x: OX + x, z, s: m.includes('Rock') || m.includes('Pebble') ? 0.5 + r() * 0.5 : m.startsWith('Q:') ? 0.8 + r() * 0.6 : m.startsWith('F:') ? 1.2 + r() * 0.8 : 1.6 + r(), ry: r() * 6 }); }
+  for (let i = 0; i < 8; i++) { const x = -50 + r() * 100, z = -60 + r() * 90; if (longeDoCaminho(x, z, 6) && longeDosPads(x, z, 6) && Math.hypot(x, z - 33) > 14) pecas.push({ m: arv[Math.floor(r() * arv.length)], x: OX + x, z, s: 2.2 + r(), ry: r() * 6 }); }
+  // cerca nas bordas de fora do caminho e lanternas nas curvas
+  for (const q of SEGS) { const n = Math.floor(q.len / 3.2), dx = (q.bx - q.ax) / q.len, dz = (q.bz - q.az) / q.len, ry = Math.atan2(dx, dz) + Math.PI / 2;
+    for (const lado of [-1, 1]) for (let k = 1; k < n; k++) { if (r() < 0.45) continue; const x = q.ax + dx * k * 3.2 - dz * lado * 4.3, z = q.az + dz * k * 3.2 + dx * lado * 4.3; if (longeDoCaminho(x, z, 3.6) && longeDosPads(x, z, 3.6)) pecas.push({ m: 'N:fence_simple', x: OX + x, z, s: 2.2, ry }); } }
+  for (let k = 1; k < CAM.length - 1; k++) { const [x, z] = CAM[k]; pecas.push({ m: 'T:lantern', x: OX + x + (x > 0 ? 4.5 : -4.5), z: z + 4.5, s: 2.2 }); }
+  // acampamento dos orcs (de onde eles saem)
+  pecas.push({ m: 'C:gate', x: OX - 47, z: -48, s: 4.2, ry: Math.PI / 2 }, { m: 'N:tent_detailedOpen', x: OX - 50, z: -40, s: 3.4, ry: 1 }, { m: 'N:tent_detailedOpen', x: OX - 52, z: -56, s: 3.4, ry: 2.4 },
+    { m: 'N:campfire_logs', x: OX - 42, z: -40, s: 2.6 }, { m: 'C:flag-banner-long', x: OX - 46, z: -43, s: 3 }, { m: 'C:flag-banner-long', x: OX - 46, z: -53, s: 3 }, { m: 'N:log_stack', x: OX - 40, z: -56, s: 2.4 });
+  // castelo que defendemos
+  pecas.push({ m: 'C:tower-square-base', x: OX - 7, z: 35, s: 3.2 }, { m: 'C:tower-square-mid-windows', x: OX - 7, y: 3.2, z: 35, s: 3.2 }, { m: 'C:tower-square-top-roof-high', x: OX - 7, y: 6.4, z: 35, s: 3.2 },
+    { m: 'C:tower-square-base', x: OX + 7, z: 35, s: 3.2 }, { m: 'C:tower-square-mid-windows', x: OX + 7, y: 3.2, z: 35, s: 3.2 }, { m: 'C:tower-square-top-roof-high', x: OX + 7, y: 6.4, z: 35, s: 3.2 },
+    { m: 'C:gate', x: OX, z: 35, s: 3.4 }, { m: 'C:wall', x: OX - 13, z: 35, s: 3.2 }, { m: 'C:wall', x: OX + 13, z: 35, s: 3.2 }, { m: 'C:flag', x: OX - 7, y: 12.5, z: 35, s: 2.6 }, { m: 'C:flag', x: OX + 7, y: 12.5, z: 35, s: 2.6 },
+    { m: 'N:lily_large', x: OX - 35, z: 15, s: 2 }, { m: 'N:lily_large', x: OX - 38, z: 17, s: 1.6 }, { m: 'T:banner-red', x: OX - 3.5, z: 31, s: 2.4 }, { m: 'T:banner-red', x: OX + 3.5, z: 31, s: 2.4 });
+  return [grupo, C.montarEstatico(pecas)];
 }
 
 // ---- abrir / fechar ----
@@ -216,7 +238,12 @@ function atualizarHud() {
   const e = $('#dfEspera'); if (e) { const v = K.estado === 'pausa' && K.pronto; e.hidden = !v; if (v) { const t = `${tr(K.onda ? 'Próxima onda em' : 'Começa em')} ${Math.ceil(Math.max(0, K.pausaT))}s`; if (e.dataset.t !== t) { e.dataset.t = t; e.innerHTML = `${t} <button class="btn verde peq" data-df="pular">${tr('Já!')}</button>`; } } }
   acoes();
 }
-function padPerto() { const h = K.heroi; let m = null, dm = 5.5; PADS.forEach(([x, z], i) => { const d = Math.hypot(OX + x - h.x, z - h.z); if (d < dm) { dm = d; m = i; } }); return m; }
+function tocarMapa(sx, sy) { // tocou num lugar de torre: escolhe ele (se o herói não estiver longe demais)
+  let m = null, dm = 48; PADS.forEach(([x, z], i) => { const p = C.tela(OX + x, 0.5, z); if (!p) return; const d = Math.hypot(p[0] - sx, p[1] - sy); if (d < dm) { dm = d; m = i; } });
+  if (m == null) return; const [x, z] = PADS[m]; if (Math.hypot(OX + x - K.heroi.x, z - K.heroi.z) > 22) { som('erro'); toast(tr('Chegue mais perto desse lugar')); return; }
+  K.padSel = m; K.menu = !K.torres.has(m); K.sigAcoes = null; som('clique'); acoes();
+}
+function padPerto() { const h = K.heroi; if (K.padSel != null) { const [x, z] = PADS[K.padSel]; if (Math.hypot(OX + x - h.x, z - h.z) < 22) return K.padSel; K.padSel = null; } let m = null, dm = 5.5; PADS.forEach(([x, z], i) => { const d = Math.hypot(OX + x - h.x, z - h.z); if (d < dm) { dm = d; m = i; } }); return m; }
 function acoes() { // botão grande do lado direito: construir ou melhorar a torre do lugar onde o herói está
   const a = $('#dfAcoes'); if (!a) return; const pad = K.estado === 'fim' ? null : padPerto(), t = pad != null && K.torres.get(pad), eu = K.cofre;
   const sig = `${pad}|${t ? t.tipo + t.nv : ''}|${K.menu ? 1 : 0}|${Math.floor(eu / 10)}`; if (sig === K.sigAcoes) return; K.sigAcoes = sig;
@@ -227,12 +254,13 @@ function acoes() { // botão grande do lado direito: construir ou melhorar a tor
   a.innerHTML = `<div class="dfMenu">${Object.entries(TORRES).map(([k, T]) => `<button class="dfOp" data-df="torre" data-t="${k}" data-pad="${pad}" ${eu < T.custo ? 'disabled' : ''}><b>${tr(T.nome)}</b><small>${tr(T.desc)}</small><em>${ico('ouro')}${T.custo}</em></button>`).join('')}
     <button class="btn cinza peq" data-df="fecharMenu">${ico('fechar')}</button></div>`;
 }
-export function clique(b) {
-  if (!K) return; const a = b.dataset.df;
+export function clique(b, toque) {
+  if (!K) return; if (!toque && K.pd?.b === b && performance.now() - K.pd.t < 800) return; // já tratado no toque
+  const a = b.dataset.df;
   if (a === 'sair') { som('fechar'); if (K.estado !== 'fim' && K.onda > 1) acabar({ saiu: true }); else aoSair(); return; }
   if (a === 'menu') { K.menu = true; K.sigAcoes = null; som('clique'); acoes(); return; }
-  if (a === 'fecharMenu') { K.menu = false; K.sigAcoes = null; som('fechar'); acoes(); return; }
-  if (a === 'torre') { const pad = +b.dataset.pad, t = b.dataset.t; K.menu = false; K.sigAcoes = null;
+  if (a === 'fecharMenu') { K.menu = false; K.padSel = null; K.sigAcoes = null; som('fechar'); acoes(); return; }
+  if (a === 'torre') { const pad = +b.dataset.pad, t = b.dataset.t; K.menu = false; K.sigAcoes = null; K.padSel = null;
     if (K.host) { if (!construir(pad, t, K.eu)) som('erro'); } else { if (K.cofre < TORRES[t].custo) { som('erro'); return; } K.canal?.enviar('b', { p: K.eu, pad, t }); som('confirma'); }
     atualizarHud(); return; }
   if (a === 'up') { const pad = +b.dataset.pad; if (K.host) { if (!melhorar(pad, K.eu)) som('erro'); } else { K.canal?.enviar('u', { p: K.eu, pad }); som('confirma'); } K.sigAcoes = null; atualizarHud(); return; }
@@ -244,14 +272,15 @@ export function clique(b) {
 
 // ---- toque: joystick à esquerda, câmera à direita (e WASD no computador) ----
 let toqueEl = null; const teclas = new Set();
-const dn = e => { if (!K) return; if (e.clientX < innerWidth * 0.5 && !K.joy) { K.joy = { id: e.pointerId, x0: e.clientX, y0: e.clientY, dx: 0, dy: 0 }; const j = $('#dfJoy'); j.hidden = false; j.style.left = e.clientX + 'px'; j.style.top = e.clientY + 'px'; $('#dfDica')?.remove(); }
+const dn = e => { if (!K) return; K.tq = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now() }; if (e.clientX < innerWidth * 0.5 && !K.joy) { K.joy = { id: e.pointerId, x0: e.clientX, y0: e.clientY, dx: 0, dy: 0 }; const j = $('#dfJoy'); j.hidden = false; j.style.left = e.clientX + 'px'; j.style.top = e.clientY + 'px'; $('#dfDica')?.remove(); }
   else if (!K.cam) K.cam = { id: e.pointerId, x: e.clientX }; try { toqueEl.setPointerCapture(e.pointerId); } catch (er) {} };
 const mv = e => { if (!K) return; if (K.joy?.id === e.pointerId) { let dx = e.clientX - K.joy.x0, dy = e.clientY - K.joy.y0; const d = Math.hypot(dx, dy), m = 55; if (d > m) { dx *= m / d; dy *= m / d; } K.joy.dx = dx / m; K.joy.dy = dy / m; const k = document.querySelector('#dfJoy i'); if (k) k.style.transform = `translate(${dx}px,${dy}px)`; }
   else if (K.cam?.id === e.pointerId) { K.yaw -= (e.clientX - K.cam.x) * 0.008; K.cam.x = e.clientX; } };
-const up = e => { if (!K) return; if (K.joy?.id === e.pointerId) { K.joy = null; const j = $('#dfJoy'); if (j) j.hidden = true; const k = document.querySelector('#dfJoy i'); if (k) k.style.transform = ''; } if (K.cam?.id === e.pointerId) K.cam = null; };
+const up = e => { if (!K) return; const q = K.tq; if (q?.id === e.pointerId && Math.hypot(e.clientX - q.x, e.clientY - q.y) < 10 && performance.now() - q.t < 350) tocarMapa(e.clientX, e.clientY); if (K.joy?.id === e.pointerId) { K.joy = null; const j = $('#dfJoy'); if (j) j.hidden = true; const k = document.querySelector('#dfJoy i'); if (k) k.style.transform = ''; } if (K.cam?.id === e.pointerId) K.cam = null; };
 const kd = e => { if (/^(KeyW|KeyA|KeyS|KeyD|Arrow\w+|KeyQ|KeyE)$/.test(e.code)) teclas.add(e.code); }, ku = e => teclas.delete(e.code);
-function ligarToque() { toqueEl = $('#toque'); for (const [ev, f] of [['pointerdown', dn], ['pointermove', mv], ['pointerup', up], ['pointercancel', up]]) toqueEl.addEventListener(ev, f); addEventListener('keydown', kd); addEventListener('keyup', ku); }
-function desligarToque() { if (toqueEl) for (const [ev, f] of [['pointerdown', dn], ['pointermove', mv], ['pointerup', up], ['pointercancel', up]]) toqueEl.removeEventListener(ev, f); toqueEl = null; removeEventListener('keydown', kd); removeEventListener('keyup', ku); teclas.clear(); }
+function apertou(e) { const b = e.target.closest?.('[data-df]'); if (!b || b.disabled || !K) return; e.preventDefault(); K.pd = { b, t: performance.now() }; clique(b, true); }
+function ligarToque() { el.addEventListener('pointerdown', apertou); toqueEl = $('#toque'); for (const [ev, f] of [['pointerdown', dn], ['pointermove', mv], ['pointerup', up], ['pointercancel', up]]) toqueEl.addEventListener(ev, f); addEventListener('keydown', kd); addEventListener('keyup', ku); }
+function desligarToque() { el?.removeEventListener('pointerdown', apertou); if (toqueEl) for (const [ev, f] of [['pointerdown', dn], ['pointermove', mv], ['pointerup', up], ['pointercancel', up]]) toqueEl.removeEventListener(ev, f); toqueEl = null; removeEventListener('keydown', kd); removeEventListener('keyup', ku); teclas.clear(); }
 
 // ---- laço ----
 export function passo(dt) {
@@ -347,7 +376,7 @@ function acabar(p) {
       <button class="btn verde grande" data-df="denovo">${tr('Jogar de novo')}</button><button class="btn azul" data-df="menuFim">${ico('guilda')} Menu</button></div>`;
     if (novo) flashTela('#ffe27a', 0.45); setTimeout(() => voarMoedas('#dfJanela .ganho', 8), 120); }, p.saiu ? 100 : 1400);
 }
-export function vista() { const h = K?.heroi || { x: OX, z: 0 }; return { foco: { x: h.x - Math.sin(K?.yaw ?? Math.PI) * -4, z: h.z - Math.cos(K?.yaw ?? Math.PI) * -4 }, yaw: K?.yaw ?? Math.PI, pitch: 0.9, dist: 56 }; }
+export function vista() { const h = K?.heroi || { x: OX, z: 0 }, y = K?.yaw ?? Math.PI; return { foco: { x: h.x + Math.sin(y) * 10, z: h.z + Math.cos(y) * 10 }, yaw: y, pitch: 0.58, dist: 38 }; }
 export function desenharFx(g, dt) {
   if (!K) return; g.textAlign = 'center'; g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,.65)';
   for (const u of K.mobs) { if (u.morto || (!u.v && u.hp >= u.max)) continue; const p = C.tela(u.x, u.y + u.alt + 0.6, u.z); if (!p) continue; const w = u.tipo === 'chefe' ? 80 : u.v ? 40 : 22;
@@ -356,7 +385,7 @@ export function desenharFx(g, dt) {
   { const p = C.tela(K.heroi.x, 3.2, K.heroi.z); if (p && K.jogs.size) { g.font = '13px Titulo, sans-serif'; g.strokeText(K.nome, p[0], p[1]); g.fillStyle = '#ffd84a'; g.fillText(K.nome, p[0], p[1]); } }
   // lugares de torre livres (perto do herói mostram o +)
   PADS.forEach(([x, z], i) => { if (K.torres.has(i)) { const t = K.torres.get(i), p = C.tela(t.x, 9, t.z); if (p) { g.font = '12px Titulo, sans-serif'; const s = '★'.repeat(t.nv); g.strokeText(s, p[0], p[1]); g.fillStyle = '#ffd84a'; g.fillText(s, p[0], p[1]); } return; }
-    const p = C.tela(OX + x, 0.5, z); if (!p) return; const perto = Math.hypot(OX + x - K.heroi.x, z - K.heroi.z) < 5.5; g.font = `${perto ? 26 : 18}px Titulo, sans-serif`; g.strokeText('+', p[0], p[1] + 8); g.fillStyle = perto ? '#7aff8a' : 'rgba(255,255,255,.8)'; g.fillText('+', p[0], p[1] + 8); });
+    const p = C.tela(OX + x, 0.5, z); if (!p) return; const perto = i === K.padSel || (K.padSel == null && Math.hypot(OX + x - K.heroi.x, z - K.heroi.z) < 5.5); g.font = `${perto ? 26 : 18}px Titulo, sans-serif`; g.strokeText('+', p[0], p[1] + 8); g.fillStyle = perto ? '#7aff8a' : 'rgba(255,255,255,.8)'; g.fillText('+', p[0], p[1] + 8); });
   for (const t of K.txt) { t.t += dt; const p = C.tela(t.x, t.y + t.t * 3, t.z); if (!p) continue; g.globalAlpha = Math.max(0, 1 - t.t / 0.8); g.font = `${t.cor === '#ffd84a' ? 18 : 14}px Titulo, sans-serif`; g.strokeText(t.txt, p[0], p[1]); g.fillStyle = t.cor; g.fillText(t.txt, p[0], p[1]); g.globalAlpha = 1; }
   K.txt = K.txt.filter(t => t.t < 0.8);
   const B = K.banner;

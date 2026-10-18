@@ -211,6 +211,7 @@ const T = {
   'Até 4 jogadores: ande, ataque e construa torres juntos': L('Up to 4 players: walk, attack and build towers together', 'Hasta 4 jugadores: camina, ataca y construye torres juntos'),
   'PODER DO TIME!': L('TEAM POWER!', '¡PODER DEL EQUIPO!'),
   'Matem mais inimigos juntos para encher o poder': L('Defeat more enemies together to fill the power', 'Derroten más enemigos juntos para llenar el poder'),
+  'Chegue mais perto desse lugar': L('Get closer to that spot', 'Acércate más a ese lugar'),
   'Liga': L('League', 'Liga'), 'Liga da Guerra': L('War League', 'Liga de Guerra'), 'Termina em': L('Ends in', 'Termina en'), 'Campeões da semana passada': L("Last week's champions", 'Campeones de la semana pasada'),
   'faça 50 pontos para ganhar prêmio': L('score 50 points to earn a prize', 'haz 50 puntos para ganar premio'), 'Você ainda não pontuou nesta semana': L("You haven't scored this week yet", 'Aún no puntuaste esta semana'),
   'Ninguém pontuou ainda. Seja o primeiro!': L('Nobody has scored yet. Be the first!', 'Nadie puntuó aún. ¡Sé el primero!'),
