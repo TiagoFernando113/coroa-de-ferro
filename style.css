@@ -1063,6 +1063,7 @@ input{font:inherit;user-select:text;-webkit-user-select:text}
 .muCmdQ,.muCmdL{display:flex;align-items:center;justify-content:space-between;gap:8px;text-align:left;font-size:13px}.muCmdQ{padding:8px;border-radius:12px;background:#fff3c8;margin:6px 0}.muCmdQ small,.muCmdL small{display:block;font-size:11px;color:#6a5040}
 .muCmdQ .btn,.muCmdL .btn{margin:0;flex:none;font-size:12px}.muCmdQ .ico,.muCmdL .ico,.muCmdEx > span .ico{width:13px;height:13px;vertical-align:-2px}
 .muCmdEx{padding:8px;border-radius:12px;background:rgba(0,0,0,.05);margin:6px 0;text-align:left}.muCmdEx > b{font-family:var(--fT);font-weight:400;font-size:15px}.muCmdEx > span{float:right;font-weight:700;color:#2a5a9a}.muCmdL{margin-top:6px}
+.muColeta{color:#b8860b}.muBom{color:#2a8a3a!important;font-weight:700}
 .muLigaB{flex:none;padding:5px 10px;border-radius:12px;background:linear-gradient(#ffe07a,#e8a020);border:2px solid #fff3dc;color:#5a2e08;font-family:var(--fT);font-size:14px;box-shadow:0 3px 0 #8a5a10}
 .muLiga{width:min(420px,92vw)}.muLgT{display:flex;align-items:center;justify-content:center;gap:4px;color:#6a5040}.muLgT .ico{width:14px;height:14px}
 .muLgEu{margin:6px 0;padding:8px;border-radius:12px;background:linear-gradient(#fff3c8,#ffe08a);font-size:14px;color:#5a2e08}.muLgEu .ico{width:14px;height:14px;vertical-align:-2px}
