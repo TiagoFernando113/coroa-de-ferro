@@ -52,6 +52,7 @@ export const mapaRally = comConta((slot, tipo, alvo, px, py, cam, dur, cam0, dur
 export const mapaRallyEntrar = comConta((slot, rally, cam, dur) => rpc('ponte_mapa_rally_entrar', { ...id(), p_slot: slot, p_rally: rally, p_cam: cam, p_dur: dur }));
 export const mapaCaixa = comConta(() => rpc('ponte_mapa_caixa', id()));
 export const defEntrar = comConta(() => rpc('ponte_def_entrar', id()));
+export const defEntrar2 = comConta(modo => rpc('ponte_def_entrar2', { ...id(), p_modo: modo }));
 export const defPing = comConta((sala, n, onda, aberta) => rpc('ponte_def_ping', { ...id(), p_sala: sala, p_n: n, p_onda: onda, p_aberta: aberta }));
 export const defAbertas = () => rpc('ponte_def_abertas');
 export const liga = comConta(() => rpc('ponte_liga_ver', id()));

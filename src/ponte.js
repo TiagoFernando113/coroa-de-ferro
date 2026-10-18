@@ -765,10 +765,10 @@ function abrirOvo(tipo) {
       <button class="btn verde" data-a="fecharJanela">Pegar</button></div>`;
     sfx(D.r >= 2 ? 'vitoria' : 'brilho'); if (D.r >= 3) som('lendario'); if (D.r >= 2) avisarCla(`tirou ${D.nome} (${R.nome}) num ovo!`); C.camera.tremor = 0.3; recriarPetsLobby(); }, 2100);
 }
-function abrirDefesa() { // Defesa em Grupo (defesa.js)
+function abrirDefesa(modo = 'caminho') { // Defesa em Grupo e Árvore Sagrada (defesa.js)
   limparFase(); climaMapa = false; $('#janela').hidden = true;
   tela = 'defesa'; $('#lobby').hidden = true; $('#jogo').hidden = true; $('#fim').hidden = true; tema(1);
-  DF.abrir($('#defesa'), () => { DF.fechar(); abrirLobby(); desenharLobby(); });
+  DF.abrir($('#defesa'), () => { DF.fechar(); abrirLobby(); desenharLobby(); }, modo);
 }
 const MAPA_GUERRA = false; // Mapa de Guerra guardado por enquanto (o código continua em mundo.js)
 function abrirMundo() { // Mapa de Guerra (mundo.js)
@@ -800,6 +800,7 @@ function mostrarModos() {
   const card = (k, cor, icone, nome, desc, info, livre, req) => `<button class="modoC ${livre ? '' : 'bloq'}" data-modo="${k}" style="--c:${cor}">${ico(livre ? icone : 'cadeado')}
     <span><b>${nome}</b><small>${desc}</small></span><em>${livre ? info : req}</em></button>`;
   j.innerHTML = `<div class="jOnline jModos"><h2>${ico('dado')} Modos</h2>
+    ${card('arvore', '#3a8a2a', 'herois', 'Árvore Sagrada', 'Até 6 amigos: defendam a árvore dos inimigos que vêm de todos os lados', 'Novo!', liberado('dupla'), `${tr('Fase')} ${faseLibera('dupla')}`)}
     ${card('defesa', '#2a9a5a', 'herois', 'Defesa em Grupo', 'Até 4 jogadores: ande, ataque e construa torres juntos', 'Novo!', liberado('dupla'), `${tr('Fase')} ${faseLibera('dupla')}`)}
     ${MAPA_GUERRA ? card('mundo', '#c8501a', 'bandeira', 'Mapa de Guerra', 'Seu exército marcha num mapa com todos os jogadores', 'Novo!', liberado('dupla'), `${tr('Fase')} ${faseLibera('dupla')}`) : ''}
     <h3>${ico('herois')} Com o herói</h3>
@@ -1611,7 +1612,7 @@ async function resgatarCodigo(b) {
 function clique(e) {
   const b = e.target.closest('button'); if (!b) return; let a = b.dataset.a;
   if (b.dataset.trava) { som('erro'); toque(`${tr('Libera ao vencer a fase')} ${faseLibera(b.dataset.trava)}`); return; }
-  if (b.dataset.modo) { if (!liberado(b.dataset.modo === 'mundo' || b.dataset.modo === 'defesa' ? 'dupla' : b.dataset.modo)) { som('erro'); toque(`${tr('Libera ao vencer a fase')} ${faseLibera(b.dataset.modo)}`); return; } $('#janela').hidden = true; a = b.dataset.modo; }
+  if (b.dataset.modo) { if (!liberado(['mundo', 'defesa', 'arvore'].includes(b.dataset.modo) ? 'dupla' : b.dataset.modo)) { som('erro'); toque(`${tr('Libera ao vencer a fase')} ${faseLibera(b.dataset.modo)}`); return; } $('#janela').hidden = true; a = b.dataset.modo; }
   if (a === 'nomeSorte') { som('clique'); $('#apelido1').value = sugerirNome(); return; }
   if (a === 'nomeDepois') { som('fechar'); S.lib.nome = 1; salvar(); $('#janela').hidden = true; return; }
   if (a === 'nomeOk') { const ap = ($('#apelido1')?.value || '').trim(), er = $('#nomeErro'); if (ap.length < 2) { som('erro'); er.textContent = tr('Pelo menos 2 letras'); return; }
@@ -1683,6 +1684,7 @@ function clique(e) {
   if (a === 'procurarDupla') { som('confirma'); procurarDupla(); }
   if (a === 'mundo') { som('confirma'); abrirMundo(); }
   if (a === 'defesa') { som('confirma'); abrirDefesa(); }
+  if (a === 'arvore') { som('confirma'); abrirDefesa('arvore'); }
   if (a === 'chamarAmigo') { som('confirma'); chamarAmigo(); }
   if (a === 'temCodigo') { som('confirma'); temCodigo(); }
   if (a === 'entrarCodigo') { const c = ($('#codAmigo')?.value || '').replace(/\D/g, ''); if (c.length < 4) { som('erro'); return; } som('confirma'); convidarDupla(c, c); }
