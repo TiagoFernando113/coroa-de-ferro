@@ -461,7 +461,7 @@ function moverHeroi(dt) {
 }
 const GEO_ARO = new THREE.RingGeometry(1.1, 1.6, 32).rotateX(-Math.PI / 2), matAro = {}, aroDe = r => matAro[r] ||= new THREE.MeshBasicMaterial({ color: EQ.RARIDADES[r].cor, transparent: true, opacity: 0.7, depthWrite: false });
 function aro(o, r, x, z, vis) { if (r == null || r < 1) return o; if (!o) { o = new THREE.Mesh(GEO_ARO, aroDe(r)); cn().add(o); } o.material = aroDe(r); o.position.set(x, 0.15, z); o.visible = vis; o.scale.setScalar(1 + 0.08 * Math.sin(C.tempo() * 4)); return o; }
-const visCurto = v => Object.fromEntries(['tro', 'bra', 'per', 'cha', 'mas', 'capa', 'tinta', 'aura', 'asas', 'arma', 'esq'].filter(k => v[k] != null).map(k => [k, v[k]]));
+const visCurto = v => Object.fromEntries(['tro', 'bra', 'per', 'cha', 'mas', 'capa', 'tinta', 'tintaCha', 'tintaCapa', 'aura', 'asas', 'arma', 'esq'].filter(k => v[k] != null).map(k => [k, v[k]]));
 function outrosHerois(dt) {
   K.aroEu = aro(K.aroEu, K.rarEq, K.heroi.x, K.heroi.z, !K.heroi.morto);
   for (const [pid, j] of K.jogs) {
@@ -622,7 +622,13 @@ function acabar(p) {
       <button class="btn verde grande" data-df="denovo">${tr('Jogar de novo')}</button><button class="btn azul" data-df="menuFim">${ico('guilda')} Menu</button></div>`;
     if (novo) flashTela('#ffe27a', 0.45); setTimeout(() => voarMoedas('#dfJanela .ganho', 8), 120); }, p.saiu ? 100 : 1400);
 }
-export function vista() { const h = K?.heroi || { x: OX, z: 0 }, y = K?.yaw ?? Math.PI; return { foco: { x: h.x + Math.sin(y) * 10, z: h.z + Math.cos(y) * 10 }, yaw: y, pitch: 0.58, dist: 38 }; }
+export function vista() {
+  const h = K?.heroi || { x: OX, z: 0 }, y = K?.yaw ?? Math.PI, foco = { x: h.x + Math.sin(y) * 10, z: h.z + Math.cos(y) * 10 }; let dist = 38;
+  if (K?.modo === 'arvore') { // na borda da arena a câmera chega mais perto em vez de entrar no morro/floresta
+    const cp = Math.cos(0.58), ux = Math.sin(y) * cp, uz = Math.cos(y) * cp, px = foco.x - ARV.x, pz = foco.z - ARV.z, R = 58, pu = px * ux + pz * uz, uu = ux * ux + uz * uz, de = pu * pu - uu * (px * px + pz * pz - R * R);
+    if (de > 0) dist = Math.max(14, Math.min(38, (pu + Math.sqrt(de)) / uu)); }
+  return { foco, yaw: y, pitch: 0.58 + (38 - dist) * 0.012, dist };
+}
 export function desenharFx(g, dt) {
   if (!K) return; g.textAlign = 'center'; g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,.65)';
   for (const u of K.mobs) { if (u.morto || (!u.v && u.hp >= u.max)) continue; const p = C.tela(u.x, u.y + u.alt + 0.6, u.z); if (!p) continue; const w = u.tipo === 'chefe' ? 80 : u.v ? 40 : 22;

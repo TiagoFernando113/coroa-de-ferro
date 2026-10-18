@@ -52,8 +52,8 @@ function equipar(it) { const E = eq(); if (it.slot === 'arma') E.armas[classeDaA
 export function visualHeroi(base, comArma = false) {
   const E = eq(), U = usando(), v = { ...base }, de = s => E.itens.find(x => x.id === U[s]);
   const ar = de('armadura'); if (ar?.vis) { v.tro = v.bra = v.per = ar.vis; if (ar.r >= 1) v.tinta = RARIDADES[ar.r].cor; v.cores = {}; }
-  const el = de('elmo'); if (el?.vis) { if (el.vis === 'lenco') v.mas = 'lenco'; else v.cha = el.vis; }
-  const ca = de('capa'); if (ca?.vis) { v.capa = ca.vis; if (ca.r >= 4) v.aura = 'sim'; if (ca.r >= 5 && !v.asas) v.asas = 'anjo'; }
+  const el = de('elmo'); if (el?.vis) { if (el.vis === 'lenco') v.mas = 'lenco'; else v.cha = el.vis; if (el.r >= 1) v.tintaCha = RARIDADES[el.r].cor; }
+  const ca = de('capa'); if (ca?.vis) { v.capa = ca.vis; if (ca.r >= 1) v.tintaCapa = RARIDADES[ca.r].cor; if (ca.r >= 4) v.aura = 'sim'; if (ca.r >= 5 && !v.asas) v.asas = 'anjo'; }
   const a = de('arma'); if (comArma && a?.modelo) return visualCom(v, a.modelo);
   return v;
 }
@@ -128,7 +128,10 @@ const NOME_TIPO = { espada: 'Espadas', machado: 'Machados', martelo: 'Martelos',
 const fotos = new Map(), GIRO = { arma: [0.15, 0.35, -0.72], capa: [0.2, Math.PI + 0.5, 0] };
 export function iconeItem(it, tam = 96) {
   const k = `${it.slot}:${it.modelo || it.vis || it.nome.split(' ')[0]}:${it.r}:${tam}`; if (fotos.has(k)) return fotos.get(k);
-  let u = ''; try { u = C.fotoObjeto(modeloItem(it), { tam, rot: GIRO[it.slot] || [0.3, 0.55, 0] }) || ''; } catch (e) {} if (u) fotos.set(k, u); return u;
+  let u = ''; try { // elmo, armadura e capa: foto da própria peça do kit (igual ao que aparece no herói)
+    const vis = it.vis, kit = vis && { elmo: vis === 'lenco' ? 'mas' : 'cha', armadura: 'tro', capa: 'capa' }[it.slot];
+    if (kit) u = C.fotoPeca({ ...heroiAtual(S).visual, cab: '', tro: it.slot === 'armadura' ? vis : '', bra: '', per: '', cha: kit === 'cha' ? vis : '', mas: kit === 'mas' ? vis : '', capa: kit === 'capa' ? vis : '', cos: '', cores: {}, tinta: '', tintaCha: '', tintaCapa: '', [{ armadura: 'tinta', elmo: 'tintaCha', capa: 'tintaCapa' }[it.slot]]: it.r >= 1 ? RARIDADES[it.r].cor : '' }, kit, { tam, rot: it.slot === 'capa' ? [0.2, Math.PI + 0.35, 0] : [0.15, 0.45, 0] }) || '';
+    if (!u) u = C.fotoObjeto(modeloItem(it), { tam, rot: GIRO[it.slot] || [0.3, 0.55, 0] }) || ''; } catch (e) {} if (u) fotos.set(k, u); return u;
 }
 const linhaSt = (it, k) => { const [n, u] = ST[k]; return `<span>${tr(n)} <b>+${fmt(Math.round(valor(it, k) * 10) / 10)}${u}</b></span>`; };
 export function mostrar(sel = null) {

@@ -582,7 +582,7 @@ export function heroi(v) {
     for (const m of malhas) corpo.remove(m); for (const a of armas) a.parent?.remove(a); for (const m of mats) m.dispose(); for (const g of geos) g.dispose(); malhas = []; armas = []; mats = []; geos = [];
     // cor principal sorteada dos heróis da guilda: na zona maior do tronco
     const extra = {};
-    if (nv.tinta) { const pt = H.partes[nv.tro + ':Body']; const z = pt?.zonas.find(z => { const [cx, cy] = z.split(',').map(Number); return !pt.atlas.pele[cy * 8 + cx]; }); if (z) extra[pt.atlas.id + ':' + z] = nv.tinta; }
+    tingir(nv, extra);
     const matsAtlas = new Map();
     for (const [o, p] of pecasDo(nv)) {
       const pt = H.partes[o + ':' + p]; if (!pt) continue;
@@ -877,6 +877,18 @@ export function fotoObjeto(obj, { tam = 128, rot = [0.3, 0.55, 0] } = {}) {
   for (let y = 0; y < tam; y++) for (let x = 0; x < tam; x++) { const a0 = ((tam - 1 - y) * tam + x) * 4, o = (y * tam + x) * 4, al = px[a0 + 3]; if (!al) continue; for (let ci = 0; ci < 3; ci++) im.data[o + ci] = srgb(Math.min(1, px[a0 + ci] / al)); im.data[o + 3] = al; }
   gc.putImageData(im, 0, 0); renderer.setRenderTarget(null); renderer.setClearColor(fundoAntes, alfaAntes); rt.dispose(); g.remove(obj);
   return cv.toDataURL();
+}
+// cor da raridade na roupa, no elmo e na capa: pinta a primeira zona que não é pele de cada peça
+function tingir(v, extra) {
+  for (const [k, cor] of [['tro', v.tinta], ['cha', v.tintaCha], ['capa', v.tintaCapa]]) if (cor) for (const [o, p] of pecasDo(v).filter(([, p]) => parteDe(p) === k)) {
+    const pt = H.partes[o + ':' + p], z = pt?.zonas.find(z => { const [cx, cy] = z.split(',').map(Number); return !pt.atlas.pele[cy * 8 + cx]; }); if (z) extra[pt.atlas.id + ':' + z] = cor; if (k === 'tro') break; }
+}
+// foto só de uma parte do kit vestida (elmo, roupa, capa...), com a pintura do visual (ícones dos equipamentos)
+export function fotoPeca(v, k, op) {
+  if (!H) prepararHerois(); const g = new THREE.Group(), extra = {}, ms = [];
+  tingir(v, extra);
+  for (const [o, p] of pecasDo(v).filter(([, p]) => parteDe(p) === k)) { const pt = H.partes[o + ':' + p]; if (!pt) continue; const m = pt.mat.clone(), t = texturaPintada(pt.atlas, v, extra); if (t) m.map = t; ms.push(m); g.add(new THREE.Mesh(pt.geo, m)); }
+  if (!g.children.length) return null; const u = fotoObjeto(g, op); for (const m of ms) m.dispose(); return u;
 }
 // cópia usada só para tirar a foto: libera a textura dos ossos (e os materiais pintados) na GPU
 function soltarCopia(raiz, mats) { const vistos = new Set(); raiz.traverse(o => { if (o.isSkinnedMesh && !vistos.has(o.skeleton)) { vistos.add(o.skeleton); o.skeleton.dispose(); } if (mats && o.isMesh) o.material.dispose(); }); }
