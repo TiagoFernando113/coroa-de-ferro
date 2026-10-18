@@ -184,8 +184,9 @@ function perseguir() { // RoK: quem ataca segue o alvo; se ele andou, refaz o ca
     if (fim && Math.hypot(fim[0] - pa.x, fim[1] - pa.y) > 1.5 && !posicao(e).fim) atacar(e, a, true); }
 }
 function darOrdensBots(ids) { // bots andam pelo mapa e às vezes atacam outro exército que está fora de casa
-  const ordens = [];
-  for (const id of ids.slice(0, 4)) { const e = K.ex.get(id); if (!e) continue; const p = posicao(e), r = Math.random(); let alvo = null, alvoEx = null;
+  const ordens = [], extra = []; // bots do clã que abriu rally vêm reforçar o rally
+  for (const rl of K.rallies) if (rl.parte - agora() > 10) for (const o of K.ex.values()) if (o.bot && o.barb == null && o.cla === rl.cla && o.cerco_tipo == null && !o.alvo && o.tropas > 0 && posicao(o).fim && !emBatalha(o) && extra.length < 2 && Math.random() < 0.3) extra.push(o.id);
+  for (const id of [...new Set([...extra, ...ids])].slice(0, 6)) { const e = K.ex.get(id); if (!e) continue; const p = posicao(e), r = Math.random(); let alvo = null, alvoEx = null;
     if (r < 0.3) { let dm = 14; for (const o of K.ex.values()) { if (o === e || (o.cla != null && o.cla === e.cla) || o.tropas <= 0 || emBatalha(o)) continue; const q = posicao(o); if (naBase(o, q)) continue;
       const d = Math.hypot(q.x - p.x, q.y - p.y); if (d < dm) { dm = d; alvoEx = o; alvo = [q.x, q.y]; } } }
     let flag = null, cerco = null;
