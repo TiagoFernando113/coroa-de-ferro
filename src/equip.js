@@ -4,6 +4,7 @@
 import { S, salvar } from './meta.js';
 import * as C from './cena.js';
 import { heroiAtual } from './herois.js';
+import { iconePixel, tipoDe } from './pixel.js';
 import { fmt } from './dados.js';
 import { som, $ } from './util.js';
 import { sfx } from './musica.js';
@@ -11,7 +12,7 @@ import { t as tr } from './i18n.js';
 
 // nomes: [nome, visual, gênero] (o visual vai para o herói)
 export const SLOTS = {
-  arma: { nome: 'Arma', ic: '⚔️', nomes: [['Lâmina', 'W:sword_A', 'f'], ['Machado', 'W:axe_A'], ['Arco', 'W:bow_A_withString'], ['Cajado', 'W:staff_A'], ['Martelo', 'W:hammer_A'], ['Lança', 'W:spear_A', 'f'], ['Espada', 'W:sword_C', 'f'], ['Alabarda', 'W:halberd', 'f']], st: { dano: 8, cad: 4 } },
+  arma: { nome: 'Arma', ic: '⚔️', nomes: [['Espada', 'espada', 'f'], ['Lâmina', 'espada', 'f'], ['Machado', 'machado'], ['Arco', 'arco'], ['Cajado', 'cajado'], ['Martelo', 'martelo'], ['Lança', 'lanca', 'f'], ['Adaga', 'adaga', 'f'], ['Foice', 'foice', 'f']], st: { dano: 8, cad: 4 } },
   elmo: { nome: 'Elmo', ic: '⛑️', nomes: [['Elmo', 'elmo'], ['Elmo de Viseira', 'viseira'], ['Chapéu Arcano', 'mago'], ['Pele de Urso', 'urso', 'f'], ['Máscara do Ladrão', 'lenco', 'f']], st: { vida: 8, crit: 1.5 } },
   armadura: { nome: 'Armadura', ic: '🛡️', nomes: [['Armadura de Placas', 'Knight', 'f'], ['Couraça Bárbara', 'Barbarian', 'f'], ['Manto Arcano', 'Mage'], ['Traje de Patrulheiro', 'Ranger'], ['Traje Sombrio', 'Rogue']], st: { vida: 15, def: 3 } },
   capa: { nome: 'Capa', ic: '🧥', nomes: [['Capa Real', 'Knight', 'f'], ['Capa Arcana', 'Mage', 'f'], ['Capa do Patrulheiro', 'Ranger', 'f'], ['Capa Sombria', 'Rogue', 'f'], ['Capuz Errante', 'Rogue_Hooded']], st: { def: 2, recarga: 3 } },
@@ -24,14 +25,14 @@ export const RARIDADES = [
 ];
 // armas únicas (aparecem a partir de Épico): cada uma tem um efeito especial e aparece na mão do herói
 export const LENDAS = {
-  fenda: { nome: 'Rasgadora do Vazio', r: 5, modelo: 'W:sword_E', cor: 0xb04aff, desc: 'a cada 6 golpes abre uma fenda que explode em área' },
-  celeste: { nome: 'Lâmina Celestial', r: 5, modelo: 'W:sword_D', cor: 0xffe27a, desc: 'golpes seguidos aumentam o dano (até +50%)' },
-  trovao: { nome: 'Martelo do Trovão', r: 4, modelo: 'W:hammer_C', cor: 0x7ac8ff, desc: '25% de chance de um raio pular em 3 inimigos' },
-  solar: { nome: 'Arco Solar', r: 4, modelo: 'W:bow_B_withString', cor: 0xff9a1a, desc: 'incendeia o alvo por 3 segundos' },
-  glacial: { nome: 'Cajado Glacial', r: 4, modelo: 'W:staff_B', cor: 0x9ae8ff, desc: 'deixa lento e às vezes congela' },
-  sangue: { nome: 'Foice Sangrenta', r: 3, modelo: 'W:axe_C', cor: 0xff3a4a, desc: 'cura 5% de todo dano causado' },
-  vulcao: { nome: 'Machado Vulcânico', r: 3, modelo: 'W:axe_B', cor: 0xff5a1a, desc: '20% de chance de explodir em área' },
-  sombra: { nome: 'Adagas da Sombra', r: 3, modelo: 'W:dagger_B', cor: 0x9a5ae8, desc: '15% de chance de golpe triplo' },
+  fenda: { nome: 'Rasgadora do Vazio', r: 5, modelo: 'P:L:fenda', cor: 0xb04aff, desc: 'a cada 6 golpes abre uma fenda que explode em área' },
+  celeste: { nome: 'Lâmina Celestial', r: 5, modelo: 'P:L:celeste', cor: 0xffe27a, desc: 'golpes seguidos aumentam o dano (até +50%)' },
+  trovao: { nome: 'Martelo do Trovão', r: 4, modelo: 'P:L:trovao', cor: 0x7ac8ff, desc: '25% de chance de um raio pular em 3 inimigos' },
+  solar: { nome: 'Arco Solar', r: 4, modelo: 'P:L:solar', cor: 0xff9a1a, desc: 'incendeia o alvo por 3 segundos' },
+  glacial: { nome: 'Cajado Glacial', r: 4, modelo: 'P:L:glacial', cor: 0x9ae8ff, desc: 'deixa lento e às vezes congela' },
+  sangue: { nome: 'Foice Sangrenta', r: 3, modelo: 'P:L:sangue', cor: 0xff3a4a, desc: 'cura 5% de todo dano causado' },
+  vulcao: { nome: 'Machado Vulcânico', r: 3, modelo: 'P:L:vulcao', cor: 0xff5a1a, desc: '20% de chance de explodir em área' },
+  sombra: { nome: 'Adagas da Sombra', r: 3, modelo: 'P:L:sombra', cor: 0x9a5ae8, desc: '15% de chance de golpe triplo' },
 };
 // aparência do herói com o que está equipado (comArma: só nos modos em grupo, onde o golpe muda junto)
 export function visualHeroi(base, comArma = false) {
@@ -44,8 +45,8 @@ export function visualHeroi(base, comArma = false) {
 }
 export const assinatura = () => { const E = eq(); return Object.entries(E.usando).map(([s, id]) => { const it = E.itens.find(x => x.id === id); return it ? `${s}${it.vis || it.modelo || ''}${it.r}` : ''; }).join('|'); };
 export function armaEquipada() { const E = eq(), it = E.itens.find(x => x.id === E.usando.arma); return it || null; }
-export function visualCom(v, modelo) { if (!modelo) return v; return { ...v, arma: modelo, esq: /bow/.test(modelo) ? '' : v.esq }; }
-export const tipoGolpe = modelo => !modelo ? null : /bow/.test(modelo) ? 'arco' : /staff|wand/.test(modelo) ? 'cajado' : /hammer/.test(modelo) ? 'martelo' : 'corte';
+export function visualCom(v, modelo) { if (!modelo) return v; return { ...v, arma: modelo, esq: tipoGolpe(modelo) === 'arco' || tipoGolpe(modelo) === 'martelo' ? '' : v.esq }; }
+export const tipoGolpe = modelo => !modelo ? null : modelo.startsWith('P:') ? ({ arco: 'arco', cajado: 'cajado', martelo: 'martelo' }[tipoDe(modelo.slice(2))] || 'corte') : /bow/.test(modelo) ? 'arco' : /staff|wand/.test(modelo) ? 'cajado' : /hammer/.test(modelo) ? 'martelo' : 'corte';
 const ST = { dano: ['Dano', '%'], cad: ['Velocidade de ataque', '%'], vida: ['Vida', ''], def: ['Defesa', '%'], crit: ['Crítico', '%'], roubo: ['Roubo de vida', '%'], recarga: ['Recarga do poder', '%'], cura: ['Cura', '/s'] };
 const MAX_NV = 10, MAX_MOCHILA = 40;
 const eq = () => (S.equip ||= { itens: [], usando: {}, id: 1 });
@@ -59,7 +60,7 @@ export function gerarItem(onda, minR = 0, maxR = 5) {
   const [nm, vis, gen] = D.nomes[Math.floor(Math.random() * D.nomes.length)];
   const it = { id: E.id++, slot, r, nv: 1, st, nome: `${nm} ${R.adj[gen === 'f' ? 1 : 0]}` };
   if (vis && slot !== 'arma') it.vis = vis;
-  if (slot === 'arma') { it.modelo = vis;
+  if (slot === 'arma') { it.modelo = `P:${vis}:${r}`;
     const ls = Object.entries(LENDAS).filter(([, L]) => L.r <= r); if (r >= 3 && ls.length && Math.random() < 0.5) { const [k, L] = ls[Math.floor(Math.random() * ls.length)]; Object.assign(it, { lenda: k, nome: L.nome, modelo: L.modelo }); } }
   E.itens.push(it); if (E.itens.length > MAX_MOCHILA) { const pior = E.itens.filter(x => !Object.values(E.usando).includes(x.id)).sort((a, b) => a.r - b.r || poderItem(a) - poderItem(b))[0]; if (pior) E.itens.splice(E.itens.indexOf(pior), 1); }
   if (!E.usando[slot] || poderItem(it) > poderItem(E.itens.find(x => x.id === E.usando[slot]) || { st: {}, nv: 1, r: 0 })) E.usando[slot] = it.id; // equipa sozinho se for melhor
@@ -79,13 +80,13 @@ const custoUp = it => Math.round(80 * it.nv * (1 + it.r) * (1 + it.r * 0.5));
 const valorDesmontar = it => Math.round(20 * (1 + it.r) ** 2 * it.nv);
 
 // ---- tela da mochila ----
-export const itemHtml = (it, cls = '') => `<button class="eqItem r${it.r} ${cls} ${it.lenda ? 'lenda' : ''}" data-eq="ver" data-id="${it.id}" style="--r:${RARIDADES[it.r].cor}"><i>${SLOTS[it.slot].ic}</i><em>${it.nv > 1 ? '+' + (it.nv - 1) : ''}</em>${it.lenda ? '<u>✨</u>' : ''}</button>`;
+export const itemHtml = (it, cls = '') => `<button class="eqItem r${it.r} ${cls} ${it.lenda ? 'lenda' : ''}" data-eq="ver" data-id="${it.id}" style="--r:${RARIDADES[it.r].cor}">${it.modelo?.startsWith('P:') ? `<img src="${iconePixel(it.modelo.slice(2), 2)}" alt="">` : `<i>${SLOTS[it.slot].ic}</i>`}<em>${it.nv > 1 ? '+' + (it.nv - 1) : ''}</em>${it.lenda ? '<u>✨</u>' : ''}</button>`;
 const linhaSt = (it, k) => { const [n, u] = ST[k]; return `<span>${tr(n)} <b>+${fmt(Math.round(valor(it, k) * 10) / 10)}${u}</b></span>`; };
 export function mostrar(sel = null) {
   const E = eq(), j = $('#janela'); j.hidden = false; const usando = new Set(Object.values(E.usando)), A = atributos();
   const it = sel != null && E.itens.find(x => x.id === sel);
   const det = it ? (() => { const R = RARIDADES[it.r], eq1 = usando.has(it.id), c = custoUp(it);
-    return `<div class="eqDet" style="--r:${R.cor}"><div class="eqDetT">${SLOTS[it.slot].ic}<span><b>${it.nome}${it.nv > 1 ? ` +${it.nv - 1}` : ''}</b><small>${tr(R.nome)} · ${tr(SLOTS[it.slot].nome)} · ${tr('Poder')} ${fmt(poderItem(it))}</small></span></div>
+    return `<div class="eqDet" style="--r:${R.cor}"><div class="eqDetT">${it.modelo?.startsWith('P:') ? `<img class="eqPx" src="${iconePixel(it.modelo.slice(2), 3)}" alt="">` : SLOTS[it.slot].ic}<span><b>${it.nome}${it.nv > 1 ? ` +${it.nv - 1}` : ''}</b><small>${tr(R.nome)} · ${tr(SLOTS[it.slot].nome)} · ${tr('Poder')} ${fmt(poderItem(it))}</small></span></div>
       <div class="eqSt">${Object.keys(it.st).map(k => linhaSt(it, k)).join('')}</div>${it.lenda ? `<p class="eqLenda">✨ ${tr(LENDAS[it.lenda].desc)}</p>` : ''}
       <div class="eqBts">${eq1 ? `<button class="btn cinza peq" disabled>${tr('Equipado')}</button>` : `<button class="btn verde peq" data-eq="usar" data-id="${it.id}">${tr('Equipar')}</button>`}
         ${it.nv < MAX_NV ? `<button class="btn amarelo peq" data-eq="up" data-id="${it.id}" ${S.moedas < c ? 'disabled' : ''}>⬆️ ${fmt(c)}</button>` : `<small>MAX</small>`}

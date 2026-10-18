@@ -1139,3 +1139,4 @@ input{font:inherit;user-select:text;-webkit-user-select:text}
 .eqForja{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:6px}
 .eqBau{display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto auto;column-gap:8px;align-items:center;text-align:left;padding:8px;border-radius:12px;background:linear-gradient(#fff,color-mix(in srgb,var(--r) 25%,#fff));border:3px solid var(--r);box-shadow:0 3px 0 color-mix(in srgb,var(--r) 60%,#000)}
 .eqBau i{grid-row:1/4;font-style:normal;font-size:28px}.eqBau b{font-family:var(--fT);font-weight:400;font-size:14px;color:#3a1a08}.eqBau small{font-size:11px;color:var(--r);font-weight:700}.eqBau em{font-style:normal;font-size:12px;font-weight:700;color:#8a5a10}.eqBau:disabled{opacity:.5}
+.eqItem img{max-width:44px;max-height:48px;image-rendering:pixelated;transform:rotate(35deg);filter:drop-shadow(0 2px 0 #0003)}.eqPx{height:72px;image-rendering:pixelated;transform:rotate(35deg)}

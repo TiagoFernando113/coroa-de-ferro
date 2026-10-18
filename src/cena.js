@@ -7,6 +7,7 @@ import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.j
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { ORIGENS, pecasDo } from './aparencia.js';
+import { armaPixel, tipoDe } from './pixel.js';
 
 export const ESC_PERS = 0.75; // personagens KayKit (~2,5 u) → ~1,85 m
 let renderer, scene, cam, sol, hemi, relogio = 0;
@@ -590,9 +591,11 @@ export function heroi(v) {
       const sm = new THREE.SkinnedMesh(o === 'Mage' && p === 'Hat' ? abaMenor(pt.geo) : pt.geo, mat); sm.bind(esq, pt.bind); sm.castShadow = true; sm.frustumCulled = false;
       corpo.add(sm); malhas.push(sm);
     }
-    const arco = /bow/.test(nv.arma || ''); // o arco vai na mão esquerda (as animações de arco puxam a corda com a direita)
+    const arco = /bow/.test(nv.arma || '') || (nv.arma?.startsWith('P:') && tipoDe(nv.arma.slice(2)) === 'arco'); // o arco vai na mão esquerda (as animações de arco puxam a corda com a direita)
     for (const [id, lado] of arco ? [[nv.arma, 'l']] : [[nv.arma, 'r'], [nv.esq, 'l']]) {
-      if (!id) continue; const src = pecas[id.replace(':', '')]; if (!src) continue;
+      if (!id) continue;
+      if (id.startsWith('P:')) { const a = armaPixel(id.slice(2)); if (arco) { a.rotation.set(Math.PI / 2, Math.PI, 0); a.scale.setScalar(1.4); } /* arco deitado como os do KayKit */ const osso = ossos[H.nomes.indexOf('handslot' + lado)]; if (osso) { osso.add(a); armas.push(a); } continue; } // arma pixel (geometria compartilhada)
+      const src = pecas[id.replace(':', '')]; if (!src) continue;
       const a = clonar(src); a.traverse(o => { if (o.isMesh) { o.castShadow = true; o.material = o.material.clone(); mats.push(o.material); } });
       const r = ROT_ARMA[id]; if (r) a.rotation.set(r[0], r[1], r[2]);
       const osso = ossos[H.nomes.indexOf('handslot' + lado)]; if (osso) { osso.add(a); armas.push(a); }
