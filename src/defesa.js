@@ -83,7 +83,7 @@ export function abrir(container, sair) {
   el = container; aoSair = sair; el.hidden = false;
   const H = heroiAtual(S), up = S.up, B = bonusEquipe(), eu = ON.conta()?.codigo || 'eu' + Math.floor(Math.random() * 1e6);
   K = { eu, nome: ON.conta()?.apelido || 'Você', host: true, sala: null, canal: null, jogs: new Map(), mobs: [], torres: new Map(), tiros: [], txt: [], banner: null,
-    onda: 0, estado: 'conectando', pausaT: 10, fila: [], t: 0, base: 0, baseMax: 0, moedas: {}, abates: {}, id: 1, yaw: Math.PI, joy: null, cam: null, tS: 0, tH: 0, tD: 0, tPing: 0, ultS: 0, danos: [], pronto: false };
+    onda: 0, estado: 'conectando', pausaT: 10, fila: [], t: 0, base: 0, baseMax: 0, cofre: 0, poder: 0, abates: {}, id: 1, yaw: Math.PI, joy: null, cam: null, tS: 0, tH: 0, tD: 0, tPing: 0, ultS: 0, danos: [], pronto: false };
   const base = Math.round(100 * (1 + 0.15 * up.vida)); K.base = K.baseMax = base;
   K.heroi = { x: OX, z: 22, dir: Math.PI, cd: 0.6, cad: 1 / (tiros(up.fogo) * H.ataque.cad * 0.6 * (1 + (B.tiro || 0) / 100)), dano: 3 * H.ataque.dano * (1 + up.flechas * 0.35),
     area: H.ataque.area, perf: H.ataque.perf, cor: H.ataque.cor, alc: 15, anda: false, tiroT: 9 };
@@ -109,17 +109,18 @@ async function conectar() {
   const oi = () => { if (!K || K.pronto) return; K.canal.enviar('oi', { p: K.eu, n: K.nome, h: S.heroi || 'lyra' }); setTimeout(oi, 900); }; oi();
   setTimeout(() => { if (K && !K.pronto) { K.canal.fechar(); K.canal = null; K.host = true; comecarSolo(); ON.defEntrar().then(r2 => { if (!K || !r2?.host) return; K.sala = r2.sala; K.canal = ON.salaGrupo('def' + r2.sala, receber); }).catch(() => {}); } }, 7000);
 }
-function comecarSolo() { K.host = true; K.pronto = true; K.estado = 'pausa'; K.pausaT = 10; K.moedas[K.eu] = 150; avisar(''); atualizarHud(); }
+function comecarSolo() { K.host = true; K.pronto = true; K.estado = 'pausa'; K.pausaT = 10; K.cofre = 200; avisar(''); atualizarHud(); }
 function receber(ev, p) {
   if (!K) return;
   if (ev === 'h') { if (p.p === K.eu) return; let j = K.jogs.get(p.p); if (!j) { j = { p: p.p, nome: p.n || '?', h: p.h || 'lyra', x: p.x, z: p.z, r: p.r }; K.jogs.set(p.p, j); }
-    Object.assign(j, { tx: p.x, tz: p.z, r: p.r, visto: performance.now() }); if (p.n) j.nome = p.n; if (p.a >= 0) j.atira = p.a; if (K.host && !K.moedas[p.p]) K.moedas[p.p] = 150; return; }
+    Object.assign(j, { tx: p.x, tz: p.z, r: p.r, visto: performance.now() }); if (p.n) j.nome = p.n; if (p.a >= 0) j.atira = p.a; return; }
   if (K.host) {
     if (ev === 'oi') { if (!K.jogs.has(p.p) && K.jogs.size >= 3) return; let j = K.jogs.get(p.p); if (!j) { j = { p: p.p, nome: p.n, h: p.h, x: OX, z: 22, tx: OX, tz: 22, visto: performance.now() }; K.jogs.set(p.p, j); toast(`${p.n} ${tr('entrou!')}`); sfx('brilho'); }
-      K.moedas[p.p] ??= 150; K.canal.enviar('pl', { l: lista() }); K.canal.enviar('tw', { l: listaTorres() }); return; }
+      if (!j.somou) { j.somou = true; K.cofre += 100; } K.canal.enviar('pl', { l: lista() }); K.canal.enviar('tw', { l: listaTorres() }); return; }
     if (ev === 'd') { for (const [id, d] of p.l || []) { const u = K.mobs.find(m => m.id === id); if (u) ferir(u, Math.min(d, 9999), p.p); } return; }
     if (ev === 'b') { construir(p.pad, p.t, p.p); return; }
     if (ev === 'u') { melhorar(p.pad, p.p); return; }
+    if (ev === 'poder') { usarPoder(); return; }
     if (ev === 'pular') { if (K.estado === 'pausa') K.pausaT = Math.min(K.pausaT, 1); return; }
     if (ev === 'tchau') { const j = K.jogs.get(p.p); if (j) { j.v?.remover(); K.jogs.delete(p.p); toast(`${j.nome} ${tr('saiu')}`); } return; }
     return;
@@ -134,8 +135,10 @@ function receber(ev, p) {
     for (const [id, ti, s, hp, mx] of p.m) { vivos.add(id); let u = K.mobs.find(m => m.id === id); if (!u) { u = criarMob(LTIPOS[ti], 1, id); u.s = s; K.mobs.push(u); }
       if (Math.abs(u.s - s) > 3) u.s = s; else u.s += (s - u.s) * 0.5; u.hp = hp; u.max = mx; }
     for (const u of K.mobs) if (!vivos.has(u.id) && !u.morto) matarMob(u, true);
-    for (const [pid, m] of p.c || []) K.moedas[pid] = m; atualizarHud(); return; }
+    K.cofre = p.c; if (p.pw != null) K.poder = p.pw; atualizarHud(); return; }
   if (ev === 'fim') { acabar(p); return; }
+  if (ev === 'cb') { K.txt.push({ x: p.x, y: 4, z: p.z, txt: `COMBO x${p.n}!`, cor: '#7affea', t: 0 }); return; }
+  if (ev === 'pw') { efeitoPoder(); return; }
   if (ev === 'tchau' && K.jogs.has(p.p)) { const j = K.jogs.get(p.p); j.v?.remover(); K.jogs.delete(p.p); }
 }
 const lista = () => [[K.eu, K.nome, S.heroi || 'lyra'], ...[...K.jogs.values()].map(j => [j.p, j.nome, j.h])];
@@ -154,8 +157,10 @@ function criarMob(tipo, n, id) {
 }
 function ferir(u, d, pid) {
   if (u.morto) return; if (u.escudo > 0) { u.escudo--; return; }
+  if (pid && pid !== 'torre') { const agora = performance.now(); (u.hits ||= {})[pid] = agora; const n = Object.values(u.hits).filter(t => agora - t < 1500).length;
+    if (n >= 2) { d *= 1 + 0.5 * (n - 1); if (!u.comboT || agora - u.comboT > 900) { u.comboT = agora; K.txt.push({ x: u.x, y: u.y + u.alt + 2, z: u.z, txt: `COMBO x${n}!`, cor: '#7affea', t: 0 }); K.canal?.enviar('cb', { x: u.x, z: u.z, n }); } } }
   u.hp -= d; u.flash = 0.12; u.ult = pid; if (u.v) K.txt.push({ x: u.x, y: u.y + u.alt + 1, z: u.z, txt: fmt(Math.round(d)), cor: '#fff', t: 0 });
-  if (u.hp <= 0 && K.host) { const T = TIPOS[u.tipo]; K.moedas[pid] = (K.moedas[pid] || 0) + T.moedas; K.abates[pid] = (K.abates[pid] || 0) + 1; if (pid === K.eu) K.txt.push({ x: u.x, y: u.y + 2.5, z: u.z, txt: `+${T.moedas}`, cor: '#ffd84a', t: 0 }); matarMob(u); }
+  if (u.hp <= 0 && K.host) { const T = TIPOS[u.tipo]; K.cofre += T.moedas; K.abates[pid] = (K.abates[pid] || 0) + 1; K.poder = Math.min(100, K.poder + (u.tipo === 'chefe' ? 25 : u.tipo === 'gigante' ? 12 : u.v ? 4 : 1.5)); if (pid === K.eu) K.txt.push({ x: u.x, y: u.y + 2.5, z: u.z, txt: `+${T.moedas}`, cor: '#ffd84a', t: 0 }); matarMob(u); }
 }
 function matarMob(u, longe) {
   if (u.morto) return; u.morto = true; u.tm = 0;
@@ -174,12 +179,23 @@ function novaTorre(pad, tipo, nv = 1) {
 }
 function enfeitarTorre(t) { t.o.scale.setScalar(1 + 0.12 * (t.nv - 1)); }
 function construir(pad, tipo, pid) {
-  const T = TORRES[tipo]; if (!T || K.torres.has(pad) || (K.moedas[pid] || 0) < T.custo) return false;
-  K.moedas[pid] -= T.custo; K.torres.set(pad, novaTorre(pad, tipo)); K.canal?.enviar('tw', { l: listaTorres() }); sfx('brilho'); return true;
+  const T = TORRES[tipo]; if (!T || K.torres.has(pad) || K.cofre < T.custo) return false;
+  K.cofre -= T.custo; K.torres.set(pad, novaTorre(pad, tipo)); K.canal?.enviar('tw', { l: listaTorres() }); sfx('brilho'); return true;
 }
 function melhorar(pad, pid) {
-  const t = K.torres.get(pad); if (!t || t.nv >= 3) return false; const c = custoUp(t.tipo, t.nv); if ((K.moedas[pid] || 0) < c) return false;
-  K.moedas[pid] -= c; t.nv++; enfeitarTorre(t); C.onda(t.x, t.z, 7, 0xffd84a, 0.5); K.canal?.enviar('tw', { l: listaTorres() }); sfx('vitoria'); return true;
+  const t = K.torres.get(pad); if (!t || t.nv >= 3) return false; const c = custoUp(t.tipo, t.nv); if (K.cofre < c) return false;
+  K.cofre -= c; t.nv++; enfeitarTorre(t); C.onda(t.x, t.z, 7, 0xffd84a, 0.5); K.canal?.enviar('tw', { l: listaTorres() }); sfx('vitoria'); return true;
+}
+
+// ---- poder do time: enche com os abates de todos; qualquer um solta (chuva de meteoros em todos os inimigos) ----
+function usarPoder() {
+  if (!K.host || K.poder < 100 || K.estado === 'fim') return; K.poder = 0;
+  for (const u of K.mobs) if (!u.morto) { const d = u.tipo === 'chefe' ? u.max * 0.08 : u.tipo === 'gigante' ? u.max * 0.25 : u.max * 0.6; u.lentoT = 3; ferir(u, d, K.eu); }
+  K.canal?.enviar('pw', {}); efeitoPoder();
+}
+function efeitoPoder() {
+  sfx('magia'); setTimeout(() => sfx('vitoria'), 300); C.camera.tremor = 1; flashTela('#ffb03a', 0.4); K.banner = { txt: 'PODER DO TIME!', cor: '#ffb03a', t: 0 };
+  for (const u of K.mobs) if (!u.morto) { C.impacto(u.x, 1, u.z, 0xff7a2a, 1.2); C.faiscas(u.x, 2, u.z, 0xffb03a, 12, 6); }
 }
 
 // ---- interface ----
@@ -188,20 +204,21 @@ function desenhar() {
     <div class="dfBase">🏰<div class="barra muro"><i id="dfBaseB"></i><span id="dfBaseT"></span></div></div>
     <div class="dfAviso" id="dfAviso" hidden></div><div class="dfEspera" id="dfEspera" hidden></div>
     <div class="dfJoy" id="dfJoy" hidden><i></i></div><div class="dfDica" id="dfDica">${tr('Arraste do lado esquerdo para andar · do direito para girar a câmera')}</div>
-    <div class="dfAcoes" id="dfAcoes"></div><div class="cqJanela" id="dfJanela" hidden></div>`;
+    <button class="dfPoder" id="dfPoder" data-df="poder"><i id="dfPoderB"></i><span>⚡</span></button><div class="dfAcoes" id="dfAcoes"></div><div class="cqJanela" id="dfJanela" hidden></div>`;
 }
 function avisar(t) { const a = $('#dfAviso'); if (!a) return; a.hidden = !t; a.textContent = t; }
 function toast(t) { const a = $('#dfAviso'); if (!a || !K) return; a.hidden = false; a.textContent = t; clearTimeout(K.tToast); K.tToast = setTimeout(() => { if (K && K.estado !== 'entrando') a.hidden = true; }, 2000); }
 function atualizarHud() {
-  if (!K) return; const m = $('#dfMoedas'); if (!m) return; m.textContent = fmt(K.moedas[K.eu] || 0);
+  if (!K) return; const m = $('#dfMoedas'); if (!m) return; m.textContent = fmt(K.cofre);
   $('#dfBaseB').style.width = 100 * Math.max(0, K.base) / Math.max(1, K.baseMax) + '%'; $('#dfBaseT').textContent = `${fmt(Math.max(0, Math.round(K.base)))} / ${fmt(K.baseMax)}`;
   $('#dfOnda').textContent = K.onda ? `${tr('Onda')} ${K.onda}` : tr('Defesa em Grupo'); $('#dfJog').textContent = `👥 ${1 + K.jogs.size}/4`;
+  const pw = $('#dfPoder'); if (pw) { pw.classList.toggle('pronto', K.poder >= 100); $('#dfPoderB').style.height = Math.min(100, K.poder) + '%'; }
   const e = $('#dfEspera'); if (e) { const v = K.estado === 'pausa' && K.pronto; e.hidden = !v; if (v) { const t = `${tr(K.onda ? 'Próxima onda em' : 'Começa em')} ${Math.ceil(Math.max(0, K.pausaT))}s`; if (e.dataset.t !== t) { e.dataset.t = t; e.innerHTML = `${t} <button class="btn verde peq" data-df="pular">${tr('Já!')}</button>`; } } }
   acoes();
 }
 function padPerto() { const h = K.heroi; let m = null, dm = 5.5; PADS.forEach(([x, z], i) => { const d = Math.hypot(OX + x - h.x, z - h.z); if (d < dm) { dm = d; m = i; } }); return m; }
 function acoes() { // botão grande do lado direito: construir ou melhorar a torre do lugar onde o herói está
-  const a = $('#dfAcoes'); if (!a) return; const pad = K.estado === 'fim' ? null : padPerto(), t = pad != null && K.torres.get(pad), eu = K.moedas[K.eu] || 0;
+  const a = $('#dfAcoes'); if (!a) return; const pad = K.estado === 'fim' ? null : padPerto(), t = pad != null && K.torres.get(pad), eu = K.cofre;
   const sig = `${pad}|${t ? t.tipo + t.nv : ''}|${K.menu ? 1 : 0}|${Math.floor(eu / 10)}`; if (sig === K.sigAcoes) return; K.sigAcoes = sig;
   if (pad == null) { a.innerHTML = ''; K.menu = false; return; }
   if (t) { const c = t.nv < 3 ? custoUp(t.tipo, t.nv) : 0;
@@ -216,9 +233,10 @@ export function clique(b) {
   if (a === 'menu') { K.menu = true; K.sigAcoes = null; som('clique'); acoes(); return; }
   if (a === 'fecharMenu') { K.menu = false; K.sigAcoes = null; som('fechar'); acoes(); return; }
   if (a === 'torre') { const pad = +b.dataset.pad, t = b.dataset.t; K.menu = false; K.sigAcoes = null;
-    if (K.host) { if (!construir(pad, t, K.eu)) som('erro'); } else { if ((K.moedas[K.eu] || 0) < TORRES[t].custo) { som('erro'); return; } K.canal?.enviar('b', { p: K.eu, pad, t }); som('confirma'); }
+    if (K.host) { if (!construir(pad, t, K.eu)) som('erro'); } else { if (K.cofre < TORRES[t].custo) { som('erro'); return; } K.canal?.enviar('b', { p: K.eu, pad, t }); som('confirma'); }
     atualizarHud(); return; }
   if (a === 'up') { const pad = +b.dataset.pad; if (K.host) { if (!melhorar(pad, K.eu)) som('erro'); } else { K.canal?.enviar('u', { p: K.eu, pad }); som('confirma'); } K.sigAcoes = null; atualizarHud(); return; }
+  if (a === 'poder') { if (K.poder < 100) { som('erro'); toast(tr('Matem mais inimigos juntos para encher o poder')); return; } if (K.host) usarPoder(); else { K.canal?.enviar('poder', {}); K.poder = 0; } return; }
   if (a === 'pular') { som('clique'); if (K.host) K.pausaT = Math.min(K.pausaT, 1); else K.canal?.enviar('pular', {}); return; }
   if (a === 'denovo') { som('confirma'); const s = aoSair; fechar(); abrir(el || $('#defesa'), s); return; }
   if (a === 'menuFim') { som('clique'); aoSair(); }
@@ -251,7 +269,7 @@ export function passo(dt) {
   if (K.canal) {
     if ((K.tH -= dt) <= 0) { K.tH = 0.1; const h = K.heroi; K.canal.enviar('h', { p: K.eu, n: K.nome, h: S.heroi || 'lyra', x: Math.round(h.x * 10) / 10, z: Math.round(h.z * 10) / 10, r: Math.round(h.dir * 100) / 100, a: K.atirou ?? -1 }); K.atirou = null; }
     if (K.host && (K.tS -= dt) <= 0) { K.tS = 0.25; K.canal.enviar('s', { o: K.onda, e: K.estado, pt: Math.round(K.pausaT * 10) / 10, b: Math.round(K.base), bm: K.baseMax,
-      m: K.mobs.filter(u => !u.morto).slice(0, 80).map(u => [u.id, LTIPOS.indexOf(u.tipo), Math.round(u.s * 10) / 10, Math.round(u.hp), u.max]), c: Object.entries(K.moedas) });
+      m: K.mobs.filter(u => !u.morto).slice(0, 80).map(u => [u.id, LTIPOS.indexOf(u.tipo), Math.round(u.s * 10) / 10, Math.round(u.hp), u.max]), c: K.cofre, pw: Math.round(K.poder) });
       if ((K.tTw = (K.tTw || 0) - 0.25) <= 0) { K.tTw = 3; K.canal.enviar('tw', { l: listaTorres() }); } }
     if (!K.host && K.danos.length && (K.tD -= dt) <= 0) { K.tD = 0.15; K.canal.enviar('d', { p: K.eu, l: K.danos.splice(0) }); }
     if (K.host && K.sala && (K.tPing -= dt) <= 0) { K.tPing = 3; ON.defPing(K.sala, 1 + K.jogs.size, K.onda, K.estado !== 'fim' && K.onda < 12).catch(() => {}); }
@@ -315,7 +333,7 @@ function simular(dt) {
     if (u.tipo === 'xama' && (u.curaT = (u.curaT ?? 3) - dt) <= 0) { u.curaT = 3; C.onda(u.x, u.z, 8, 0x6aff8a, 0.5); for (const o of K.mobs) if (!o.morto && o !== u && Math.hypot(o.x - u.x, o.z - u.z) < 8) o.hp = Math.min(o.max, o.hp + o.max * 0.2); }
     u.s += u.vel * dt * (u.lentoT > 0 ? 0.5 : 1);
     if (u.s >= LCAM) { K.base -= TIPOS[u.tipo].base; u.morto = true; u.tm = 2; if (u.v) u.v.raiz.visible = false; C.faiscas(OX, 4, 30, 0xff5a4a, 20, 5); C.camera.tremor = 0.4; som('pancada'); } }
-  if (!K.fila.length && !K.mobs.some(u => !u.morto)) { K.estado = 'pausa'; K.pausaT = 8; const bonus = 30 + 5 * K.onda; for (const pid of [K.eu, ...K.jogs.keys()]) K.moedas[pid] = (K.moedas[pid] || 0) + bonus; sfx('brilho'); K.banner = { txt: `+${bonus} ${tr('moedas')}`, cor: '#ffd84a', t: 0 }; intensidade(1); }
+  if (!K.fila.length && !K.mobs.some(u => !u.morto)) { K.estado = 'pausa'; K.pausaT = 8; const bonus = (30 + 5 * K.onda) * (1 + K.jogs.size); K.cofre += bonus; sfx('brilho'); K.banner = { txt: `+${bonus} ${tr('moedas')}`, cor: '#ffd84a', t: 0 }; intensidade(1); }
   if (K.base <= 0) { const p = { onda: K.onda, ab: Object.entries(K.abates) }; K.canal?.enviar('fim', p); setTimeout(() => K?.canal?.enviar('fim', p), 600); acabar(p); }
 }
 function acabar(p) {
