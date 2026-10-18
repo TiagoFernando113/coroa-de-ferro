@@ -262,7 +262,7 @@ let climaMapa = false, mapaCam = null, mapaVel = 0, arrastoMapa = null, mapaAnda
 const mapaVisivel = () => tela === 'lobby';
 function vistaMapa(dt) {
   if (!climaMapa) { climaMapa = true; C.diaNoite(0); C.ceu(0x9ad8f8); C.neblina(170, 470); }
-  MP.montarMapa(cena, { atual: S.fase, biomas: BIOMAS, biomaDe, chefeDe: n => dadosFase(n).chefe.modelo, heroi: heroiAtual(S).visual, heroiK: S.heroi, texAgua, andar: mapaAndar === S.fase });
+  MP.montarMapa(cena, { atual: S.fase, biomas: BIOMAS, biomaDe, chefeDe: n => dadosFase(n).chefe.modelo, heroi: EQ.visualHeroi(heroiAtual(S).visual), heroiK: S.heroi + EQ.assinatura(), texAgua, andar: mapaAndar === S.fase });
   if (mapaAndar === S.fase) { mapaAndar = 0; mapaCam = MP.xDaFase(S.fase - 1); }
   const ax = MP.andando(); if (ax != null) { mapaCam += (ax - mapaCam) * Math.min(1, dt * 4); mapaVel = 0; }
   const x0 = MP.xDaFase(1), x1 = MP.xDaFase(MP.ultimaFase());
@@ -322,7 +322,7 @@ export function iniciarFase(n, inf = false, semCorrida = false) {
   if (corrida) montarCorrida(F, n);
   // herói arqueiro
   G.heroiDef = heroiAtual(S); G.tiro *= G.heroiDef.ataque.cad; G.tiroMax *= G.heroiDef.ataque.cad;
-  if (!G.heroiV) { const v = C.heroi(G.heroiDef.visual); v.raiz.scale.setScalar(2.4); v.raiz.rotation.y = Math.PI; v.tocar(v.tem(G.heroiDef.pose) ? G.heroiDef.pose : 'Idle_A'); G.heroiV = v; }
+  if (!G.heroiV) { const v = C.heroi(EQ.visualHeroi(G.heroiDef.visual)); v.raiz.scale.setScalar(2.4); v.raiz.rotation.y = Math.PI; v.tocar(v.tem(G.heroiDef.pose) ? G.heroiDef.pose : 'Idle_A'); G.heroiV = v; }
   G.heroiV.raiz.position.set(0, 0, ZH);
   criarPetsHeroi();
 }

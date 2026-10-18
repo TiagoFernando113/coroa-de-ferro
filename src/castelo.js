@@ -13,6 +13,7 @@ import { t as tr } from './i18n.js';
 import { evento } from './missoes.js';
 import * as ON from './online.js';
 import * as A from './analise.js';
+import * as EQ from './equip.js';
 
 const Z_MURO = -4.5, Z_DEF = -1.5, Z_INICIO = -82, SLOTS = [-14, -8.4, -2.8, 2.8, 8.4, 14];
 const MAGIAS = {
@@ -28,7 +29,7 @@ const GEO_MET = new THREE.IcosahedronGeometry(2.6, 1), MAT_MET = new THREE.MeshB
 // ---- defensores (herói escolhido + até 5 pets da equipe) ----
 function criarDefensores() {
   const H = heroiAtual(S), up = S.up, B = bonusEquipe(), L = [];
-  const hv = C.heroi(H.visual); hv.raiz.scale.setScalar(2.4); hv.raiz.rotation.y = Math.PI; hv.tocar(hv.tem(H.pose) ? H.pose : 'Idle_A');
+  const hv = C.heroi(EQ.visualHeroi(H.visual)); hv.raiz.scale.setScalar(2.4); hv.raiz.rotation.y = Math.PI; hv.tocar(hv.tem(H.pose) ? H.pose : 'Idle_A');
   // herói: tiros por segundo das melhorias x cadência do herói; flechas por tiro viram dano
   L.push({ heroi: true, v: hv, x: SLOTS[2], z: Z_DEF, cd: 0.5, cad: 1 / (tiros(up.fogo) * H.ataque.cad * 0.6 * (1 + (B.tiro || 0) / 100)), dano: 3 * H.ataque.dano * (1 + up.flechas * 0.35),
     area: H.ataque.area, perf: H.ataque.perf, alc: 75, cor: H.ataque.cor, anim: H.tiro });
