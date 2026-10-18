@@ -80,7 +80,7 @@ function posMob(u) {
 }
 function prepararMob(u) { if (K.modo !== 'arvore') return; const T = TIPOS[u.tipo]; u.porta ??= Math.floor(Math.random() * Math.min(6, 1 + Math.ceil(K.onda / 2))); u.off = (Math.random() - 0.5) * 6;
   u.L = Math.hypot(ARV.x - PORTAS[u.porta].x, ARV.z - PORTAS[u.porta].z) - (T.longe || R_ARV + 1 + (T.h || 2) * 0.3); u.cdA = Math.random(); }
-const GEO_TIRO = new THREE.SphereGeometry(0.35, 8, 6), GEO_ORBE = new THREE.IcosahedronGeometry(0.35, 1), GEO_FLECHA = new THREE.BoxGeometry(0.14, 0.14, 1.5), GEO_BALA = new THREE.SphereGeometry(0.6, 10, 8), GEO_RAIO = new THREE.BoxGeometry(1, 1, 1), GEO_ANEL = new THREE.RingGeometry(0.96, 1, 64).rotateX(-Math.PI / 2), matT = {}, matTiro = c => matT[c] ||= new THREE.MeshBasicMaterial({ color: c });
+const GEO_CORTE = new THREE.TorusGeometry(0.9, 0.12, 4, 12, Math.PI).rotateX(Math.PI / 2), GEO_TIRO = new THREE.SphereGeometry(0.35, 8, 6), GEO_ORBE = new THREE.IcosahedronGeometry(0.35, 1), GEO_FLECHA = new THREE.BoxGeometry(0.14, 0.14, 1.5), GEO_BALA = new THREE.SphereGeometry(0.6, 10, 8), GEO_RAIO = new THREE.BoxGeometry(1, 1, 1), GEO_ANEL = new THREE.RingGeometry(0.96, 1, 64).rotateX(-Math.PI / 2), matT = {}, matTiro = c => matT[c] ||= new THREE.MeshBasicMaterial({ color: c });
 let K = null, el = null, aoSair = null;
 
 // ---- cenário: chão com manchas, caminho de pedra, cercas, lanternas, flores, acampamento orc e castelo ----
@@ -163,7 +163,9 @@ export function abrir(container, sair, modo = 'caminho') {
   // equipamentos (arma, armadura, anel, amuleto)
   const G = EQ.atributos(); K.eqA = G; K.poderEq = EQ.poder(); K.rarEq = EQ.melhorRaridade();
   K.heroi.dano *= 1 + G.dano / 100; K.heroi.cad /= 1 + G.cad / 100; K.heroi.hp = K.heroi.hpMax = Math.round(K.heroi.hpMax + G.vida); if (modo === 'arvore') { K.heroi.x = ARV.x; K.heroi.z = ARV.z + 9; }
-  K.v = C.heroi(H.visual); K.v.raiz.scale.setScalar(0.8); K.H = H;
+  const ARM = EQ.armaEquipada(); K.arma = ARM ? { modelo: ARM.modelo, lenda: ARM.lenda, tipo: EQ.tipoGolpe(ARM.modelo), cor: ARM.lenda ? EQ.LENDAS[ARM.lenda].cor : null } : null;
+  K.v = C.heroi(EQ.visualCom(H.visual, K.arma?.modelo)); K.v.raiz.scale.setScalar(0.8); K.H = H;
+  if (K.arma) { const an = { corte: 'Melee_1H_Attack_Chop', martelo: 'Melee_2H_Attack_Chop', cajado: 'Ranged_Magic_Shoot', arco: 'Ranged_Bow_Release' }[K.arma.tipo]; K.animTiro = K.v.tem(an) ? an : K.v.tem('Melee_1H_Attack_Chop') && K.arma.tipo !== 'arco' ? 'Melee_1H_Attack_Chop' : null; }
   K.cena = modo === 'arvore' ? montarArvore() : montarCenario(); C.ceu(0x9ad8f8); C.neblina(90, 220); C.diaNoite(0); intensidade(1); A.comecou(modo === 'arvore' ? 'arvore' : 'defesa');
   desenhar(); ligarToque(); conectar();
 }
@@ -189,7 +191,7 @@ function comecarSolo() { K.host = true; K.pronto = true; K.estado = 'pausa'; K.p
 function receber(ev, p) {
   if (!K) return;
   if (ev === 'h') { if (p.p === K.eu) return; let j = K.jogs.get(p.p); if (!j) { j = { p: p.p, nome: p.n || '?', h: p.h || 'lyra', x: p.x, z: p.z, r: p.r }; K.jogs.set(p.p, j); }
-    Object.assign(j, { tx: p.x, tz: p.z, r: p.r, visto: performance.now() }); if (p.n) j.nome = p.n; if (p.a >= 0) j.atira = p.a; if (p.g != null) { j.g = p.g; j.rr = p.rr; } return; }
+    Object.assign(j, { tx: p.x, tz: p.z, r: p.r, visto: performance.now() }); if (p.n) j.nome = p.n; if (p.a >= 0) j.atira = p.a; if (p.g != null) { j.g = p.g; j.rr = p.rr; } if (p.w != null && p.w !== (j.w || '') && j.v) { j.v.remover(); j.v = null; } j.w = p.w || ''; return; }
   if (K.host) {
     if (ev === 'oi') { if (!K.jogs.has(p.p) && K.jogs.size >= (K.modo === 'arvore' ? 5 : 3)) return; let j = K.jogs.get(p.p); if (!j) { j = { p: p.p, nome: p.n, h: p.h, x: OX, z: 22, tx: OX, tz: 22, visto: performance.now() }; K.jogs.set(p.p, j); toast(`${p.n} ${tr('entrou!')}`); sfx('brilho'); }
       if (!j.somou) { j.somou = true; K.cofre += 100; } K.canal.enviar('pl', { l: lista() }); K.canal.enviar('tw', { l: listaTorres() }); return; }
@@ -382,14 +384,14 @@ export function passo(dt) {
   K.mobs = K.mobs.filter(u => !u.morto || (u.v && u.tm < 1.3));
   desenharTropas('vm', K.mobs.filter(u => !u.v && !u.morto), 0, tt); passoVoo(dt);
   if (K.modo === 'arvore') passoArvore(dt);
-  heroiAtira(dt); torresAtiram(dt); passoTiros(dt); if (K.heroi.habT > 0) K.heroi.habT -= dt;
+  heroiAtira(dt); torresAtiram(dt); passoTiros(dt); passoQueimas(dt); if (K.heroi.habT > 0) K.heroi.habT -= dt;
   for (const t of K.torres.values()) if (t.orbe) t.orbe.position.y = 6.6 + Math.sin(tt * 2.5 + t.pad) * 0.35;
   { const pad = K.estado === 'fim' ? null : padPerto(), t = pad != null && K.torres.get(pad); if (!K.anel) { K.anel = new THREE.Mesh(GEO_ANEL, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55, depthWrite: false })); cn().add(K.anel); }
     K.anel.visible = pad != null && (!!t || K.menu); if (K.anel.visible) { const [x, z] = PADS[pad], alc = t ? TORRES[t.tipo].alc * (1 + 0.1 * (t.nv - 1)) : TORRES.arq.alc; K.anel.position.set(OX + x, 0.4, z); K.anel.scale.setScalar(alc); } }
   if (K.baseAnt != null && K.base < K.baseAnt - 0.5) { flashTela('#ff3a2a', 0.22); C.camera.tremor = Math.max(C.camera.tremor, 0.35); K.txt.push({ x: OX, y: 9, z: 33, txt: `-${Math.round(K.baseAnt - K.base)}`, cor: '#ff6a5a', t: 0 }); } K.baseAnt = K.base;
   // rede: herói (todos), foto da partida (anfitrião), dano (clientes)
   if (K.canal) {
-    if ((K.tH -= dt) <= 0) { K.tH = 0.1; const h = K.heroi; K.canal.enviar('h', { p: K.eu, n: K.nome, h: S.heroi || 'lyra', x: Math.round(h.x * 10) / 10, z: Math.round(h.z * 10) / 10, r: Math.round(h.dir * 100) / 100, a: K.atirou ?? -1, g: K.poderEq, rr: K.rarEq }); K.atirou = null; }
+    if ((K.tH -= dt) <= 0) { K.tH = 0.1; const h = K.heroi; K.canal.enviar('h', { p: K.eu, n: K.nome, h: S.heroi || 'lyra', x: Math.round(h.x * 10) / 10, z: Math.round(h.z * 10) / 10, r: Math.round(h.dir * 100) / 100, a: K.atirou ?? -1, g: K.poderEq, rr: K.rarEq, w: K.arma?.modelo || '' }); K.atirou = null; }
     if (K.host && (K.tS -= dt) <= 0) { K.tS = 0.25; K.canal.enviar('s', { o: K.onda, e: K.estado, pt: Math.round(K.pausaT * 10) / 10, b: Math.round(K.base), bm: K.baseMax,
       m: K.mobs.filter(u => !u.morto).slice(0, 80).map(u => [u.id, LTIPOS.indexOf(u.tipo), Math.round(u.s * 10) / 10, Math.round(u.hp), u.max, u.porta ?? 0, Math.round((u.off || 0) * 10)]), c: K.cofre, pw: Math.round(K.poder), bf: K.buffs, bt: Math.round(K.buffT || 0) });
       if ((K.tTw = (K.tTw || 0) - 0.25) <= 0) { K.tTw = 3; K.canal.enviar('tw', { l: listaTorres() }); } }
@@ -417,7 +419,7 @@ function outrosHerois(dt) {
   for (const [pid, j] of K.jogs) {
     j.aro = aro(j.aro, j.rr, j.x, j.z, true);
     if (performance.now() - (j.visto || 0) > 7000) { j.v?.remover(); if (j.aro) cn().remove(j.aro); K.jogs.delete(pid); if (K.host) toast(`${j.nome} ${tr('saiu')}`); continue; }
-    if (!j.v) { j.v = C.heroi((HEROIS[j.h] || HEROIS.lyra).visual); j.v.raiz.scale.setScalar(0.8); j.x = j.tx ?? OX; j.z = j.tz ?? 22; }
+    if (!j.v) { j.v = C.heroi(EQ.visualCom((HEROIS[j.h] || HEROIS.lyra).visual, j.w)); j.v.raiz.scale.setScalar(0.8); j.x = j.tx ?? OX; j.z = j.tz ?? 22; }
     const ox = j.x, oz = j.z; j.x += ((j.tx ?? j.x) - j.x) * Math.min(1, dt * 10); j.z += ((j.tz ?? j.z) - j.z) * Math.min(1, dt * 10);
     const anda = Math.hypot(j.x - ox, j.z - oz) > dt * 1.5; j.v.mixer.update(dt); j.v.raiz.position.set(j.x, 0, j.z); j.v.raiz.rotation.y = j.r ?? 0;
     if (j.atira != null) { const u = K.mobs.find(m => m.id === j.atira && !m.morto); if (u) disparo(j.x, j.z, u, (HEROIS[j.h] || HEROIS.lyra).ataque.cor, 0, { forma: /flecha|virote|adaga/.test((HEROIS[j.h] || HEROIS.lyra).ataque.proj) ? 'flecha' : 'orbe', grande: true }); j.atira = null; j.tiroT = 0;
@@ -430,9 +432,13 @@ function heroiAtira(dt) {
   const h = K.heroi; if ((h.cd -= dt) > 0 || K.estado === 'fim' || h.morto) return; let a = null, dm = h.alc;
   for (const u of K.mobs) { if (u.morto) continue; const d = Math.hypot(u.x - h.x, u.z - h.z); if (d < dm) { dm = d; a = u; } }
   if (!a) { h.alvoDir = null; return; } h.cd = h.cad / (1 + 0.15 * bnv('pressa')); h.alvoDir = Math.atan2(a.x - h.x, a.z - h.z); h.tiroT = 0; K.atirou = a.id;
-  if (!h.anda && K.v.tem(K.H.tiro)) { K.v.tocar(K.H.tiro, { loop: false, reinicia: true, vel: 1.6 }); K.anim = 'tiro'; } if (Math.random() < 0.35) sfx('arco');
+  const at = K.animTiro || K.H.tiro; if (!h.anda && K.v.tem(at)) { K.v.tocar(at, { loop: false, reinicia: true, vel: 1.6 }); K.anim = 'tiro'; } if (Math.random() < 0.35) sfx(K.arma?.tipo === 'corte' ? 'espada' : 'arco');
   const crit = Math.random() * 100 < K.eqA.crit; if (crit) K.txt.push({ x: h.x, y: 4.5, z: h.z, txt: tr('CRÍTICO!'), cor: '#ff9a1a', t: 0 });
-  disparo(h.x, h.z, a, crit ? 0xff9a1a : h.cor, h.dano * (1 + 0.25 * bnv('furia')) * (crit ? 2.2 : 1), { area: h.area, perf: h.perf, pid: K.eu, forma: h.forma, grande: true });
+  let d = h.dano * (1 + 0.25 * bnv('furia')) * (crit ? 2.2 : 1), lenda = K.arma?.lenda;
+  if (lenda === 'celeste') { K.serie = performance.now() - (K.serieT || 0) < 2000 ? Math.min(10, (K.serie || 0) + 1) : 1; K.serieT = performance.now(); d *= 1 + 0.05 * K.serie; }
+  if (lenda === 'sombra' && Math.random() < 0.15) { d *= 3; K.txt.push({ x: h.x, y: 5, z: h.z, txt: tr('TRIPLO!'), cor: '#c89aff', t: 0 }); }
+  const forma = K.arma ? { corte: 'corte', martelo: 'orbe', cajado: 'orbe', arco: 'flecha' }[K.arma.tipo] : h.forma;
+  disparo(h.x, h.z, a, crit ? 0xff9a1a : K.arma?.cor ?? h.cor, d, { area: h.area + (K.arma?.tipo === 'martelo' ? 1.5 : 0), perf: h.perf, pid: K.eu, forma, grande: true, lenda });
 }
 function torresAtiram(dt) {
   if (K.estado === 'fim') return; const mult = 1.1 ** Math.max(0, K.onda - 1);
@@ -444,7 +450,7 @@ function disparo(x, z, a, cor, dano, op) {
   const y = op?.y ?? 2.4, forma = op?.forma || 'orbe';
   if (forma === 'raio') { const ty = a.y + a.alt * 0.5, d = Math.hypot(a.x - x, ty - y, a.z - z), o = new THREE.Mesh(GEO_RAIO, matTiro(cor)); o.scale.set(0.3, 0.3, d); o.position.set((x + a.x) / 2, (y + ty) / 2, (z + a.z) / 2); o.lookAt(a.x, ty, a.z); cn().add(o);
     K.raios.push({ o, t: 0.14 }); if (dano > 0 || !K.host) acertar({ cor, dano, op }, a); else C.impacto(a.x, ty, a.z, cor, 0.5); return; }
-  const o = new THREE.Mesh(forma === 'flecha' ? GEO_FLECHA : forma === 'bala' ? GEO_BALA : GEO_TIRO, matTiro(forma === 'bala' ? 0x3a3a3a : cor)); o.position.set(x, y, z); if (forma === 'orbe' && op?.grande) o.scale.setScalar(1.6); cn().add(o);
+  const o = new THREE.Mesh(forma === 'flecha' ? GEO_FLECHA : forma === 'bala' ? GEO_BALA : forma === 'corte' ? GEO_CORTE : GEO_TIRO, matTiro(forma === 'bala' ? 0x3a3a3a : cor)); o.position.set(x, y, z); if (forma === 'orbe' && op?.grande) o.scale.setScalar(1.6); cn().add(o);
   K.tiros.push({ o, a, x, y, z, x0: x, y0: y, z0: z, k: 0, cor, dano, op, forma });
 }
 function passoTiros(dt) {
@@ -456,7 +462,7 @@ function passoTiros(dt) {
       if (k >= 1) { s.fim = true; cn().remove(s.o); C.onda(a.x, a.z, (s.op.area || 3) * 1.6, 0xff7a2a, 0.35); C.faiscas(a.x, 1, a.z, 0xff9a3a, 14, 6); if (s.dano > 0 || !K.host) acertar(s, a); }
       continue; }
     const dx = a.x - s.x, dy = ty - s.y, dz = a.z - s.z, d = Math.hypot(dx, dy, dz), p = 55 * dt;
-    if (s.forma === 'flecha') s.o.lookAt(a.x, ty, a.z);
+    if (s.forma === 'flecha' || s.forma === 'corte') s.o.lookAt(a.x, ty, a.z);
     if (d <= p && s.naArvore != null) { s.fim = true; cn().remove(s.o); C.impacto(s.x, s.y, s.z, 0xff7a4a, 0.6); if (K.host) K.base -= s.naArvore; continue; }
     if (d <= p || a.morto) { s.fim = true; cn().remove(s.o); if (!a.morto && (s.dano > 0)) acertar(s, a); else if (!a.morto) C.impacto(a.x, ty, a.z, s.cor, 0.35); continue; }
     s.x += dx / d * p; s.y += dy / d * p; s.z += dz / d * p; s.o.position.set(s.x, s.y, s.z); }
@@ -468,10 +474,25 @@ function acertar(s, a) { // o dano conta no anfitrião; o cliente mostra na hora
   if (op.area) for (const u of K.mobs) if (u !== a && !u.morto && Math.hypot(u.x - a.x, u.z - a.z) < op.area * 1.5) alvos.push(u);
   for (let k = 0, ult = a; k < (op.perf || 0); k++) { const n = K.mobs.find(u => !u.morto && !alvos.includes(u) && Math.hypot(u.x - ult.x, u.z - ult.z) < 6); if (!n) break; alvos.push(n); ult = n; }
   if (pid === K.eu && K.eqA.roubo && !K.heroi.morto) K.heroi.hp = Math.min(K.heroi.hpMax, K.heroi.hp + s.dano * K.eqA.roubo / 100);
+  if (pid === K.eu && op.lenda) efeitoLenda(op.lenda, a, s.dano);
   for (const u of alvos) { const d = u === a ? s.dano : s.dano * 0.6; if (op.lento) u.lentoT = op.lento;
     if (K.host) ferir(u, d, pid === 'torre' ? K.eu : pid); else { u.hp -= d; u.flash = 0.12; K.danos.push([u.id, Math.round(d * 10) / 10]); if (u.v) K.txt.push({ x: u.x, y: u.y + u.alt + 1, z: u.z, txt: fmt(Math.round(d)), cor: '#fff', t: 0 }); } }
   C.impacto(a.x, a.y + a.alt * 0.5, a.z, s.cor, op.area ? 1 : 0.5);
 }
+// ---- efeitos das armas únicas (só o dono calcula; o dano vai para o anfitrião como os outros) ----
+function danoEm(u, d) { if (u.morto) return; if (K.host) ferir(u, d, K.eu); else { u.hp -= d; u.flash = 0.12; K.danos.push([u.id, Math.round(d * 10) / 10]); } }
+function raio(a, b, cor) { const ty = 2, d = Math.hypot(b.x - a.x, b.z - a.z), o = new THREE.Mesh(GEO_RAIO, matTiro(cor)); o.scale.set(0.25, 0.25, d); o.position.set((a.x + b.x) / 2, ty, (a.z + b.z) / 2); o.lookAt(b.x, ty, b.z); cn().add(o); K.raios.push({ o, t: 0.18 }); }
+function efeitoLenda(k, a, dano) {
+  const L = EQ.LENDAS[k], vivos = () => K.mobs.filter(u => !u.morto && u !== a);
+  if (k === 'fenda' && (K.golpes = (K.golpes || 0) + 1) % 6 === 0) { C.onda(a.x, a.z, 7, L.cor, 0.6); C.onda(a.x, a.z, 4, 0xffffff, 0.4); C.faiscas(a.x, 2, a.z, L.cor, 30, 8); som('pancada');
+    K.txt.push({ x: a.x, y: 5, z: a.z, txt: tr('FENDA!'), cor: '#c89aff', t: 0 }); for (const u of K.mobs) if (!u.morto && Math.hypot(u.x - a.x, u.z - a.z) < 6) danoEm(u, dano * 3); }
+  if (k === 'trovao' && Math.random() < 0.25) { let ult = a; for (const u of vivos().sort((p, q) => Math.hypot(p.x - a.x, p.z - a.z) - Math.hypot(q.x - a.x, q.z - a.z)).slice(0, 3)) { if (Math.hypot(u.x - ult.x, u.z - ult.z) > 10) break; raio(ult, u, L.cor); danoEm(u, dano * 0.7); ult = u; } }
+  if (k === 'solar') (K.queimas ||= []).push({ u: a, t: 3, d: dano * 0.3, cd: 1 });
+  if (k === 'glacial') { a.lentoT = 2; if (Math.random() < 0.15) { a.lentoT = 3.5; K.txt.push({ x: a.x, y: 4, z: a.z, txt: tr('CONGELOU!'), cor: '#9ae8ff', t: 0 }); C.faiscas(a.x, 1.5, a.z, 0x9ae8ff, 14, 3); } }
+  if (k === 'sangue' && !K.heroi.morto) K.heroi.hp = Math.min(K.heroi.hpMax, K.heroi.hp + dano * 0.05);
+  if (k === 'vulcao' && Math.random() < 0.2) { C.onda(a.x, a.z, 5, L.cor, 0.4); C.faiscas(a.x, 1, a.z, 0xff7a2a, 20, 7); for (const u of vivos()) if (Math.hypot(u.x - a.x, u.z - a.z) < 4.5) danoEm(u, dano * 1.2); }
+}
+function passoQueimas(dt) { if (!K.queimas?.length) return; for (const q of K.queimas) { q.t -= dt; if ((q.cd -= dt) <= 0) { q.cd = 1; danoEm(q.u, q.d); C.faiscas(q.u.x, 1.5, q.u.z, 0xff7a2a, 5, 2); } } K.queimas = K.queimas.filter(q => q.t > 0 && !q.u.morto); }
 function simular(dt) {
   if (K.estado === 'pausa') { if ((K.pausaT -= dt) <= 0) { K.onda++; K.fila = montarOnda(K.onda, K.modo); K.t = 0; K.estado = 'onda'; bannerOnda(); } return; }
   if (K.estado === 'buff') { K.buffT -= dt; if (K.buffT <= 0 || K.escolheram.size >= 1 + K.jogs.size) { K.estado = 'pausa'; K.pausaT = 4; fecharBuffs(); } return; }
