@@ -1181,3 +1181,7 @@ input{font:inherit;user-select:text;-webkit-user-select:text}
 .eqNovo{position:relative;overflow:hidden;text-align:center}.eqNovo>*{position:relative}.eqNovo .novoRaios{position:absolute}.eqNovoTag{display:inline-block;font-style:normal;font-weight:700;color:#fff;background:var(--r);padding:2px 12px;border-radius:12px;box-shadow:0 0 12px var(--r)}
 .eqGira{display:block;width:170px;height:170px;margin:6px auto;filter:drop-shadow(0 0 14px var(--r))}.eqCmpT{display:flex;flex-wrap:wrap;gap:4px 10px;justify-content:center;font-size:13px;margin:6px 0}.eqCmpT i,.eqPoderD i{font-style:normal;font-weight:700;margin-left:3px}
 .eqCmpT i.mais,.eqPoderD i.mais{color:#2ab84a}.eqCmpT i.menos,.eqPoderD i.menos{color:#e03a2a}.eqPoderD{font-weight:700;margin:4px 0 8px}
+
+.dfEsp{font-size:13px;color:#e0c8ff;text-shadow:0 1px 3px #000;white-space:nowrap}
+.dfChefe{position:absolute;left:50%;transform:translateX(-50%);top:calc(max(10px,env(safe-area-inset-top)) + 84px);width:min(340px,80vw);text-align:center;pointer-events:none}
+.dfChefe b{display:block;font-family:var(--fT);font-weight:400;font-size:15px;color:#ffd0c8;text-shadow:0 2px 0 #000,0 0 6px #000}.dfChefe .barra{height:14px}.dfChefe .barra i{background:linear-gradient(#ff7a5a,#c81a1a)}
