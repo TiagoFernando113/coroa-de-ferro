@@ -72,6 +72,7 @@ export const placar = () => rpc('ponte_placar', { p_id: S.online?.id || null });
 export const placarLista = cat => rpc('ponte_placar_lista', { p_cat: cat, p_id: S.online?.id || null, p_limite: 50 });
 export const cqRival = comConta(forca => rpc('ponte_cq_rival', { ...id(), p_forca: forca }));
 export const cqDerrotou = comConta(codigo => rpc('ponte_cq_derrotou', { ...id(), p_codigo: codigo }));
+export const arvoreEnviar = comConta(ondas => rpc('ponte_arvore_enviar', { ...id(), p_ondas: ondas }));
 export const ctEnviar = comConta((onda, heroi) => rpc('ponte_ct_enviar', { ...id(), p_onda: onda, p_heroi: heroi }));
 export const ctTop = () => rpc('ponte_ct_top', { p_limite: 50, p_id: S.online?.id || null });
 export const perfilSalvar = comConta((avatar, dados) => rpc('ponte_perfil_salvar', { ...id(), p_avatar: avatar, p_dados: dados }));

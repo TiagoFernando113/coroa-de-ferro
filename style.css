@@ -1185,3 +1185,12 @@ input{font:inherit;user-select:text;-webkit-user-select:text}
 .dfEsp{font-size:13px;color:#e0c8ff;text-shadow:0 1px 3px #000;white-space:nowrap}
 .dfChefe{position:absolute;left:50%;transform:translateX(-50%);top:calc(max(10px,env(safe-area-inset-top)) + 84px);width:min(340px,80vw);text-align:center;pointer-events:none}
 .dfChefe b{display:block;font-family:var(--fT);font-weight:400;font-size:15px;color:#ffd0c8;text-shadow:0 2px 0 #000,0 0 6px #000}.dfChefe .barra{height:14px}.dfChefe .barra i{background:linear-gradient(#ff7a5a,#c81a1a)}
+
+.dfTut{position:absolute;left:50%;transform:translateX(-50%);top:calc(max(10px,env(safe-area-inset-top)) + 196px);width:min(360px,88vw);padding:8px 12px;border-radius:12px;background:rgba(20,10,40,.82);border:2px solid #7affea;color:#fff;font-size:13px;text-align:center;pointer-events:none;box-shadow:0 0 14px #7affea66}
+.dfTut small{color:#7affea;font-weight:700;margin-right:4px}.tutAlvo{animation:tutPulsa .9s infinite}@keyframes tutPulsa{50%{transform:scale(1.15);box-shadow:0 0 0 6px #7affea88}}
+.dfRamos{display:flex;gap:6px}.dfRamo{display:flex;flex-direction:column;align-items:center;padding:6px 8px;max-width:150px}.dfRamo b{font-size:13px}.dfRamo small{font-size:10px;opacity:.9}.dfRamo em{font-style:normal;font-size:12px}
+.clPapel{display:block;font-style:normal;font-size:10px;font-weight:700;color:#2a7a8a;margin-top:2px}
+
+.dfCamPad{position:absolute;right:14px;bottom:calc(max(14px,env(safe-area-inset-bottom)) + 8px);width:86px;height:86px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;background:radial-gradient(circle,rgba(255,255,255,.28),rgba(40,30,70,.55));border:3px dashed #fff3dc;color:#fff;touch-action:none;box-shadow:0 3px 0 #0006}
+.dfCamPad .ico{width:34px;height:34px}.dfCamPad small{font-size:10px;font-weight:700;text-shadow:0 1px 2px #000}.dfCamPad.on{background:radial-gradient(circle,rgba(122,255,234,.45),rgba(40,30,70,.6));transform:scale(1.06)}
+.dfCamPad.caminho{right:88px;bottom:calc(max(14px,env(safe-area-inset-bottom)) + 140px);width:72px;height:72px}

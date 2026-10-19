@@ -895,9 +895,9 @@ let rankModo = null;
 const PLACAR = {
   cla_nivel: { nome: 'Nível do clã', icone: 'escudo', un: 'Nv' }, cla_forca: { nome: 'Força do clã', icone: 'forca', un: '' }, cla_semana: { nome: 'Dano da semana', icone: 'chefe', un: '' },
   fase: { nome: 'Fase máxima', icone: 'bandeira', un: 'fase' }, forca: { nome: 'Força dos pets', icone: 'pata', un: '' }, infinito: { nome: 'Ponte sem fim', icone: 'estrela', un: '' },
-  conquista: { nome: 'Conquista', icone: 'bandeira', un: 'estágio' }, castelo: { nome: 'Castelo', icone: 'h_muralha', un: 'onda' }, orcs: { nome: 'Orcs derrotados', icone: 'caveira', un: '' },
+  conquista: { nome: 'Conquista', icone: 'bandeira', un: 'estágio' }, castelo: { nome: 'Castelo', icone: 'h_muralha', un: 'onda' }, arvore: { nome: 'Árvore da semana', icone: 'floresta', un: 'ondas' }, orcs: { nome: 'Orcs derrotados', icone: 'caveira', un: '' },
 };
-const PLACAR_CLA = ['cla_nivel', 'cla_forca'], PLACAR_IND = ['fase', 'forca', 'infinito', 'conquista', 'castelo', 'orcs'];
+const PLACAR_CLA = ['cla_nivel', 'cla_forca'], PLACAR_IND = ['fase', 'arvore', 'forca', 'infinito', 'conquista', 'castelo', 'orcs'];
 const fotoPlacar = (k, r, tam = 64) => k.startsWith('cla_') ? escudoCla(r.cor || 0, r.tag || r.nome) : `<img src="${fotoPet(petValido(r.avatar), tam)}" alt="">`;
 // ficha de um clã (de qualquer lugar): membros, nível, e entrar/pedir
 async function verCla(id) {

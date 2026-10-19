@@ -39,9 +39,10 @@ export const CLASSES = { guerreiro: { nome: 'Guerreiro', ic: 'escudo', armas: ['
   arqueiro: { nome: 'Arqueiro', ic: 'arq', armas: ['arco'] }, mago: { nome: 'Mago', ic: 'mag', armas: ['cajado'] } };
 export const CLASSE_HEROI = { lyra: 'arqueiro', brann: 'arqueiro', grom: 'arqueiro', selene: 'mago', zarak: 'mago', raiden: 'mago', kira: 'ladino', nyx: 'ladino', thalia: 'guerreiro', bjorn: 'guerreiro' };
 export const BASE_CLASSE = { guerreiro: 'thalia', arqueiro: 'lyra', mago: 'selene', ladino: 'kira' }; // herói que vem com a classe (os outros são visuais dela)
+export const PAPEL = { guerreiro: 'Provoca: os inimigos vêm em você e você toma 25% menos dano', arqueiro: 'Marca o alvo: o time causa +25% de dano nele', mago: 'Cura o grupo em volta a cada 5s', ladino: 'Golpe pelas costas: dano quase dobrado' };
 const DESC_CLASSE = { guerreiro: 'Luta de perto, aguenta muito', arqueiro: 'Ataca de longe, rápido', mago: 'Magias em área', ladino: 'Golpes rápidos de perto' };
 const VISUAIS_CLASSE = { guerreiro: ['Knight', 'Barbarian', 'elmo', 'viseira'], arqueiro: ['Ranger', 'urso', 'elmo'], mago: ['Mage', 'mago'], ladino: ['Rogue', 'Rogue_Hooded', 'lenco'] };
-export const classeAtual = () => S.classe || CLASSE_HEROI[S.heroi] || 'arqueiro';
+export const classeAtual = () => CLASSE_HEROI[S.heroi] || S.classe || 'arqueiro'; // a classe segue o herói em uso
 const lendasDaClasse = () => Object.entries(LENDAS).filter(([, L]) => CLASSES[classeAtual()].armas.includes(tipoDe(L.modelo.slice(2))));
 export const tipoArma = it => it?.modelo?.startsWith('P:') ? tipoDe(it.modelo.slice(2)) : null;
 export const classeDaArma = it => Object.keys(CLASSES).find(c => CLASSES[c].armas.includes(tipoArma(it))) || 'guerreiro';
@@ -210,7 +211,7 @@ export function painel(sel = null) {
         ${emUso(it.id) ? '' : `<button class="btn vermelho peq" data-eq="des" data-id="${it.id}">${tr('Desmontar')} +${fmt(valorDesmontar(it))}</button>`}</div></div>`; })() : '';
   let foto = ''; try { const q = C.quadrosAnim(visualHeroi(heroiAtual(S).visual, true), 'Idle_A', { n: 1, tam: 200, chave: 'eqv:' + S.heroi + assinatura() }); if (q?.q?.[0]) foto = q.q[0].toDataURL(); } catch (e) {}
   return `<p class="eqPoder">${tr('Poder')} <b>${fmt(poder())}</b> · <small>${tr('vale na Árvore Sagrada e na Defesa em Grupo')}</small></p>
-    ${foto ? `<img class="eqFoto" src="${foto}" alt="">` : ''}${htmlFicha()}<p class="eqClasseH">${ico(CL.ic)} <b>${tr(CL.nome)}</b> <button class="eqTrocaC" data-eq="classes">${tr('trocar')}</button> · ${tr('usa')} ${CL.armas.map(a => tr(NOME_TIPO[a])).join(', ')}${CL.perto ? ` · ${tr('ataca de perto')}` : ''}</p>
+    ${foto ? `<img class="eqFoto" src="${foto}" alt="">` : ''}${htmlFicha()}<p class="eqClasseH">${ico(CL.ic)} <b>${tr(CL.nome)}</b> <button class="eqTrocaC" data-eq="classes">${tr('trocar')}</button> · ${tr('usa')} ${CL.armas.map(a => tr(NOME_TIPO[a])).join(', ')}${CL.perto ? ` · ${tr('ataca de perto')}` : ''}<br><small class="clPapel">${tr(PAPEL[classeAtual()])}</small></p>
     <div class="eqSlots">${Object.entries(SLOTS).map(([k, D]) => { const x = E.itens.find(i => i.id === U[k]); return `<div class="eqSlot"><small>${tr(D.nome)}</small>${x ? itemHtml(x, sel === x.id ? 'sel' : '') : `<span class="eqVazio">${ico(D.ic)}</span>`}</div>`; }).join('')}</div>
     <div class="eqTot">${Object.entries(A).filter(([, v]) => v).map(([k, v]) => `<span>${tr(ST[k][0])} +${fmt(Math.round(v * 10) / 10)}${ST[k][1]}</span>`).join('') || `<span>${tr('Jogue a Árvore Sagrada para ganhar equipamentos!')}</span>`}</div>
     ${det}${(() => { const dk = destaque(), L = LENDAS[dk], est = estrelas(), gratis = E.dia !== hoje(), cus = n => est >= n ? `${ico('estrela')} ${n}` : `${ico('ouro')} ${fmt(PRECO_DESEJO * n * (n >= 10 ? 0.9 : 1))}`, pode = n => est >= n || S.moedas >= PRECO_DESEJO * n * (n >= 10 ? 0.9 : 1);
@@ -230,7 +231,7 @@ export function escolherClasse(primeira = false) {
   const j = $('#janela'); j.hidden = false; sfx('brilho'); const atual = S.classe || CLASSE_HEROI[S.heroi];
   const foto = c => { try { const q = C.quadrosAnim(HEROIS[BASE_CLASSE[c]].visual, 'Idle_A', { n: 1, tam: 150, chave: 'cl:' + c }); return q?.q?.[0]?.toDataURL() || ''; } catch (e) { return ''; } };
   j.innerHTML = `<div class="jOnline jClasse"><h2>${tr(primeira ? 'Escolha sua classe' : 'Trocar de classe')}</h2><p>${tr('Os equipamentos que caem são da sua classe')}</p>
-    <div class="clGrade">${Object.entries(CLASSES).map(([k, CL]) => `<button class="clCard ${k === atual ? 'sel' : ''}" data-eq="classe" data-c="${k}"><img src="${foto(k)}" alt=""><b>${ico(CL.ic)} ${tr(CL.nome)}</b><small>${tr(DESC_CLASSE[k])}</small><em>${CL.armas.map(a => tr(NOME_TIPO[a])).join(' · ')}</em></button>`).join('')}</div>
+    <div class="clGrade">${Object.entries(CLASSES).map(([k, CL]) => `<button class="clCard ${k === atual ? 'sel' : ''}" data-eq="classe" data-c="${k}"><img src="${foto(k)}" alt=""><b>${ico(CL.ic)} ${tr(CL.nome)}</b><small>${tr(DESC_CLASSE[k])}</small><i class="clPapel">${tr(PAPEL[k])}</i><em>${CL.armas.map(a => tr(NOME_TIPO[a])).join(' · ')}</em></button>`).join('')}</div>
     ${primeira ? '' : `<button class="btn cinza" data-a="fecharJanela">${tr('Cancelar')}</button>`}</div>`;
 }
 export function clique(b) {
