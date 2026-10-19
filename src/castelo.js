@@ -196,7 +196,7 @@ function golpeCastelo(d) {
 }
 function acabar() {
   K.estado = 'fim'; A.partida('castelo', K.onda - 1, null, { orcs: K.mortos }); const ondas = K.onda - 1, novo = ondas > (S.castelo?.rec || 0); S.castelo ||= { rec: 0 }; if (novo) S.castelo.rec = ondas;
-  const premio = Math.round((20 + 12 * ondas + 2 * K.mortos / 10) * (fimDeSemana() ? 2 : 1)); S.moedas += premio; salvar(); evento('orcs', K.mortos); evento('ondas', ondas); if (novo && S.online?.codigo) ON.ctEnviar(ondas, S.heroi || 'lyra').catch(() => {});
+  const premio = Math.round((20 + 12 * ondas + 2 * K.mortos / 10) * (fimDeSemana() ? 2 : 1)); S.moedas += premio; salvar(); evento('orcs', K.mortos); evento('ondas', ondas); if (ondas > 0 && S.online?.codigo) ON.claDano(Math.round(ondas * Math.max(1, S.melhor || 1) * 6)).catch(() => {}); if (novo && S.online?.codigo) ON.ctEnviar(ondas, S.heroi || 'lyra').catch(() => {});
   sfx(novo ? 'vitoria' : 'derrota'); C.camera.tremor = 1; K.banner = { txt: 'A MURALHA CAIU!', cor: '#ff6a5a', t: 0 };
   setTimeout(() => { if (!K || !el) return; const j = $('#ctJanela'); j.hidden = false;
     j.innerHTML = `<div class="cqFim ${novo ? 'vit' : 'der'}"><h2>${novo ? 'NOVO RECORDE!' : 'A muralha caiu!'}</h2><p>Você aguentou ${ondas} onda${ondas === 1 ? '' : 's'} · ${fmt(K.mortos)} inimigos</p>

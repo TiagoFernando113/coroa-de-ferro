@@ -15,6 +15,7 @@ import { ico, som, $, voarMoedas, flashTela } from './util.js';
 import { ICONES } from './icones.js';
 import { t as tr } from './i18n.js';
 import * as ON from './online.js';
+import { evento } from './missoes.js';
 import * as A from './analise.js';
 import * as EQ from './equip.js';
 
@@ -264,6 +265,7 @@ function ferir(u, d, pid) {
 function matarMob(u, longe) {
   if (u.morto) return; u.morto = true; u.tm = 0;
   if (K.modo === 'arvore') { if (K.host ? u.ult === K.eu : performance.now() - (K.meus.get(u.id) || 0) < 2000) ganharEspirito(u); if (u.tipo === 'chefe') premioChefe(u); }
+  if (u.tipo === 'chefe') evento('chefeGrupo');
   if (u.v) { u.v.tocar('Death', { loop: false }); C.impacto(u.x, u.y + u.alt * 0.5, u.z, 0xff6a4a, u.tipo === 'chefe' ? 3 : 1.4); if (u.tipo === 'chefe') { sfx('vitoria'); C.camera.tremor = 1; K.banner = { txt: 'CHEFE DERROTADO!', cor: '#ffd84a', t: 0 }; } }
   else if (!longe) voar('vm', u.x, u.z, (Math.random() - 0.5) * 4, 6 + Math.random() * 3, -4);
 }
@@ -757,6 +759,7 @@ function aplicarBuff(k, pid, nome) {
 function acabar(p) {
   if (!K || K.estado === 'fim') return; K.estado = 'fim'; const ondas = Math.max(0, (p.onda ?? K.onda) - 1), ab = p.ab ? Object.fromEntries(p.ab)[K.eu] || 0 : K.abates[K.eu] || 0;
   A.partida(K.modo === 'arvore' ? 'arvore' : 'defesa', ondas, null, { abates: ab, jogadores: 1 + K.jogs.size });
+  evento('grupo'); if (K.modo === 'arvore') evento('arvoreOndas', ondas); if (ondas > 0 && S.online?.codigo) ON.claDano(Math.round(ondas * Math.max(1, S.melhor || 1) * 8)).catch(() => {}); // tudo ajuda o clã
   if (K.modo === 'arvore' && ondas > 0) ON.arvoreEnviar(ondas, [K.eu, ...K.jogs.keys()].map(String)).catch(() => {}); // ranking semanal da Árvore (por grupo)
   const premio = Math.round((20 + 14 * ondas + ab * 0.5) * (fimDeSemana() ? 2 : 1)); S.moedas += premio; const est = EQ.estrelasPartida(ondas); EQ.ganharEstrelas(est);
   const itens = [...(K.itensChefe || [])]; for (let i = 0, n = ondas >= 2 ? Math.min(4, 1 + Math.floor(ondas / (K.modo === 'arvore' ? 4 : 6))) : 0; i < n; i++) itens.push(EQ.gerarItem(ondas)); S.defesa ||= { rec: 0 }; const rk = K.modo === 'arvore' ? 'arv' : 'rec', novo = ondas > (S.defesa[rk] || 0); if (novo) S.defesa[rk] = ondas; salvar();

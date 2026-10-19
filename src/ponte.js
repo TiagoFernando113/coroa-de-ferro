@@ -19,6 +19,7 @@ import * as Q from './queda.js';
 import * as MU from './mundo.js';
 import * as DF from './defesa.js';
 import * as EQ from './equip.js';
+import * as PR from './progresso.js';
 import * as A from './analise.js';
 import { MEDALHAS, NIVEIS_MEDALHA, nivelMedalha, pegas, medalhasProntas, premioMedalha, pegarMedalha } from './perfil.js';
 import { ofertas, lojaDia, comprarOferta, temOferta } from './loja.js';
@@ -595,7 +596,9 @@ const novidadePendente = () => !!S.lib && ((S.melhor || 0) >= 1 && (!S.lib.todos
 function proximaLiberacao() { // comemora o que abriu (uma coisa por vez, só no menu e sem janela aberta)
   if (!S?.lib || tela !== 'lobby' || guia || !$('#janela').hidden) return;
   if (!S.lib.todos && (S.melhor || 0) >= 1 && semNome()) return pedirNome(); // depois da primeira vitória: escolher o nome
-  if ((S.melhor || 0) >= 1 && !S.classe) return EQ.escolherClasse(true); // e a classe (quem já jogava também escolhe uma vez)
+  if ((S.melhor || 0) >= 1 && !S.classe) return EQ.escolherClasse(true);
+  if (S.nivelNovo?.length) { const n = S.nivelNovo.shift(), P0 = PR.premioNivel(n); salvar(); const j = $('#janela'); j.hidden = false; sfx('vitoria'); som('lendario');
+    j.innerHTML = `<div class="jOnline jNovo"><div class="novoRaios"></div><em class="novoTag">${tr('NÍVEL')} ${n}!</em><div class="novoIco">${ico('coroa')}</div><h2>${tr('Seu herói subiu de nível')}</h2><p>${tr('Todo modo dá XP')}</p><div class="premio grande">${ico('ouro')}<b>+${fmt(P0.moedas)}</b> ${ico('estrela')}<b>+${P0.est}</b></div><button class="btn verde grande" data-a="fecharJanela">${ico('check')} OK</button></div>`; return; } // e a classe (quem já jogava também escolhe uma vez)
   if (S.lib.todos) return;
   const L = LIBERA.find(l => (S.melhor || 0) >= l[1] && !S.lib.visto[l[0]]); if (!L) return;
   const [id, , nome, icone, frase] = L; S.lib.visto[id] = 1; if (id === 'castelo') S.lib.visto.infinito = 1;
@@ -705,7 +708,7 @@ function htmlCartas() {
 function desenharLobby() {
   const F = dadosFase(S.fase), O = S.online, upPode = Object.entries(UPGRADES).some(([k, U]) => S.up[k] < U.max && S.moedas >= U.custo(S.up[k]));
   const nav = `<nav class="lbNav">${ABAS.map(([k, nome, icone]) => !liberado(k) ? `<button class="trava" data-trava="${k}">${ico('cadeado')}<small>${tr('Fase')} ${faseLibera(k)}</small></button>` : `<button class="${abaLobby === k ? 'on' : ''}" data-aba-lobby="${k}">${ico(icone)}<small>${nome}</small>${(k === 'up' && upPode) || (k === 'pets' && (S.ovos.comum || S.ovos.magico)) ? '<i class="ponto"></i>' : ''}</button>`).join('')}</nav>`;
-  const topo = `<div class="lbTopo"><button class="avatarBtn" data-a="perfil"><img src="${fotoPet(avatarAtual())}" alt="">${medalhasProntas() ? '<i class="ponto"></i>' : ''}</button><div class="pilula ouro">${ico('ouro')}<b>${fmt(S.moedas)}</b></div>
+  const topo = `<div class="lbTopo"><button class="avatarBtn" data-a="perfil"><img src="${fotoPet(avatarAtual())}" alt="">${medalhasProntas() ? '<i class="ponto"></i>' : ''}${(() => { const N = PR.nivelInfo(); return `<span class="nvHeroi"><b>${N.n}</b><i style="width:${Math.round(100 * N.x / N.prox)}%"></i></span>`; })()}</button><div class="pilula ouro">${ico('ouro')}<b>${fmt(S.moedas)}</b></div>
     <button class="redondo loja" data-a="loja">${ico('mercado')}${temOferta() ? '<i class="ponto"></i>' : ''}</button>${liberado('missoes') ? `<button class="redondo missoes" data-a="missoes">${ico('missoes')}${prontas() ? '<i class="ponto"></i>' : ''}</button>` : ''}<button class="redondo presente" data-a="diario">${ico('presente')}${diarioPronto() ? '<i class="ponto"></i>' : ''}</button><button class="redondo" data-a="config">${ico('config')}</button></div>`;
   let meio;
   if (abaLobby === 'home') meio = `
@@ -814,17 +817,18 @@ function mostrarConfig(reabrir) {
 // ---- tela de modos: tudo que não é a campanha fica aqui (a tela inicial só tem JOGAR) ----
 function mostrarModos() {
   const j = $('#janela'); j.hidden = false;
+  const DA = { arvore: ['gema', 'estrela', 'ouro'], defesa: ['gema', 'estrela', 'ouro'], dupla: ['ouro', 'bau', 'estrela'], infinito: ['rank', 'estrela', 'ouro'], castelo: ['rank', 'estrela', 'ouro'], conquista: ['ovo', 'ouro', 'estrela'], mundo: ['bandeira'] }; // o que cada modo dá
   const card = (k, cor, icone, nome, desc, info, livre, req) => `<button class="modoC ${livre ? '' : 'bloq'}" data-modo="${k}" style="--c:${cor}">${ico(livre ? icone : 'cadeado')}
-    <span><b>${nome}</b><small>${desc}</small></span><em>${livre ? info : req}</em></button>`;
-  j.innerHTML = `<div class="jOnline jModos"><h2>${ico('dado')} Modos</h2>
+    <span><b>${nome}</b><small>${desc}</small><i class="modoDa">${(DA[k] || []).map(n => ico(n)).join('')}</i></span><em>${livre ? info : req}</em></button>`;
+  j.innerHTML = `<div class="jOnline jModos"><h2>${ico('dado')} Modos</h2><p class="modoXp">${ico('coroa')} ${tr('Todo modo dá XP para o seu herói')}</p>
+    <h3>${ico('herois')} ${tr('Cooperativo')} <small>${tr('equipamentos e estrelas')}</small></h3>
     ${card('arvore', '#3a8a2a', 'herois', 'Árvore Sagrada', 'Até 6 amigos: defendam a árvore dos inimigos que vêm de todos os lados', 'Novo!', liberado('dupla'), `${tr('Fase')} ${faseLibera('dupla')}`)}
     ${card('defesa', '#2a9a5a', 'herois', 'Defesa em Grupo', 'Até 4 jogadores: ande, ataque e construa torres juntos', 'Novo!', liberado('dupla'), `${tr('Fase')} ${faseLibera('dupla')}`)}
     ${MAPA_GUERRA ? card('mundo', '#c8501a', 'bandeira', 'Mapa de Guerra', 'Seu exército marcha num mapa com todos os jogadores', 'Novo!', liberado('dupla'), `${tr('Fase')} ${faseLibera('dupla')}`) : ''}
-    <h3>${ico('herois')} Com o herói</h3>
+    ${card('dupla', '#2a8ae8', 'herois', 'Dupla', 'Jogue junto com outra pessoa', 'Online', liberado('dupla'), `${tr('Fase')} ${faseLibera('dupla')}`)}
+    <h3>${ico('rank')} ${tr('Desafios')} <small>${tr('recordes e ranking')}</small></h3>
     ${card('infinito', '#8a4ae8', 'estrela', 'Ponte sem fim', 'Chefes sem parar até cair', `${ico('rank')} ${fmt(S.recInf || 0)}`, liberado('infinito'), `${tr('Fase')} ${faseLibera('infinito')}`)}
     ${card('castelo', '#4a6ae8', 'h_muralha', 'Castelo', 'Defenda a muralha em ondas', `Onda ${S.castelo?.rec || 0}`, liberado('castelo'), `${tr('Fase')} ${faseLibera('castelo')}`)}
-    ${card('dupla', '#2a8ae8', 'herois', 'Dupla', 'Jogue junto com outra pessoa', 'Online', liberado('dupla'), `${tr('Fase')} ${faseLibera('dupla')}`)}
-    <h3>${ico('pata')} Com os pets</h3>
     ${card('conquista', '#d8501a', 'bandeira', 'Conquista', 'Seus pets contra equipes de outros jogadores', lucroOcioso() > 0 ? `${ico('ouro')} ${fmt(lucroOcioso())}` : `Estágio ${S.cq.est}`, liberado('conquista'), `${tr('Fase')} ${faseLibera('conquista')}`)}
     <button class="fSo" data-a="fecharJanela">Fechar</button></div>`;
 }
@@ -1857,7 +1861,8 @@ function danoNoCla() { const d = G.danoTotal || 0; if (d > 0 && S.online?.codigo
 function terminar(venceu) {
   if (G.fim) return; if (S.duplaViva) delete S.duplaViva; danoNoCla(); fimDupla(venceu); if (G.inf) return terminarInf(); G.fim = venceu ? 'v' : 'd'; tela = 'fim'; Q.emFase(false); A.partida(G.dupla ? 'dupla' : 'fase', G.n, venceu, { orcs: G.mortesVm, heroi: S.heroi, bot: G.dupla?.bot || undefined });
   const ganho = Math.round((venceu ? G.F.moedas + Math.floor(G.az.length / 4) : G.F.moedas * 0.25) * (G.dupla ? 1.5 : 1) * (1 + ((bonusEquipe().moedas || 0) + bonusRenasc(S.renasc || 0).moedas) / 100) * (G.multMoedas || 1) * (fimDeSemana() ? 2 : 1));
-  S.moedas += ganho; evento('orcs', G.mortesVm); if (venceu) { evento('fases'); evento('chefes'); } let bau = null; if (venceu) { bau = ganharBau(G.n); if (!G.dupla || G.n === S.fase) { S.fase++; mapaAndar = S.fase; } S.melhor = Math.max(S.melhor, G.n); } salvar();
+  S.moedas += ganho; evento('orcs', G.mortesVm); if (venceu) { evento('fases'); evento('chefes'); } let bau = null; if (venceu && Math.random() < 0.3) { const it = EQ.gerarItem(G.n / 2); if (EQ.melhorQueEquipado(it)) setTimeout(() => { if (tela === 'fim' || tela === 'lobby') EQ.novoItem(it); }, 2200); } // chefe da ponte pode deixar equipamento
+  if (venceu) { bau = ganharBau(G.n); if (!G.dupla || G.n === S.fase) { S.fase++; mapaAndar = S.fase; } S.melhor = Math.max(S.melhor, G.n); } salvar();
   setTimeout(() => {
     $('#jogo').hidden = true; const f = $('#fim'); f.hidden = false;
     f.innerHTML = `<div class="fimCaixa ${venceu ? 'vit' : 'der'}"><h2>${venceu ? 'VITÓRIA!' : 'A muralha caiu!'}</h2>

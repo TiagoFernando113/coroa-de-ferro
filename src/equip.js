@@ -9,6 +9,7 @@ import { fmt, tiros } from './dados.js';
 import { som, $, ico } from './util.js';
 import { sfx } from './musica.js';
 import { t as tr } from './i18n.js';
+import { evento } from './missoes.js';
 
 // nomes: [nome, visual, gênero] (o visual vai para o herói)
 export const SLOTS = {
@@ -91,7 +92,7 @@ export function gerarItem(onda, minR = 0, maxR = 5, lk = null) { // lk: lenda ga
   if (slot === 'arma') { const minhas = CLASSES[classeAtual()].armas, tp = minhas[Math.floor(Math.random() * minhas.length)], nn = D.nomes.find(n => n[1] === tp) || [nm, vis, gen];
     it.modelo = `P:${tp}:${r}`; it.nome = `${nn[0]} ${R.adj[nn[2] === 'f' ? 1 : 0]}`;
     const ls = lendasDaClasse().filter(([, L]) => L.r <= r); if (lk || (r >= 3 && ls.length && Math.random() < 0.5)) { const [k, L] = lk ? [lk, LENDAS[lk]] : ls[Math.floor(Math.random() * ls.length)]; Object.assign(it, { lenda: k, nome: L.nome, modelo: L.modelo }); } }
-  E.itens.push(it); if (E.itens.length > MAX_MOCHILA) { const pior = E.itens.filter(x => !emUso(x.id)).sort((a, b) => a.r - b.r || poderItem(a) - poderItem(b))[0]; if (pior) E.itens.splice(E.itens.indexOf(pior), 1); }
+  evento('equip'); E.itens.push(it); if (E.itens.length > MAX_MOCHILA) { const pior = E.itens.filter(x => !emUso(x.id)).sort((a, b) => a.r - b.r || poderItem(a) - poderItem(b))[0]; if (pior) E.itens.splice(E.itens.indexOf(pior), 1); }
   const atual = slot === 'arma' ? E.armas[classeDaArma(it)] : E.usando[slot]; if (!atual || poderItem(it) > poderItem(E.itens.find(x => x.id === atual) || { st: {}, nv: 1, r: 0 })) equipar(it); // equipa sozinho se for melhor
   salvar(); return it;
 }
@@ -247,7 +248,7 @@ export function clique(b) {
   if (a === 'bau') { const B = BAUS[+b.dataset.n]; if (!B || S.moedas < B.preco) { som('erro'); return true; } S.moedas -= B.preco; const novo = gerarItem(B.min * 4, B.min, B.max); salvar(); som('compra'); mostrar(); novoItem(novo); return true; }
   if (a === 'dj') { const n = +b.dataset.n; if (n === 0) { if (E.dia === hoje()) return true; E.dia = hoje(); }
     else if (estrelas() >= n) E.est -= n; else { const c = PRECO_DESEJO * n * (n >= 10 ? 0.9 : 1); if (S.moedas < c) { som('erro'); return true; } S.moedas -= c; }
-    som('compra'); const itens = []; for (let i = 0; i < Math.max(1, n); i++) itens.push(desejar()); salvar(); revelar(itens); return true; }
+    som('compra'); const itens = []; for (let i = 0; i < Math.max(1, n); i++) itens.push(desejar()); evento('desejos', Math.max(1, n)); salvar(); revelar(itens); return true; }
   if (!it) return false;
   if (a === 'usar') { if (!serveNoHeroi(it)) { som('erro'); return true; } equipar(it); salvar(); sfx('brilho'); mostrar(id); return true; }
   if (a === 'up') { const c = custoUp(it); if (S.moedas < c || it.nv >= MAX_NV) { som('erro'); return true; } S.moedas -= c; it.nv++; salvar(); som('compra'); sfx('vitoria'); mostrar(id); return true; }

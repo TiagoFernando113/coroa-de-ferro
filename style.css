@@ -1196,3 +1196,7 @@ input{font:inherit;user-select:text;-webkit-user-select:text}
 .dfCamPad.caminho{right:88px;bottom:calc(max(14px,env(safe-area-inset-bottom)) + 140px);width:72px;height:72px}
 
 .plNota{font-size:11px;color:#8a6a4a;margin:2px 0 6px;text-align:center}.plGrupo{white-space:normal;font-size:12px;line-height:1.2}
+
+.nvHeroi{position:absolute;left:-6px;bottom:-6px;min-width:22px;height:18px;padding:0 3px;border-radius:9px;background:linear-gradient(#8a4ae8,#5a2ab0);border:2px solid #fff3dc;color:#fff;font-size:11px;line-height:14px;text-align:center;overflow:hidden;box-shadow:0 2px 0 #3a1a6a}
+.nvHeroi b{position:relative;z-index:1;font-family:var(--fT);font-weight:400}.nvHeroi i{position:absolute;left:0;bottom:0;height:3px;background:#7affea}
+.modoDa{display:flex;gap:2px;margin-top:2px;font-style:normal}.modoDa .ico{width:15px;height:15px;color:#fff;filter:drop-shadow(0 1px 1px #0008)}.modoXp{font-size:12px;margin:-4px 0 6px;color:#6a3ab0;font-weight:700}

@@ -3,12 +3,14 @@
 import * as ON from './online.js';
 import * as C from './cena.js';
 import * as Q from './queda.js';
+import * as P from './progresso.js';
 
 const inicio = {};
 export const comecou = modo => { inicio[modo] = Date.now(); };
 export function partida(modo, fase = null, venceu = null, dados = null) {
   const dur = inicio[modo] ? Math.round((Date.now() - inicio[modo]) / 1000) : null; delete inicio[modo];
   ON.evento(modo, fase, venceu, dur, dados).catch(() => {});
+  try { P.ganhar(modo, fase, venceu); } catch (e) {} // XP do herói em todo modo
 }
 // impressão do aparelho: igual para todas as contas criadas no mesmo celular (para o Discord juntar)
 function impressao() {

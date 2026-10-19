@@ -2,6 +2,7 @@
 // O jogo avisa o que aconteceu com evento('orcs', 120) e as missões contam sozinhas.
 import { S, salvar, ganharBau } from './meta.js';
 import { contar } from './perfil.js';
+import { xpDireto } from './progresso.js';
 
 export const TIPOS = {
   orcs: { txt: 'Derrote # orcs', icone: 'caveira', dia: [300, 600, 1000], sem: [5000] },
@@ -14,6 +15,11 @@ export const TIPOS = {
   infinito: { txt: 'Jogue # vezes a Ponte sem fim', icone: 'estrela', dia: [1], sem: [5] },
   ondas: { txt: 'Aguente # ondas no Castelo', icone: 'h_muralha', dia: [10, 20], sem: [100] },
   arena: { txt: 'Vença # equipes de jogadores na Conquista', icone: 'coroa', dia: [2, 3], sem: [15] },
+  arvoreOndas: { txt: 'Aguente # ondas na Árvore Sagrada', icone: 'floresta', dia: [8, 15], sem: [80] },
+  grupo: { txt: 'Jogue # partidas na Árvore ou na Defesa em Grupo', icone: 'herois', dia: [1, 2], sem: [6] },
+  chefeGrupo: { txt: 'Derrote # chefes na Árvore ou na Defesa', icone: 'chefe', dia: [1], sem: [5] },
+  desejos: { txt: 'Faça # desejos', icone: 'estrela', dia: [1, 3], sem: [10] },
+  equip: { txt: 'Ganhe # equipamentos', icone: 'gema', dia: [2, 4], sem: [15] },
 };
 export const PTS_DIA = 40, PTS_SEM = 150, PTS_NIVEL = 100, NIVEIS_PASSE = 30;
 const hoje = () => new Date().toLocaleDateString('sv');
@@ -21,7 +27,7 @@ const semana = () => { const d = new Date(), dia = (d.getDay() + 6) % 7; d.setDa
 const temporada = () => new Date().toLocaleDateString('sv').slice(0, 7);
 function sortear(n, chave, semente) {
   let sd = [...semente].reduce((a, c) => a * 31 + c.charCodeAt(0) | 0, 7) >>> 0 || 1; const r = () => ((sd = (sd * 16807) % 2147483647) / 2147483647);
-  const tipos = Object.keys(TIPOS).filter(t => (t !== 'ondas' || (S.melhor || 0) >= 3) && (t !== 'arena' || S.online?.codigo)).sort(() => r() - 0.5).slice(0, n);
+  const grupoOk = (S.melhor || 0) >= 2, tipos = Object.keys(TIPOS).filter(t => (t !== 'ondas' || (S.melhor || 0) >= 3) && (t !== 'arena' || S.online?.codigo) && (!['arvoreOndas', 'grupo', 'chefeGrupo', 'desejos', 'equip'].includes(t) || grupoOk)).sort(() => r() - 0.5).slice(0, n);
   return tipos.map(t => { const l = TIPOS[t][chave]; return { t, meta: l[Math.floor(r() * l.length)], prog: 0, pego: false }; });
 }
 // renova as listas quando vira o dia / a semana / o mês
@@ -41,7 +47,7 @@ export const prontas = () => { atualizarMissoes(); return [...S.missoes.diarias,
 export function pegarMissao(semanal, i) {
   const m = (semanal ? S.missoes.semanais : S.missoes.diarias)[i]; if (!m || m.pego || m.prog < m.meta) return null;
   m.pego = true; const pts = semanal ? PTS_SEM : PTS_DIA, moedas = semanal ? 300 + 40 * S.fase : 60 + 10 * S.fase;
-  S.passe.pts += pts; S.moedas += moedas; if (semanal) S.ovos.comum++;
+  S.passe.pts += pts; S.moedas += moedas; if (semanal) S.ovos.comum++; xpDireto(semanal ? 120 : 40); // missão também dá XP do herói
   salvar(); return { pts, moedas, ovo: semanal };
 }
 // ---- passe: prêmio de cada nível ----
