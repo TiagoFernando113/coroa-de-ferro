@@ -109,7 +109,8 @@ function montarCenario() {
   const grupo = new THREE.Group(); grupo.add(chao); cn().add(grupo);
   // caminho de pedras (o mesmo zigue-zague dos inimigos, com as curvas)
   const pts = []; for (let k = 0; k < CAM.length; k++) { const [x, z] = CAM[k]; if (k && k < CAM.length - 1) { const [ax, az] = CAM[k - 1], [bx, bz] = CAM[k + 1], la = Math.hypot(x - ax, z - az), lb = Math.hypot(bx - x, bz - z);
-      pts.push({ x: OX + x - (x - ax) / la * 1.2, z: z - (z - az) / la * 1.2 }, { x: OX + x, z }, { x: OX + x + (bx - x) / lb * 1.2, z: z + (bz - z) / lb * 1.2 }); } else pts.push({ x: OX + x, z }); }
+      const r = Math.min(5, la * 0.45, lb * 0.45), p0 = [x - (x - ax) / la * r, z - (z - az) / la * r], p2 = [x + (bx - x) / lb * r, z + (bz - z) / lb * r]; // curva arredondada (sem a faixa dobrar)
+      for (let i = 0; i <= 8; i++) { const t = i / 8, u = 1 - t; pts.push({ x: OX + u * u * p0[0] + 2 * u * t * x + t * t * p2[0], z: u * u * p0[1] + 2 * u * t * z + t * t * p2[1] }); } } else pts.push({ x: OX + x, z }); }
   const estrada = C.estrada(pts, 6.4); grupo.add(estrada.grupo);
   const pecas = [], arv = ['F:Tree_1_A_Color1', 'F:Tree_2_A_Color1', 'F:Tree_3_A_Color1', 'F:Tree_4_A_Color1', 'F:Tree_2_C_Color1', 'N:tree_pineTallA', 'N:tree_oak'];
   const enfeites = ['Q:Grass_Common_Tall', 'Q:Grass_Wispy_Tall', 'Q:Flower_3_Group', 'Q:Flower_4_Group', 'Q:Clover_1', 'Q:Fern_1', 'N:mushroom_redGroup', 'F:Bush_1_A_Color1', 'F:Bush_2_C_Color1', 'Q:Rock_Medium_1', 'Q:Rock_Medium_2', 'Q:Pebble_Round_2', 'N:stump_round', 'N:log'];
@@ -750,13 +751,13 @@ function fecharBuffs() { limparCirculos(); K.cartas = null; }
 function aplicarBuff(k, pid, nome) {
   if (!BUFFS[k] || K.escolheram?.has(pid)) return; K.escolheram?.add(pid); K.buffs[k] = bnv(k) + 1;
   if (k === 'seiva') { K.baseMax = Math.round(K.baseMax * 1.25); K.base = Math.min(K.baseMax, K.base + K.baseMax * 0.4); }
-  aplicarBuffsVisuais(); K.canal?.enviar('bfx', { n: nome, k }); toast(`${nome}: ${tr(BUFFS[k].nome)}`);
+  aplicarBuffsVisuais(); K.canal?.enviar('bfx', { n: nome, k }); toast(`${tr(BUFFS[k].nome)}: ${tr(BUFFS[k].desc)}`);
 }
 
 function acabar(p) {
   if (!K || K.estado === 'fim') return; K.estado = 'fim'; const ondas = Math.max(0, (p.onda ?? K.onda) - 1), ab = p.ab ? Object.fromEntries(p.ab)[K.eu] || 0 : K.abates[K.eu] || 0;
   A.partida(K.modo === 'arvore' ? 'arvore' : 'defesa', ondas, null, { abates: ab, jogadores: 1 + K.jogs.size });
-  if (K.modo === 'arvore' && ondas > 0) ON.arvoreEnviar(ondas).catch(() => {}); // ranking semanal da Árvore
+  if (K.modo === 'arvore' && ondas > 0) ON.arvoreEnviar(ondas, [K.eu, ...K.jogs.keys()].map(String)).catch(() => {}); // ranking semanal da Árvore (por grupo)
   const premio = Math.round((20 + 14 * ondas + ab * 0.5) * (fimDeSemana() ? 2 : 1)); S.moedas += premio; const est = EQ.estrelasPartida(ondas); EQ.ganharEstrelas(est);
   const itens = [...(K.itensChefe || [])]; for (let i = 0, n = ondas >= 2 ? Math.min(4, 1 + Math.floor(ondas / (K.modo === 'arvore' ? 4 : 6))) : 0; i < n; i++) itens.push(EQ.gerarItem(ondas)); S.defesa ||= { rec: 0 }; const rk = K.modo === 'arvore' ? 'arv' : 'rec', novo = ondas > (S.defesa[rk] || 0); if (novo) S.defesa[rk] = ondas; salvar();
   sfx(novo ? 'vitoria' : 'derrota'); C.camera.tremor = 1; K.banner = p.saiu ? null : { txt: K.modo === 'arvore' ? 'A ÁRVORE CAIU!' : 'O CASTELO CAIU!', cor: '#ff6a5a', t: 0 };
@@ -789,6 +790,8 @@ export function desenharFx(g, dt) {
     if (j.g) { g.font = '11px Titulo, sans-serif'; const t = fmt(j.g); desenharIco(g, 'h_lamina', p[0] - 14, p[1] + 9, 12, '#ffffff'); g.strokeText(t, p[0] + 6, p[1] + 13); g.fillStyle = j.rr >= 0 ? EQ.RARIDADES[j.rr].cor : '#fff'; g.fillText(t, p[0] + 6, p[1] + 13); } }
   for (const c of K.circ || []) { const p = C.tela(c.x, 4.2, c.z); if (!p) continue; const B = BUFFS[c.k]; desenharIco(g, B.ic, p[0], p[1] - 6, 38, '#ffffff');
     g.font = '14px Titulo, sans-serif'; const nm = tr(B.nome); g.strokeText(nm, p[0], p[1] + 22); g.fillStyle = '#fff'; g.fillText(nm, p[0], p[1] + 22);
+    g.font = '11px sans-serif'; const ds = tr(B.desc), pal = ds.split(' '), linhas = ['']; for (const w of pal) { if ((linhas[linhas.length - 1] + ' ' + w).length > 22 && linhas[linhas.length - 1]) linhas.push(w); else linhas[linhas.length - 1] = (linhas[linhas.length - 1] + ' ' + w).trim(); }
+    linhas.slice(0, 3).forEach((l, i) => { const y = p[1] + 60 + i * 13; g.strokeText(l, p[0], y); g.fillStyle = '#d8fff6'; g.fillText(l, p[0], y); }); // explicação curta do poder
     const v = `${c.n}`; desenharIco(g, 'herois', p[0] - 12, p[1] + 37, 18, c.n ? '#7affea' : '#cccccc'); g.font = '16px Titulo, sans-serif'; g.strokeText(v, p[0] + 10, p[1] + 42); g.fillStyle = c.n ? '#7affea' : '#ccc'; g.fillText(v, p[0] + 10, p[1] + 42); }
   for (const u of K.mobs) if (u.marcaT > 0 && !u.morto) { const p = C.tela(u.x, (u.y || 0) + u.alt + 1.6, u.z); if (p) desenharIco(g, 'h_perfura', p[0], p[1], 20, '#ff5a4a'); }
   const caido = (x, z, rev) => { const p = C.tela(x, 2.6, z); if (!p) return; g.font = '13px Titulo, sans-serif'; const t = rev > 0 ? `${tr('Levantando')} ${Math.round(rev / 2.5 * 100)}%` : tr('Caído! Fique do lado para levantar'); g.strokeText(t, p[0], p[1]); g.fillStyle = '#ff9a8a'; g.fillText(t, p[0], p[1]); };

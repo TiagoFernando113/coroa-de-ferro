@@ -1194,3 +1194,5 @@ input{font:inherit;user-select:text;-webkit-user-select:text}
 .dfCamPad{position:absolute;right:14px;bottom:calc(max(14px,env(safe-area-inset-bottom)) + 8px);width:86px;height:86px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;background:radial-gradient(circle,rgba(255,255,255,.28),rgba(40,30,70,.55));border:3px dashed #fff3dc;color:#fff;touch-action:none;box-shadow:0 3px 0 #0006}
 .dfCamPad .ico{width:34px;height:34px}.dfCamPad small{font-size:10px;font-weight:700;text-shadow:0 1px 2px #000}.dfCamPad.on{background:radial-gradient(circle,rgba(122,255,234,.45),rgba(40,30,70,.6));transform:scale(1.06)}
 .dfCamPad.caminho{right:88px;bottom:calc(max(14px,env(safe-area-inset-bottom)) + 140px);width:72px;height:72px}
+
+.plNota{font-size:11px;color:#8a6a4a;margin:2px 0 6px;text-align:center}.plGrupo{white-space:normal;font-size:12px;line-height:1.2}

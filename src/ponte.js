@@ -914,9 +914,9 @@ async function verCla(id) {
 function mostrarListaPlacar(el, nome, k, mostrarNomeEu) {
   const P = PLACAR[k], cla = k.startsWith('cla_'), val = r => `${P.un === 'Nv' ? 'Nv ' : ''}${fmt(r.valor)}`;
   el.innerHTML = `${nome}<div class="plTopo"><button class="plVoltar" data-rk="voltar">${ico('seta')}</button><b>${P.nome}</b></div>
-    <div class="plCab"><span>Rank</span><span>${cla ? 'Clã' : 'Jogador'}</span><span>${P.un && P.un !== 'Nv' ? P.un : cla && k === 'cla_nivel' ? 'Nível' : 'Valor'}</span></div><div class="lista plLista" id="lista"><p>Carregando...</p></div><div id="plEu"></div>`;
+    ${k === 'arvore' ? `<p class="plNota">${tr('Top 10 grupos ganham moedas na virada da semana')}</p>` : ''}<div class="plCab"><span>Rank</span><span>${cla ? 'Clã' : k === 'arvore' ? tr('Grupo') : 'Jogador'}</span><span>${P.un && P.un !== 'Nv' ? P.un : cla && k === 'cla_nivel' ? 'Nível' : 'Valor'}</span></div><div class="lista plLista" id="lista"><p>Carregando...</p></div><div id="plEu"></div>`;
   const linha = r => `<div class="linha plLinha p${Math.min(4, r.posicao)} ${r.eu ? 'eu' : ''}"><b class="plPos">${r.posicao <= 3 ? `<i class="medalha m${r.posicao}">${r.posicao}</i>` : r.posicao}</b>
-    <span class="plMini">${fotoPlacar(k, r, 128)}</span>${cla ? `<button class="nomeBtn" data-cla-ver="${r.codigo}" data-nt>${tagHtml(r.tag, r.cor)}${esc(r.nome)}</button>` : `<button class="nomeBtn" data-perfil="${r.codigo}" data-nt>${tagHtml(r.tag, r.cor)}${esc(r.nome)}</button>`}<em>${val(r)}</em></div>`;
+    <span class="plMini">${k === 'arvore' ? ico('herois') : fotoPlacar(k, r, 128)}</span>${k === 'arvore' ? `<span class="nomeBtn plGrupo" data-nt>${esc(r.nome)}</span>` : cla ? `<button class="nomeBtn" data-cla-ver="${r.codigo}" data-nt>${tagHtml(r.tag, r.cor)}${esc(r.nome)}</button>` : `<button class="nomeBtn" data-perfil="${r.codigo}" data-nt>${tagHtml(r.tag, r.cor)}${esc(r.nome)}</button>`}<em>${val(r)}</em></div>`;
   comCache('pl_' + k, () => ON.garantir().then(() => ON.placarLista(k)), l => { if (rankModo !== k) return; const e = $('#lista'); if (!e) return; mostrarNomeEu();
     const top = l.filter(r => r.posicao <= 50), eu = l.find(r => r.eu);
     e.innerHTML = top.length ? top.map(linha).join('') : '<p>Ninguém ainda.</p>';
