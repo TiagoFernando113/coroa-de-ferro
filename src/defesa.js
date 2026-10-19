@@ -172,7 +172,7 @@ export function abrir(container, sair, modo = 'caminho') {
 }
 export function fechar() {
   if (!K) return; try { K.canal?.enviar('tchau', { p: K.eu }); } catch (e) {} setTimeout(((c) => () => c?.fechar())(K.canal), 300);
-  K.v.remover(); for (const j of K.jogs.values()) { j.v?.remover(); if (j.aro) cn().remove(j.aro); } if (K.aroEu) cn().remove(K.aroEu); for (const u of K.mobs) u.v?.remover(); for (const b of K.bots || []) b.v.remover(); for (const s of K.tiros) cn().remove(s.o); for (const r of K.raios) cn().remove(r.o); if (K.anel) { cn().remove(K.anel); K.anel.material.dispose(); } for (const m of Object.values(K.vis || {})) C.descartar(m); for (const t of K.torres.values()) cn().remove(t.o);
+  K.v.remover(); for (const j of K.jogs.values()) { j.v?.remover(); if (j.aro) cn().remove(j.aro); } if (K.aroEu) cn().remove(K.aroEu); for (const u of K.mobs) u.v?.remover(); for (const b of K.bots || []) b.v.remover(); limparCirculos(); for (const s of K.tiros) cn().remove(s.o); for (const r of K.raios) cn().remove(r.o); if (K.anel) { cn().remove(K.anel); K.anel.material.dispose(); } for (const m of Object.values(K.vis || {})) C.descartar(m); for (const t of K.torres.values()) cn().remove(t.o);
   C.descartar(K.cena[0]); C.removerGrupo(K.cena[1]); desligarToque(); limparTropas(); K = null; if (el) { el.hidden = true; el.innerHTML = ''; }
 }
 export const ativo = () => !!K;
@@ -219,7 +219,7 @@ function receber(ev, p) {
       if (Math.abs(u.s - s) > 3) u.s = s; else u.s += (s - u.s) * 0.5; u.hp = hp; u.max = mx; }
     for (const u of K.mobs) if (!vivos.has(u.id) && !u.morto) { if (K.modo === 'arvore' ? u.tipo !== 'sabotador' : u.s < LCAM - 3) K.txt.push({ x: u.x, y: u.y + 2.5, z: u.z, txt: `+${TIPOS[u.tipo].moedas}`, cor: '#ffd84a', t: 0 }); matarMob(u, K.modo !== 'arvore' && u.s >= LCAM - 3); }
     K.cofre = p.c; if (p.pw != null) K.poder = p.pw;
-    if (K.estado === 'buff' && K.buffOnda !== K.onda) { K.buffOnda = K.onda; K.escolhi = false; mostrarCartas(); } else if (K.estado !== 'buff' && K.cartas) fecharBuffs();
+    if (K.estado === 'buff' && p.bo) { if (!K.circ || K.cartas?.join() !== p.bo.join()) { K.cartas = p.bo; montarCirculos(); } (p.bc || []).forEach((n, i) => { if (K.circ?.[i]) K.circ[i].n = n; }); } else if (K.circ) fecharBuffs();
     atualizarHud(); return; }
   if (ev === 'fim') { acabar(p); return; }
   if (ev === 'hab') { C.onda(p.x, p.z, 12, p.c, 0.5); C.faiscas(p.x, 2, p.z, p.c, 30, 8); return; }
@@ -386,7 +386,7 @@ function atualizarHud() {
   if (!K) return; const m = $('#dfMoedas'); if (!m) return; m.textContent = fmt(K.cofre);
   $('#dfBaseB').style.width = 100 * Math.max(0, K.base) / Math.max(1, K.baseMax) + '%'; $('#dfBaseT').textContent = `${fmt(Math.max(0, Math.round(K.base)))} / ${fmt(K.baseMax)}`;
   $('#dfOnda').textContent = K.onda ? `${tr('Onda')} ${K.onda}` : tr(K.modo === 'arvore' ? 'Árvore Sagrada' : 'Defesa em Grupo');
-  { const bt = $('#dfBuffT'); if (bt) bt.textContent = K.estado === 'buff' ? `${Math.ceil(Math.max(0, K.buffT || 0))}s` : ''; } $('#dfJog').textContent = `👥 ${1 + K.jogs.size}/${K.modo === 'arvore' ? 6 : 4}`;
+  if (K.estado === 'buff' && K.circ) avisar(`🌳 ${tr('Pise no círculo do poder que você quer')} · ${Math.ceil(Math.max(0, K.buffT || 0))}s`); else if (K.avisoBuff) avisar(''); K.avisoBuff = K.estado === 'buff'; $('#dfJog').textContent = `👥 ${1 + K.jogs.size}/${K.modo === 'arvore' ? 6 : 4}`;
   const hp = $('#dfHpB'); if (hp) { hp.style.width = 100 * Math.max(0, K.heroi.hp) / K.heroi.hpMax + '%'; $('#dfHpT').textContent = K.heroi.morto ? `${tr('Renascendo em')} ${Math.ceil(K.heroi.mortoT)}s` : `${Math.ceil(K.heroi.hp)} / ${K.heroi.hpMax}`; }
   const hb = $('#dfHab'); if (hb) { const r = Math.max(0, K.heroi.habT || 0); hb.classList.toggle('pronto', !r); $('#dfHabB').style.height = (r / RECARGA_HAB * 100) + '%'; $('#dfHabT').textContent = r ? Math.ceil(r) : ''; }
   const dv = $('#dfDesvio'); if (dv) { const r = Math.max(0, K.heroi.dsT || 0); dv.classList.toggle('pronto', !r); $('#dfDesvioB').style.height = (r / RECARGA_DESVIO * 100) + '%'; }
@@ -422,7 +422,6 @@ export function clique(b, toque) {
     if (K.host) { if (!construir(pad, t, K.eu)) som('erro'); } else { if (K.cofre < TORRES[t].custo) { som('erro'); return; } K.canal?.enviar('b', { p: K.eu, pad, t }); som('confirma'); }
     atualizarHud(); return; }
   if (a === 'up') { const pad = +b.dataset.pad; if (K.host) { if (!melhorar(pad, K.eu)) som('erro'); } else { K.canal?.enviar('u', { p: K.eu, pad }); som('confirma'); } K.sigAcoes = null; atualizarHud(); return; }
-  if (a === 'buff') { escolherBuff(b.dataset.k); return; }
   if (a === 'hab') { usarHabilidade(); atualizarHud(); return; }
   if (a === 'golpe') { golpear(); return; }
   if (a === 'desviar') { desviar(); atualizarHud(); return; }
@@ -457,7 +456,7 @@ export function passo(dt) {
   K.mobs = K.mobs.filter(u => !u.morto || (u.v && u.tm < 1.3));
   desenharTropas('vm', K.mobs.filter(u => !u.v && !u.morto), 0, tt); passoVoo(dt);
   if (K.modo === 'arvore') passoArvore(dt);
-  heroiAtira(dt); passoBots(dt); torresAtiram(dt); passoTiros(dt); passoQueimas(dt); if (K.heroi.habT > 0) K.heroi.habT -= dt;
+  heroiAtira(dt); passoBots(dt); passoCirculos(); torresAtiram(dt); passoTiros(dt); passoQueimas(dt); if (K.heroi.habT > 0) K.heroi.habT -= dt;
   for (const t of K.torres.values()) if (t.orbe) t.orbe.position.y = 6.6 + Math.sin(tt * 2.5 + t.pad) * 0.35;
   { const pad = K.estado === 'fim' ? null : padPerto(), t = pad != null && K.torres.get(pad); if (!K.anel) { K.anel = new THREE.Mesh(GEO_ANEL, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55, depthWrite: false })); cn().add(K.anel); }
     K.anel.visible = pad != null && (!!t || K.menu); if (K.anel.visible) { const [x, z] = PADS[pad], alc = t ? TORRES[t.tipo].alc * (1 + 0.1 * (t.nv - 1)) : TORRES.arq.alc; K.anel.position.set(OX + x, 0.4, z); K.anel.scale.setScalar(alc); } }
@@ -466,7 +465,7 @@ export function passo(dt) {
   if (K.canal) {
     if ((K.tH -= dt) <= 0) { K.tH = 0.1; const h = K.heroi; K.canal.enviar('h', { p: K.eu, n: K.nome, h: S.heroi || 'lyra', x: Math.round(h.x * 10) / 10, z: Math.round(h.z * 10) / 10, r: Math.round(h.dir * 100) / 100, a: K.atirou ?? -1, g: K.poderEq, rr: K.rarEq, ...((K.tVis = (K.tVis || 0) - 1) <= 0 ? (K.tVis = 20, { vs: visCurto(K.visH) }) : {}) }); K.atirou = null; }
     if (K.host && (K.tS -= dt) <= 0) { K.tS = 0.25; K.canal.enviar('s', { o: K.onda, e: K.estado, pt: Math.round(K.pausaT * 10) / 10, b: Math.round(K.base), bm: K.baseMax,
-      m: K.mobs.filter(u => !u.morto).slice(0, 80).map(u => [u.id, LTIPOS.indexOf(u.tipo), Math.round(u.s * 10) / 10, Math.round(u.hp), u.max, u.porta ?? 0, Math.round((u.off || 0) * 10)]), c: K.cofre, pw: Math.round(K.poder), bf: K.buffs, bt: Math.round(K.buffT || 0) });
+      m: K.mobs.filter(u => !u.morto).slice(0, 80).map(u => [u.id, LTIPOS.indexOf(u.tipo), Math.round(u.s * 10) / 10, Math.round(u.hp), u.max, u.porta ?? 0, Math.round((u.off || 0) * 10)]), c: K.cofre, pw: Math.round(K.poder), bf: K.buffs, bt: Math.round(K.buffT || 0), ...(K.estado === 'buff' && K.circ ? { bo: K.cartas, bc: K.circ.map(c => c.n) } : {}) });
       if ((K.tTw = (K.tTw || 0) - 0.25) <= 0) { K.tTw = 3; K.canal.enviar('tw', { l: listaTorres() }); } }
     if (!K.host && K.danos.length && (K.tD -= dt) <= 0) { K.tD = 0.15; K.canal.enviar('d', { p: K.eu, l: K.danos.splice(0) }); }
     if (K.host && K.sala && (K.tPing -= dt) <= 0) { K.tPing = 3; ON.defPing(K.sala, 1 + K.jogs.size, K.onda, K.estado !== 'fim' && K.onda < 15).catch(() => {}); }
@@ -576,7 +575,7 @@ function efeitoLenda(k, a, dano) {
 function passoQueimas(dt) { if (!K.queimas?.length) return; for (const q of K.queimas) { q.t -= dt; if ((q.cd -= dt) <= 0) { q.cd = 1; danoEm(q.u, q.d); C.faiscas(q.u.x, 1.5, q.u.z, 0xff7a2a, 5, 2); } } K.queimas = K.queimas.filter(q => q.t > 0 && !q.u.morto); }
 function simular(dt) {
   if (K.estado === 'pausa') { if ((K.pausaT -= dt) <= 0) { K.onda++; K.fila = montarOnda(K.onda, K.modo); K.t = 0; K.estado = 'onda'; bannerOnda(); } return; }
-  if (K.estado === 'buff') { K.buffT -= dt; if (K.buffT <= 0 || K.escolheram.size >= 1 + K.jogs.size) { K.estado = 'pausa'; K.pausaT = 4; fecharBuffs(); } return; }
+  if (K.estado === 'buff') { K.buffT -= dt; if (K.circ && Math.max(...K.circ.map(c => c.n)) >= 1 + K.jogs.size) K.buffT = Math.min(K.buffT, 2.5); if (K.buffT <= 0) { if (K.circ) decidirBuff(); else { K.estado = 'pausa'; K.pausaT = 4; } } return; } // todos no mesmo círculo: decide em 2,5s
   K.t += dt; while (K.fila.length && K.fila[0].t <= K.t) K.mobs.push(criarMob(K.fila.shift().tipo, K.onda));
   for (const u of K.mobs) { if (u.morto) continue;
     if (u.tipo === 'xama' && (u.curaT = (u.curaT ?? 3) - dt) <= 0) { u.curaT = 3; C.onda(u.x, u.z, 8, 0x6aff8a, 0.5); for (const o of K.mobs) if (!o.morto && o !== u && Math.hypot(o.x - u.x, o.z - u.z) < 8) o.hp = Math.min(o.max, o.hp + o.max * 0.2); }
@@ -626,19 +625,28 @@ function aplicarBuffsVisuais() {
   if (bnv('cura')) mk('cura', new THREE.RingGeometry(12.4, 13, 64).rotateX(-Math.PI / 2), 0x6aff8a, 0.6);
   if (bnv('raizes')) mk('raizes', new THREE.RingGeometry(R_ARV + 2, 14, 64).rotateX(-Math.PI / 2), 0x6a4a1a, 0.25);
 }
-function abrirBuffs() { K.estado = 'buff'; K.buffT = 20; K.escolheram = new Set(); K.buffOnda = K.onda; K.escolhi = false; mostrarCartas(); }
-function fecharBuffs() { const j = $('#dfJanela'); if (j && K.cartas) { j.hidden = true; j.innerHTML = ''; } K.cartas = null; }
-function mostrarCartas() {
-  const j = $('#dfJanela'); if (!j) return; const ks = Object.keys(BUFFS).filter(k => bnv(k) < 5).sort(() => Math.random() - 0.5).slice(0, 3); K.cartas = ks; j.hidden = false; sfx('brilho');
-  j.innerHTML = `<div class="cqFim dfBuffs"><h2>🌳 ${tr('Escolha um poder para o time')}</h2><div class="dfCartas">${ks.map(k => { const B = BUFFS[k], nv = bnv(k);
-    return `<button class="dfCarta" data-df="buff" data-k="${k}"><i>${B.ic}</i><b>${tr(B.nome)}</b><small>${tr(B.desc)}</small><em>${nv ? `Nv ${nv} → ${nv + 1}` : tr('Novo')}</em></button>`; }).join('')}</div>
-    <p class="dfBuffT" id="dfBuffT"></p></div>`;
+// escolha do poder no chão: 3 círculos na frente da árvore; quem pisa vota, o círculo com mais heróis vence (todos num só: decide na hora)
+const GEO_CIRC = new THREE.RingGeometry(2.6, 3.2, 40).rotateX(-Math.PI / 2), GEO_LUZ = new THREE.CylinderGeometry(3, 3, 7, 24, 1, true).translate(0, 3.5, 0), CORES_BUFF = [0x7affea, 0xffd84a, 0xff8ae0];
+const posCirculo = i => [ARV.x + (i - 1) * 9, ARV.z + 15];
+function abrirBuffs() { K.estado = 'buff'; K.buffT = 15; K.buffOnda = K.onda; K.escolheram = new Set(); K.cartas = Object.keys(BUFFS).filter(k => bnv(k) < 5).sort(() => Math.random() - 0.5).slice(0, 3); montarCirculos(); K.banner = { txt: 'ESCOLHAM UM PODER!', cor: '#7affea', t: 0 }; }
+function montarCirculos() {
+  limparCirculos(); sfx('brilho');
+  K.circ = K.cartas.map((k, i) => { const [x, z] = posCirculo(i), g = new THREE.Group(), cor = CORES_BUFF[i];
+    g.add(new THREE.Mesh(GEO_CIRC, new THREE.MeshBasicMaterial({ color: cor, transparent: true, opacity: 0.85, depthWrite: false })), new THREE.Mesh(GEO_LUZ, new THREE.MeshBasicMaterial({ color: cor, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false })));
+    g.position.set(x, 0.2, z); cn().add(g); C.onda(x, z, 4, cor, 0.5); return { k, x, z, g, n: 0 }; });
 }
-function escolherBuff(k) {
-  if (!K.cartas || K.escolhi) return; K.escolhi = true; som('confirma');
-  if (K.host) aplicarBuff(k, K.eu, K.nome); else K.canal?.enviar('bf', { p: K.eu, k, n: K.nome });
-  const j = $('#dfJanela'); if (j) j.innerHTML = `<div class="cqFim dfBuffs"><h2>${BUFFS[k].ic} ${tr(BUFFS[k].nome)}!</h2><p>${tr('Esperando os outros escolherem...')}</p><p class="dfBuffT" id="dfBuffT"></p></div>`;
+function limparCirculos() { for (const c of K.circ || []) { cn().remove(c.g); c.g.traverse(o => o.material?.dispose()); } K.circ = null; }
+function passoCirculos() {
+  if (!K.circ) return; const quem = [K.heroi, ...K.jogs.values()].filter(h => !h.morto && h.x != null), t = C.tempo();
+  for (const c of K.circ) { if (K.host) c.n = quem.filter(h => Math.hypot(h.x - c.x, h.z - c.z) < 3.2).length; c.g.scale.setScalar(1 + (c.n ? 0.12 : 0) + 0.04 * Math.sin(t * 4)); c.g.children[1].material.opacity = c.n ? 0.32 : 0.16; }
+  const meu = K.circ.find(c => Math.hypot(K.heroi.x - c.x, K.heroi.z - c.z) < 3.2); if (meu && K.meuCirc !== meu.k) { K.meuCirc = meu.k; som('confirma'); } else if (!meu) K.meuCirc = null;
 }
+function decidirBuff() {
+  const max = Math.max(...K.circ.map(c => c.n)), l = K.circ.filter(c => c.n === max), c = l[Math.floor(Math.random() * l.length)];
+  aplicarBuff(c.k, 'time', tr('Time')); C.onda(c.x, c.z, 10, 0xffffff, 0.6); C.faiscas(c.x, 2, c.z, 0xffd84a, 30, 7); sfx('vitoria'); K.banner = { txt: `${BUFFS[c.k].ic} ${tr(BUFFS[c.k].nome)}!`.toUpperCase(), cor: '#ffd84a', t: 0 };
+  K.estado = 'pausa'; K.pausaT = 4; limparCirculos();
+}
+function fecharBuffs() { limparCirculos(); K.cartas = null; }
 function aplicarBuff(k, pid, nome) {
   if (!BUFFS[k] || K.escolheram?.has(pid)) return; K.escolheram?.add(pid); K.buffs[k] = bnv(k) + 1;
   if (k === 'seiva') { K.baseMax = Math.round(K.baseMax * 1.25); K.base = Math.min(K.baseMax, K.base + K.baseMax * 0.4); }
@@ -671,6 +679,9 @@ export function desenharFx(g, dt) {
     g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(p[0] - w / 2 - 1, p[1] - 1, w + 2, 6); g.fillStyle = u.tipo === 'chefe' ? '#ff4a3a' : '#e8803a'; g.fillRect(p[0] - w / 2, p[1], w * Math.max(0, u.hp) / u.max, 4); }
   for (const j of K.jogs.values()) { const p = C.tela(j.x, 3.2, j.z); if (!p) continue; g.font = '13px Titulo, sans-serif'; g.strokeText(j.nome, p[0], p[1]); g.fillStyle = '#9ad8ff'; g.fillText(j.nome, p[0], p[1]);
     if (j.g) { g.font = '11px Titulo, sans-serif'; const t = `⚔️ ${fmt(j.g)}`; g.strokeText(t, p[0], p[1] + 13); g.fillStyle = j.rr >= 0 ? EQ.RARIDADES[j.rr].cor : '#fff'; g.fillText(t, p[0], p[1] + 13); } }
+  for (const c of K.circ || []) { const p = C.tela(c.x, 4.2, c.z); if (!p) continue; const B = BUFFS[c.k]; g.font = '34px sans-serif'; g.fillText(B.ic, p[0], p[1]);
+    g.font = '14px Titulo, sans-serif'; const nm = tr(B.nome); g.strokeText(nm, p[0], p[1] + 22); g.fillStyle = '#fff'; g.fillText(nm, p[0], p[1] + 22);
+    const v = `👥 ${c.n}`; g.font = '16px Titulo, sans-serif'; g.strokeText(v, p[0], p[1] + 42); g.fillStyle = c.n ? '#7affea' : '#ccc'; g.fillText(v, p[0], p[1] + 42); }
   for (const b of K.bots || []) { if (b.morto) continue; const p = C.tela(b.x, 3.2, b.z); if (!p) continue; g.font = '12px Titulo, sans-serif'; g.strokeText(b.nome, p[0], p[1]); g.fillStyle = '#a8f0b8'; g.fillText(b.nome, p[0], p[1]);
     g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(p[0] - 16, p[1] + 4, 32, 5); g.fillStyle = '#5ae06a'; g.fillRect(p[0] - 15, p[1] + 5, 30 * Math.max(0, b.hp / b.hpMax), 3); }
   { const p = C.tela(K.heroi.x, 3.2, K.heroi.z); if (p && (K.jogs.size || K.bots?.length)) { g.font = '13px Titulo, sans-serif'; g.strokeText(K.nome, p[0], p[1]); g.fillStyle = '#ffd84a'; g.fillText(K.nome, p[0], p[1]); } }
@@ -684,4 +695,4 @@ export function desenharFx(g, dt) {
     g.save(); g.globalAlpha = a; g.translate(innerWidth / 2, innerHeight * 0.3); g.scale(s, s); g.font = '40px Titulo, sans-serif'; g.textBaseline = 'middle'; g.lineWidth = 9; g.lineJoin = 'round'; g.strokeStyle = 'rgba(30,10,0,.85)';
     const tx = tr(B.txt); g.strokeText(tx, 0, 0); g.fillStyle = B.cor; g.fillText(tx, 0, 0); g.restore(); if (B.t > 1.5) K.banner = null; }
 }
-window.__df = { K: () => K }; // testes
+window.__df = { K: () => K, abrirBuffs: () => abrirBuffs() }; // testes
