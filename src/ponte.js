@@ -680,9 +680,9 @@ function infoUp(k) {
 function htmlMelhorias() {
   const CL = EQ.CLASSES[EQ.classeAtual()], card = k => { const U = UPGRADES[k], I = infoUp(k), n = S.up[k], max = n >= U.max, c = U.custo(n);
     return `<button class="up ${!max && S.moedas >= c ? 'pode' : ''}" data-up="${k}"><span class="upIco">${ico(I.icone)}</span><b>${I.nome}</b><small>${I.desc(n)}</small><em>${max ? 'MÁX' : `${ico('ouro')}${fmt(c)}`}</em><i>Nv ${n}</i></button>`; };
-  return `${htmlRenascer()}<button class="upHeroi" data-aba-lobby="cartas"><span>${CL.ic}</span><div><b>${HEROIS[S.heroi]?.nome || ''} · ${CL.nome}</b><small>Poder dos equipamentos ${fmt(EQ.poder())}</small></div><em>Equipamentos ›</em></button>
-    <h3>${CL.ic} Seu herói <small>vale em todos os modos</small></h3><div class="ups">${['fogo', 'flechas'].map(card).join('')}</div>
-    <h3>🏰 Sua defesa <small>na batalha da ponte</small></h3><div class="ups">${['exercito', 'vida', 'escudos'].map(card).join('')}</div>`;
+  return `${htmlRenascer()}<button class="upHeroi" data-aba-lobby="cartas"><span>${ico(CL.ic)}</span><div><b>${HEROIS[S.heroi]?.nome || ''} · ${CL.nome}</b><small>Poder dos equipamentos ${fmt(EQ.poder())}</small></div><em>Equipamentos ›</em></button>
+    <h3>${ico(CL.ic)} Seu herói <small>vale em todos os modos</small></h3><div class="ups">${['fogo', 'flechas'].map(card).join('')}</div>
+    <h3>${ico('h_muralha')} Sua defesa <small>na batalha da ponte</small></h3><div class="ups">${['exercito', 'vida', 'escudos'].map(card).join('')}</div>`;
 }
 const DESC_CARTA = { chuva: 'Sobe o poder especial do herói', gigante: 'Cavaleiro enorme aliado', arco: 'Atiram de longe', lanca: 'Aguentam mais duelos', mago: 'Explosão em área' };
 const ICONE_HEROI = { bjorn: 'r_orc', nyx: 'lad', lyra: 'arq', brann: 'h_perfura', selene: 'mag', grom: 'r_orc', kira: 'lad', zarak: 'r_demonio', thalia: 'r_anjo', raiden: 'h_raio' };
@@ -2289,7 +2289,7 @@ function montarCorrida(F, n) {
 const MAX_TROPA = 400;
 function recrutar(n, x, z) { for (let k = 0; k < n && G.az.length < MAX_TROPA; k++) G.az.push({ x: x + (Math.random() - 0.5) * 4, z: z + (Math.random() - 0.5) * 3, ph: Math.random() * 6, ax: 0, tipo: 'arco' }); }
 function perderTropa(n, x0, z0) { for (let k = 0; k < n && G.az.length; k++) { const a = G.az.splice(Math.floor(Math.random() * G.az.length), 1)[0]; arremessar(a.tipo, a, x0, z0, 10); } }
-function heroiFerido(d) { G.muro -= d; C.camera.tremor = Math.max(C.camera.tremor, 0.6); G.heroiV.brilho(0.6); som('pancada', 0.5); G.txt.push({ x: G.heroi.x, y: 6, z: G.corrida.cz, txt: `-${d} ❤`, cor: '#ff6a5a', t: 0, grande: true }); }
+function heroiFerido(d) { G.muro -= d; C.camera.tremor = Math.max(C.camera.tremor, 0.6); G.heroiV.brilho(0.6); som('pancada', 0.5); G.txt.push({ x: G.heroi.x, y: 6, z: G.corrida.cz, txt: `-${d}`, cor: '#ff6a5a', t: 0, grande: true }); }
 function passoCorrida(dt) {
   const K = G.corrida, h = G.heroi, ch = G.chefe; G.t += dt;
   h.x += (h.alvo - h.x) * Math.min(1, dt * 12);

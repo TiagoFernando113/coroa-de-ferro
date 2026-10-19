@@ -12,6 +12,7 @@ import { bonusEquipe } from './pets.js';
 import { desenharTropas, voar, passoVoo, limparTropas } from './tropas.js';
 import { sfx, intensidade } from './musica.js';
 import { ico, som, $, voarMoedas, flashTela } from './util.js';
+import { ICONES } from './icones.js';
 import { t as tr } from './i18n.js';
 import * as ON from './online.js';
 import * as A from './analise.js';
@@ -63,15 +64,15 @@ function montarOnda(n, modo) {
 // ---- Árvore Sagrada ----
 const ARV = { x: OX, z: -10 }, R_ARV = 5, PORTAS = Array.from({ length: 6 }, (_, i) => { const a = i * Math.PI / 3 + Math.PI / 6; return { x: ARV.x + Math.sin(a) * 50, z: ARV.z + Math.cos(a) * 50 }; });
 const BUFFS = {
-  escudo: { nome: 'Escudo da Árvore', ic: '🛡️', desc: '-30% do dano dos tiros na árvore' },
-  cura: { nome: 'Campo de Cura', ic: '💚', desc: 'cura os heróis e a árvore perto dela' },
-  guardioes: { nome: 'Guardiões', ic: '⚔️', desc: '+3 soldados nascem da árvore para defender' },
-  seiva: { nome: 'Seiva Vital', ic: '🌿', desc: '+25% de vida da árvore e cura 40% agora' },
-  raizes: { nome: 'Raízes', ic: '🌱', desc: 'inimigos perto da árvore ficam lentos e tomam dano' },
-  espinhos: { nome: 'Espinhos', ic: '🌵', desc: 'quem bate na árvore toma dano' },
-  furia: { nome: 'Fúria', ic: '🔥', desc: '+25% de dano dos heróis' },
-  pressa: { nome: 'Pressa', ic: '💨', desc: 'heróis andam e atiram 15% mais rápido' },
-  almas: { nome: 'Alma Guerreira', ic: '👻', desc: '+2 espíritos no máximo e eles duram mais' },
+  escudo: { nome: 'Escudo da Árvore', ic: 'escudo', desc: '-30% do dano dos tiros na árvore' },
+  cura: { nome: 'Campo de Cura', ic: 'coracao', desc: 'cura os heróis e a árvore perto dela' },
+  guardioes: { nome: 'Guardiões', ic: 'herois', desc: '+3 soldados nascem da árvore para defender' },
+  seiva: { nome: 'Seiva Vital', ic: 'pocao', desc: '+25% de vida da árvore e cura 40% agora' },
+  raizes: { nome: 'Raízes', ic: 'pantano', desc: 'inimigos perto da árvore ficam lentos e tomam dano' },
+  espinhos: { nome: 'Espinhos', ic: 'h_perfura', desc: 'quem bate na árvore toma dano' },
+  furia: { nome: 'Fúria', ic: 'h_furia', desc: '+25% de dano dos heróis' },
+  pressa: { nome: 'Pressa', ic: 'agi', desc: 'heróis andam e atiram 15% mais rápido' },
+  almas: { nome: 'Alma Guerreira', ic: 'sombras', desc: '+2 espíritos no máximo e eles duram mais' },
 };
 const bnv = k => K.buffs[k] || 0;
 function posMob(u) {
@@ -228,7 +229,7 @@ function receber(ev, p) {
   if (ev === 'cpa') { avisoPancada(p.x, p.z, p.r); return; }
   if (ev === 'cb') { K.txt.push({ x: p.x, y: 4, z: p.z, txt: `COMBO x${p.n}!`, cor: '#7affea', t: 0 }); return; }
   if (ev === 'pw') { efeitoPoder(); return; }
-  if (ev === 'bfx') { if (BUFFS[p.k]) toast(`${p.n}: ${BUFFS[p.k].ic} ${tr(BUFFS[p.k].nome)}`); return; }
+  if (ev === 'bfx') { if (BUFFS[p.k]) toast(`${p.n}: ${tr(BUFFS[p.k].nome)}`); return; }
   if (ev === 'tchau' && K.jogs.has(p.p)) { const j = K.jogs.get(p.p); j.v?.remover(); K.jogs.delete(p.p); }
 }
 const lista = () => [[K.eu, K.nome, S.heroi || 'lyra'], ...[...K.jogs.values()].map(j => [j.p, j.nome, j.h])];
@@ -363,7 +364,7 @@ function avisoPancada(x, z, r) { // círculo vermelho por 1,3s; quem ficar dentr
     for (const b of K.bots || []) if (!b.morto && Math.hypot(b.x - x, b.z - z) < r) b.hp -= b.hpMax * 0.35; }, 1300);
 }
 function premioChefe(u) { // baú do chefe: um equipamento garantido (Raro ou melhor) para cada jogador
-  const it = EQ.gerarItem(K.onda * 1.5, 2); K.itensChefe.push(it); toast(`🎁 ${tr('Baú do chefe')}: ${it.nome}`); sfx('vitoria');
+  const it = EQ.gerarItem(K.onda * 1.5, 2); K.itensChefe.push(it); toast(`${tr('Baú do chefe')}: ${it.nome}`); sfx('vitoria');
 }
 // ---- aliados do jogo: jogando sozinho na Árvore, 2 heróis de outras classes lutam junto ----
 const BOT_CLASSE = { guerreiro: 'thalia', mago: 'selene', arqueiro: 'lyra', ladino: 'kira' };
@@ -407,12 +408,12 @@ function efeitoPoder() {
 
 // ---- interface ----
 function desenhar() {
-  el.innerHTML = `<div class="dfTopo"><button class="lSair" data-df="sair">${ico('fechar')}</button><b id="dfOnda">${tr('Defesa em Grupo')}</b><span class="pilula ouro" ${K.modo === 'arvore' ? 'hidden' : ''}>${ico('ouro')}<b id="dfMoedas">0</b></span><small id="dfJog">👥 1/4</small></div>
-    <div class="dfBase">${K.modo === 'arvore' ? '🌳' : '🏰'}<div class="barra muro"><i id="dfBaseB"></i><span id="dfBaseT"></span></div></div>
-    ${K.modo === 'arvore' ? `<div class="dfVida">❤️<div class="barra"><i id="dfHpB"></i><span id="dfHpT"></span></div><b id="dfEsp" class="dfEsp"></b></div><div class="dfChefe" id="dfChefe" hidden><b id="dfChefeN"></b><div class="barra"><i id="dfChefeB"></i></div></div>` : ''}
+  el.innerHTML = `<div class="dfTopo"><button class="lSair" data-df="sair">${ico('fechar')}</button><b id="dfOnda">${tr('Defesa em Grupo')}</b><span class="pilula ouro" ${K.modo === 'arvore' ? 'hidden' : ''}>${ico('ouro')}<b id="dfMoedas">0</b></span><small id="dfJog">${ico('herois')} 1/4</small></div>
+    <div class="dfBase">${ico(K.modo === 'arvore' ? 'floresta' : 'h_muralha')}<div class="barra muro"><i id="dfBaseB"></i><span id="dfBaseT"></span></div></div>
+    ${K.modo === 'arvore' ? `<div class="dfVida">${ico('coracao')}<div class="barra"><i id="dfHpB"></i><span id="dfHpT"></span></div><b id="dfEsp" class="dfEsp"></b></div><div class="dfChefe" id="dfChefe" hidden><b id="dfChefeN"></b><div class="barra"><i id="dfChefeB"></i></div></div>` : ''}
     <div class="dfAviso" id="dfAviso" hidden></div><div class="dfEspera" id="dfEspera" hidden></div>
     <div class="dfJoy" id="dfJoy" hidden><i></i></div><div class="dfDica" id="dfDica">${tr('Arraste do lado esquerdo para andar · do direito para girar a câmera')}</div>
-    <button class="dfHab" id="dfHab" data-df="hab"><i id="dfHabB"></i><span>🔥</span><small id="dfHabT"></small></button><button class="dfPoder" id="dfPoder" data-df="poder"><i id="dfPoderB"></i><span>⚡</span></button><button class="dfGolpe ${K.modo}" id="dfGolpe" data-df="golpe">${K.perto ? '⚔️' : EQ.classeAtual() === 'mago' ? '✨' : '🏹'}</button><button class="dfDesvio ${K.modo}" id="dfDesvio" data-df="desviar"><i id="dfDesvioB"></i><span>💨</span></button><div class="dfAcoes" id="dfAcoes"></div><div class="cqJanela" id="dfJanela" hidden></div>`;
+    <button class="dfHab" id="dfHab" data-df="hab"><i id="dfHabB"></i><span>${ico('h_fogo')}</span><small id="dfHabT"></small></button><button class="dfPoder" id="dfPoder" data-df="poder"><i id="dfPoderB"></i><span>${ico('raio')}</span></button><button class="dfGolpe ${K.modo}" id="dfGolpe" data-df="golpe">${ico(K.perto ? 'h_lamina' : EQ.classeAtual() === 'mago' ? 'mag' : 'arq')}</button><button class="dfDesvio ${K.modo}" id="dfDesvio" data-df="desviar"><i id="dfDesvioB"></i><span>${ico('esquiva')}</span></button><div class="dfAcoes" id="dfAcoes"></div><div class="cqJanela" id="dfJanela" hidden></div>`;
 }
 function avisar(t) { const a = $('#dfAviso'); if (!a) return; a.hidden = !t; a.textContent = t; }
 function toast(t) { const a = $('#dfAviso'); if (!a || !K) return; a.hidden = false; a.textContent = t; clearTimeout(K.tToast); K.tToast = setTimeout(() => { if (K && K.estado !== 'entrando') a.hidden = true; }, 2000); }
@@ -420,15 +421,15 @@ function atualizarHud() {
   if (!K) return; const m = $('#dfMoedas'); if (!m) return; m.textContent = fmt(K.cofre);
   $('#dfBaseB').style.width = 100 * Math.max(0, K.base) / Math.max(1, K.baseMax) + '%'; $('#dfBaseT').textContent = `${fmt(Math.max(0, Math.round(K.base)))} / ${fmt(K.baseMax)}`;
   $('#dfOnda').textContent = K.onda ? `${tr('Onda')} ${K.onda}` : tr(K.modo === 'arvore' ? 'Árvore Sagrada' : 'Defesa em Grupo');
-  if (K.estado === 'buff' && K.circ) avisar(`🌳 ${tr('Pise no círculo do poder que você quer')} · ${Math.ceil(Math.max(0, K.buffT || 0))}s`); else if (K.avisoBuff) avisar(''); K.avisoBuff = K.estado === 'buff'; $('#dfJog').textContent = `👥 ${1 + K.jogs.size}/${K.modo === 'arvore' ? 6 : 4}`;
+  if (K.estado === 'buff' && K.circ) avisar(`${tr('Pise no círculo do poder que você quer')} · ${Math.ceil(Math.max(0, K.buffT || 0))}s`); else if (K.avisoBuff) avisar(''); K.avisoBuff = K.estado === 'buff'; $('#dfJog').innerHTML = `${ico('herois')} ${1 + K.jogs.size}/${K.modo === 'arvore' ? 6 : 4}`;
   const hp = $('#dfHpB'); if (hp) { hp.style.width = 100 * Math.max(0, K.heroi.hp) / K.heroi.hpMax + '%'; $('#dfHpT').textContent = K.heroi.morto ? `${tr('Renascendo em')} ${Math.ceil(K.heroi.mortoT)}s` : `${Math.ceil(K.heroi.hp)} / ${K.heroi.hpMax}`; }
-  { const e = $('#dfEsp'); if (e) e.textContent = K.esp.length ? `👻 ${K.esp.length}/${maxEsp()}` : ''; const ch = K.mobs.find(u => u.tipo === 'chefe' && !u.morto), cb = $('#dfChefe');
-    if (cb) { cb.hidden = !ch; if (ch) { $('#dfChefeN').textContent = `💀 ${ch.nome || tr('Chefe')}`; $('#dfChefeB').style.width = 100 * Math.max(0, ch.hp) / ch.max + '%'; } } }
+  { const e = $('#dfEsp'); if (e) e.innerHTML = K.esp.length ? `${ico('sombras')} ${K.esp.length}/${maxEsp()}` : ''; const ch = K.mobs.find(u => u.tipo === 'chefe' && !u.morto), cb = $('#dfChefe');
+    if (cb) { cb.hidden = !ch; if (ch) { $('#dfChefeN').innerHTML = `${ico('caveira')} ${ch.nome || tr('Chefe')}`; $('#dfChefeB').style.width = 100 * Math.max(0, ch.hp) / ch.max + '%'; } } }
   const hb = $('#dfHab'); if (hb) { const r = Math.max(0, K.heroi.habT || 0); hb.classList.toggle('pronto', !r); $('#dfHabB').style.height = (r / RECARGA_HAB * 100) + '%'; $('#dfHabT').textContent = r ? Math.ceil(r) : ''; }
   const dv = $('#dfDesvio'); if (dv) { const r = Math.max(0, K.heroi.dsT || 0); dv.classList.toggle('pronto', !r); $('#dfDesvioB').style.height = (r / RECARGA_DESVIO * 100) + '%'; }
   const pw = $('#dfPoder'); if (pw) { pw.classList.toggle('pronto', K.poder >= 100); $('#dfPoderB').style.height = Math.min(100, K.poder) + '%'; }
-  const e = $('#dfEspera'); if (e) { const v = K.estado === 'pausa' && K.pronto; e.hidden = !v; if (v) { const t = `${tr(K.onda ? 'Próxima onda em' : 'Começa em')} ${Math.ceil(Math.max(0, K.pausaT))}s`; if (e.dataset.t !== t) { e.dataset.t = t; const ic = { arqueiro: '🏹', orc: '🗡️', elite: '💪', voador: '🐝', escudeiro: '🛡️', xama: '🌿', sabotador: '💣', gigante: '👹', chefe: '💀' }, n = {}; for (const f of montarOnda(K.onda + 1, K.modo)) n[f.tipo] = (n[f.tipo] || 0) + 1;
-      e.innerHTML = `<span>${t}<small>${Object.entries(n).map(([k, q]) => `${ic[k]}${q}`).join(' ')}</small></span><button class="btn verde peq" data-df="pular">${tr('Já!')}</button>`; } } }
+  const e = $('#dfEspera'); if (e) { const v = K.estado === 'pausa' && K.pronto; e.hidden = !v; if (v) { const t = `${tr(K.onda ? 'Próxima onda em' : 'Começa em')} ${Math.ceil(Math.max(0, K.pausaT))}s`; if (e.dataset.t !== t) { e.dataset.t = t; const ic = { arqueiro: 'arq', orc: 'r_orc', elite: 'forca', voador: 'monstro', escudeiro: 'escudo', xama: 'mag', sabotador: 'h_fogo', gigante: 'r_gigante', chefe: 'chefe' }, n = {}; for (const f of montarOnda(K.onda + 1, K.modo)) n[f.tipo] = (n[f.tipo] || 0) + 1;
+      e.innerHTML = `<span>${t}<small>${Object.entries(n).map(([k, q]) => `${ico(ic[k])}${q}`).join(' ')}</small></span><button class="btn verde peq" data-df="pular">${tr('Já!')}</button>`; } } }
   acoes();
 }
 function tocarMapa(sx, sy) { // tocou num lugar de torre: escolhe ele (se o herói não estiver longe demais)
@@ -443,8 +444,8 @@ function acoes() { // botão grande do lado direito: construir ou melhorar a tor
   const sig = `${pad}|${t ? t.tipo + t.nv : ''}|${K.menu ? 1 : 0}|${Math.floor(eu / 10)}`; if (sig === K.sigAcoes) return; K.sigAcoes = sig;
   if (pad == null) { a.innerHTML = ''; K.menu = false; return; }
   if (t) { const c = t.nv < 3 ? custoUp(t.tipo, t.nv) : 0;
-    a.innerHTML = `<div class="dfTorreInfo"><b>${tr(TORRES[t.tipo].nome)} ${'★'.repeat(t.nv)}</b></div>${t.nv < 3 ? `<button class="btn amarelo" data-df="up" data-pad="${pad}" ${eu < c ? 'disabled' : ''}>⬆️ ${tr('Melhorar')} ${ico('ouro')}${fmt(c)}</button>` : `<small>${tr('Nível máximo')}</small>`}<button class="btn cinza peq" data-df="vender" data-pad="${pad}">${tr('Vender')} +${fmt(Math.round(t.gasto * 0.5))}</button>`; return; }
-  if (!K.menu) { a.innerHTML = `<button class="btn verde grande dfConstruir" data-df="menu">🏗️ ${tr('Construir torre')}</button>`; return; }
+    a.innerHTML = `<div class="dfTorreInfo"><b>${tr(TORRES[t.tipo].nome)} ${'★'.repeat(t.nv)}</b></div>${t.nv < 3 ? `<button class="btn amarelo" data-df="up" data-pad="${pad}" ${eu < c ? 'disabled' : ''}>${ico('treinar')} ${tr('Melhorar')} ${ico('ouro')}${fmt(c)}</button>` : `<small>${tr('Nível máximo')}</small>`}<button class="btn cinza peq" data-df="vender" data-pad="${pad}">${tr('Vender')} +${fmt(Math.round(t.gasto * 0.5))}</button>`; return; }
+  if (!K.menu) { a.innerHTML = `<button class="btn verde grande dfConstruir" data-df="menu">${ico('forja')} ${tr('Construir torre')}</button>`; return; }
   a.innerHTML = `<div class="dfMenu">${Object.entries(TORRES).map(([k, T]) => `<button class="dfOp" data-df="torre" data-t="${k}" data-pad="${pad}" ${eu < T.custo ? 'disabled' : ''}><b>${tr(T.nome)}</b><small>${tr(T.desc)}</small><em>${ico('ouro')}${T.custo}</em></button>`).join('')}
     <button class="btn cinza peq" data-df="fecharMenu">${ico('fechar')}</button></div>`;
 }
@@ -679,14 +680,14 @@ function passoCirculos() {
 }
 function decidirBuff() {
   const max = Math.max(...K.circ.map(c => c.n)), l = K.circ.filter(c => c.n === max), c = l[Math.floor(Math.random() * l.length)];
-  aplicarBuff(c.k, 'time', tr('Time')); C.onda(c.x, c.z, 10, 0xffffff, 0.6); C.faiscas(c.x, 2, c.z, 0xffd84a, 30, 7); sfx('vitoria'); K.banner = { txt: `${BUFFS[c.k].ic} ${tr(BUFFS[c.k].nome)}!`.toUpperCase(), cor: '#ffd84a', t: 0 };
+  aplicarBuff(c.k, 'time', tr('Time')); C.onda(c.x, c.z, 10, 0xffffff, 0.6); C.faiscas(c.x, 2, c.z, 0xffd84a, 30, 7); sfx('vitoria'); K.banner = { txt: `${tr(BUFFS[c.k].nome)}!`.toUpperCase(), cor: '#ffd84a', t: 0 };
   K.estado = 'pausa'; K.pausaT = 4; limparCirculos();
 }
 function fecharBuffs() { limparCirculos(); K.cartas = null; }
 function aplicarBuff(k, pid, nome) {
   if (!BUFFS[k] || K.escolheram?.has(pid)) return; K.escolheram?.add(pid); K.buffs[k] = bnv(k) + 1;
   if (k === 'seiva') { K.baseMax = Math.round(K.baseMax * 1.25); K.base = Math.min(K.baseMax, K.base + K.baseMax * 0.4); }
-  aplicarBuffsVisuais(); K.canal?.enviar('bfx', { n: nome, k }); toast(`${nome}: ${BUFFS[k].ic} ${tr(BUFFS[k].nome)}`);
+  aplicarBuffsVisuais(); K.canal?.enviar('bfx', { n: nome, k }); toast(`${nome}: ${tr(BUFFS[k].nome)}`);
 }
 
 function acabar(p) {
@@ -697,7 +698,7 @@ function acabar(p) {
   sfx(novo ? 'vitoria' : 'derrota'); C.camera.tremor = 1; K.banner = p.saiu ? null : { txt: K.modo === 'arvore' ? 'A ÁRVORE CAIU!' : 'O CASTELO CAIU!', cor: '#ff6a5a', t: 0 };
   setTimeout(() => { if (!K || !el) return; const j = $('#dfJanela'); j.hidden = false;
     j.innerHTML = `<div class="cqFim ${novo ? 'vit' : 'der'}"><h2>${p.host ? tr('O anfitrião saiu') : novo ? tr('NOVO RECORDE!') : tr(K.modo === 'arvore' ? 'A árvore caiu!' : 'O castelo caiu!')}</h2><p>${ondas} ${tr(ondas === 1 ? 'onda' : 'ondas')} · ${ab} ${tr('inimigos derrotados')}${K.jogs.size ? ` · ${1 + K.jogs.size} ${tr('jogadores')}` : ''}</p>
-      <div class="ganho">${ico('ouro')}<b>+${fmt(premio)}</b>${est ? `<b class="dsGanho">⭐ +${est}</b>` : ''}</div>
+      <div class="ganho">${ico('ouro')}<b>+${fmt(premio)}</b>${est ? `<b class="dsGanho">${ico('estrela')} +${est}</b>` : ''}</div>
       ${itens.length ? `<div class="eqGanhos"><small>${tr('Equipamentos ganhos')}</small><div>${itens.map(it => EQ.itemHtml(it, 'novo')).join('')}</div></div>` : `<p class="eqDica">${tr('Passe da onda 2 para ganhar equipamentos!')}</p>`}<p>${tr('Recorde')}: ${S.defesa[rk] || 0} ${tr('ondas')}</p>
       <button class="btn verde grande" data-df="denovo">${tr('Jogar de novo')}</button><button class="btn azul" data-df="menuFim">${ico('guilda')} Menu</button></div>`;
     if (novo) flashTela('#ffe27a', 0.45); setTimeout(() => voarMoedas('#dfJanela .ganho', 8), 120);
@@ -709,15 +710,22 @@ export function vista() {
     const f = { x: h.x + Math.sin(y) * 2.5, z: h.z + Math.cos(y) * 2.5 }; return { foco: f, yaw: y, pitch: 0.42, dist: 13, altura: 1.6 }; }
   return { foco, yaw: y, pitch: 0.58, dist };
 }
+// ícone do jogo desenhado no canvas (no lugar de emoji)
+const imgsIco = new Map();
+function desenharIco(g, n, x, y, tam, cor) {
+  const k = n + cor; let im = imgsIco.get(k);
+  if (!im) { im = new Image(); im.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" style="color:${cor}"><g style="filter:drop-shadow(0 0 18px #000)">${ICONES[n] || ''}</g></svg>`); imgsIco.set(k, im); }
+  if (im.complete && im.naturalWidth) { g.save(); g.shadowColor = 'rgba(0,0,0,.8)'; g.shadowBlur = 4; g.drawImage(im, x - tam / 2, y - tam / 2, tam, tam); g.restore(); }
+}
 export function desenharFx(g, dt) {
   if (!K) return; g.textAlign = 'center'; g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,.65)';
   for (const u of K.mobs) { if (u.morto || (!u.v && u.hp >= u.max)) continue; const p = C.tela(u.x, u.y + u.alt + 0.6, u.z); if (!p) continue; const w = u.tipo === 'chefe' ? 80 : u.v ? 40 : 22;
     g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(p[0] - w / 2 - 1, p[1] - 1, w + 2, 6); g.fillStyle = u.tipo === 'chefe' ? '#ff4a3a' : '#e8803a'; g.fillRect(p[0] - w / 2, p[1], w * Math.max(0, u.hp) / u.max, 4); }
   for (const j of K.jogs.values()) { const p = C.tela(j.x, 3.2, j.z); if (!p) continue; g.font = '13px Titulo, sans-serif'; g.strokeText(j.nome, p[0], p[1]); g.fillStyle = '#9ad8ff'; g.fillText(j.nome, p[0], p[1]);
-    if (j.g) { g.font = '11px Titulo, sans-serif'; const t = `⚔️ ${fmt(j.g)}`; g.strokeText(t, p[0], p[1] + 13); g.fillStyle = j.rr >= 0 ? EQ.RARIDADES[j.rr].cor : '#fff'; g.fillText(t, p[0], p[1] + 13); } }
-  for (const c of K.circ || []) { const p = C.tela(c.x, 4.2, c.z); if (!p) continue; const B = BUFFS[c.k]; g.font = '34px sans-serif'; g.fillText(B.ic, p[0], p[1]);
+    if (j.g) { g.font = '11px Titulo, sans-serif'; const t = fmt(j.g); desenharIco(g, 'h_lamina', p[0] - 14, p[1] + 9, 12, '#ffffff'); g.strokeText(t, p[0] + 6, p[1] + 13); g.fillStyle = j.rr >= 0 ? EQ.RARIDADES[j.rr].cor : '#fff'; g.fillText(t, p[0] + 6, p[1] + 13); } }
+  for (const c of K.circ || []) { const p = C.tela(c.x, 4.2, c.z); if (!p) continue; const B = BUFFS[c.k]; desenharIco(g, B.ic, p[0], p[1] - 6, 38, '#ffffff');
     g.font = '14px Titulo, sans-serif'; const nm = tr(B.nome); g.strokeText(nm, p[0], p[1] + 22); g.fillStyle = '#fff'; g.fillText(nm, p[0], p[1] + 22);
-    const v = `👥 ${c.n}`; g.font = '16px Titulo, sans-serif'; g.strokeText(v, p[0], p[1] + 42); g.fillStyle = c.n ? '#7affea' : '#ccc'; g.fillText(v, p[0], p[1] + 42); }
+    const v = `${c.n}`; desenharIco(g, 'herois', p[0] - 12, p[1] + 37, 18, c.n ? '#7affea' : '#cccccc'); g.font = '16px Titulo, sans-serif'; g.strokeText(v, p[0] + 10, p[1] + 42); g.fillStyle = c.n ? '#7affea' : '#ccc'; g.fillText(v, p[0] + 10, p[1] + 42); }
   for (const b of K.bots || []) { if (b.morto) continue; const p = C.tela(b.x, 3.2, b.z); if (!p) continue; g.font = '12px Titulo, sans-serif'; g.strokeText(b.nome, p[0], p[1]); g.fillStyle = '#a8f0b8'; g.fillText(b.nome, p[0], p[1]);
     g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(p[0] - 16, p[1] + 4, 32, 5); g.fillStyle = '#5ae06a'; g.fillRect(p[0] - 15, p[1] + 5, 30 * Math.max(0, b.hp / b.hpMax), 3); }
   { const p = C.tela(K.heroi.x, 3.2, K.heroi.z); if (p && (K.jogs.size || K.bots?.length)) { g.font = '13px Titulo, sans-serif'; g.strokeText(K.nome, p[0], p[1]); g.fillStyle = '#ffd84a'; g.fillText(K.nome, p[0], p[1]); } }

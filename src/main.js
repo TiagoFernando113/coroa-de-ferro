@@ -31,7 +31,7 @@ async function comecar() {
       baixar('recursos.bin', p => { pr = p; prog(); }),
     ]);
     await carregarRecursos(rec);
-  } catch (e) { Q.reportar('carga', e.message, e.stack, 'carga'); $('.tMenu').innerHTML = `<p>Não foi possível carregar 😢<br><small>${e.message}</small></p>`; return; }
+  } catch (e) { Q.reportar('carga', e.message, e.stack, 'carga'); $('.tMenu').innerHTML = `<p>Não foi possível carregar<br><small>${e.message}</small></p>`; return; }
   $('#carga').hidden = true;
   carregar(); Q.iniciarQuedas(ondeEsta); A.iniciarPing(ondeEsta); iniciarPets(); montarPonte(); abrirLobby();
   let ultimo = performance.now();
@@ -46,10 +46,10 @@ async function comecar() {
     b.onclick = () => { som('confirma'); $('#titulo').classList.add('sai'); setTimeout(() => $('#titulo').remove(), 600); };
     $('.tMenu').innerHTML = ''; $('.tMenu').append(b);
     // iPhone no Safari: ensina a instalar como app (Compartilhar → Adicionar à Tela de Início)
-    if (/iP(hone|ad|od)/.test(navigator.userAgent) && !navigator.standalone) { const d = document.createElement('p'); d.className = 'dicaIos'; d.innerHTML = 'Para instalar: toque em <b>Compartilhar</b> ⬆️ e depois em <b>Adicionar à Tela de Início</b>'; $('.tMenu').append(d); } };
+    if (/iP(hone|ad|od)/.test(navigator.userAgent) && !navigator.standalone) { const d = document.createElement('p'); d.className = 'dicaIos'; d.innerHTML = 'Para instalar: toque em <b>Compartilhar</b> e depois em <b>Adicionar à Tela de Início</b>'; $('.tMenu').append(d); } };
   // primeira vez: escolher o idioma
   if (idiomaEscolhido()) entrar();
-  else { $('.tMenu').innerHTML = `<p class="tIdiomaT" data-nt>🌎 Idioma · Language</p><div class="idiomas" data-nt>${IDIOMAS.map(([k, n, f]) => `<button class="btn azul" data-idioma="${k}"><span class="flag">${f}</span>${n}</button>`).join('')}</div>`;
+  else { $('.tMenu').innerHTML = `<p class="tIdiomaT" data-nt>Idioma · Language</p><div class="idiomas" data-nt>${IDIOMAS.map(([k, n, f]) => `<button class="btn azul" data-idioma="${k}"><span class="flag">${f}</span>${n}</button>`).join('')}</div>`;
     $('.tMenu').onclick = e => { const b = e.target.closest('[data-idioma]'); if (!b) return; som('clique'); mudarIdioma(b.dataset.idioma); $('.tMenu').onclick = null; entrar(); }; }
   window.__C = C; window.__cam = C.camera; window.__G = _G; window.__sim = _sim; window.__construir = _construir; // para testes
 }

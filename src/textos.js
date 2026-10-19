@@ -4,7 +4,7 @@ const L = (en, es) => ({ en, es });
 const T = {
   // título e lobby
   'Batalha da': L('Battle of the', 'Batalla del'), 'Ponte': L('Bridge', 'Puente'), 'Preparando a ponte...': L('Preparing the bridge...', 'Preparando el puente...'),
-  'Defender a ponte': L('Defend the bridge', 'Defender el puente'), 'Não foi possível carregar 😢': L("Couldn't load 😢", 'No se pudo cargar 😢'), 'Carregando...': L('Loading...', 'Cargando...'),
+  'Defender a ponte': L('Defend the bridge', 'Defender el puente'), 'Não foi possível carregar': L("Couldn't load", 'No se pudo cargar'), 'Carregando...': L('Loading...', 'Cargando...'),
   'Batalha': L('Battle', 'Batalla'), 'Melhorias': L('Upgrades', 'Mejoras'), 'Heróis': L('Heroes', 'Héroes'), 'Pets': L('Pets', 'Mascotas'), 'Clã': L('Clan', 'Clan'), 'Ranking': L('Ranking', 'Ranking'),
   'FASE': L('STAGE', 'FASE'), 'Fase': L('Stage', 'Fase'), 'Fase #': L('Stage #', 'Fase #'), 'JOGAR': L('PLAY', 'JUGAR'), 'Dupla': L('Duo', 'Dúo'), 'Abrir!': L('Open!', '¡Abrir!'),
   'vida #': L('HP #', 'vida #'), 'Floresta': L('Forest', 'Bosque'), 'Deserto': L('Desert', 'Desierto'), 'Gelo': L('Ice', 'Hielo'), 'Vulcão': L('Volcano', 'Volcán'),
@@ -283,7 +283,7 @@ const T = {
   'Guerreiro': L('Warrior', 'Guerrero'), 'Ladino': L('Rogue', 'Pícaro'), 'Arqueiro': L('Archer', 'Arquero'),
   'Espadas': L('Swords', 'Espadas'), 'Machados': L('Axes', 'Hachas'), 'Martelos': L('Hammers', 'Martillos'), 'Lanças': L('Spears', 'Lanzas'), 'Arcos': L('Bows', 'Arcos'), 'Cajados': L('Staffs', 'Bastones'), 'Adagas': L('Daggers', 'Dagas'), 'Foices': L('Scythes', 'Guadañas'), 'Desejos': L('Wishes', 'Deseos'), 'fim de semana: estrelas em dobro!': L('weekend: double stars!', 'fin de semana: ¡estrellas dobles!'), 'Lenda da semana': L('Legend of the week', 'Leyenda de la semana'),
   'Mítico garantido em': L('Mythic guaranteed in', 'Mítico garantizado en'), 'Lendário+ a cada 10': L('Legendary+ every 10', 'Legendario+ cada 10'), 'Grátis hoje': L('Free today', 'Gratis hoy'),
-  'Ganhe estrelas ⭐ na Árvore Sagrada e na Defesa em Grupo': L('Earn stars ⭐ in Sacred Tree and Group Defense', 'Gana estrellas ⭐ en el Árbol Sagrado y la Defensa en Grupo'),
+  'Ganhe estrelas na Árvore Sagrada e na Defesa em Grupo': L('Earn stars in Sacred Tree and Group Defense', 'Gana estrellas en el Árbol Sagrado y la Defensa en Grupo'),
   'baús com raridade garantida': L('chests with guaranteed rarity', 'cofres con rareza garantizada'),
   'Baú de Ferro': L('Iron Chest', 'Cofre de Hierro'),
   'Baú Raro': L('Rare Chest', 'Cofre Raro'),

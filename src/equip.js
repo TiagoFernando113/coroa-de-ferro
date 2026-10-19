@@ -6,18 +6,18 @@ import * as C from './cena.js';
 import { heroiAtual, HEROIS } from './herois.js';
 import { modeloItem, armaModelo, tipoDe } from './itens3d.js';
 import { fmt, tiros } from './dados.js';
-import { som, $ } from './util.js';
+import { som, $, ico } from './util.js';
 import { sfx } from './musica.js';
 import { t as tr } from './i18n.js';
 
 // nomes: [nome, visual, gênero] (o visual vai para o herói)
 export const SLOTS = {
-  arma: { nome: 'Arma', ic: '⚔️', nomes: [['Espada', 'espada', 'f'], ['Lâmina', 'espada', 'f'], ['Machado', 'machado'], ['Arco', 'arco'], ['Cajado', 'cajado'], ['Martelo', 'martelo'], ['Lança', 'lanca', 'f'], ['Adaga', 'adaga', 'f'], ['Foice', 'foice', 'f']], st: { dano: 8, cad: 4 } },
-  elmo: { nome: 'Elmo', ic: '⛑️', nomes: [['Elmo', 'elmo'], ['Elmo de Viseira', 'viseira'], ['Chapéu Arcano', 'mago'], ['Pele de Urso', 'urso', 'f'], ['Máscara do Ladrão', 'lenco', 'f']], st: { vida: 8, crit: 1.5 } },
-  armadura: { nome: 'Armadura', ic: '🛡️', nomes: [['Armadura de Placas', 'Knight', 'f'], ['Couraça Bárbara', 'Barbarian', 'f'], ['Manto Arcano', 'Mage'], ['Traje de Patrulheiro', 'Ranger'], ['Traje Sombrio', 'Rogue']], st: { vida: 15, def: 3 } },
-  capa: { nome: 'Capa', ic: '🧥', nomes: [['Capa Real', 'Knight', 'f'], ['Capa Arcana', 'Mage', 'f'], ['Capa do Patrulheiro', 'Ranger', 'f'], ['Capa Sombria', 'Rogue', 'f'], ['Capuz Errante', 'Rogue_Hooded']], st: { def: 2, recarga: 3 } },
-  anel: { nome: 'Anel', ic: '💍', nomes: [['Anel'], ['Aliança', '', 'f'], ['Selo']], st: { crit: 3, roubo: 1 } },
-  amuleto: { nome: 'Amuleto', ic: '📿', nomes: [['Amuleto'], ['Talismã'], ['Pingente'], ['Relíquia', '', 'f']], st: { recarga: 5, cura: 0.5 } },
+  arma: { nome: 'Arma', ic: 'h_lamina', nomes: [['Espada', 'espada', 'f'], ['Lâmina', 'espada', 'f'], ['Machado', 'machado'], ['Arco', 'arco'], ['Cajado', 'cajado'], ['Martelo', 'martelo'], ['Lança', 'lanca', 'f'], ['Adaga', 'adaga', 'f'], ['Foice', 'foice', 'f']], st: { dano: 8, cad: 4 } },
+  elmo: { nome: 'Elmo', ic: 'c_rosto', nomes: [['Elmo', 'elmo'], ['Elmo de Viseira', 'viseira'], ['Chapéu Arcano', 'mago'], ['Pele de Urso', 'urso', 'f'], ['Máscara do Ladrão', 'lenco', 'f']], st: { vida: 8, crit: 1.5 } },
+  armadura: { nome: 'Armadura', ic: 'c_roupa', nomes: [['Armadura de Placas', 'Knight', 'f'], ['Couraça Bárbara', 'Barbarian', 'f'], ['Manto Arcano', 'Mage'], ['Traje de Patrulheiro', 'Ranger'], ['Traje Sombrio', 'Rogue']], st: { vida: 15, def: 3 } },
+  capa: { nome: 'Capa', ic: 'capa', nomes: [['Capa Real', 'Knight', 'f'], ['Capa Arcana', 'Mage', 'f'], ['Capa do Patrulheiro', 'Ranger', 'f'], ['Capa Sombria', 'Rogue', 'f'], ['Capuz Errante', 'Rogue_Hooded']], st: { def: 2, recarga: 3 } },
+  anel: { nome: 'Anel', ic: 'gema', nomes: [['Anel'], ['Aliança', '', 'f'], ['Selo']], st: { crit: 3, roubo: 1 } },
+  amuleto: { nome: 'Amuleto', ic: 'coroa', nomes: [['Amuleto'], ['Talismã'], ['Pingente'], ['Relíquia', '', 'f']], st: { recarga: 5, cura: 0.5 } },
 };
 export const RARIDADES = [
   { nome: 'Comum', cor: '#a8a8a8', m: 1, adj: ['Velho', 'Velha'] }, { nome: 'Incomum', cor: '#4ac85a', m: 1.5, adj: ['Afiado', 'Afiada'] }, { nome: 'Raro', cor: '#3a8aff', m: 2.2, adj: ['Rúnico', 'Rúnica'] },
@@ -35,8 +35,8 @@ export const LENDAS = {
   sombra: { nome: 'Adagas da Sombra', r: 3, modelo: 'P:L:sombra', cor: 0x9a5ae8, desc: '15% de chance de golpe triplo' },
 };
 // classes: cada herói só usa as armas da sua classe (mago de cajado, arqueiro de arco...)
-export const CLASSES = { guerreiro: { nome: 'Guerreiro', ic: '🛡️', armas: ['espada', 'machado', 'martelo', 'lanca'], perto: true }, ladino: { nome: 'Ladino', ic: '🗡️', armas: ['adaga', 'foice'], perto: true },
-  arqueiro: { nome: 'Arqueiro', ic: '🏹', armas: ['arco'] }, mago: { nome: 'Mago', ic: '🔮', armas: ['cajado'] } };
+export const CLASSES = { guerreiro: { nome: 'Guerreiro', ic: 'escudo', armas: ['espada', 'machado', 'martelo', 'lanca'], perto: true }, ladino: { nome: 'Ladino', ic: 'lad', armas: ['adaga', 'foice'], perto: true },
+  arqueiro: { nome: 'Arqueiro', ic: 'arq', armas: ['arco'] }, mago: { nome: 'Mago', ic: 'mag', armas: ['cajado'] } };
 export const CLASSE_HEROI = { lyra: 'arqueiro', brann: 'arqueiro', grom: 'arqueiro', selene: 'mago', zarak: 'mago', raiden: 'mago', kira: 'ladino', nyx: 'ladino', thalia: 'guerreiro', bjorn: 'guerreiro' };
 export const BASE_CLASSE = { guerreiro: 'thalia', arqueiro: 'lyra', mago: 'selene', ladino: 'kira' }; // herói que vem com a classe (os outros são visuais dela)
 const DESC_CLASSE = { guerreiro: 'Luta de perto, aguenta muito', arqueiro: 'Ataca de longe, rápido', mago: 'Magias em área', ladino: 'Golpes rápidos de perto' };
@@ -98,10 +98,10 @@ export function poderItem(it) { let p = 0; for (const k of Object.keys(it.st)) p
 // soma dos atributos do que está equipado
 // conjuntos: elmo + armadura + capa da mesma linha dão bônus (2 peças: metade; 3 peças: tudo e o herói brilha)
 export const CONJUNTOS = {
-  cavaleiro: { nome: 'Cavaleiro', ic: '🛡️', pecas: { elmo: ['elmo', 'viseira'], armadura: ['Knight', 'Barbarian'], capa: ['Knight'] }, bonus: { vida: 40, def: 8 } },
-  mago: { nome: 'Arcano', ic: '🔮', pecas: { elmo: ['mago'], armadura: ['Mage'], capa: ['Mage'] }, bonus: { dano: 14, recarga: 12 } },
-  patrulheiro: { nome: 'Patrulheiro', ic: '🏹', pecas: { elmo: ['urso'], armadura: ['Ranger'], capa: ['Ranger'] }, bonus: { cad: 14, crit: 8 } },
-  ladino: { nome: 'Sombra', ic: '🗡️', pecas: { elmo: ['lenco'], armadura: ['Rogue'], capa: ['Rogue', 'Rogue_Hooded'] }, bonus: { crit: 10, roubo: 4 } },
+  cavaleiro: { nome: 'Cavaleiro', ic: 'escudo', pecas: { elmo: ['elmo', 'viseira'], armadura: ['Knight', 'Barbarian'], capa: ['Knight'] }, bonus: { vida: 40, def: 8 } },
+  mago: { nome: 'Arcano', ic: 'mag', pecas: { elmo: ['mago'], armadura: ['Mage'], capa: ['Mage'] }, bonus: { dano: 14, recarga: 12 } },
+  patrulheiro: { nome: 'Patrulheiro', ic: 'arq', pecas: { elmo: ['urso'], armadura: ['Ranger'], capa: ['Ranger'] }, bonus: { cad: 14, crit: 8 } },
+  ladino: { nome: 'Sombra', ic: 'lad', pecas: { elmo: ['lenco'], armadura: ['Rogue'], capa: ['Rogue', 'Rogue_Hooded'] }, bonus: { crit: 10, roubo: 4 } },
 };
 export function conjunto() {
   const E = eq(), U = usando(); let m = null;
@@ -116,7 +116,7 @@ export function atributos() {
 }
 export function poder() { const E = eq(); let p = 0; for (const id of Object.values(usando())) { const it = E.itens.find(x => x.id === id); if (it) p += poderItem(it); } return p; }
 export function melhorRaridade() { const E = eq(); let m = -1; for (const id of Object.values(usando())) { const it = E.itens.find(x => x.id === id); if (it) m = Math.max(m, it.r); } return m; }
-export const BAUS = [{ nome: 'Baú de Ferro', preco: 400, min: 0, max: 2, ic: '📦' }, { nome: 'Baú Raro', preco: 1500, min: 2, max: 3, ic: '🎁' }, { nome: 'Baú Épico', preco: 5000, min: 3, max: 4, ic: '💜' }, { nome: 'Baú Lendário', preco: 15000, min: 4, max: 5, ic: '🌟' }];
+export const BAUS = [{ nome: 'Baú de Ferro', preco: 400, min: 0, max: 2, ic: 'bau' }, { nome: 'Baú Raro', preco: 1500, min: 2, max: 3, ic: 'bau' }, { nome: 'Baú Épico', preco: 5000, min: 3, max: 4, ic: 'bau' }, { nome: 'Baú Lendário', preco: 15000, min: 4, max: 5, ic: 'bau' }];
 // ---- Desejos: estrelas ganhas nas partidas (ou moedas), 1 grátis por dia, lenda da semana em destaque e garantia ----
 export const PRECO_DESEJO = 600, PITY = 50;
 const hoje = () => new Date().toISOString().slice(0, 10);
@@ -132,15 +132,15 @@ function desejar() { // Mítico 1,5% (garantido em 50), Lendário+ garantido a c
 }
 function revelar(itens) {
   const j = $('#janela'), m = Math.max(...itens.map(i => i.r));
-  j.innerHTML = `<div class="jOnline eqTela dsTela r${m}" style="--r:${RARIDADES[m].cor}"><h2>🌠 ${tr('Desejos')}</h2><div class="dsRev">${itens.map((it, i) => `<div class="dsCarta r${it.r}" style="--i:${i};--r:${RARIDADES[it.r].cor}">${itemHtml(it, 'novo')}<small>${tr(RARIDADES[it.r].nome)}</small></div>`).join('')}</div>
-    ${m >= 4 ? `<p class="dsUau">✨ ${itens.filter(i => i.r >= 4).map(i => `<b style="color:${RARIDADES[i.r].cor}">${i.nome}</b>`).join(' · ')}</p>` : ''}<button class="btn verde grande" data-eq="abrir">OK</button></div>`;
+  j.innerHTML = `<div class="jOnline eqTela dsTela r${m}" style="--r:${RARIDADES[m].cor}"><h2>${ico('estrela')} ${tr('Desejos')}</h2><div class="dsRev">${itens.map((it, i) => `<div class="dsCarta r${it.r}" style="--i:${i};--r:${RARIDADES[it.r].cor}">${itemHtml(it, 'novo')}<small>${tr(RARIDADES[it.r].nome)}</small></div>`).join('')}</div>
+    ${m >= 4 ? `<p class="dsUau">${ico('estrela')} ${itens.filter(i => i.r >= 4).map(i => `<b style="color:${RARIDADES[i.r].cor}">${i.nome}</b>`).join(' · ')}</p>` : ''}<button class="btn verde grande" data-eq="abrir">OK</button></div>`;
   setTimeout(() => sfx(m >= 4 ? 'vitoria' : 'brilho'), itens.length * 180);
 }
 const custoUp = it => Math.round(80 * it.nv * (1 + it.r) * (1 + it.r * 0.5));
 const valorDesmontar = it => Math.round(20 * (1 + it.r) ** 2 * it.nv);
 
 // ---- tela da mochila ----
-export const itemHtml = (it, cls = '') => `<button class="eqItem r${it.r} ${cls} ${it.lenda ? 'lenda' : ''} ${serveNoHeroi(it) ? '' : 'naoServe'}" data-eq="ver" data-id="${it.id}" style="--r:${RARIDADES[it.r].cor}"><img src="${iconeItem(it)}" alt=""><em>${it.nv > 1 ? '+' + (it.nv - 1) : ''}</em>${it.lenda ? '<u>✨</u>' : ''}${it.slot === 'arma' ? `<s>${CLASSES[classeDaArma(it)].ic}</s>` : ''}${comparar(it)}</button>`;
+export const itemHtml = (it, cls = '') => `<button class="eqItem r${it.r} ${cls} ${it.lenda ? 'lenda' : ''} ${serveNoHeroi(it) ? '' : 'naoServe'}" data-eq="ver" data-id="${it.id}" style="--r:${RARIDADES[it.r].cor}"><img src="${iconeItem(it)}" alt=""><em>${it.nv > 1 ? '+' + (it.nv - 1) : ''}</em>${it.lenda ? `<u>${ico('estrela')}</u>` : ''}${it.slot === 'arma' ? `<s>${ico(CLASSES[classeDaArma(it)].ic)}</s>` : ''}${comparar(it)}</button>`;
 const NOME_TIPO = { espada: 'Espadas', machado: 'Machados', martelo: 'Martelos', lanca: 'Lanças', arco: 'Arcos', cajado: 'Cajados', adaga: 'Adagas', foice: 'Foices' };
 // ícone = foto do modelo 3D do item (guardada)
 const fotos = new Map(), GIRO = { arma: [0.15, 0.35, -0.72], capa: [0.2, Math.PI + 0.5, 0] };
@@ -157,8 +157,8 @@ export function ficha() {
   const dano = 3 * H.ataque.dano * (1 + (up.flechas || 0) * 0.35) * (1 + A.dano / 100) * (perto ? 1.6 : 1), vel = tiros(up.fogo || 0) * H.ataque.cad * 0.6 * (1 + A.cad / 100);
   return { dano, vel, dps: dano * vel * (1 + A.crit / 100 * 1.2), vida: Math.round(100 * (1 + 0.2 * (up.vida || 0)) + A.vida), def: A.def, crit: A.crit, roubo: A.roubo };
 }
-function htmlFicha() { const F = ficha(), c = (ic, n, v) => `<div><i>${ic}</i><b>${v}</b><small>${tr(n)}</small></div>`;
-  return `<div class="eqFicha">${c('💥', 'Dano por segundo', fmt(Math.round(F.dps * 10)))}${c('⚔️', 'Dano', fmt(Math.round(F.dano * 10)))}${c('⚡', 'Ataques/s', F.vel.toFixed(1))}${c('❤️', 'Vida', fmt(F.vida))}${c('🛡️', 'Defesa', Math.round(F.def) + '%')}${c('🎯', 'Crítico', Math.round(F.crit) + '%')}</div>`; }
+function htmlFicha() { const F = ficha(), c = (ic, n, v) => `<div><i>${ico(ic)}</i><b>${v}</b><small>${tr(n)}</small></div>`;
+  return `<div class="eqFicha">${c('h_fogo', 'Dano por segundo', fmt(Math.round(F.dps * 10)))}${c('h_lamina', 'Dano', fmt(Math.round(F.dano * 10)))}${c('raio', 'Ataques/s', F.vel.toFixed(1))}${c('coracao', 'Vida', fmt(F.vida))}${c('escudo', 'Defesa', Math.round(F.def) + '%')}${c('h_perfura', 'Crítico', Math.round(F.crit) + '%')}</div>`; }
 // vitrine: o herói equipado que os outros veem no perfil (ranking, clã, chat)
 const CHAVES_VIS = ['cab', 'tro', 'bra', 'per', 'cha', 'mas', 'capa', 'cos', 'tinta', 'tintaCha', 'tintaCapa', 'aura', 'asas', 'arma', 'esq', 'pele', 'corPelo', 'orelha', 'barba', 'chifre', 'presas', 'rabo', 'alt', 'larg', 'cabT', 'musc'];
 export function vitrine() {
@@ -170,7 +170,7 @@ export function htmlVitrine(d, chave) {
   if (!d?.v) return ''; const CL = CLASSES[d.c] || CLASSES.arqueiro; let foto = '';
   try { const q = C.quadrosAnim({ ...(HEROIS[d.h] || HEROIS.lyra).visual, ...d.v }, 'Idle_A', { n: 1, tam: 180, chave: 'vt:' + chave + JSON.stringify(d.v).length + d.p }); foto = q?.q?.[0]?.toDataURL() || ''; } catch (e) {}
   const itens = (d.it || []).map(([sl, m, r, nv, nome, lenda]) => ({ id: -1, slot: sl, modelo: sl === 'arma' ? m : undefined, vis: sl !== 'arma' ? m : undefined, r: Math.min(5, r | 0), nv: nv | 0 || 1, nome: String(nome || ''), lenda: LENDAS[lenda] ? lenda : undefined, st: {} }));
-  return `<div class="vtHeroi">${foto ? `<img class="eqFoto" src="${foto}" alt="">` : ''}<div><b>${CL.ic} ${tr(CL.nome)}</b><small>${tr('Poder')} <b>${fmt(d.p || 0)}</b></small>
+  return `<div class="vtHeroi">${foto ? `<img class="eqFoto" src="${foto}" alt="">` : ''}<div><b>${ico(CL.ic)} ${tr(CL.nome)}</b><small>${tr('Poder')} <b>${fmt(d.p || 0)}</b></small>
     <div class="vtItens">${itens.map(it => `<span class="eqItem r${it.r} ${it.lenda ? 'lenda' : ''}" style="--r:${RARIDADES[it.r].cor}" title="${it.nome.replace(/"/g, '')}"><img src="${iconeItem(it, 72)}" alt=""><em>${it.nv > 1 ? '+' + (it.nv - 1) : ''}</em></span>`).join('')}</div></div></div>`;
 }
 // item novo que caiu: modelo girando, atributos comparados com o equipado e "Equipar agora"
@@ -179,7 +179,7 @@ export function novoItem(it) {
   const quadros = []; for (let i = 0; i < 8; i++) { try { quadros.push(C.fotoObjeto(modeloItem(it), { tam: 200, rot: [0.15, i * Math.PI / 4, it.slot === 'arma' ? -0.5 : 0] })); } catch (e) {} }
   const ks = new Set([...Object.keys(it.st), ...Object.keys(cur?.st || {})]), j = $('#janela'); j.hidden = false; sfx(it.r >= 4 ? 'vitoria' : 'brilho');
   j.innerHTML = `<div class="jOnline eqNovo r${it.r}" style="--r:${R.cor}"><div class="novoRaios"></div><em class="eqNovoTag">${tr(R.nome)}</em><img class="eqGira" src="${quadros[0] || iconeItem(it, 200)}" alt="">
-    <h2>${it.nome}</h2>${it.lenda ? `<p class="eqLenda">✨ ${tr(LENDAS[it.lenda].desc)}</p>` : ''}
+    <h2>${it.nome}</h2>${it.lenda ? `<p class="eqLenda">${ico('estrela')} ${tr(LENDAS[it.lenda].desc)}</p>` : ''}
     <div class="eqCmpT">${[...ks].map(k => { const a = valor(it, k), b = cur ? valor(cur, k) : 0, df = Math.round((a - b) * 10) / 10; return `<span>${tr(ST[k][0])} <b>${fmt(Math.round(a * 10) / 10)}${ST[k][1]}</b>${df ? `<i class="${df > 0 ? 'mais' : 'menos'}">${df > 0 ? '▲' : '▼'}${fmt(Math.abs(df))}</i>` : ''}</span>`; }).join('')}</div>
     <p class="eqPoderD">${tr('Poder')} ${fmt(poderItem(it))} ${d ? `<i class="${d > 0 ? 'mais' : 'menos'}">${d > 0 ? '▲' : '▼'}${fmt(Math.abs(d))}</i>` : ''}</p>
     ${serve ? `<button class="btn verde grande" data-eq="usarNovo" data-id="${it.id}">${tr('Equipar agora')}</button>` : `<p class="eqClasse nao">${tr('Não serve para sua classe')}</p>`}<button class="btn cinza" data-eq="fecharNovo">${tr('Guardar na mochila')}</button></div>`;
@@ -203,26 +203,26 @@ export function painel(sel = null) {
   const E = eq(), U = usando(), emUsoAgora = new Set(Object.values(U)), A = atributos(), CL = CLASSES[classeAtual()];
   const it = sel != null && E.itens.find(x => x.id === sel);
   const det = it ? (() => { const R = RARIDADES[it.r], eq1 = emUsoAgora.has(it.id), serve = serveNoHeroi(it), CA = CLASSES[classeDaArma(it)], c = custoUp(it);
-    return `<div class="eqDet" style="--r:${R.cor}"><div class="eqDetT"><img class="eqPx" src="${iconeItem(it, 160)}" alt=""><span><b>${it.nome}${it.nv > 1 ? ` +${it.nv - 1}` : ''}</b><small>${tr(R.nome)} · ${tr(SLOTS[it.slot].nome)} · ${tr('Poder')} ${fmt(poderItem(it))}</small>${it.slot === 'arma' ? `<small class="eqClasse ${serve ? '' : 'nao'}">${CA.ic} ${tr('Só para')} ${tr(CA.nome)}${CA.perto ? ` · ${tr('ataca de perto')}` : ` · ${tr('ataca de longe')}`}</small>` : ''}</span></div>
-      <div class="eqSt">${Object.keys(it.st).map(k => linhaSt(it, k)).join('')}</div>${it.lenda ? `<p class="eqLenda">✨ ${tr(LENDAS[it.lenda].desc)}</p>` : ''}
-      <div class="eqBts">${eq1 ? `<button class="btn cinza peq" disabled>${tr('Equipado')}</button>` : serve ? `<button class="btn verde peq" data-eq="usar" data-id="${it.id}">${tr('Equipar')}</button>` : `<button class="btn cinza peq" disabled>${CA.ic} ${tr(CA.nome)}</button>`}
-        ${it.nv < MAX_NV ? `<button class="btn amarelo peq" data-eq="up" data-id="${it.id}" ${S.moedas < c ? 'disabled' : ''}>⬆️ ${fmt(c)}</button>` : `<small>MAX</small>`}
+    return `<div class="eqDet" style="--r:${R.cor}"><div class="eqDetT"><img class="eqPx" src="${iconeItem(it, 160)}" alt=""><span><b>${it.nome}${it.nv > 1 ? ` +${it.nv - 1}` : ''}</b><small>${tr(R.nome)} · ${tr(SLOTS[it.slot].nome)} · ${tr('Poder')} ${fmt(poderItem(it))}</small>${it.slot === 'arma' ? `<small class="eqClasse ${serve ? '' : 'nao'}">${ico(CA.ic)} ${tr('Só para')} ${tr(CA.nome)}${CA.perto ? ` · ${tr('ataca de perto')}` : ` · ${tr('ataca de longe')}`}</small>` : ''}</span></div>
+      <div class="eqSt">${Object.keys(it.st).map(k => linhaSt(it, k)).join('')}</div>${it.lenda ? `<p class="eqLenda">${ico('estrela')} ${tr(LENDAS[it.lenda].desc)}</p>` : ''}
+      <div class="eqBts">${eq1 ? `<button class="btn cinza peq" disabled>${tr('Equipado')}</button>` : serve ? `<button class="btn verde peq" data-eq="usar" data-id="${it.id}">${tr('Equipar')}</button>` : `<button class="btn cinza peq" disabled>${ico(CA.ic)} ${tr(CA.nome)}</button>`}
+        ${it.nv < MAX_NV ? `<button class="btn amarelo peq" data-eq="up" data-id="${it.id}" ${S.moedas < c ? 'disabled' : ''}>${tr('Melhorar')} ${ico('ouro')}${fmt(c)}</button>` : `<small>MAX</small>`}
         ${emUso(it.id) ? '' : `<button class="btn vermelho peq" data-eq="des" data-id="${it.id}">${tr('Desmontar')} +${fmt(valorDesmontar(it))}</button>`}</div></div>`; })() : '';
   let foto = ''; try { const q = C.quadrosAnim(visualHeroi(heroiAtual(S).visual, true), 'Idle_A', { n: 1, tam: 200, chave: 'eqv:' + S.heroi + assinatura() }); if (q?.q?.[0]) foto = q.q[0].toDataURL(); } catch (e) {}
   return `<p class="eqPoder">${tr('Poder')} <b>${fmt(poder())}</b> · <small>${tr('vale na Árvore Sagrada e na Defesa em Grupo')}</small></p>
-    ${foto ? `<img class="eqFoto" src="${foto}" alt="">` : ''}${htmlFicha()}<p class="eqClasseH">${CL.ic} <b>${tr(CL.nome)}</b> <button class="eqTrocaC" data-eq="classes">${tr('trocar')}</button> · ${tr('usa')} ${CL.armas.map(a => tr(NOME_TIPO[a])).join(', ')}${CL.perto ? ` · ${tr('ataca de perto')}` : ''}</p>
-    <div class="eqSlots">${Object.entries(SLOTS).map(([k, D]) => { const x = E.itens.find(i => i.id === U[k]); return `<div class="eqSlot"><small>${tr(D.nome)}</small>${x ? itemHtml(x, sel === x.id ? 'sel' : '') : `<span class="eqVazio">${D.ic}</span>`}</div>`; }).join('')}</div>
+    ${foto ? `<img class="eqFoto" src="${foto}" alt="">` : ''}${htmlFicha()}<p class="eqClasseH">${ico(CL.ic)} <b>${tr(CL.nome)}</b> <button class="eqTrocaC" data-eq="classes">${tr('trocar')}</button> · ${tr('usa')} ${CL.armas.map(a => tr(NOME_TIPO[a])).join(', ')}${CL.perto ? ` · ${tr('ataca de perto')}` : ''}</p>
+    <div class="eqSlots">${Object.entries(SLOTS).map(([k, D]) => { const x = E.itens.find(i => i.id === U[k]); return `<div class="eqSlot"><small>${tr(D.nome)}</small>${x ? itemHtml(x, sel === x.id ? 'sel' : '') : `<span class="eqVazio">${ico(D.ic)}</span>`}</div>`; }).join('')}</div>
     <div class="eqTot">${Object.entries(A).filter(([, v]) => v).map(([k, v]) => `<span>${tr(ST[k][0])} +${fmt(Math.round(v * 10) / 10)}${ST[k][1]}</span>`).join('') || `<span>${tr('Jogue a Árvore Sagrada para ganhar equipamentos!')}</span>`}</div>
-    ${det}${(() => { const dk = destaque(), L = LENDAS[dk], est = estrelas(), gratis = E.dia !== hoje(), cus = n => est >= n ? `⭐ ${n}` : `🪙 ${fmt(PRECO_DESEJO * n * (n >= 10 ? 0.9 : 1))}`, pode = n => est >= n || S.moedas >= PRECO_DESEJO * n * (n >= 10 ? 0.9 : 1);
-      return `<h3>🌠 ${tr('Desejos')} <small>⭐ ${fmt(est)}${fimDeSemana() ? ` · ${tr('fim de semana: estrelas em dobro!')}` : ''}</small></h3>
+    ${det}${(() => { const dk = destaque(), L = LENDAS[dk], est = estrelas(), gratis = E.dia !== hoje(), cus = n => est >= n ? `${ico('estrela')} ${n}` : `${ico('ouro')} ${fmt(PRECO_DESEJO * n * (n >= 10 ? 0.9 : 1))}`, pode = n => est >= n || S.moedas >= PRECO_DESEJO * n * (n >= 10 ? 0.9 : 1);
+      return `<h3>${ico('estrela')} ${tr('Desejos')} <small>${ico('estrela')} ${fmt(est)}${fimDeSemana() ? ` · ${tr('fim de semana: estrelas em dobro!')}` : ''}</small></h3>
       <div class="dsBanner" style="--r:${RARIDADES[5].cor}"><img src="${iconeItem({ slot: 'arma', modelo: L.modelo, r: 5 }, 128)}" alt=""><div><small>${tr('Lenda da semana')}</small><b>${L.nome}</b><small>${tr(L.desc)}</small><small class="dsPity">${tr('Mítico garantido em')} <b>${PITY - (E.pity || 0)}</b> · ${tr('Lendário+ a cada 10')}</small></div></div>
-      <div class="dsBts">${gratis ? `<button class="btn verde" data-eq="dj" data-n="0">🎁 ${tr('Grátis hoje')}</button>` : ''}<button class="btn azul" data-eq="dj" data-n="1" ${pode(1) ? '' : 'disabled'}>1x · ${cus(1)}</button><button class="btn roxo" data-eq="dj" data-n="10" ${pode(10) ? '' : 'disabled'}>10x · ${cus(10)}</button></div>
-      <p class="eqDica">${tr('Ganhe estrelas ⭐ na Árvore Sagrada e na Defesa em Grupo')}</p>`; })()}
-    <h3>🔨 ${tr('Forja')} <small>${tr('baús com raridade garantida')}</small></h3>
-    <div class="eqForja">${BAUS.map((B, i) => `<button class="eqBau" data-eq="bau" data-n="${i}" ${S.moedas < B.preco ? 'disabled' : ''} style="--r:${RARIDADES[B.min].cor}"><i>${B.ic}</i><b>${tr(B.nome)}</b><small>${tr(RARIDADES[B.min].nome)}+</small><em>🪙 ${fmt(B.preco)}</em></button>`).join('')}</div>
-    ${(() => { const cj = conjunto(); return cj ? `<p class="eqConj">${cj.ic} ${tr('Conjunto')} <b>${tr(cj.nome)}</b> ${cj.n}/3 · ${Object.entries(cj.bonus).map(([k, v]) => `${tr(ST[k][0])} +${fmt(v * (cj.n >= 3 ? 1 : 0.5))}${ST[k][1]}`).join(' · ')}${cj.n < 3 ? ` · <small>${tr('3 peças: bônus completo e brilho')}</small>` : ' ✨'}</p>` : `<p class="eqConj vazio">${tr('Vista elmo, armadura e capa da mesma linha para ganhar bônus de conjunto')}</p>`; })()}
+      <div class="dsBts">${gratis ? `<button class="btn verde" data-eq="dj" data-n="0">${ico('presente')} ${tr('Grátis hoje')}</button>` : ''}<button class="btn azul" data-eq="dj" data-n="1" ${pode(1) ? '' : 'disabled'}>1x · ${cus(1)}</button><button class="btn roxo" data-eq="dj" data-n="10" ${pode(10) ? '' : 'disabled'}>10x · ${cus(10)}</button></div>
+      <p class="eqDica">${ico('estrela')} ${tr('Ganhe estrelas na Árvore Sagrada e na Defesa em Grupo')}</p>`; })()}
+    <h3>${ico('forja')} ${tr('Forja')} <small>${tr('baús com raridade garantida')}</small></h3>
+    <div class="eqForja">${BAUS.map((B, i) => `<button class="eqBau" data-eq="bau" data-n="${i}" ${S.moedas < B.preco ? 'disabled' : ''} style="--r:${RARIDADES[B.min].cor}"><i>${ico(B.ic)}</i><b>${tr(B.nome)}</b><small>${tr(RARIDADES[B.min].nome)}+</small><em>${ico('ouro')} ${fmt(B.preco)}</em></button>`).join('')}</div>
+    ${(() => { const cj = conjunto(); return cj ? `<p class="eqConj">${ico(cj.ic)} ${tr('Conjunto')} <b>${tr(cj.nome)}</b> ${cj.n}/3 · ${Object.entries(cj.bonus).map(([k, v]) => `${tr(ST[k][0])} +${fmt(v * (cj.n >= 3 ? 1 : 0.5))}${ST[k][1]}`).join(' · ')}${cj.n < 3 ? ` · <small>${tr('3 peças: bônus completo e brilho')}</small>` : ` ${ico('estrela')}`}</p>` : `<p class="eqConj vazio">${tr('Vista elmo, armadura e capa da mesma linha para ganhar bônus de conjunto')}</p>`; })()}
     <h3>${tr('Mochila')} <small>${E.itens.length}/${MAX_MOCHILA}</small></h3>
-    <div class="eqMassa"><button class="btn azul peq" data-eq="melhores">⚡ ${tr('Equipar melhores')}</button>${(() => { const f = fracos(); return f.length ? `<button class="btn vermelho peq" data-eq="fracos">♻️ ${tr('Desmontar fracos')} (${f.length}) +${fmt(f.reduce((t, x) => t + valorDesmontar(x), 0))}</button>` : ''; })()}</div>
+    <div class="eqMassa"><button class="btn azul peq" data-eq="melhores">${ico('raio')} ${tr('Equipar melhores')}</button>${(() => { const f = fracos(); return f.length ? `<button class="btn vermelho peq" data-eq="fracos">${ico('girar')} ${tr('Desmontar fracos')} (${f.length}) +${fmt(f.reduce((t, x) => t + valorDesmontar(x), 0))}</button>` : ''; })()}</div>
     <div class="eqMochila">${[...E.itens].sort((a, b) => serveNoHeroi(b) - serveNoHeroi(a) || b.r - a.r || poderItem(b) - poderItem(a)).map(x => itemHtml(x, `${emUsoAgora.has(x.id) ? 'usando' : ''} ${sel === x.id ? 'sel' : ''}`)).join('') || `<p>${tr('Vazia')}</p>`}</div>`;
 }
 // escolha da classe (no começo do jogo, ou trocar depois na aba Herói)
@@ -230,7 +230,7 @@ export function escolherClasse(primeira = false) {
   const j = $('#janela'); j.hidden = false; sfx('brilho'); const atual = S.classe || CLASSE_HEROI[S.heroi];
   const foto = c => { try { const q = C.quadrosAnim(HEROIS[BASE_CLASSE[c]].visual, 'Idle_A', { n: 1, tam: 150, chave: 'cl:' + c }); return q?.q?.[0]?.toDataURL() || ''; } catch (e) { return ''; } };
   j.innerHTML = `<div class="jOnline jClasse"><h2>${tr(primeira ? 'Escolha sua classe' : 'Trocar de classe')}</h2><p>${tr('Os equipamentos que caem são da sua classe')}</p>
-    <div class="clGrade">${Object.entries(CLASSES).map(([k, CL]) => `<button class="clCard ${k === atual ? 'sel' : ''}" data-eq="classe" data-c="${k}"><img src="${foto(k)}" alt=""><b>${CL.ic} ${tr(CL.nome)}</b><small>${tr(DESC_CLASSE[k])}</small><em>${CL.armas.map(a => tr(NOME_TIPO[a])).join(' · ')}</em></button>`).join('')}</div>
+    <div class="clGrade">${Object.entries(CLASSES).map(([k, CL]) => `<button class="clCard ${k === atual ? 'sel' : ''}" data-eq="classe" data-c="${k}"><img src="${foto(k)}" alt=""><b>${ico(CL.ic)} ${tr(CL.nome)}</b><small>${tr(DESC_CLASSE[k])}</small><em>${CL.armas.map(a => tr(NOME_TIPO[a])).join(' · ')}</em></button>`).join('')}</div>
     ${primeira ? '' : `<button class="btn cinza" data-a="fecharJanela">${tr('Cancelar')}</button>`}</div>`;
 }
 export function clique(b) {
