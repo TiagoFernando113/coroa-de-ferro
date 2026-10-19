@@ -11,6 +11,7 @@ import { sfx, intensidade } from './musica.js';
 import { ico, som, $, voarMoedas, flashTela } from './util.js';
 import { t as tr } from './i18n.js';
 import { evento } from './missoes.js';
+import * as PR from './progresso.js';
 import * as ON from './online.js';
 import * as A from './analise.js';
 import * as EQ from './equip.js';
@@ -200,7 +201,7 @@ function acabar() {
   sfx(novo ? 'vitoria' : 'derrota'); C.camera.tremor = 1; K.banner = { txt: 'A MURALHA CAIU!', cor: '#ff6a5a', t: 0 };
   setTimeout(() => { if (!K || !el) return; const j = $('#ctJanela'); j.hidden = false;
     j.innerHTML = `<div class="cqFim ${novo ? 'vit' : 'der'}"><h2>${novo ? 'NOVO RECORDE!' : 'A muralha caiu!'}</h2><p>Você aguentou ${ondas} onda${ondas === 1 ? '' : 's'} · ${fmt(K.mortos)} inimigos</p>
-      <div class="ganho">${ico('ouro')}<b>+${fmt(premio)}</b></div><p>Fique mais forte com melhorias, cartas e pets para ir mais longe.</p>
+      <div class="ganho">${ico('ouro')}<b>+${fmt(premio)}</b></div>${PR.htmlUltimo()}<p>Fique mais forte com melhorias, cartas e pets para ir mais longe.</p>
       <button class="btn verde grande" data-ct="denovo">Jogar de novo</button><button class="btn azul" data-ct="sair">${ico('guilda')} Menu</button></div>`;
     if (novo) flashTela('#ffe27a', 0.45); setTimeout(() => voarMoedas('#ctJanela .ganho', novo ? 12 : 6), 120); }, 1500);
 }

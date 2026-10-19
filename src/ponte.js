@@ -1577,6 +1577,7 @@ function mostrarLoja() {
     : o.tipo === 'pet' ? `<img src="${fotoPet(o.pet)}" alt=""><b data-nt>${PETS[o.pet].nome}</b><small style="color:${RARIDADES[PETS[o.pet].r].cor}">${RARIDADES[PETS[o.pet].r].nome}</small>`
     : `<span class="cartaMini ${o.carta}">${ico(NOME_CARTA[o.carta][1])}</span><b>${NOME_CARTA[o.carta][0]} x${o.n}</b>`;
   const re = !!j.querySelector('.jLoja'); j.innerHTML = `<div class="jMissoes jLoja ${re ? 'semAnim' : ''}"><h2>${ico('mercado')} Loja do dia</h2><p class="sub">Novas ofertas em ${h}h${String(m).padStart(2, '0')}</p>
+    <details class="ajudaDet"><summary>${ico('pergaminho')} Para que serve cada moeda?</summary><div class="ajudaMoedas">${[['ouro', 'Moedas', 'Melhorias, loja e Desejos'], ['estrela', 'Estrelas', 'Desejos de equipamento (Herói)'], ['raio', 'Cartas', 'Sobem o nível das cartas'], ['ovo', 'Ovos', 'Chocam pets que dão bônus'], ['bau', 'Baús', 'Cartas e moedas surpresa']].map(([i, n, d]) => `<div>${ico(i)}<span><b>${n}</b>${d}</span></div>`).join('')}</div></details>
     <div class="ljGrade">${ofertas().map((o, i) => { const feito = L.comprados.includes(i);
       return `<div class="ljItem ${feito ? 'feito' : ''}">${o.desconto ? `<i class="ljDesc">-${o.desconto}%</i>` : ''}<div class="ljImg">${item(o)}</div>
         ${feito ? `<em>${ico('check')} Comprado</em>` : `<button class="btn ${S.moedas >= o.preco ? 'verde' : 'cinza'} peq" data-oferta="${i}" ${S.moedas >= o.preco ? '' : 'disabled'}>${ico('ouro')} ${fmt(o.preco)}</button>`}</div>`; }).join('')}</div>
@@ -1849,7 +1850,7 @@ function terminarInf() {
     f.innerHTML = `<div class="fimCaixa ${novo ? 'vit' : 'der'}"><h2>${novo ? 'NOVO RECORDE!' : 'Fim da linha!'}</h2>
       <p>${G.chefesMortos} chefe${G.chefesMortos === 1 ? '' : 's'} · ${fmt(G.mortesVm)} orcs derrotados</p>
       <div class="ganho">${ico('estrela')}<b>${fmt(pts)}</b></div><p>Recorde: ${fmt(S.recInf || 0)}</p><p id="fPos" class="pos">${ON.conta()?.codigo ? 'Enviando para o ranking...' : '<button class="fSo" data-a="online">Entre no online para aparecer no ranking</button>'}</p>
-      <div class="ganho">${ico('ouro')}<b>+${fmt(ganho)}</b></div>
+      <div class="ganho">${ico('ouro')}<b>+${fmt(ganho)}</b></div>${PR.htmlUltimo()}
       ${bau ? `<div class="fBau">${bauHtml(bau, 'mini')}<b>${BAUS[bau].nome}!</b></div>` : ''}
       <button class="btn roxo grande" data-a="denovoInf">∞ Jogar de novo</button><div class="fLinha"><button class="btn azul" data-a="lobbyUp">${ico('raio')} Melhorias</button><button class="btn cinza" data-a="lobby">${ico('guilda')} Menu</button></div></div>`;
     sfx(novo ? 'vitoria' : 'derrota');
@@ -1867,7 +1868,7 @@ function terminar(venceu) {
     $('#jogo').hidden = true; const f = $('#fim'); f.hidden = false;
     f.innerHTML = `<div class="fimCaixa ${venceu ? 'vit' : 'der'}"><h2>${venceu ? 'VITÓRIA!' : 'A muralha caiu!'}</h2>
       <p>${venceu ? `${G.chefe.nome} foi derrotado!` : 'Melhore o exército e tente de novo.'}${G.dupla ? ` <b>Em dupla com ${esc(G.dupla.apelido)}: +50% moedas</b>` : ''}</p>
-      <div class="ganho">${ico('ouro')}<b id="fGanho">+${fmt(ganho)}</b></div>
+      <div class="ganho">${ico('ouro')}<b id="fGanho">+${fmt(ganho)}</b></div>${PR.htmlUltimo()}
       ${venceu ? `<div class="fBau">${bau ? `${bauHtml(bau, 'mini')}<b>${BAUS[bau].nome}!</b>` : `<small>Espaços de baú cheios: abra seus baús!</small>`}</div>` : ''}
       ${G.dupla ? placarDupla() : ''}
       ${G.dupla ? `<div id="fDupla"><button class="btn verde grande" data-a="revanche">${ico('herois')} Jogar de novo com ${esc(G.dupla.apelido)}</button><p id="rvTxt" class="pos"></p>

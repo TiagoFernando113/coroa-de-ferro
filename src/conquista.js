@@ -11,6 +11,7 @@ import { t as tr } from './i18n.js';
 import { evento } from './missoes.js';
 import * as ON from './online.js';
 import * as A from './analise.js';
+import * as PR from './progresso.js';
 import { forcaEquipe } from './pets.js';
 
 const esc = t => String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -180,7 +181,7 @@ function acabar(venceu) {
     S.moedas += premio; if (ovo) S.ovos[ovo]++; S.cq.est = Math.max(S.cq.est, est + 1); salvar(); if (S.online?.codigo) ON.cqEnviar(S.cq.est - 1, forcaEquipe()).catch(() => {}); }
   setTimeout(() => { if (!Q || !el) return; const j = $('#cqJanela'); j.hidden = false; el.querySelector('.cqLuta')?.remove();
     j.innerHTML = `<div class="cqFim ${venceu ? 'vit' : 'der'}"><h2>${venceu ? `Estágio ${est} conquistado!` : 'Seus pets caíram!'}</h2>
-      ${venceu ? `<div class="ganho">${ico('ouro')}<b>+${fmt(premio)}</b></div>${ovo ? `<div class="cqOvo">${ovoHtml(ovo)}<b>+1 ${OVOS[ovo].nome}!</b></div>` : ''}<p>Lucro ocioso agora: ${fmt(lucroHora())}/h</p>`
+      ${PR.htmlUltimo()}${venceu ? `<div class="ganho">${ico('ouro')}<b>+${fmt(premio)}</b></div>${ovo ? `<div class="cqOvo">${ovoHtml(ovo)}<b>+1 ${OVOS[ovo].nome}!</b></div>` : ''}<p>Lucro ocioso agora: ${fmt(lucroHora())}/h</p>`
         : '<p>Suba o nível dos pets, junte 3 iguais para um dourado ★ ou choque ovos.</p>'}
       <button class="btn verde grande" data-cq="seguir">${venceu ? `Estágio ${S.cq.est} ${ico('seta')}` : 'Tentar de novo'}</button>
       <button class="btn azul" data-cq="pets">${ico('pata')} Pets</button></div>`;
