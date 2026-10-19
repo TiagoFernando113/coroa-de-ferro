@@ -1186,7 +1186,7 @@ input{font:inherit;user-select:text;-webkit-user-select:text}
 .dfChefe{position:absolute;left:50%;transform:translateX(-50%);top:calc(max(10px,env(safe-area-inset-top)) + 84px);width:min(340px,80vw);text-align:center;pointer-events:none}
 .dfChefe b{display:block;font-family:var(--fT);font-weight:400;font-size:15px;color:#ffd0c8;text-shadow:0 2px 0 #000,0 0 6px #000}.dfChefe .barra{height:14px}.dfChefe .barra i{background:linear-gradient(#ff7a5a,#c81a1a)}
 
-.dfTut{position:absolute;left:50%;transform:translateX(-50%);top:calc(max(10px,env(safe-area-inset-top)) + 196px);width:min(360px,88vw);padding:8px 12px;border-radius:12px;background:rgba(20,10,40,.82);border:2px solid #7affea;color:#fff;font-size:13px;text-align:center;pointer-events:none;box-shadow:0 0 14px #7affea66}
+.dfTut{position:absolute;left:50%;transform:translateX(-50%);top:calc(max(10px,env(safe-area-inset-top)) + 196px);width:min(360px,88vw);padding:8px 12px;border-radius:12px;background:rgba(20,10,40,.82);border:2px solid #7affea;color:#fff;font-size:13px;text-align:center;pointer-events:auto;cursor:pointer;box-shadow:0 0 14px #7affea66}.dfTut em{display:block;font-style:normal;font-size:10px;color:#7affea;margin-top:2px}
 .dfTut small{color:#7affea;font-weight:700;margin-right:4px}.tutAlvo{animation:tutPulsa .9s infinite}@keyframes tutPulsa{50%{transform:scale(1.15);box-shadow:0 0 0 6px #7affea88}}
 .dfRamos{display:flex;gap:6px}.dfRamo{display:flex;flex-direction:column;align-items:center;padding:6px 8px;max-width:150px}.dfRamo b{font-size:13px}.dfRamo small{font-size:10px;opacity:.9}.dfRamo em{font-style:normal;font-size:12px}
 .clPapel{display:block;font-style:normal;font-size:10px;font-weight:700;color:#2a7a8a;margin-top:2px}

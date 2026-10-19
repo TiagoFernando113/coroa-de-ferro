@@ -388,7 +388,7 @@ function passoMundo() {
 // botão de girar a câmera (arqueiro e mago, que atacam sozinhos)
 function ligarCamPad() {
   const e = $('#dfCamPad'); if (!e) return; let id = null, x0 = 0;
-  e.addEventListener('pointerdown', ev => { ev.preventDefault(); ev.stopPropagation(); id = ev.pointerId; x0 = ev.clientX; e.classList.add('on'); try { e.setPointerCapture(id); } catch (er) {} });
+  e.addEventListener('pointerdown', ev => { ev.preventDefault(); ev.stopPropagation(); id = ev.pointerId; x0 = ev.clientX; e.classList.add('on'); tut('golpe'); try { e.setPointerCapture(id); } catch (er) {} });
   e.addEventListener('pointermove', ev => { if (ev.pointerId !== id || !K) return; K.yaw -= (ev.clientX - x0) * 0.014; x0 = ev.clientX; K.camManual = performance.now(); tut('golpe'); });
   const fim = ev => { if (ev.pointerId === id) { id = null; e.classList.remove('on'); } }; e.addEventListener('pointerup', fim); e.addEventListener('pointercancel', fim);
 }
@@ -400,7 +400,7 @@ function tut(ev) {
   if (TUT[K.tut]?.[0] === 'fim') setTimeout(() => { if (K?.tut != null) { K.tut = null; S.tutArv = 1; salvar(); mostrarTut(); } }, 9000);
 }
 function mostrarTut() {
-  const e = $('#dfTut'); if (!e) return; const P = K.tut != null && TUT[K.tut]; e.hidden = !P; if (P) e.innerHTML = `<small>${K.tut + 1}/${TUT.length}</small> ${tr(P[0] === 'golpe' && !K.perto ? 'Seu herói ataca sozinho. Arraste o botão redondo para girar a câmera' : P[1])}`;
+  const e = $('#dfTut'); if (!e) return; const P = K.tut != null && TUT[K.tut]; e.hidden = !P; e.onclick = () => { if (K?.tut != null && TUT[K.tut]) tut(TUT[K.tut][0]); }; // tocar no balão passa a dica if (P) e.innerHTML = `<small>${K.tut + 1}/${TUT.length}</small> ${tr(P[0] === 'golpe' && !K.perto ? 'Seu herói ataca sozinho. Use o botão redondo para girar a câmera' : P[1])} <em>${tr('toque para seguir')}</em>`;
   $('#dfGolpe')?.classList.toggle('tutAlvo', P?.[0] === 'golpe'); $('#dfCamPad')?.classList.toggle('tutAlvo', P?.[0] === 'golpe'); $('#dfDesvio')?.classList.toggle('tutAlvo', P?.[0] === 'desvio');
 }
 // ---- papel de cada classe no grupo ----
@@ -505,7 +505,7 @@ function acoes() { // botão grande do lado direito: construir ou melhorar a tor
     <button class="btn cinza peq" data-df="fecharMenu">${ico('fechar')}</button></div>`;
 }
 export function clique(b, toque) {
-  if (!K) return; if (!toque && K.pd?.b === b && performance.now() - K.pd.t < 800) return; // já tratado no toque
+  if (!K) return; if (!toque && K.pd && performance.now() - K.pd.t < 600) return; // o clique que vem depois do toque não conta (senão abre e já fecha o menu)
   const a = b.dataset.df;
   if (a === 'sair') { som('fechar'); if (K.estado !== 'fim' && K.onda > 1) acabar({ saiu: true }); else aoSair(); return; }
   if (a === 'menu') { K.menu = true; K.sigAcoes = null; som('clique'); acoes(); return; }
