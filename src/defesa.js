@@ -257,7 +257,7 @@ function criarMob(tipo, n, id, porta) {
   prepararMob(u); return u;
 }
 function ferir(u, d, pid) {
-  if (u.morto) return; if (u.marcaT > 0) d *= 1.25; if (pid && classeDoPid(pid) === 'arqueiro') u.marcaT = 4; // alvo marcado pelo arqueiro if (u.escudo > 0) { u.escudo--; return; }
+  if (u.morto) return; if (u.marcaT > 0) d *= 1.25; if (pid && classeDoPid(pid) === 'arqueiro') u.marcaT = 4; if (u.escudo > 0) { u.escudo--; return; } // marcaT: alvo marcado pelo arqueiro
   if (pid && pid !== 'torre') { const agora = performance.now(); (u.hits ||= {})[pid] = agora; const n = Object.values(u.hits).filter(t => agora - t < 1500).length;
     if (n >= 2) { d *= 1 + 0.5 * (n - 1); if (!u.comboT || agora - u.comboT > 900) { u.comboT = agora; K.txt.push({ x: u.x, y: u.y + u.alt + 2, z: u.z, txt: `COMBO x${n}!`, cor: '#7affea', t: 0 }); K.canal?.enviar('cb', { x: u.x, z: u.z, n }); } } }
   u.hp -= d; u.flash = 0.12; u.ult = pid; if (u.v) K.txt.push({ x: u.x, y: u.y + u.alt + 1, z: u.z, txt: fmt(Math.round(d)), cor: '#fff', t: 0 });
@@ -407,8 +407,8 @@ function tut(ev) {
   if (K?.tut == null || TUT[K.tut]?.[0] !== ev) return; K.tut++; sfx('brilho'); mostrarTut();
   if (TUT[K.tut]?.[0] === 'fim') setTimeout(() => { if (K?.tut != null) { K.tut = null; S.tutArv = 1; salvar(); mostrarTut(); } }, 9000);
 }
-function mostrarTut() {
-  const e = $('#dfTut'); if (!e) return; const P = K.tut != null && TUT[K.tut]; e.hidden = !P; e.onclick = () => { if (K?.tut != null && TUT[K.tut]) tut(TUT[K.tut][0]); }; // tocar no balão passa a dica if (P) e.innerHTML = `<small>${K.tut + 1}/${TUT.length}</small> ${tr(P[0] === 'golpe' && !K.perto ? 'Seu herói ataca sozinho. Use o botão redondo para girar a câmera' : P[1])} <em>${tr('toque para seguir')}</em>`;
+function mostrarTut() { // tocar no balão passa a dica
+  const e = $('#dfTut'); if (!e) return; const P = K.tut != null && TUT[K.tut]; e.hidden = !P; e.onclick = () => { if (K?.tut != null && TUT[K.tut]) tut(TUT[K.tut][0]); }; if (P) e.innerHTML = `<small>${K.tut + 1}/${TUT.length}</small> ${tr(P[0] === 'golpe' && !K.perto ? 'Seu herói ataca sozinho. Use o botão redondo para girar a câmera' : P[1])} <em>${tr('toque para seguir')}</em>`;
   $('#dfGolpe')?.classList.toggle('tutAlvo', P?.[0] === 'golpe'); $('#dfCamPad')?.classList.toggle('tutAlvo', P?.[0] === 'golpe'); $('#dfDesvio')?.classList.toggle('tutAlvo', P?.[0] === 'desvio');
 }
 // ---- papel de cada classe no grupo ----
@@ -530,7 +530,7 @@ export function clique(b, toque) {
   if (a === 'poder') { if (K.poder < 100) { som('erro'); toast(tr('Matem mais inimigos juntos para encher o poder')); return; } if (K.host) usarPoder(); else { K.canal?.enviar('poder', {}); K.poder = 0; } return; }
   if (a === 'pular') { som('clique'); if (K.host) K.pausaT = Math.min(K.pausaT, 1); else K.canal?.enviar('pular', {}); return; }
   if (a === 'denovo') { som('confirma'); const s = aoSair, m = K.modo; fechar(); abrir(el || $('#defesa'), s, m); return; }
-  if (a === 'menuFim') { som('clique'); aoSair(); }
+  if (a === 'menuFim') { som('clique'); aoSair(b.dataset.ir); }
 }
 
 // ---- toque: joystick à esquerda, câmera à direita (e WASD no computador) ----
@@ -739,7 +739,7 @@ function aplicarBuffsVisuais() {
 // escolha do poder no chão: 3 círculos na frente da árvore; quem pisa vota, o círculo com mais heróis vence (todos num só: decide na hora)
 const GEO_CIRC = new THREE.RingGeometry(2.6, 3.2, 40).rotateX(-Math.PI / 2), GEO_LUZ = new THREE.CylinderGeometry(3, 3, 7, 24, 1, true).translate(0, 3.5, 0), CORES_BUFF = [0x7affea, 0xffd84a, 0xff8ae0];
 const posCirculo = i => [ARV.x + (i - 1) * 9, ARV.z + 15];
-function abrirBuffs() { K.estado = 'buff'; K.buffT = 15; K.buffOnda = K.onda; K.escolheram = new Set(); K.cartas = Object.keys(BUFFS).filter(k => bnv(k) < 5).sort(() => Math.random() - 0.5).slice(0, 3); montarCirculos(); K.banner = { txt: 'ESCOLHAM UM PODER!', cor: '#7affea', t: 0 }; }
+function abrirBuffs() { K.estado = 'buff'; K.buffT = 15; K.buffOnda = K.onda; K.escolheram = new Set(); K.cartas = Object.keys(BUFFS).filter(k => bnv(k) < 5).sort(() => Math.random() - 0.5).slice(0, 3); montarCirculos(); K.banner = { txt: tr('ESCOLHAM UM PODER!'), cor: '#7affea', t: 0 }; }
 function montarCirculos() {
   limparCirculos(); sfx('brilho');
   K.circ = K.cartas.map((k, i) => { const [x, z] = posCirculo(i), g = new THREE.Group(), cor = CORES_BUFF[i];
@@ -748,7 +748,7 @@ function montarCirculos() {
 }
 function limparCirculos() { for (const c of K.circ || []) { cn().remove(c.g); c.g.traverse(o => o.material?.dispose()); } K.circ = null; }
 function passoCirculos() {
-  if (!K.circ) return; const quem = [K.heroi, ...K.jogs.values()].filter(h => !h.morto && h.x != null), t = C.tempo();
+  if (!K.circ) return; const quem = [K.heroi, ...K.jogs.values()].filter(h => !h.morto && !h.caido && h.x != null), t = C.tempo();
   for (const c of K.circ) { if (K.host) c.n = quem.filter(h => Math.hypot(h.x - c.x, h.z - c.z) < 3.2).length; c.g.scale.setScalar(1 + (c.n ? 0.12 : 0) + 0.04 * Math.sin(t * 4)); c.g.children[1].material.opacity = c.n ? 0.32 : 0.16; }
   const meu = K.circ.find(c => Math.hypot(K.heroi.x - c.x, K.heroi.z - c.z) < 3.2); if (meu && K.meuCirc !== meu.k) { K.meuCirc = meu.k; som('confirma'); } else if (!meu) K.meuCirc = null;
 }
@@ -776,7 +776,7 @@ function acabar(p) {
     j.innerHTML = `<div class="cqFim ${novo ? 'vit' : 'der'}"><h2>${p.host ? tr('O anfitrião saiu') : novo ? tr('NOVO RECORDE!') : tr(K.modo === 'arvore' ? 'A árvore caiu!' : 'O castelo caiu!')}</h2><p>${ondas} ${tr(ondas === 1 ? 'onda' : 'ondas')} · ${ab} ${tr('inimigos derrotados')}${K.jogs.size ? ` · ${1 + K.jogs.size} ${tr('jogadores')}` : ''}</p>
       <div class="ganho">${ico('ouro')}<b>+${fmt(premio)}</b>${est ? `<b class="dsGanho">${ico('estrela')} +${est}</b>` : ''}</div>${PR.htmlUltimo()}
       ${itens.length ? `<div class="eqGanhos"><small>${tr('Equipamentos ganhos')}</small><div>${itens.map(it => EQ.itemHtml(it, 'novo')).join('')}</div></div>` : `<p class="eqDica">${tr('Passe da onda 2 para ganhar equipamentos!')}</p>`}<p>${tr('Recorde')}: ${S.defesa[rk] || 0} ${tr('ondas')}</p>
-      <button class="btn verde grande" data-df="denovo">${tr('Jogar de novo')}</button><button class="btn azul" data-df="menuFim">${ico('guilda')} Menu</button></div>`;
+      <button class="btn verde grande" data-df="denovo">${tr('Jogar de novo')}</button><div class="fLinha"><button class="btn azul" data-df="menuFim" data-ir="cartas">${ico('herois')} ${tr('Herói')}</button><button class="btn cinza" data-df="menuFim">${ico('guilda')} Menu</button></div></div>`;
     if (novo) flashTela('#ffe27a', 0.45); setTimeout(() => voarMoedas('#dfJanela .ganho', 8), 120);
     const bom = itens.filter(EQ.melhorQueEquipado).sort((x, y) => EQ.poderItem(y) - EQ.poderItem(x))[0]; if (bom) setTimeout(() => { if (K && $('#janela').hidden) EQ.novoItem(bom); }, 1600); }, p.saiu ? 100 : 1400);
 }

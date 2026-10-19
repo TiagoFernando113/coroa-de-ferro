@@ -788,7 +788,7 @@ function abrirOvo(tipo) {
 function abrirDefesa(modo = 'caminho') { // Defesa em Grupo e Árvore Sagrada (defesa.js)
   limparFase(); climaMapa = false; $('#janela').hidden = true;
   tela = 'defesa'; $('#lobby').hidden = true; $('#jogo').hidden = true; $('#fim').hidden = true; tema(1);
-  DF.abrir($('#defesa'), () => { DF.fechar(); abrirLobby(); desenharLobby(); }, modo);
+  DF.abrir($('#defesa'), ir => { DF.fechar(); abrirLobby(); if (ir) abaLobby = ir; desenharLobby(); }, modo);
 }
 const MAPA_GUERRA = false; // Mapa de Guerra guardado por enquanto (o código continua em mundo.js)
 function abrirMundo() { // Mapa de Guerra (mundo.js)
@@ -799,7 +799,7 @@ function abrirMundo() { // Mapa de Guerra (mundo.js)
 function abrirCastelo() {
   limparFase(); MUROS_PISTA[0].visible = MUROS_PISTA[1].visible = false; MUROS_PISTA[2].visible = true; $('#janela').hidden = true;
   tela = 'castelo'; Q.emFase(true); $('#lobby').hidden = true; $('#jogo').hidden = true; $('#fim').hidden = true; tema(1);
-  CT.abrir($('#castelo'), () => { CT.fechar(); abrirLobby(); desenharLobby(); });
+  CT.abrir($('#castelo'), ir => { CT.fechar(); abrirLobby(); if (ir) abaLobby = ir; desenharLobby(); });
 }
 // ---- configurações: idioma, som e qualidade gráfica num lugar só ----
 function mostrarConfig(reabrir) {
@@ -1577,7 +1577,7 @@ function mostrarLoja() {
     : o.tipo === 'pet' ? `<img src="${fotoPet(o.pet)}" alt=""><b data-nt>${PETS[o.pet].nome}</b><small style="color:${RARIDADES[PETS[o.pet].r].cor}">${RARIDADES[PETS[o.pet].r].nome}</small>`
     : `<span class="cartaMini ${o.carta}">${ico(NOME_CARTA[o.carta][1])}</span><b>${NOME_CARTA[o.carta][0]} x${o.n}</b>`;
   const re = !!j.querySelector('.jLoja'); j.innerHTML = `<div class="jMissoes jLoja ${re ? 'semAnim' : ''}"><h2>${ico('mercado')} Loja do dia</h2><p class="sub">Novas ofertas em ${h}h${String(m).padStart(2, '0')}</p>
-    <details class="ajudaDet"><summary>${ico('pergaminho')} Para que serve cada moeda?</summary><div class="ajudaMoedas">${[['ouro', 'Moedas', 'Melhorias, loja e Desejos'], ['estrela', 'Estrelas', 'Desejos de equipamento (Herói)'], ['raio', 'Cartas', 'Sobem o nível das cartas'], ['ovo', 'Ovos', 'Chocam pets que dão bônus'], ['bau', 'Baús', 'Cartas e moedas surpresa']].map(([i, n, d]) => `<div>${ico(i)}<span><b>${n}</b>${d}</span></div>`).join('')}</div></details>
+    <details class="ajudaDet"><summary>${ico('pergaminho')} Para que serve cada moeda?</summary><div class="ajudaMoedas">${[['ouro', 'Moedas', 'Melhorias, loja e Desejos'], ['estrela', 'Estrelas', 'Desejos de equipamento (Herói)'], ['cartas', 'Cartas', 'Sobem o nível das cartas'], ['ovo', 'Ovos', 'Chocam pets que dão bônus'], ['bau', 'Baús', 'Cartas e moedas surpresa']].map(([i, n, d]) => `<div>${ico(i)}<span><b>${n}</b>${d}</span></div>`).join('')}</div></details>
     <div class="ljGrade">${ofertas().map((o, i) => { const feito = L.comprados.includes(i);
       return `<div class="ljItem ${feito ? 'feito' : ''}">${o.desconto ? `<i class="ljDesc">-${o.desconto}%</i>` : ''}<div class="ljImg">${item(o)}</div>
         ${feito ? `<em>${ico('check')} Comprado</em>` : `<button class="btn ${S.moedas >= o.preco ? 'verde' : 'cinza'} peq" data-oferta="${i}" ${S.moedas >= o.preco ? '' : 'disabled'}>${ico('ouro')} ${fmt(o.preco)}</button>`}</div>`; }).join('')}</div>
@@ -1757,7 +1757,7 @@ function atualizarVagas() {
 }
 function montarTorre(v) {
   if (v.o) cena.remove(v.o); v.o = null; const T = TORRES[v.tipo]; if (!T) return;
-  v.o = C.objeto(T.modelo, T.esc * (1 + 0.12 * (v.nv - 1))); v.o.position.set(v.x, 0, v.z); v.o.rotation.y = Math.PI / 2; // os modelos de balista e catapulta apontam para +x v.o.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  v.o = C.objeto(T.modelo, T.esc * (1 + 0.12 * (v.nv - 1))); v.o.position.set(v.x, 0, v.z); v.o.rotation.y = Math.PI / 2; v.o.traverse(o => { if (o.isMesh) o.castShadow = true; }); // os modelos de balista e catapulta apontam para +x
 }
 function tocarVaga(i) {
   const v = G.vagas[i]; if (!v || G.fim) return;
@@ -1852,7 +1852,7 @@ function terminarInf() {
       <div class="ganho">${ico('estrela')}<b>${fmt(pts)}</b></div><p>Recorde: ${fmt(S.recInf || 0)}</p><p id="fPos" class="pos">${ON.conta()?.codigo ? 'Enviando para o ranking...' : '<button class="fSo" data-a="online">Entre no online para aparecer no ranking</button>'}</p>
       <div class="ganho">${ico('ouro')}<b>+${fmt(ganho)}</b></div>${PR.htmlUltimo()}
       ${bau ? `<div class="fBau">${bauHtml(bau, 'mini')}<b>${BAUS[bau].nome}!</b></div>` : ''}
-      <button class="btn roxo grande" data-a="denovoInf">∞ Jogar de novo</button><div class="fLinha"><button class="btn azul" data-a="lobbyUp">${ico('raio')} Melhorias</button><button class="btn cinza" data-a="lobby">${ico('guilda')} Menu</button></div></div>`;
+      <button class="btn verde grande" data-a="denovoInf">${ico('girar')} ${tr('Jogar de novo')}</button><div class="fLinha"><button class="btn azul" data-a="lobbyUp">${ico('raio')} Melhorias</button><button class="btn cinza" data-a="lobby">${ico('guilda')} Menu</button></div></div>`;
     sfx(novo ? 'vitoria' : 'derrota');
     if (ON.conta()?.codigo) ON.enviarRecorde(S.recInf || pts, G.chefesMortos).then(pos => { const e = $('#fPos'); if (e) e.textContent = `Você está em #${pos} no ranking mundial!`; })
       .catch(() => { const e = $('#fPos'); if (e) e.textContent = 'Sem conexão: o recorde vai na próxima.'; });

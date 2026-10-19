@@ -11,6 +11,13 @@ export const idiomaJogo = () => lang;
 export function mudarIdioma(l) { lang = l; try { localStorage.setItem('ponte_idioma', l); } catch (e) {} document.documentElement.lang = l; traduzirTudo(); }
 const NUM = /[+\-x×]?\d[\d.,]*[KMBT%]?/g;
 const cache = new Map();
+// chaves escritas com números ('Cura a cada 5s') também valem para o texto com '#'
+const normais = {};
+function normal(l) {
+  if (normais[l]) return normais[l]; const N = normais[l] = {}, D = TEXTOS[l] || {};
+  for (const [k, v] of Object.entries(D)) { const a = k.match(NUM), b = v.match(NUM); if (a && b && a.length === b.length) N[k.replace(NUM, '#')] ??= v.replace(NUM, '#'); }
+  return N;
+}
 window.__textos = window.__textos || null; // para coletar textos nos testes
 export function t(txt) {
   if (txt == null) return txt; const s = String(txt), limpo = s.trim(); if (!limpo || !/\p{L}/u.test(limpo)) return s;
@@ -21,7 +28,7 @@ export function t(txt) {
   if (lang.startsWith('pt')) return s;
   const D = TEXTOS[lang.slice(0, 2)]; if (!D) return s;
   const ck = lang + k; let tr = cache.get(ck);
-  if (tr === undefined) { tr = D[k] ?? D[k.toLowerCase()] ?? null; cache.set(ck, tr); }
+  if (tr === undefined) { tr = D[k] ?? D[k.toLowerCase()] ?? normal(lang.slice(0, 2))[k] ?? null; cache.set(ck, tr); }
   if (tr == null) { window.__faltam?.add(k); for (const [re, out] of PADROES[lang.slice(0, 2)] || []) if (re.test(limpo)) return s.replace(limpo, limpo.replace(re, out)); return s; }
   let i = 0; const out = tr.replace(/#/g, () => nums[i++] ?? '');
   return s.replace(limpo, out);

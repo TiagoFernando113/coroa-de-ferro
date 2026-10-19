@@ -198,17 +198,17 @@ function golpeCastelo(d) {
 function acabar() {
   K.estado = 'fim'; A.partida('castelo', K.onda - 1, null, { orcs: K.mortos }); const ondas = K.onda - 1, novo = ondas > (S.castelo?.rec || 0); S.castelo ||= { rec: 0 }; if (novo) S.castelo.rec = ondas;
   const premio = Math.round((20 + 12 * ondas + 2 * K.mortos / 10) * (fimDeSemana() ? 2 : 1)); S.moedas += premio; salvar(); evento('orcs', K.mortos); evento('ondas', ondas); if (ondas > 0 && S.online?.codigo) ON.claDano(Math.round(ondas * Math.max(1, S.melhor || 1) * 6)).catch(() => {}); if (novo && S.online?.codigo) ON.ctEnviar(ondas, S.heroi || 'lyra').catch(() => {});
-  sfx(novo ? 'vitoria' : 'derrota'); C.camera.tremor = 1; K.banner = { txt: 'A MURALHA CAIU!', cor: '#ff6a5a', t: 0 };
+  sfx(novo ? 'vitoria' : 'derrota'); C.camera.tremor = 1; K.banner = { txt: tr('A MURALHA CAIU!'), cor: '#ff6a5a', t: 0 };
   setTimeout(() => { if (!K || !el) return; const j = $('#ctJanela'); j.hidden = false;
-    j.innerHTML = `<div class="cqFim ${novo ? 'vit' : 'der'}"><h2>${novo ? 'NOVO RECORDE!' : 'A muralha caiu!'}</h2><p>Você aguentou ${ondas} onda${ondas === 1 ? '' : 's'} · ${fmt(K.mortos)} inimigos</p>
-      <div class="ganho">${ico('ouro')}<b>+${fmt(premio)}</b></div>${PR.htmlUltimo()}<p>Fique mais forte com melhorias, cartas e pets para ir mais longe.</p>
-      <button class="btn verde grande" data-ct="denovo">Jogar de novo</button><button class="btn azul" data-ct="sair">${ico('guilda')} Menu</button></div>`;
+    j.innerHTML = `<div class="cqFim ${novo ? 'vit' : 'der'}"><h2>${tr(novo ? 'NOVO RECORDE!' : 'A muralha caiu!')}</h2><p>${ondas} ${tr(ondas === 1 ? 'onda' : 'ondas')} · ${fmt(K.mortos)} ${tr('inimigos derrotados')}</p>
+      <div class="ganho">${ico('ouro')}<b>+${fmt(premio)}</b></div>${PR.htmlUltimo()}<p>${tr('Fique mais forte com melhorias, cartas e pets para ir mais longe.')}</p>
+      <button class="btn verde grande" data-ct="denovo">${tr('Jogar de novo')}</button><div class="fLinha"><button class="btn azul" data-ct="sair" data-ir="up">${ico('raio')} ${tr('Melhorias')}</button><button class="btn cinza" data-ct="sair">${ico('guilda')} Menu</button></div></div>`;
     if (novo) flashTela('#ffe27a', 0.45); setTimeout(() => voarMoedas('#ctJanela .ganho', novo ? 12 : 6), 120); }, 1500);
 }
 export function clique(b) {
   const a = b.dataset.ct, mg = b.dataset.magia;
   if (mg) { usarMagia(mg); return; }
-  if (a === 'sair') { som('fechar'); aoSair(); }
+  if (a === 'sair') { som('fechar'); aoSair(b.dataset.ir); }
   if (a === 'vel') { K.vel = K.vel === 1 ? 2 : 1; b.textContent = 'x' + K.vel; som('clique'); }
   if (a === 'dicaOk') { (S.dicas ||= {}).castelo = 1; salvar(); som('confirma'); $('#ctJanela').hidden = true; K.pausaT = 1; return; }
   if (a === 'denovo') { som('confirma'); const s = aoSair; fechar(); abrir(el || $('#castelo'), s); }

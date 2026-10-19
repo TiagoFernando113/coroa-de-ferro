@@ -184,7 +184,7 @@ function acabar(venceu) {
       ${PR.htmlUltimo()}${venceu ? `<div class="ganho">${ico('ouro')}<b>+${fmt(premio)}</b></div>${ovo ? `<div class="cqOvo">${ovoHtml(ovo)}<b>+1 ${OVOS[ovo].nome}!</b></div>` : ''}<p>Lucro ocioso agora: ${fmt(lucroHora())}/h</p>`
         : '<p>Suba o nível dos pets, junte 3 iguais para um dourado ★ ou choque ovos.</p>'}
       <button class="btn verde grande" data-cq="seguir">${venceu ? `Estágio ${S.cq.est} ${ico('seta')}` : 'Tentar de novo'}</button>
-      <button class="btn azul" data-cq="pets">${ico('pata')} Pets</button></div>`;
+      <div class="fLinha"><button class="btn azul" data-cq="pets">${ico('pata')} Pets</button><button class="btn cinza" data-cq="sair">${ico('guilda')} Menu</button></div></div>`;
     if (venceu) { flashTela('#ffe27a', 0.45); setTimeout(() => voarMoedas('#cqJanela .ganho', 10), 120); } }, 1600);
 }
 export function ovoHtml(tipo, cls = '') {
