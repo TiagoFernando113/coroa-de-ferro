@@ -1,0 +1,777 @@
+// Mapa de Guerra (etapa 1): um mapa só para todos os jogadores. Cada um tem 2 exércitos comandados pelo herói,
+// que marcham em tempo real (o servidor guarda o caminho e a hora da saída; cada celular calcula onde o exército está).
+// O terreno é gerado igual em todo celular (mesma semente); quem está com o mapa aberto também dá as ordens dos bots.
+import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import * as C from './cena.js';
+import { S, salvar } from './meta.js';
+import { HEROIS } from './herois.js';
+import { fmt } from './dados.js';
+import { desenharTropas } from './tropas.js';
+import { ico, som, $, flashTela } from './util.js';
+import { sfx } from './musica.js';
+import { t as tr } from './i18n.js';
+import * as ON from './online.js';
+
+const N = 56, T = 4, WX = 6000, WZ = 0, VEL = 0.6; // tiles por lado, tamanho do tile, onde fica o mapa no mundo, velocidade (tiles/s)
+const GRAMA = 0, FLORESTA = 1, MONTANHA = 2, AGUA = 3, PONTE = 4;
+const CORES_CLA = [0xe8503a, 0x2f7ae8, 0x2bb84a, 0xa24ae8, 0xf2b51a, 0x1fb8b8, 0xe85aa8, 0x6a6a7a];
+const passa = t => t === GRAMA || t === FLORESTA || t === PONTE;
+let K = null, el = null, op = null;
+const cn = () => C.obterCena();
+const wx = x => WX + (x - N / 2) * T, wz = y => WZ + (y - N / 2) * T; // tile (com fração) → mundo
+
+// ---- terreno (igual em todo celular) ----
+function rng(seed) { return () => { seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function ruido(r, esc) {
+  const m = Math.ceil(N / esc) + 2, g = Array.from({ length: m * m }, r), s = t => t * t * (3 - 2 * t);
+  return (x, y) => { const fx = x / esc, fy = y / esc, ix = Math.floor(fx), iy = Math.floor(fy), tx = s(fx - ix), ty = s(fy - iy), v = (i, j) => g[j * m + i];
+    return (v(ix, iy) * (1 - tx) + v(ix + 1, iy) * tx) * (1 - ty) + (v(ix, iy + 1) * (1 - tx) + v(ix + 1, iy + 1) * tx) * ty; };
+}
+let MAPA = null;
+function gerarMapa() {
+  if (MAPA) return MAPA;
+  const r = rng(2026), n1 = ruido(r, 9), n2 = ruido(r, 4), nf = ruido(r, 6), tipo = new Uint8Array(N * N), at = (x, y) => tipo[y * N + x];
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const h = 0.65 * n1(x, y) + 0.35 * n2(x, y), borda = Math.min(x, y, N - 1 - x, N - 1 - y);
+    tipo[y * N + x] = borda < 2 || (borda < 4 && r() < 0.35) ? AGUA : h < 0.26 ? AGUA : h > 0.73 ? MONTANHA : nf(x, y) > 0.6 ? FLORESTA : GRAMA;
+  }
+  // dois rios cruzando o mapa, com pontes de tempos em tempos
+  for (const vert of [true, false]) { let p = 12 + Math.floor(r() * (N - 24)), k = 0;
+    for (let q = 2; q < N - 2; q++) { p = Math.max(5, Math.min(N - 6, p + (r() < 0.33 ? -1 : r() < 0.5 ? 1 : 0))); k++;
+      const ponte = k % 9 === 4; for (const d of [0, 1]) { const x = vert ? p + d : q, y = vert ? q : p + d; tipo[y * N + x] = ponte ? PONTE : AGUA; } } }
+  // lugares de castelo e acampamento: longe um do outro e da borda
+  const cand = []; for (let y = 5; y < N - 5; y++) for (let x = 5; x < N - 5; x++) if (at(x, y) === GRAMA) cand.push([x, y]);
+  for (let i = cand.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [cand[i], cand[j]] = [cand[j], cand[i]]; }
+  let sitios = []; for (const c of cand) if (sitios.length < 30 && sitios.every(s => Math.hypot(s[0] - c[0], s[1] - c[1]) >= 8.5)) sitios.push(c);
+  for (const [sx, sy] of sitios) for (let y = sy - 2; y <= sy + 2; y++) for (let x = sx - 2; x <= sx + 2; x++) if (at(x, y) !== PONTE) tipo[y * N + x] = GRAMA;
+  // tudo que não dá para alcançar do primeiro lugar vira montanha (assim todo caminho existe)
+  const visto = new Uint8Array(N * N), fila = [sitios[0][1] * N + sitios[0][0]]; visto[fila[0]] = 1;
+  while (fila.length) { const i = fila.pop(), x = i % N, y = (i / N) | 0; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const a = x + dx, b = y + dy, j = b * N + a; if (a >= 0 && b >= 0 && a < N && b < N && !visto[j] && passa(tipo[j])) { visto[j] = 1; fila.push(j); } } }
+  for (let i = 0; i < N * N; i++) if (!visto[i] && passa(tipo[i])) tipo[i] = MONTANHA;
+  sitios = sitios.filter(([x, y]) => visto[y * N + x]);
+  const r2 = rng(99), pts = [], cand2 = []; for (let y = 3; y < N - 3; y++) for (let x = 3; x < N - 3; x++) if (tipo[y * N + x] === GRAMA && visto[y * N + x]) cand2.push([x, y]);
+  for (let i = cand2.length - 1; i > 0; i--) { const j = Math.floor(r2() * (i + 1)); [cand2[i], cand2[j]] = [cand2[j], cand2[i]]; }
+  for (const c of cand2) if (pts.length < 90 && sitios.every(s => Math.hypot(s[0] - c[0], s[1] - c[1]) >= 4.5) && pts.every(s => Math.hypot(s[0] - c[0], s[1] - c[1]) >= 4)) pts.push(c);
+  return MAPA = { tipo, at, sitios, r, pontos: pts.map(([x, y]) => [x + 0.5, y + 0.5]) };
+}
+const livre = (x, y) => x >= 0 && y >= 0 && x < N && y < N && passa(MAPA.tipo[y * N + x]);
+function linhaLivre(a, b) { const d = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.ceil(d / 0.2); for (let i = 0; i <= n; i++) { const k = i / n; if (!livre(Math.floor(a[0] + (b[0] - a[0]) * k), Math.floor(a[1] + (b[1] - a[1]) * k))) return false; } return true; }
+// caminho (A*) entre dois pontos (tiles com fração), já alisado: só os pontos onde precisa virar
+function caminho(de, para) {
+  const s = Math.floor(de[1]) * N + Math.floor(de[0]), g = Math.floor(para[1]) * N + Math.floor(para[0]); if (!passa(MAPA.tipo[g])) return null;
+  const custo = new Float32Array(N * N).fill(1e9), veio = new Int32Array(N * N).fill(-1), heap = [[0, s]], gx = g % N, gy = (g / N) | 0; custo[s] = 0;
+  const push = e => { heap.push(e); let i = heap.length - 1; while (i > 0) { const p = (i - 1) >> 1; if (heap[p][0] <= heap[i][0]) break; [heap[p], heap[i]] = [heap[i], heap[p]]; i = p; } };
+  const pop = () => { const top = heap[0], ult = heap.pop(); if (heap.length) { heap[0] = ult; let i = 0; for (;;) { const a = 2 * i + 1, b = a + 1; let m = i; if (a < heap.length && heap[a][0] < heap[m][0]) m = a; if (b < heap.length && heap[b][0] < heap[m][0]) m = b; if (m === i) break; [heap[m], heap[i]] = [heap[i], heap[m]]; i = m; } } return top; };
+  while (heap.length) { const [, i] = pop(); if (i === g) break; const x = i % N, y = (i / N) | 0;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { if (!dx && !dy) continue; const a = x + dx, b = y + dy; if (!livre(a, b) || (dx && dy && (!livre(x + dx, y) || !livre(x, y + dy)))) continue;
+      const j = b * N + a, c = custo[i] + (dx && dy ? 1.414 : 1) * (MAPA.tipo[j] === FLORESTA ? 1.3 : 1); if (c < custo[j]) { custo[j] = c; veio[j] = i; push([c + Math.hypot(a - gx, b - gy), j]); } } }
+  if (veio[g] < 0 && g !== s) return null;
+  const tiles = []; for (let i = g; i >= 0 && i !== s; i = veio[i]) tiles.push([i % N + 0.5, ((i / N) | 0) + 0.5]); tiles.reverse(); tiles[tiles.length - 1] = [para[0], para[1]];
+  const pts = [[de[0], de[1]]]; let i = 0, atual = pts[0];
+  while (i < tiles.length) { let j = tiles.length - 1; while (j > i && !linhaLivre(atual, tiles[j])) j--; atual = tiles[j]; pts.push(atual); i = j + 1; }
+  return pts.map(p => [Math.round(p[0] * 100) / 100, Math.round(p[1] * 100) / 100]);
+}
+const comprimento = cam => { let d = 0; for (let i = 1; i < cam.length; i++) d += Math.hypot(cam[i][0] - cam[i - 1][0], cam[i][1] - cam[i - 1][1]); return d; };
+
+// ---- bases: castelos dos clãs (lugares fixos, pela ordem dos clãs) e acampamentos de quem não tem clã ----
+const hash = s => { let h = 2166136261; for (const c of String(s)) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return h >>> 0; };
+function bases() {
+  const sitios = MAPA.sitios, usado = new Set(); K.castelos = [];
+  for (const c of K.clas) { let i = hash('c' + c.id) % sitios.length; while (usado.has(i) && usado.size < sitios.length) i = (i + 1) % sitios.length; usado.add(i); K.castelos.push({ ...c, x: sitios[i][0] + 0.5, y: sitios[i][1] + 0.5 }); }
+  K.livresSitios = sitios.map((s, i) => i).filter(i => !usado.has(i));
+}
+function baseDe(e) {
+  const c = e.cla != null && K.castelos.find(q => q.id === e.cla), h = hash(e.dono), viz = [[2, 0], [-2, 0], [0, 2], [0, -2], [2, 2], [-2, 2], [2, -2], [-2, -2]];
+  if (c) { const v = viz[(h + e.slot * 3) % 8]; return [c.x + v[0] * 0.8, c.y + v[1] * 0.8]; }
+  const L = K.livresSitios.length ? K.livresSitios : MAPA.sitios.map((s, i) => i), s = MAPA.sitios[L[h % L.length]], o = ((h >> 8) % 3) - 1;
+  return [s[0] + 0.5 + o + e.slot * 1.2, s[1] + 0.5 + ((h >> 4) % 3) - 1];
+}
+const agora = () => Date.now() / 1000 + (K?.dif || 0);
+function posicao(e) { // onde o exército está agora (e para onde olha)
+  if (!e.cam || !e.cam.length) { const b = e.base || baseDe(e); return { x: b[0], y: b[1], dir: 0, anda: false, fim: true }; }
+  if (e.cam.length === 1) return { x: e.cam[0][0], y: e.cam[0][1], dir: e.dir || 0, anda: false, fim: true }; // parou onde estava (ex.: foi atacado no caminho)
+  let d = Math.max(0, (agora() - e.t0) * VEL);
+  for (let i = 1; i < e.cam.length; i++) { const a = e.cam[i - 1], b = e.cam[i], l = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (d <= l) { const k = l ? d / l : 1; return { x: a[0] + (b[0] - a[0]) * k, y: a[1] + (b[1] - a[1]) * k, dir: Math.atan2(b[0] - a[0], b[1] - a[1]), anda: true, falta: (comprimento(e.cam.slice(i)) + l - d) / VEL }; }
+    d -= l; }
+  const p = e.cam[e.cam.length - 1], q = e.cam[e.cam.length - 2]; return { x: p[0], y: p[1], dir: Math.atan2(p[0] - q[0], p[1] - q[1]), anda: false, fim: true };
+}
+
+// ---- cena ----
+function montarTerreno() {
+  const g = [], cor = new THREE.Color(), cores = { [GRAMA]: [0x7cc24a, 0x86cc52], [FLORESTA]: [0x4f9a3a, 0x58a240], [MONTANHA]: [0x9a8a76, 0x8f806c], [PONTE]: [0x7cc24a, 0x7cc24a] };
+  const add = (geo, c) => { const n = geo.attributes.position.count, a = new Float32Array(n * 3); cor.set(c); for (let i = 0; i < n; i++) a.set([cor.r, cor.g, cor.b], i * 3); geo.setAttribute('color', new THREE.BufferAttribute(a, 3)); geo.deleteAttribute('uv'); g.push(geo); };
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { const t = MAPA.at(x, y); if (t === AGUA || t === PONTE) continue;
+    const alto = t === MONTANHA ? 1.6 : 0; add(new THREE.BoxGeometry(T, 3 + alto, T).translate(wx(x + 0.5), -1.5 + alto / 2, wz(y + 0.5)), cores[t][(x + y) & 1]); }
+  // fundo de terra e água
+  add(new THREE.BoxGeometry(N * T, 6, N * T).translate(WX, -5.2, WZ), 0x8a6a48);
+  const terra = new THREE.Mesh(mergeGeometries(g), new THREE.MeshLambertMaterial({ vertexColors: true })); terra.receiveShadow = true;
+  const agua = new THREE.Mesh(new THREE.PlaneGeometry(N * T, N * T).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0x3aa8e0, transparent: true, opacity: 0.88 })); agua.position.set(WX, -0.55, WZ);
+  const pontes = []; for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (MAPA.at(x, y) === PONTE) pontes.push(new THREE.BoxGeometry(T, 0.4, T * 0.9).translate(wx(x + 0.5), -0.1, wz(y + 0.5)));
+  const ponte = new THREE.Mesh(mergeGeometries(pontes), new THREE.MeshLambertMaterial({ color: 0x9a6a3a })); ponte.receiveShadow = true;
+  const grupo = new THREE.Group(); grupo.add(terra, agua, ponte); cn().add(grupo);
+  // árvores, pedras, castelos e acampamentos (peças do kit, juntadas)
+  const r = rng(77), pecas = [], arv = ['N:tree_pineRoundB', 'N:tree_oak', 'N:tree_default', 'N:tree_pineTallA', 'N:tree_fat'];
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { const t = MAPA.at(x, y);
+    if (t === FLORESTA) for (let k = 0; k < 2; k++) pecas.push({ m: arv[Math.floor(r() * arv.length)], x: wx(x + 0.2 + r() * 0.6), z: wz(y + 0.2 + r() * 0.6), s: 2.6 + r() * 1.4, ry: r() * 6 });
+    if (t === MONTANHA) pecas.push({ m: r() < 0.5 ? 'N:rock_tallA' : 'N:rock_largeA', x: wx(x + 0.5), y: 1.6, z: wz(y + 0.5), s: 3 + r() * 2.5, ry: r() * 6 });
+    if (t === GRAMA && r() < 0.04) pecas.push({ m: r() < 0.5 ? 'N:plant_bush' : 'N:flower_redA', x: wx(x + r()), z: wz(y + r()), s: 2.5 }); }
+  for (const c of K.castelos) { const x = wx(c.x), z = wz(c.y);
+    pecas.push({ m: 'C:tower-square', x, z, s: 5 }, { m: 'C:tower-square', x: x - 4, z: z + 3, s: 3.5 }, { m: 'C:tower-square', x: x + 4, z: z + 3, s: 3.5 }, { m: 'C:flag', x, y: 10.5, z, s: 3.5 }); }
+  const usados = new Set(K.castelos.map(c => `${Math.floor(c.x)},${Math.floor(c.y)}`));
+  for (const i of K.livresSitios) { const [sx, sy] = MAPA.sitios[i]; if (usados.has(`${sx},${sy}`)) continue; pecas.push({ m: 'N:tent_detailedOpen', x: wx(sx + 0.5), z: wz(sy + 0.5), s: 3.5 }, { m: 'N:campfire_logs', x: wx(sx + 1.3), z: wz(sy + 1.2), s: 2.5 }); }
+  return [grupo, C.montarEstatico(pecas)];
+}
+function bandeira(cor) { // mastro + pano na cor do clã
+  const g = new THREE.Group(), m = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 3.2, 5), new THREE.MeshLambertMaterial({ color: 0x5a3a1a })); m.position.y = 1.6;
+  const p = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 0.8), new THREE.MeshLambertMaterial({ color: cor, side: THREE.DoubleSide })); p.position.set(0.66, 2.75, 0); g.add(m, p); cn().add(g); return g;
+}
+
+// ---- abrir / fechar ----
+export function abrir(container, opcoes) {
+  el = container; op = opcoes; el.hidden = false; gerarMapa();
+  K = { ex: new Map(), bat: new Map(), bandeiras: [], recursos: [], rallies: [], flags: new Map(), clas: [], castelos: [], livresSitios: [], dif: 0, sel: null, prev: null, zoom: 95, cam: null, toques: new Map(), arrasto: null, tPoll: 0, carregou: false, txt: [], erro: '' };
+  C.ceu(0x9ad8f8); C.neblina(180, 520); C.diaNoite(0);
+  el.innerHTML = `<div class="muTopo"><button class="lSair" data-mu="sair">${ico('fechar')}</button><b>${tr('Mapa de Guerra')}</b><small id="muOn"></small><button class="muCmdB" data-mu="cmd">⭐ <span id="muNv">Nv 1</span></button><button class="muLigaB" data-mu="liga">🏆 <span id="muPts">${tr('Liga')}</span></button></div>
+    <div class="muAviso" id="muAviso">${tr('Carregando o mapa...')}</div>
+    <div class="muMissao" id="muMissao" hidden></div><div class="muRally" id="muRally" hidden></div><div class="muConf" id="muConf" hidden></div><div class="muInfo" id="muInfo" hidden></div><div class="muExs" id="muExs"></div><div class="cqJanela" id="muRel" hidden></div><canvas class="muMini" id="muMini" width="128" height="128"></canvas>
+    <button class="muCaixaB" data-mu="caixa" aria-label="${tr('Relatórios')}">✉️<i id="muCxN" hidden></i></button>`;
+  ligarToque(); ligarMini(); atualizar(true);
+}
+export function fechar() {
+  if (K) { for (const e of K.ex.values()) limparEx(e); if (K.cena) { C.descartar(K.cena[0]); C.removerGrupo(K.cena[1]); } C.descartar(K.linha); C.descartar(K.terr); for (const f of K.flags.values()) C.descartar(f.o); for (const m of K.minas?.values() || []) C.descartar(m.g); desenharTropas('az', [], 0, 0); desenharTropas('vm', [], 0, 0); }
+  desligarToque(); K = null; if (el) { el.hidden = true; el.innerHTML = ''; }
+}
+function limparEx(e) { C.descartar(e.flag); e.v?.remover(); e.v = null; C.descartar(e.linha); for (const o of e.acamp || []) C.remover(o); e.acamp = null; }
+
+// ---- servidor ----
+function minhasTropas() { const up = S.up || {}; return Math.round(60 + 30 * (up.exercito || 0) + 8 * (up.vida || 0) + (S.equipe || []).length * 15); }
+async function atualizar() {
+  if (!K || K.buscando) return; K.buscando = true;
+  try {
+    const r = await ON.mapaEstado(S.heroi || 'lyra', minhasTropas()); if (!K) return;
+    K.dif = r.agora - Date.now() / 1000; K.erro = '';
+    if (r.heroi) { if (K.heroi && r.heroi.nivel > K.heroi.nivel) { sfx('vitoria'); flashTela('#ffe27a', 0.35); toast(`⭐ ${tr('Comandante subiu para o nível')} ${r.heroi.nivel}!`); }
+      K.heroi = r.heroi; const nv = $('#muNv'); if (nv) nv.textContent = `Nv ${r.heroi.nivel}`; if (!$('#muRel').hidden && K.abaRel === 'cmd') abrirCmd(); }
+    if (!K.carregou || JSON.stringify(r.clas) !== K.clasSig) { K.clasSig = JSON.stringify(r.clas); K.clas = r.clas; bases(); if (!K.carregou) { K.cena = montarTerreno(); } }
+    const vistos = new Set();
+    for (const d of r.exercitos) { vistos.add(d.id); let e = K.ex.get(d.id);
+      if (!e) { e = { ...d }; K.ex.set(d.id, e); } else if (!(e.eu && e.local && e.t0 > d.t0 + 0.5)) Object.assign(e, d, { local: false }); // a ordem que acabei de dar vale até o servidor confirmar
+      e.base = baseDe(e); }
+    for (const [id, e] of K.ex) if (!vistos.has(id)) { limparEx(e); K.ex.delete(id); }
+    K.bandeiras = r.bandeiras || []; atualizarTerritorio(); K.recursos = r.recursos || []; atualizarMinas(); K.rallies = r.rallies || []; K.rallySig = null;
+    if (r.pontos === false && !K.pontosEnviados) { K.pontosEnviados = true; ON.mapaPontos(MAPA.pontos).catch(() => {}); }
+    if (!K.castEnviado) { K.castEnviado = true; const faltam = K.castelos.filter(c => c.mx == null).map(c => ({ id: c.id, x: Math.floor(c.x), y: Math.floor(c.y) })); if (faltam.length) ON.mapaCastelos(faltam).catch(() => {}); }
+    for (const b of r.batalhas) if (!K.bat.has(b.id)) { K.bat.set(b.id, { ...b, visto: -1 }); const a = K.ex.get(b.a), d = K.ex.get(b.b); if (a?.eu || d?.eu) { som('pancada'); toast(tr('Batalha!')); } }
+    else Object.assign(K.bat.get(b.id), { fim: b.fim, recuou: b.recuou, linha: b.linha });
+    for (const [id, b] of K.bat) if (!r.batalhas.some(q => q.id === id) && agora() > b.fim + 6) K.bat.delete(id);
+    if (!K.carregou) { K.carregou = true; $('#muAviso').hidden = true; const m = meus()[0]; if (m) { const p = posicao(m); K.cam = { x: wx(p.x), z: wz(p.y) + 10 }; } }
+    $('#muOn').textContent = `${[...K.ex.values()].filter(e => !e.bot).length / 2 | 0} ${tr('jogadores')} · ${[...K.ex.values()].filter(e => e.bot && e.barb == null).length} bots`;
+    perseguir(); darOrdensBots(r.livres || []); cards();
+    novosRelatorios(r.relatorios || []);
+    if (agora() > (K.tLiga || 0)) { K.tLiga = agora() + 30; ON.liga().then(l => { if (!K) return; K.liga = l; const p = $('#muPts'); if (p) p.textContent = l.eu ? `${l.eu.pos}º · ${fmt(l.eu.pontos)}` : tr('Liga'); }).catch(() => {}); }
+  } catch (e) { if (K) { K.erro = e.message; const a = $('#muAviso'); if (a && !K.carregou) a.textContent = tr('Sem conexão com o mapa') + ' 😢'; } }
+  finally { if (K) K.buscando = false; }
+}
+const emBatalha = e => { for (const b of K.bat.values()) if ((b.a === e.id || b.b === e.id) && agora() < b.fim + 0.5) return b; return null; };
+const naBase = (e, p = posicao(e)) => Math.hypot(p.x - e.base[0], p.y - e.base[1]) < 2.5;
+function tropasAgora(e) { // durante a batalha, a contagem vem da linha do tempo da luta
+  const b = emBatalha(e); if (!b) return e.tropas; const k = Math.max(0, Math.min(b.linha.length - 1, Math.floor(agora() - b.t0)));
+  return b.linha[k][b.a === e.id ? 0 : 1];
+}
+function perseguir() { // RoK: quem ataca segue o alvo; se ele andou, refaz o caminho até onde ele está
+  for (const e of meus()) { if (!e.alvo || emBatalha(e)) continue; const a = K.ex.get(e.alvo); if (!a) continue; const pa = posicao(a), fim = e.cam?.[e.cam.length - 1];
+    if (fim && Math.hypot(fim[0] - pa.x, fim[1] - pa.y) > 1.5 && !posicao(e).fim) atacar(e, a, true); }
+}
+function darOrdensBots(ids) { // bots andam pelo mapa e às vezes atacam outro exército que está fora de casa
+  const ordens = [], extra = []; // bots do clã que abriu rally vêm reforçar o rally
+  for (const rl of K.rallies) if (rl.parte - agora() > 10) for (const o of K.ex.values()) if (o.bot && o.barb == null && o.cla === rl.cla && o.cerco_tipo == null && !o.alvo && o.tropas > 0 && posicao(o).fim && !emBatalha(o) && extra.length < 2 && Math.random() < 0.3) extra.push(o.id);
+  for (const id of [...new Set([...extra, ...ids])].slice(0, 6)) { const e = K.ex.get(id); if (!e) continue; const p = posicao(e), r = Math.random(); let alvo = null, alvoEx = null;
+    if (r < 0.3) { let dm = 14; for (const o of K.ex.values()) { if (o === e || (o.cla != null && o.cla === e.cla) || o.tropas <= 0 || emBatalha(o)) continue; const q = posicao(o); if (naBase(o, q)) continue;
+      const d = Math.hypot(q.x - p.x, q.y - p.y); if (d < dm) { dm = d; alvoEx = o; alvo = [q.x, q.y]; } } }
+    let flag = null, cerco = null;
+    if (!alvo && e.cla != null && Math.random() < 0.12) { let dm = 14; for (const f of K.bandeiras) { if (f.cla === e.cla || f.pronta > agora()) continue; const d = Math.hypot(f.x + 0.5 - p.x, f.y + 0.5 - p.y); if (d < dm) { dm = d; cerco = f; } }
+      if (cerco) { const a0 = Math.random() * 6.28, x = cerco.x + 0.5 + Math.sin(a0) * 1.3, y = cerco.y + 0.5 + Math.cos(a0) * 1.3; if (livre(Math.floor(x), Math.floor(y))) alvo = [x, y]; else cerco = null; } }
+    let ral = null, def = null;
+    const rl = e.cla != null && K.rallies.find(q => q.cla === e.cla && q.parte - agora() > 8);
+    if (!alvo && rl && Math.random() < 0.6) { const x = rl.px + (Math.random() - 0.5) * 2, y = rl.py + (Math.random() - 0.5) * 2; if (livre(Math.floor(x), Math.floor(y))) { const c0 = caminho([p.x, p.y], [x, y]); if (c0 && comprimento(c0) / VEL < rl.parte - agora() - 3) { alvo = [x, y]; ral = rl; } } }
+    if (!alvo && e.cla != null && Math.random() < 0.5) { const f = K.bandeiras.find(f => f.cla === e.cla && [...K.ex.values()].some(o => o.cerco_tipo === 'band' && o.cerco_id === f.id && o.cercando));
+      if (f) { const a0 = Math.random() * 6.28, x = f.x + 0.5 + Math.sin(a0) * 1.6, y = f.y + 0.5 + Math.cos(a0) * 1.6; if (livre(Math.floor(x), Math.floor(y))) { alvo = [x, y]; def = f; } } }
+    let mina = null;
+    if (!alvo && Math.random() < 0.18) { let dm = 16; for (const m of K.recursos) { if (m.ex) continue; const d = Math.hypot(m.x - p.x, m.y - p.y); if (d < dm) { dm = d; mina = m; } }
+      if (mina) { const x = mina.x + 1.1, y = mina.y; if (livre(Math.floor(x), Math.floor(y))) { alvo = [x, y]; mina.ex = -1; } else mina = null; } }
+    if (!alvo && e.cla != null && oficial(e) && Math.random() < 0.35) { const pts = [...K.bandeiras.filter(f => f.cla === e.cla).map(f => [f.x, f.y]), ...K.castelos.filter(c => c.id === e.cla).map(c => [Math.floor(c.x), Math.floor(c.y)])];
+      for (let k = 0; k < 10 && pts.length && !flag; k++) { const [bx, by] = pts[Math.floor(Math.random() * pts.length)], a = Math.random() * 6.28, d = 6 + Math.random() * 2.5, x = Math.round(bx + Math.cos(a) * d), y = Math.round(by + Math.sin(a) * d);
+        if (!pontoBandeira(e.cla, x, y)) { flag = [x, y]; alvo = [x + 0.5, y + 0.5]; } } }
+    for (let k = 0; k < 12 && !alvo; k++) { let x, y;
+      if (r < 0.45 && K.castelos.length) { const c = K.castelos[Math.floor(Math.random() * K.castelos.length)]; x = c.x + (Math.random() - 0.5) * 6; y = c.y + (Math.random() - 0.5) * 6; }
+      else if (r < 0.6 || e.tropas < (e.cap || 100) * 0.4) { [x, y] = e.base; }
+      else { x = p.x + (Math.random() - 0.5) * 22; y = p.y + (Math.random() - 0.5) * 22; }
+      if (livre(Math.floor(x), Math.floor(y))) alvo = [x, y]; }
+    if (!alvo) continue; const cam = caminho([p.x, p.y], alvo); if (!cam || cam.length < 2) continue;
+    const dur = comprimento(cam) / VEL; ordens.push({ id, cam, dur, alvo: alvoEx?.id ?? null, ...(flag ? { b: flag } : {}), ...(cerco ? { c: ['band', cerco.id] } : mina ? { c: ['rec', mina.id] } : ral ? { c: ['rally', ral.id] } : def ? { c: ['def', def.id] } : {}) }); if (flag) K.bandeiras.push({ id: -Date.now() - id, cla: e.cla, x: flag[0], y: flag[1], pronta: agora() + dur + 45 }); Object.assign(e, { cam, t0: agora(), t1: agora() + dur, alvo: alvoEx?.id ?? null }); }
+  if (ordens.length) ON.mapaBots(ordens).catch(() => {});
+}
+async function enviar(e, cam, alvoId) {
+  const dur = comprimento(cam) / VEL; Object.assign(e, { cam, t0: agora(), t1: agora() + dur, local: true, alvo: alvoId });
+  try { const t0 = await ON.mapaMarchar(e.slot, cam, dur, alvoId, e.tipo); if (K && e.cam === cam) e.t0 = t0; } catch (er) { toast(tr(er.message)); }
+  cards();
+}
+function marchar(e, alvo) {
+  if (emBatalha(e)) { som('erro'); toast(tr('Em batalha! Use Recuar')); return; }
+  const p = posicao(e), cam = caminho([p.x, p.y], alvo); if (!cam || cam.length < 2) { som('erro'); toast(tr('Não dá para chegar lá')); return; }
+  sfx('brilho'); som('confirma'); enviar(e, cam, null); missao('marchar');
+}
+function atacar(e, a, quieto) {
+  if (emBatalha(e)) { if (!quieto) { som('erro'); toast(tr('Em batalha! Use Recuar')); } return; }
+  if (e.tropas <= 0) { if (!quieto) { som('erro'); toast(tr('Sem tropas: espere os feridos se recuperarem')); } return; }
+  const p = posicao(e), q = posicao(a); let cam = null;
+  for (const [dx, dy] of [[0, 1.2], [1.2, 0], [-1.2, 0], [0, -1.2], [0.9, 0.9], [-0.9, 0.9], [0.9, -0.9], [-0.9, -0.9]]) { const x = q.x + dx, y = q.y + dy; if (livre(Math.floor(x), Math.floor(y))) { cam = caminho([p.x, p.y], [x, y]); if (cam) break; } }
+  if (!cam || cam.length < 2) { if (!quieto) { som('erro'); toast(tr('Não dá para chegar lá')); } return; }
+  if (!quieto) { sfx('vitoria'); toast(`${tr('Atacando')} ${a.nome}!`); }
+  enviar(e, cam, a.id);
+}
+async function recuar(e) {
+  const p = posicao(e), cam = caminho([p.x, p.y], e.base); som('fechar');
+  try { await ON.mapaRecuar(e.slot, cam || [[p.x, p.y]], cam ? comprimento(cam) / VEL : 0); toast(tr('Recuando!')); setTimeout(atualizar, 300); } catch (er) { toast(er.message); }
+}
+
+// ---- território e bandeiras do clã (como as bandeiras de aliança do RoK) ----
+const CUSTO_BANDEIRA = 300;
+const oficial = e => e.cargo === 'lider' || e.cargo === 'colider'; // bandeira é trabalho do líder e do colíder (como no RoK)
+function donoTile(tx, ty, t = agora()) { // igual ao servidor: bandeira pronta (raio 4) ou castelo (raio 5)
+  for (const f of K.bandeiras) if (f.pronta <= t && Math.abs(f.x - tx) <= 4 && Math.abs(f.y - ty) <= 4) return f.cla;
+  for (const c of K.castelos) if (Math.abs(Math.floor(c.x) - tx) <= 5 && Math.abs(Math.floor(c.y) - ty) <= 5) return c.id;
+  return null;
+}
+const corCla = id => CORES_CLA[(K.clas.find(c => c.id === id)?.cor || 0) % 8];
+function atualizarTerritorio() {
+  K.bandeiras.sort((a, b) => a.id - b.id); const t = agora(), sig = K.bandeiras.map(f => `${f.id}${f.pronta <= t ? '+' : '-'}`).join() + '|' + K.castelos.map(c => c.id).join();
+  if (sig === K.terrSig) return; K.terrSig = sig;
+  // área pintada na cor do clã e a borda mais forte
+  const dono = new Array(N * N); for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) dono[y * N + x] = donoTile(x, y, t);
+  const pos = [], cor = [], lp = [], lc = [], c3 = new THREE.Color(), q = (x, y) => [wx(x), wz(y)];
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { const d = dono[y * N + x]; if (d == null) continue; c3.set(corCla(d));
+    if (MAPA.at(x, y) !== AGUA) { const [x0, z0] = q(x, y), [x1, z1] = q(x + 1, y + 1); pos.push(x0, 0.08, z0, x1, 0.08, z0, x1, 0.08, z1, x0, 0.08, z0, x1, 0.08, z1, x0, 0.08, z1); for (let k = 0; k < 6; k++) cor.push(c3.r, c3.g, c3.b); }
+    for (const [dx, dy, ax, ay, bx, by] of [[1, 0, 1, 0, 1, 1], [-1, 0, 0, 0, 0, 1], [0, 1, 0, 1, 1, 1], [0, -1, 0, 0, 1, 0]]) { const a = x + dx, b = y + dy, o = a >= 0 && b >= 0 && a < N && b < N ? dono[b * N + a] : null;
+      if (o !== d) { const [p0, r0] = q(x + ax, y + ay), [p1, r1] = q(x + bx, y + by); lp.push(p0, 0.15, r0, p1, 0.15, r1); lc.push(c3.r, c3.g, c3.b, c3.r, c3.g, c3.b); } } }
+  C.descartar(K.terr); K.terr = new THREE.Group();
+  if (pos.length) { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(cor, 3));
+    K.terr.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.4, depthWrite: false }))); }
+  if (lp.length) { const fp = [], fc = [], w = 0.45; // borda em faixas largas (linha de 1 px some no celular)
+    for (let i = 0; i < lp.length; i += 6) { const [x0, , z0, x1, , z1] = lp.slice(i, i + 6), h = z0 === z1, a = h ? [x0, z0 - w, x1, z0 - w, x1, z0 + w, x0, z0 + w] : [x0 - w, z0, x0 + w, z0, x0 + w, z1, x0 - w, z1];
+      for (const v of [0, 1, 2, 0, 2, 3]) { fp.push(a[v * 2], 0.2, a[v * 2 + 1]); fc.push(lc[i / 3 * 3], lc[i / 3 * 3 + 1], lc[i / 3 * 3 + 2]); } }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(fp, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(fc, 3));
+    K.terr.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }))); }
+  K.donoMini = dono;
+  cn().add(K.terr);
+  // bandeiras: mastro alto com o pano do clã; em construção fica com andaime e meio transparente
+  const vivas = new Set(K.bandeiras.map(f => f.id));
+  for (const [id, f] of K.flags) if (!vivas.has(id) || f.pronta !== (K.bandeiras.find(b => b.id === id).pronta <= t)) { C.descartar(f.o); K.flags.delete(id); }
+  for (const b of K.bandeiras) { if (K.flags.has(b.id)) continue; const pronta = b.pronta <= t, g = new THREE.Group(), al = pronta ? 1 : 0.55;
+    const m = (geo, c, x, y, z) => { const o = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: c, transparent: !pronta, opacity: al, side: THREE.DoubleSide })); o.position.set(x, y, z); o.castShadow = true; g.add(o); return o; };
+    const cor = corCla(b.cla);
+    m(new THREE.CylinderGeometry(1.5, 1.9, 1, 8), 0x8f8a84, 0, 0.5, 0); m(new THREE.CylinderGeometry(1.1, 1.3, 0.5, 8), 0xa8a29a, 0, 1.2, 0); m(new THREE.CylinderGeometry(0.18, 0.18, 12, 6), 0x5a3a1a, 0, 6, 0);
+    m(new THREE.SphereGeometry(0.42, 8, 6), 0xffd23a, 0, 12.2, 0); const pano = m(new THREE.PlaneGeometry(4.2, 2.6, 4, 1).translate(2.1, 0, 0), cor, 0.15, 10.4, 0);
+    const anel = new THREE.Mesh(new THREE.RingGeometry(2.2, 2.9, 24).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: cor, transparent: true, opacity: al * 0.85, depthWrite: false })); anel.position.y = 0.25; g.add(anel);
+    if (pronta) { const luz = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 1.6, 34, 10, 1, true), new THREE.MeshBasicMaterial({ color: cor, transparent: true, opacity: 0.14, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); luz.position.y = 17; g.add(luz); }
+    if (!pronta) for (const [x, z] of [[-1.6, -1.6], [1.6, -1.6], [-1.6, 1.6], [1.6, 1.6]]) m(new THREE.BoxGeometry(0.2, 6, 0.2), 0xb08a5a, x, 3, z);
+    g.position.set(wx(b.x + 0.5), 0, wz(b.y + 0.5)); cn().add(g); K.flags.set(b.id, { o: g, pronta, pano, fase: b.id % 7 }); }
+}
+function pontoBandeira(cla, tx, ty) { // as mesmas regras do servidor, para avisar na hora
+  if (!livre(tx, ty)) return 'Não dá para ir aí';
+  if (K.bandeiras.some(f => Math.max(Math.abs(f.x - tx), Math.abs(f.y - ty)) < 4)) return 'muito perto de outra bandeira';
+  const d = donoTile(tx, ty, agora() + 1e6); if (d != null && d !== cla) return 'território inimigo';
+  const c = K.castelos.find(q => q.id === cla);
+  if (!K.bandeiras.some(f => f.cla === cla && Math.max(Math.abs(f.x - tx), Math.abs(f.y - ty)) <= 9) && !(c && Math.max(Math.abs(Math.floor(c.x) - tx), Math.abs(Math.floor(c.y) - ty)) <= 10)) return 'longe do território do clã';
+  return null;
+}
+async function erguerBandeira(e, alvo, cam) {
+  const tx = Math.floor(alvo[0]), ty = Math.floor(alvo[1]), erro = pontoBandeira(e.cla, tx, ty);
+  if (erro) { som('erro'); toast(tr(erro)); return; }
+  if ((S.moedas || 0) < CUSTO_BANDEIRA) { som('erro'); toast(`${tr('Precisa de')} ${CUSTO_BANDEIRA} ${tr('moedas')}`); return; }
+  const dur = comprimento(cam) / VEL;
+  try { const r = await ON.mapaBandeira(e.slot, tx, ty, cam, dur); if (r) { som('erro'); toast(tr(r)); return; }
+    S.moedas -= CUSTO_BANDEIRA; salvar(); Object.assign(e, { cam, t0: agora(), t1: agora() + dur, local: true, alvo: null }); sfx('vitoria'); toast(tr('Bandeira em construção!')); atualizar(); }
+  catch (er) { toast(tr(er.message)); }
+}
+
+// ---- reforço (entrar na bandeira/castelo do clã) e rally (exércitos do clã saem juntos do castelo) ----
+const defensores = (tipo, id) => [...K.ex.values()].filter(e => e.cerco_tipo === tipo && e.cerco_id === id && e.cercando && e.tropas > 0).length;
+function pertoDe(alvo, r, de) { // caminho até um ponto livre em volta do alvo
+  for (let a = 0; a < 6.3; a += 0.6) { const ang = a + Math.atan2(de[0] - alvo[0], de[1] - alvo[1]), x = alvo[0] + Math.sin(ang) * r, y = alvo[1] + Math.cos(ang) * r; if (livre(Math.floor(x), Math.floor(y))) { const cam = caminho(de, [x, y]); if (cam && cam.length >= 2) return cam; } }
+  return null;
+}
+async function reforcar(e, tipo, id) {
+  if (emBatalha(e)) { som('erro'); toast(tr('Em batalha! Use Recuar')); return; }
+  if (e.tropas <= 0) { som('erro'); toast(tr('Sem tropas: espere os feridos se recuperarem')); return; }
+  const alvo = posAlvo(tipo === 'def' ? 'band' : 'cast', id), p = posicao(e); if (!alvo) return; const cam = pertoDe(alvo, tipo === 'def' ? 1.6 : 3.2, [p.x, p.y]);
+  if (!cam) { som('erro'); toast(tr('Não dá para chegar lá')); return; } const dur = comprimento(cam) / VEL;
+  try { const r = await ON.mapaReforcar(e.slot, tipo, id, cam, dur); if (r) { som('erro'); toast(tr(r)); return; }
+    Object.assign(e, { cam, t0: agora(), t1: agora() + dur, local: true, alvo: null, cerco_tipo: tipo, cerco_id: id, cercando: false, rally: null }); sfx('brilho'); som('confirma'); toast(tr('Indo reforçar!')); cards(); missao('reforco'); }
+  catch (er) { toast(tr(er.message)); }
+}
+function pontoRally(cla) { const c = K.castelos.find(q => q.id === cla); if (!c) return null; for (const [dx, dy] of [[0, 3], [3, 0], [-3, 0], [0, -3], [2.5, 2.5], [-2.5, 2.5]]) { const x = c.x + dx, y = c.y + dy; if (livre(Math.floor(x), Math.floor(y))) return [x, y]; } return null; }
+async function criarRally(e, tipo, id) {
+  if (emBatalha(e)) { som('erro'); toast(tr('Em batalha! Use Recuar')); return; }
+  if (e.tropas <= 0) { som('erro'); toast(tr('Sem tropas: espere os feridos se recuperarem')); return; }
+  const pt = pontoRally(e.cla), alvo = posAlvo(tipo, id), p = posicao(e); if (!pt || !alvo) { som('erro'); toast(tr('Seu clã precisa de um castelo no mapa')); return; }
+  const cam = pertoDe(alvo, tipo === 'band' ? 1.3 : 3, pt), cam0 = Math.hypot(p.x - pt[0], p.y - pt[1]) < 0.3 ? [[p.x, p.y], [pt[0], pt[1]]] : caminho([p.x, p.y], pt);
+  if (!cam || !cam0) { som('erro'); toast(tr('Não dá para chegar lá')); return; }
+  const dur = comprimento(cam) / VEL, dur0 = comprimento(cam0) / VEL;
+  try { const r = await ON.mapaRally(e.slot, tipo, id, pt[0], pt[1], cam, dur, cam0, dur0); if (r) { som('erro'); toast(tr(r)); return; }
+    Object.assign(e, { cam: cam0, t0: agora(), t1: agora() + dur0, local: true, alvo: null, cerco_tipo: 'rally', cercando: false }); sfx('vitoria'); toast(tr('Rally aberto! O clã tem 1 minuto para entrar')); atualizar(); missao('rally'); }
+  catch (er) { toast(tr(er.message)); }
+}
+async function entrarRally(e, rl) {
+  if (emBatalha(e)) { som('erro'); toast(tr('Em batalha! Use Recuar')); return; }
+  if (e.tropas <= 0) { som('erro'); toast(tr('Sem tropas: espere os feridos se recuperarem')); return; }
+  const p = posicao(e), cam = Math.hypot(p.x - rl.px, p.y - rl.py) < 0.3 ? [[p.x, p.y], [rl.px + 0.01, rl.py]] : caminho([p.x, p.y], [rl.px, rl.py]); if (!cam) { som('erro'); toast(tr('Não dá para chegar lá')); return; }
+  const dur = comprimento(cam) / VEL; if (agora() + dur > rl.parte) { som('erro'); toast(tr('não chega a tempo')); return; }
+  try { const r = await ON.mapaRallyEntrar(e.slot, rl.id, cam, dur); if (r) { som('erro'); toast(tr(r)); return; }
+    Object.assign(e, { cam, t0: agora(), t1: agora() + dur, local: true, alvo: null, cerco_tipo: 'rally', cerco_id: rl.id, cercando: false }); sfx('brilho'); toast(tr('Entrou no rally!')); atualizar(); missao('rally'); }
+  catch (er) { toast(tr(er.message)); }
+}
+function nomeAlvo(tipo, id) { if (tipo === 'band') { const f = K.bandeiras.find(q => q.id === id), c = f && K.clas.find(q => q.id === f.cla); return `${tr('Bandeira')} ${c ? `[${c.tag}]` : ''}`; } const c = K.clas.find(q => q.id === id); return `${tr('Castelo')} ${c ? `[${c.tag}]` : ''}`; }
+function bannerRally() { // aviso do rally do meu clã, com contagem e botões para entrar
+  const b = $('#muRally'); if (!b) return; const eu = meus()[0], rl = eu?.cla != null && K.rallies.find(q => q.cla === eu.cla);
+  if (!rl) { if (!b.hidden) { b.hidden = true; b.innerHTML = ''; } return; } const falta = Math.max(0, rl.parte - agora()), dentro = meus().filter(e => e.cerco_tipo === 'rally' && e.cerco_id === rl.id);
+  const sig = `${rl.id}|${Math.ceil(falta)}|${rl.n}|${dentro.map(e => e.id)}`; if (sig === K.rallySig) return; K.rallySig = sig; b.hidden = false;
+  b.innerHTML = `<b data-nt>📯 ${tr('Rally de')} ${esc(rl.lider)} → ${esc(nomeAlvo(rl.tipo, rl.alvo))}</b><small>${tr('sai em')} ${tempoTxt(falta)} · ${rl.n} ${tr('exércitos')} · +${Math.min(60, 15 * Math.max(0, rl.n - 1))}% ${tr('dano')}</small>
+    <div>${meus().filter(e => !dentro.includes(e)).map(e => `<button class="btn amarelo peq" data-mu="rallyEntrar" data-slot="${e.slot}" ${e.tropas <= 0 || emBatalha(e) ? 'disabled' : ''}>${tr('Entrar com')} ${e.slot + 1}</button>`).join('')}</div>`;
+}
+
+// ---- coleta de ouro nas minas (o ouro vira moedas do jogo) ----
+async function coletar(e, id) {
+  if (emBatalha(e)) { som('erro'); toast(tr('Em batalha! Use Recuar')); return; }
+  if (e.tropas <= 0) { som('erro'); toast(tr('Sem tropas: espere os feridos se recuperarem')); return; }
+  const m = K.recursos.find(q => q.id === id); if (!m) return; const p = posicao(e); let cam = null;
+  for (let a = 0; a < 6.3 && !cam; a += 0.8) { const x = m.x + Math.sin(a) * 1.1, y = m.y + Math.cos(a) * 1.1; if (livre(Math.floor(x), Math.floor(y))) cam = caminho([p.x, p.y], [x, y]); }
+  if (!cam || cam.length < 2) { som('erro'); toast(tr('Não dá para chegar lá')); return; }
+  const dur = comprimento(cam) / VEL;
+  try { const r = await ON.mapaColetar(e.slot, id, cam, dur); if (r) { som('erro'); toast(tr(r)); return; }
+    Object.assign(e, { cam, t0: agora(), t1: agora() + dur, local: true, alvo: null, cerco_tipo: 'rec', cerco_id: id, cercando: false, carga: 0 }); sfx('brilho'); som('confirma'); toast(tr('Rumo à mina!')); cards(); }
+  catch (er) { toast(tr(er.message)); }
+}
+function atualizarMinas() { // pedra com cristais de ouro (maior quanto mais rica)
+  K.minas ||= new Map(); const vivas = new Set(K.recursos.map(m => m.id));
+  for (const [id, o] of K.minas) if (!vivas.has(id) || o.nivel !== K.recursos.find(m => m.id === id).nivel || o.x !== K.recursos.find(m => m.id === id).x) { C.descartar(o.g); K.minas.delete(id); }
+  for (const m of K.recursos) { if (K.minas.has(m.id)) continue; const g = new THREE.Group(), s = 0.8 + m.nivel * 0.35;
+    const pedra = new THREE.Mesh(new THREE.DodecahedronGeometry(1.3 * s, 0), new THREE.MeshLambertMaterial({ color: 0x7a6a5a, flatShading: true })); pedra.position.y = 0.6 * s; pedra.scale.y = 0.75; pedra.castShadow = true; g.add(pedra);
+    const ouro = new THREE.MeshLambertMaterial({ color: 0xffc21a, emissive: 0x8a5a00, flatShading: true });
+    for (let k = 0; k < 3 + m.nivel * 2; k++) { const a = k * 2.4, c = new THREE.Mesh(new THREE.OctahedronGeometry(0.35 + (k % 3) * 0.15, 0), ouro); c.position.set(Math.cos(a) * 1.1 * s, 0.5 + (k % 4) * 0.35 * s, Math.sin(a) * 1.1 * s); c.rotation.set(k, k * 2, 0); g.add(c); }
+    g.position.set(wx(m.x), 0, wz(m.y)); cn().add(g); K.minas.set(m.id, { g, nivel: m.nivel, x: m.x }); }
+}
+
+// ---- cerco a bandeiras e castelos inimigos (etapa 4) ----
+const posAlvo = (tipo, id) => { if (tipo === 'rec') { const m = K.recursos.find(q => q.id === id); return m && [m.x, m.y]; } if (tipo === 'band') { const f = K.bandeiras.find(q => q.id === id); return f && [f.x + 0.5, f.y + 0.5]; } const c = K.castelos.find(q => q.id === id); return c && [c.x, c.y]; };
+const bandeiraPerto = (cla, c) => K.bandeiras.some(f => f.cla === cla && f.pronta <= agora() && Math.max(Math.abs(f.x - Math.floor(c.x)), Math.abs(f.y - Math.floor(c.y))) <= 9);
+async function cercar(e, tipo, id) {
+  if (emBatalha(e)) { som('erro'); toast(tr('Em batalha! Use Recuar')); return; }
+  if (e.tropas <= 0) { som('erro'); toast(tr('Sem tropas: espere os feridos se recuperarem')); return; }
+  const alvo = posAlvo(tipo, id); if (!alvo) return; const p = posicao(e), r = tipo === 'band' ? 1.3 : 3; let cam = null;
+  for (let a = 0; a < 6.3 && !cam; a += 0.6) { const x = alvo[0] + Math.sin(a + Math.atan2(p.x - alvo[0], p.y - alvo[1])) * r, y = alvo[1] + Math.cos(a + Math.atan2(p.x - alvo[0], p.y - alvo[1])) * r; if (livre(Math.floor(x), Math.floor(y))) cam = caminho([p.x, p.y], [x, y]); }
+  if (!cam || cam.length < 2) { som('erro'); toast(tr('Não dá para chegar lá')); return; }
+  const dur = comprimento(cam) / VEL;
+  try { const r2 = await ON.mapaCercar(e.slot, tipo, id, cam, dur); if (r2) { som('erro'); toast(tr(r2)); return; }
+    Object.assign(e, { cam, t0: agora(), t1: agora() + dur, local: true, alvo: null, cerco_tipo: tipo, cerco_id: id, cercando: false }); sfx('vitoria'); toast(tipo === 'band' ? tr('Rumo à bandeira inimiga!') : tr('Ataque ao castelo!')); cards(); }
+  catch (er) { toast(tr(er.message)); }
+}
+// ---- previsão da luta: a mesma conta do servidor, sem a sorte (±12% para mostrar o risco) ----
+const forcaNv = nv => 1 + 0.03 * ((nv || 1) - 1), VENCE = { esp: 'arc', arc: 'lan', lan: 'esp' };
+function simular(a, b, ta, tb, ma, mb) {
+  ma *= VENCE[ta] === tb ? 1.3 : 1; mb *= VENCE[tb] === ta ? 1.3 : 1; let ra = 0, rb = 0;
+  for (let i = 0; i < 240 && a > 0 && b > 0; i++) { let da = 0.75 * Math.sqrt(a) * ma, db = 0.75 * Math.sqrt(b) * mb; ra += 100; rb += 130;
+    if (ra >= 1000) { da += 3 * Math.sqrt(a) * ma; ra = 0; } if (rb >= 1000) { db += 3 * Math.sqrt(b) * mb; rb = 0; }
+    a = Math.max(0, a - Math.round(db)); b = Math.max(0, b - Math.round(da)); }
+  return [a, b];
+}
+function chance(e, nb, tb, mb) { // nb tropas do inimigo, tb tipo, mb multiplicador dele
+  const na = tropasAgora(e), ma = forcaNv(K.heroi?.nivel); if (na <= 0 || nb <= 0) return '';
+  const [a, b] = simular(na, nb, e.tipo, tb, ma, mb), [, b1] = simular(na, nb, e.tipo, tb, ma * 0.88, mb), [, b2] = simular(na, nb, e.tipo, tb, ma * 1.12, mb), perde = Math.round((na - a) / na * 100);
+  const [cls, txt] = b1 === 0 ? (perde < 30 ? ['f', tr('Fácil')] : perde < 60 ? ['p', tr('Vitória provável')] : ['e', tr('Vitória apertada')]) : b === 0 ? ['e', tr('Equilibrado')] : b2 === 0 ? ['r', tr('Arriscado')] : ['d', tr('Difícil')];
+  return `<i class="muChance ${cls}">${txt}${b === 0 ? ` · −${perde}%` : ''}</i>`;
+}
+const chanceEx = (e, o) => { const q = posicao(o), terr = o.cla != null && donoTile(Math.floor(q.x), Math.floor(q.y)) === o.cla ? 1.1 : 1; return chance(e, tropasAgora(o), o.tipo, forcaNv(o.barb != null ? 1 : o.nivel) * terr); };
+function chanceCerco(e, tipo, alvo) { // primeiro o defensor mais forte; no castelo, depois a guarnição
+  const ds = [...K.ex.values()].filter(o => o.cerco_tipo === (tipo === 'band' ? 'def' : 'defc') && o.cerco_id === alvo.id && o.cercando && o.tropas > 0).sort((a, b) => b.tropas - a.tropas);
+  if (ds.length) return chance(e, ds[0].tropas, ds[0].tipo, forcaNv(ds[0].nivel) * 1.2 * Math.min(1.6, 1 + 0.15 * (ds.length - 1)));
+  if (tipo === 'cast' && (alvo.guarnicao || 0) > 0) return chance(e, alvo.guarnicao, 'esp', 1.15);
+  return '';
+}
+function infoAlvo(tipo, alvo) { // painel ao tocar numa bandeira, castelo ou mina
+  const i = $('#muInfo'), eu = meus()[0], meuCla = eu?.cla; i.hidden = false; $('#muConf').hidden = true; som('clique');
+  if (tipo === 'rec') { const ocupada = alvo.ex && !meus().some(e => e.id === alvo.ex), terr = meuCla != null && donoTile(Math.floor(alvo.x), Math.floor(alvo.y)) === meuCla;
+    i.innerHTML = `<b>⛏️ ${tr('Mina de ouro')} Nv ${alvo.nivel}</b><small>${ico('ouro')} ${fmt(alvo.resta)}/${fmt(alvo.total)} · ${terr ? `<span class="muBom">+25% ${tr('no território do clã')}</span>` : tr('+25% no território do seu clã')}</small>
+      ${ocupada ? `<small class="muBreve">${tr('Alguém já está coletando aí — ataque para tomar!')}</small>` : `<div class="muAtk">${meus().map(e => `<button class="btn amarelo peq" data-mu="coletar" data-slot="${e.slot}" data-alvo="${alvo.id}" ${e.tropas <= 0 || emBatalha(e) ? 'disabled' : ''}>⛏️ ${tr('Coletar com')} ${e.slot + 1}</button>`).join('')}</div>`}
+      <small class="muDica">${tr('Mais tropas = coleta mais rápida e carrega mais ouro')}</small>`; return; }
+  const temRally = meuCla != null && K.rallies.some(q => q.cla === meuCla);
+  const botoes = () => `<div class="muAtk">${meus().map(e => `<button class="btn vermelho peq" data-mu="cercar" data-slot="${e.slot}" data-tipo="${tipo}" data-alvo="${alvo.id}" ${e.tropas <= 0 || emBatalha(e) ? 'disabled' : ''}>${ico('h_lamina')} ${tr('Atacar com')} ${e.slot + 1}${chanceCerco(e, tipo, alvo)}</button>`).join('')}</div>
+    ${temRally ? '' : `<div class="muAtk">${meus().map(e => `<button class="btn amarelo peq" data-mu="rally" data-slot="${e.slot}" data-tipo="${tipo}" data-alvo="${alvo.id}" ${e.tropas <= 0 || emBatalha(e) ? 'disabled' : ''}>📯 ${tr('Rally com')} ${e.slot + 1}</button>`).join('')}</div>`}`;
+  const reforco = t => { const n = defensores(t, alvo.id); return `<small>🛡️ ${tr('Defensores')}: ${n}${n ? ` · −${Math.round(100 - 100 / (1 + 0.3 * n))}% ${tr('dano do cerco')}` : ''}</small><div class="muAtk">${meus().map(e => `<button class="btn azul peq" data-mu="reforcar" data-slot="${e.slot}" data-tipo="${t}" data-alvo="${alvo.id}" ${e.tropas <= 0 || emBatalha(e) || (e.cerco_tipo === t && e.cerco_id === alvo.id) ? 'disabled' : ''}>🛡️ ${tr('Reforçar com')} ${e.slot + 1}</button>`).join('')}</div>`; };
+  if (tipo === 'band') { const c = K.clas.find(q => q.id === alvo.cla);
+    i.innerHTML = `<b data-nt>${ico('bandeira')} ${tr('Bandeira')} ${c ? `[${esc(c.tag)}] ${esc(c.nome)}` : ''}</b><small>${tr('Durabilidade')}: ${fmt(Math.max(0, alvo.hp))}/1000${alvo.cla !== meuCla && defensores('def', alvo.id) ? ` · 🛡️ ${defensores('def', alvo.id)}` : ''}</small>
+      ${meuCla == null ? `<small>${tr('Entre num clã para atacar')}</small>` : alvo.cla === meuCla ? `<small>${tr('É do seu clã')}</small>${reforco('def')}` : `${botoes()}<small class="muDica">${tr('Fique perto dela até a durabilidade zerar')}</small>`}`; return; }
+  const prot = (alvo.protegido || 0) - agora();
+  i.innerHTML = `<b data-nt>${ico('h_muralha')} [${esc(alvo.tag)}] ${esc(alvo.nome)}</b><small>${tr('Muralha')}: ${fmt(alvo.hp)}/${fmt(alvo.hpMax)} · ${tr('Guarnição')}: ${fmt(alvo.guarnicao || 0)}${alvo.id !== meuCla && defensores('defc', alvo.id) ? ` · 🛡️ ${defensores('defc', alvo.id)}` : ''}</small>
+    ${meuCla == null ? `<small>${tr('Entre num clã para atacar')}</small>` : alvo.id === meuCla ? `<small>${tr('Castelo do seu clã')}</small>${reforco('defc')}` : prot > 0 ? `<small class="muBreve">${tr('Protegido por')} ${tempoTxt(prot)}</small>`
+      : !bandeiraPerto(meuCla, alvo) ? `<small class="muBreve">${tr('Precisa de uma bandeira do seu clã perto do castelo')}</small>` : `${botoes()}<small class="muDica">${tr('Vença a guarnição e derrube a muralha. Juntem vários exércitos!')}</small>`}`;
+}
+
+// ---- interface ----
+const corDe = e => e.barb != null ? 0x3a2418 : e.cla != null ? CORES_CLA[(K.clas.find(c => c.id === e.cla)?.cor || 0) % 8] : 0xd8d8d8;
+const meus = () => [...K.ex.values()].filter(e => e.eu).sort((a, b) => a.slot - b.slot);
+const tempoTxt = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+const TIPOS = { esp: { nome: 'Espadachins', icone: 'h_lamina' }, arc: { nome: 'Arqueiros', icone: 'arq' }, lan: { nome: 'Lanceiros', icone: 'h_perfura' } };
+function estadoTxt(e) {
+  const p = posicao(e), b = emBatalha(e); if (b) return `<b class="muLuta">${tr('Em batalha!')}</b>`;
+  if (e.tropas <= 0) return tr('Derrotado: se recuperando');
+  if (e.cerco_tipo === 'def' || e.cerco_tipo === 'defc') return p.anda ? `🛡️ ${tr('Indo reforçar')} ${tempoTxt(p.falta)}` : `<b class="muBom">🛡️ ${tr('Defendendo')}</b>`;
+  if (e.cerco_tipo === 'rally') { const rl = K.rallies.find(q => q.id === e.cerco_id); return p.anda ? `📯 ${tr('Indo pro rally')} ${tempoTxt(p.falta)}` : `<b class="muColeta">📯 ${tr('Rally sai em')} ${tempoTxt(Math.max(0, (rl?.parte || agora()) - agora()))}</b>`; }
+  if (e.cerco_tipo === 'rec') return p.anda ? `⛏️ ${tr('Indo coletar')} ${tempoTxt(p.falta)}` : `<b class="muColeta">⛏️ ${tr('Coletando')} ${fmt(e.carga || 0)}/${fmt(Math.max(60, e.tropas * 3))}</b>`;
+  if (e.cercando) return `<b class="muLuta">${e.cerco_tipo === 'band' ? tr('Cercando bandeira') : tr('Cercando castelo')}</b>`;
+  if (p.anda) return `${e.rally && (e.cerco_tipo === 'band' || e.cerco_tipo === 'cast') ? '📯 ' : ''}${e.alvo || e.cerco_tipo ? tr('Atacando') : tr('Marchando')} ${tempoTxt(p.falta)}`;
+  return naBase(e, p) ? tr('Na base') : tr('Parado');
+}
+function cards() {
+  const b = $('#muExs'); if (!b) return; const H = HEROIS[S.heroi] || HEROIS.lyra;
+  b.innerHTML = meus().map(e => { const T0 = TIPOS[e.tipo] || TIPOS.esp, bat = emBatalha(e), rec = (e.feridos || 0) + (e.mortos || 0);
+    return `<div class="muEx ${K.sel === e.id ? 'sel' : ''}"><button class="muExI" data-mu-tipo="${e.id}" title="${tr(T0.nome)}">${ico(T0.icone)}</button><button class="muExD" data-mu-ex="${e.id}"><b>${tr('Exército')} ${e.slot + 1} <small>${H.nome} · Nv ${K.heroi?.nivel || 1}</small></b>
+      <small>${ico('forca')} <span data-mu-n="${e.id}">${fmt(tropasAgora(e))}</span>/${fmt(e.cap || e.tropas)}${rec ? ` · <i class="muFer">+${fmt(rec)} ${tr('feridos')}</i>` : ''}</small>
+      <em data-mu-t="${e.id}">${estadoTxt(e)}</em></button>${rec && !bat ? `<button class="muHosp" data-mu="cmd" title="${tr('Hospital')}">🏥</button>` : ''}${bat ? `<button class="btn vermelho peq" data-mu="recuar" data-slot="${e.slot}">${tr('Recuar')}</button>` : ''}</div>`; }).join('');
+}
+function toast(t) { const a = $('#muAviso'); if (!a) return; a.hidden = false; a.textContent = t; clearTimeout(K.tToast); K.tToast = setTimeout(() => { if (K?.carregou) a.hidden = true; }, 1800); }
+function selecionar(id) {
+  K.sel = K.sel === id ? null : id; K.prev = null; $('#muConf').hidden = true; $('#muInfo').hidden = true; som('clique');
+  const e = K.ex.get(K.sel); if (e) { const p = posicao(e); K.cam = { x: wx(p.x), z: wz(p.y) + 10 }; toast(tr('Toque no mapa ou num inimigo')); } cards();
+}
+function infoEx(perto) { // painel ao tocar num exército de outro jogador ou num acampamento bárbaro
+  const c = K.clas.find(q => q.id === perto.cla), i = $('#muInfo'), amigo = meus()[0]?.cla != null && perto.cla === meus()[0].cla, T0 = TIPOS[perto.tipo] || TIPOS.esp; i.hidden = false; $('#muConf').hidden = true; som('clique');
+    i.innerHTML = `<b data-nt>${perto.barb != null ? `🔥 ${tr('Acampamento bárbaro')} Nv ${perto.barb}` : `${c ? `[${esc(c.tag)}] ` : ''}${esc(perto.nome)}`}</b>${perto.barb != null ? `<small class="muBom">${tr('Prêmio')}: ${ico('ouro')}${fmt(150 * perto.barb)} + ${60 * perto.barb} XP</small>` : ''}<small>${ico(T0.icone)} ${fmt(tropasAgora(perto))} ${tr(T0.nome).toLowerCase()} · ${HEROIS[perto.heroi]?.nome || ''}</small>
+      ${amigo ? `<small>${tr('É do seu clã')}</small>` : emBatalha(perto) ? `<small class="muBreve">${tr('Já está em batalha')}</small>` : `<div class="muAtk">${meus().map(e => `<button class="btn vermelho peq" data-mu="atacar" data-slot="${e.slot}" data-alvo="${perto.id}" ${e.tropas <= 0 || emBatalha(e) ? 'disabled' : ''}>${ico('h_lamina')} ${tr('Atacar com')} ${e.slot + 1}${chanceEx(e, perto)}</button>`).join('')}</div>
+      <small class="muDica">${tr('Espadachim vence arqueiro, arqueiro vence lanceiro, lanceiro vence espadachim')}</small>`}`;
+}
+function tocar(sx, sy) {
+  let perto = null, dm = 34; for (const e of K.ex.values()) { const p = posicao(e), q = C.tela(wx(p.x), 1.5, wz(p.y)); if (!q) continue; const d = Math.hypot(q[0] - sx, q[1] - sy); if (d < dm) { dm = d; perto = e; } }
+  if (perto?.eu) { selecionar(perto.id); return; }
+  if (!perto) { let alvo = null, tipo = null, da = 40;
+    for (const f of K.bandeiras) { const q = C.tela(wx(f.x + 0.5), 3, wz(f.y + 0.5)); if (q) { const d = Math.hypot(q[0] - sx, q[1] - sy); if (d < da) { da = d; alvo = f; tipo = 'band'; } } }
+    for (const m of K.recursos) { const q = C.tela(wx(m.x), 1.5, wz(m.y)); if (q) { const d = Math.hypot(q[0] - sx, q[1] - sy); if (d < da) { da = d; alvo = m; tipo = 'rec'; } } }
+    for (const c of K.castelos) { const q = C.tela(wx(c.x), 4, wz(c.y)); if (q) { const d = Math.hypot(q[0] - sx, q[1] - sy); if (d < Math.max(da, 46)) { da = d; alvo = c; tipo = 'cast'; } } }
+    if (alvo && !(K.sel && tipo === 'band' && alvo.cla === meus()[0]?.cla)) { infoAlvo(tipo, alvo); return; } }
+  if (perto) { infoEx(perto); return; }
+  const e = K.ex.get(K.sel); if (!e) { $('#muInfo').hidden = true; return; }
+  const g = C.chaoEm(sx, sy); if (!g) return; const alvo = [(g.x - WX) / T + N / 2, (g.z - WZ) / T + N / 2];
+  if (!livre(Math.floor(alvo[0]), Math.floor(alvo[1]))) { som('erro'); toast(tr('Não dá para ir aí')); return; }
+  const p = posicao(e), cam = caminho([p.x, p.y], alvo); if (!cam) { som('erro'); toast(tr('Não dá para chegar lá')); return; }
+  K.prev = { e, alvo, cam }; mostrarLinha(cam, 0xffffff); som('clique');
+  const c = $('#muConf'); c.hidden = false; c.innerHTML = `<button class="btn verde" data-mu="marchar">${ico('seta')} ${tr('Marchar')} · ${tempoTxt(comprimento(cam) / VEL)}</button>
+    ${e.cla != null && oficial(e) ? `<button class="btn amarelo" data-mu="bandeira">${ico('bandeira')} ${CUSTO_BANDEIRA}${ico('ouro')}</button>` : ''}<button class="btn cinza peq" data-mu="cancelar">${ico('fechar')}</button>
+    ${e.cla == null ? `<small class="muSemCla">${tr('Entre num clã para erguer bandeiras')}</small>` : !oficial(e) ? `<small class="muSemCla">${tr('Só o líder e o colíder erguem bandeiras')}</small>` : ''}`;
+}
+function mostrarLinha(cam, cor) {
+  C.descartar(K.linha); const pts = cam.map(p => new THREE.Vector3(wx(p[0]), 0.35, wz(p[1])));
+  K.linha = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineDashedMaterial({ color: cor, dashSize: 1.2, gapSize: 0.8 })); K.linha.computeLineDistances(); cn().add(K.linha);
+}
+// ---- missões: sempre mostram o próximo passo e um botão "Ir" que leva até lá ----
+const MISSOES = [
+  { ev: 'marchar', meta: 1, txt: 'Selecione um exército e marche pelo mapa', premio: 100 },
+  { ev: 'ouro', meta: 200, txt: 'Colete ouro numa mina', premio: 150 },
+  { ev: 'barbaro', meta: 1, txt: 'Derrote um acampamento bárbaro', premio: 250 },
+  { ev: 'nivel', meta: 2, txt: 'Suba o comandante para o nível 2', premio: 200 },
+  { ev: 'quartel', meta: 1, txt: 'Melhore o quartel (mais tropas)', premio: 300 },
+  { ev: 'ouro', meta: 800, txt: 'Colete mais ouro nas minas', premio: 300 },
+  { ev: 'barbaro', meta: 3, txt: 'Derrote 3 acampamentos bárbaros', premio: 500 },
+  { ev: 'cla', meta: 1, txt: 'Entre num clã (aba Clã no menu)', premio: 300 },
+  { ev: 'reforco', meta: 1, txt: 'Reforce uma bandeira do seu clã', premio: 300 },
+  { ev: 'vitoria', meta: 1, txt: 'Vença uma batalha contra outro exército', premio: 500 },
+  { ev: 'rally', meta: 1, txt: 'Abra ou entre num rally do clã', premio: 600 },
+  { ev: 'bandeira', meta: 1, txt: 'Derrube uma bandeira inimiga', premio: 800 },
+  { ev: 'nivel', meta: 5, txt: 'Suba o comandante para o nível 5', premio: 800 },
+  { ev: 'liga', meta: 500, txt: 'Faça 500 pontos na Liga desta semana', premio: 1000 },
+  { ev: 'castelo', meta: 1, txt: 'Conquiste um castelo inimigo com o clã', premio: 3000 },
+];
+const DIARIAS = [{ ev: 'ouro', meta: 1000, txt: 'Diária: colete 1000 de ouro', premio: 400 }, { ev: 'barbaro', meta: 3, txt: 'Diária: derrote 3 bárbaros', premio: 400 },
+  { ev: 'vitoria', meta: 2, txt: 'Diária: vença 2 batalhas', premio: 500 }, { ev: 'reforco', meta: 1, txt: 'Diária: reforce uma bandeira', premio: 300 }, { ev: 'rally', meta: 1, txt: 'Diária: participe de um rally', premio: 500 }];
+const hoje = () => new Date().toLocaleDateString('sv');
+function missaoAtual() {
+  S.mm ||= { i: 0, n: 0 }; if (S.mm.i < MISSOES.length) return { ...MISSOES[S.mm.i], n: S.mm.n, cap: S.mm.i + 1 };
+  if (S.mm.dia !== hoje()) { const d = new Date(), k = (d.getFullYear() * 400 + d.getMonth() * 31 + d.getDate()) % DIARIAS.length; S.mm.dia = hoje(); S.mm.d = [k, (k + 1) % DIARIAS.length, (k + 3) % DIARIAS.length].map(i => ({ i, n: 0, ok: false })); salvar(); }
+  const d = S.mm.d.find(x => !x.ok); return d ? { ...DIARIAS[d.i], n: d.n, diaria: d } : null;
+}
+function checarMissao() { // as que dependem de estado (nível, clã, liga)
+  const m = missaoAtual(); if (!m || m.n >= m.meta) return;
+  const v = m.ev === 'nivel' ? K.heroi?.nivel || 1 : m.ev === 'cla' ? (meus()[0]?.cla != null ? 1 : 0) : m.ev === 'liga' ? K.liga?.eu?.pontos || 0 : null;
+  if (v != null && v !== m.n) { if (m.diaria) m.diaria.n = v; else S.mm.n = v; salvar(); }
+}
+function missao(ev, q = 1) {
+  if (!K) return; const m = missaoAtual(); if (!m || m.ev !== ev || m.n >= m.meta) return;
+  const n = Math.min(m.meta, m.n + q); if (m.diaria) m.diaria.n = n; else S.mm.n = n; salvar();
+  if (n >= m.meta) { sfx('vitoria'); flashTela('#ffe27a', 0.25); toast(`📜 ${tr('Missão cumprida!')} ${tr('Pegue o prêmio')}`); }
+  K.missaoSig = null;
+}
+function pegarMissao() {
+  const m = missaoAtual(); if (!m || m.n < m.meta) return; S.moedas += m.premio;
+  if (m.diaria) m.diaria.ok = true; else S.mm = { ...S.mm, i: S.mm.i + 1, n: 0 }; salvar(); som('moedas'); sfx('brilho'); toast(`${ico('ouro')} +${fmt(m.premio)}`); K.missaoSig = null; checarMissao();
+}
+function irMissao() { // leva até onde a missão acontece
+  const m = missaoAtual(); if (!m) return; const eu = meus()[0], p0 = eu ? posicao(eu) : { x: N / 2, y: N / 2 }, perto = l => l.sort((a, b) => Math.hypot(a.x - p0.x, a.y - p0.y) - Math.hypot(b.x - p0.x, b.y - p0.y))[0];
+  const olhar = (x, y) => { K.cam = { x: wx(x), z: wz(y) + 10 }; K.zoom = Math.min(K.zoom, 75); }; som('clique');
+  if (m.ev === 'marchar') { if (eu) { K.sel = null; selecionar(eu.id); } return; }
+  if (m.ev === 'ouro') { const r = perto(K.recursos.filter(q => !q.ex)); if (r) { olhar(r.x, r.y); infoAlvo('rec', r); } return; }
+  if (m.ev === 'barbaro') { const b = perto([...K.ex.values()].filter(o => o.barb != null && tropasAgora(o) > 0).map(o => ({ o, x: posicao(o).x, y: posicao(o).y })).sort((a, b) => a.o.barb - b.o.barb).slice(0, 5)); if (b) { olhar(b.x, b.y); infoEx(b.o); } return; }
+  if (m.ev === 'nivel' || m.ev === 'quartel') { K.abaRel = 'cmd'; abrirCmd(); return; }
+  if (m.ev === 'cla') { toast(tr('Saia do mapa e entre num clã na aba Clã do menu')); return; }
+  if (m.ev === 'liga') { abrirLiga(); return; }
+  if (m.ev === 'reforco') { const f = perto(K.bandeiras.filter(f => eu && f.cla === eu.cla && f.pronta <= agora())); if (f) { olhar(f.x, f.y); infoAlvo('band', f); } else toast(tr('Seu clã ainda não tem bandeiras')); return; }
+  if (m.ev === 'vitoria') { const o = perto([...K.ex.values()].filter(o => !o.eu && o.barb == null && (eu?.cla == null || o.cla !== eu.cla) && tropasAgora(o) > 0 && !naBase(o)).map(o => ({ o, x: posicao(o).x, y: posicao(o).y }))); if (o) { olhar(o.x, o.y); infoEx(o.o); } return; }
+  if (m.ev === 'rally' || m.ev === 'bandeira') { const rl = eu && K.rallies.find(q => q.cla === eu.cla); if (rl && m.ev === 'rally') { olhar(rl.px, rl.py); return; } const f = perto(K.bandeiras.filter(f => eu && f.cla !== eu.cla && f.pronta <= agora())); if (f) { olhar(f.x, f.y); infoAlvo('band', f); } return; }
+  if (m.ev === 'castelo') { const c = perto(K.castelos.filter(c => eu && c.id !== eu.cla)); if (c) { olhar(c.x, c.y); infoAlvo('cast', c); } }
+}
+function barraMissao() {
+  const b = $('#muMissao'); if (!b || !K.carregou) return; checarMissao(); const m = missaoAtual();
+  const sig = m ? `${m.txt}|${m.n}|${m.meta}` : '-'; if (sig === K.missaoSig) return; K.missaoSig = sig; b.hidden = !m; if (!m) return;
+  const pronta = m.n >= m.meta, pct = Math.min(100, m.n / m.meta * 100);
+  b.className = `muMissao${pronta ? ' pronta' : ''}`;
+  b.innerHTML = `<i>📜</i><span><b>${m.cap ? `${m.cap}/${MISSOES.length} · ` : ''}${tr(m.txt)}</b><em><u style="width:${pct}%"></u><s>${fmt(m.n)}/${fmt(m.meta)}</s></em></span>
+    ${pronta ? `<button class="btn amarelo peq" data-mu="pegarMissao">${ico('ouro')}${fmt(m.premio)}</button>` : `<button class="btn verde peq" data-mu="irMissao">${tr('Ir')}</button>`}`;
+}
+
+// ---- caixa de mensagens (relatórios ficam guardados; chega um novo → aviso e número no ícone) ----
+function novosRelatorios(lista) {
+  K.vistos ||= new Set(); const novos = lista.filter(r => !K.vistos.has(r.id)); for (const r of novos) K.vistos.add(r.id);
+  const n = $('#muCxN'); if (n) { n.hidden = !lista.length; n.textContent = lista.length > 9 ? '9+' : lista.length; }
+  if (!novos.length) return; const ult = novos[novos.length - 1].dados, bom = ['coleta', 'barbaro', 'rallySaiu', 'rallyNovo'].includes(ult.tipo) || ult.venceu || ult.derrubou || ult.conquistou;
+  if (K.carregou) { toast(`✉️ ${tr('Novo relatório')}: ${tituloRel(ult)}`); sfx(bom ? 'brilho' : 'nota', bom ? undefined : 1); const b = document.querySelector('.muCaixaB'); if (b) { b.classList.remove('pulsa'); void b.offsetWidth; b.classList.add('pulsa'); } }
+  for (const { dados: d } of novos) { if (d.tipo === 'coleta') missao('ouro', d.ouro); if (d.tipo === 'barbaro') missao('barbaro'); if (d.tipo === 'bandeira' && d.derrubou) missao('bandeira');
+    if (d.tipo === 'castelo' && d.conquistou) missao('castelo'); if ((d.tipo || 'batalha') === 'batalha' && d.ataque && d.venceu && d.contra !== 'Bárbaros') missao('vitoria'); }
+  if (novos.some(r => r.dados.tipo === 'coleta' || r.dados.tipo === 'barbaro')) ON.premios().then(l => { const m = (l || []).reduce((a, p) => a + p.moedas, 0); if (m) { S.moedas += m; salvar(); som('moedas'); } }).catch(() => {}); // o ouro entra na hora
+  if (!$('#muRel').hidden && K.abaRel === 'caixa') abrirCaixa();
+}
+function tituloRel(d) {
+  return { guarnicao: d.venceu ? tr('GUARNIÇÃO VENCIDA') : tr('DERROTA'), defesa: tr('CASTELO ATACADO'), bandeira: d.derrubou ? tr('BANDEIRA DERRUBADA!') : tr('PERDEMOS UMA BANDEIRA'),
+    castelo: d.conquistou ? tr('CASTELO CONQUISTADO!') : tr('NOSSO CASTELO CAIU!'), rallyNovo: tr('RALLY ABERTO!'), rallySaiu: tr('O RALLY SAIU!'), coleta: tr('COLETA TERMINADA'), barbaro: tr('BÁRBAROS DERROTADOS!'),
+    fugiu: tr('Escapou'), batalha: d.venceu ? tr('VITÓRIA') : d.recuou ? tr('RECUO') : tr('DERROTA') }[d.tipo || 'batalha'] || tr('Relatório');
+}
+const haQuanto = t => { const s = Math.max(0, agora() - t); return s < 60 ? tr('agora') : s < 3600 ? `${Math.floor(s / 60)} min` : s < 86400 ? `${Math.floor(s / 3600)} h` : `${Math.floor(s / 86400)} d`; };
+async function abrirCaixa() {
+  const j = $('#muRel'); if (!j) return; K.abaRel = 'caixa'; j.hidden = false;
+  if (!K.caixa) j.innerHTML = `<div class="cqFim muRelC muCaixa"><h2>✉️ ${tr('Relatórios')}</h2><p>${tr('Carregando...')}</p></div>`;
+  try { K.caixa = await ON.mapaCaixa(); } catch (e) { if (!K.caixa) { j.innerHTML = `<div class="cqFim muRelC muCaixa"><h2>✉️ ${tr('Relatórios')}</h2><p>${tr('Sem conexão com o mapa')} 😢</p><button class="btn verde grande" data-mu="relOk">OK</button></div>`; return; } }
+  if (!K || j.hidden || K.abaRel !== 'caixa') return;
+  j.innerHTML = `<div class="cqFim muRelC muCaixa"><h2>✉️ ${tr('Relatórios')}</h2><div class="muCxLista">${K.caixa.length ? K.caixa.map(r => linhaRel(r.dados, r)).join('') : `<p>${tr('Nenhum relatório ainda')}</p>`}</div>
+    <button class="btn verde grande" data-mu="relOk">OK</button></div>`;
+  if (K.caixa.some(r => !r.lido)) { ON.mapaLidos().catch(() => {}); const n = $('#muCxN'); if (n) n.hidden = true; }
+}
+function linhaRel(d, r) { // uma mensagem da caixa (como o "battle report" do RoK)
+  const h = `<em class="muCxT">${haQuanto(r.t)}</em>`, cls = r.lido ? '' : ' novo';
+  return (() => {
+    if (d.tipo === 'guarnicao') { return `<div class="muRelL ${d.venceu ? 'vit' : 'der'}"><b>${d.venceu ? tr('GUARNIÇÃO VENCIDA') : tr('DERROTA')}</b> · ${tr('castelo de')} <b data-nt>${esc(d.contra)}</b>
+      <small>${tr('Exército')} ${d.slot + 1}: ${fmt(d.eu0)} → ${fmt(d.eu1)} · ${tr('guarnição')} ${fmt(d.ele0)} → ${fmt(d.ele1)}</small>${d.venceu ? `<small>${tr('Agora o cerco começa: derrubem a muralha!')}</small>` : ''}</div>`; }
+    if (d.tipo === 'defesa') return `<div class="muRelL der"><b>${tr('CASTELO ATACADO')}</b> · <b data-nt>${esc(d.contra)}</b> ${tr('atacou a guarnição')} <small>${tr('Guarnição')}: -${fmt(d.perdeu)} (${tr('restam')} ${fmt(d.resta)})</small></div>`;
+    if (d.tipo === 'bandeira') { return `<div class="muRelL ${d.derrubou ? 'vit' : 'der'}"><b>${d.derrubou ? tr('BANDEIRA DERRUBADA!') : tr('PERDEMOS UMA BANDEIRA')}</b> · <b data-nt>${esc(d.cla || '')}</b></div>`; }
+    if (d.tipo === 'castelo') { return `<div class="muRelL ${d.conquistou ? 'vit' : 'der'}"><b>${d.conquistou ? tr('CASTELO CONQUISTADO!') + ' 👑 +2000 ' + tr('pontos') : tr('NOSSO CASTELO CAIU!')}</b> · <b data-nt>${esc(d.cla || '')}</b></div>`; }
+    if (d.tipo === 'rallyNovo') return `<div class="muRelL vit"><b>📯 ${tr('RALLY ABERTO!')}</b> <b data-nt>${esc(d.nome)}</b> ${tr('chamou o clã para atacar. Entre pelo aviso no topo!')}</div>`;
+    if (d.tipo === 'rallySaiu') { return `<div class="muRelL vit"><b>📯 ${tr('O RALLY SAIU!')}</b> ${d.n} ${tr('exércitos juntos')} · +${Math.min(60, 15 * Math.max(0, d.n - 1))}% ${tr('dano')}</div>`; }
+    if (d.tipo === 'coleta') { return `<div class="muRelL vit"><b>⛏️ ${tr('COLETA TERMINADA')}</b> · ${tr('Exército')} ${d.slot + 1}<small>${ico('ouro')} +${fmt(d.ouro)} ${tr('moedas')} · +${fmt(Math.max(1, Math.floor(d.ouro / 10)))} XP</small></div>`; }
+    if (d.tipo === 'barbaro') { return `<div class="muRelL vit"><b>🔥 ${tr('BÁRBAROS DERROTADOS!')}</b> Nv ${d.nivel}<small>${ico('ouro')} +${fmt(d.ouro)} ${tr('moedas')} · +${fmt(d.xp)} XP</small></div>`; }
+    if (d.tipo === 'fugiu') return `<div class="muRelL">${tr('Exército')} ${d.slot + 1}: <b data-nt>${esc(d.nome)}</b> ${tr('escapou antes do ataque')}</div>`;
+    const perdi = d.eu0 - d.eu1, matei = d.ele0 - d.ele1;
+    return `<div class="muRelL ${d.venceu ? 'vit' : 'der'}"><b>${d.venceu ? tr('VITÓRIA') : d.recuou ? tr('RECUO') : tr('DERROTA')}</b> · ${d.ataque ? tr('você atacou') : tr('você foi atacado por')} <b data-nt>${esc(d.contra)}</b>
+      <small>${tr('Exército')} ${d.slot + 1}: ${fmt(d.eu0)} → ${fmt(d.eu1)} (${tr('feridos')} ${fmt(Math.round(perdi * 0.8))}, ${tr('mortos')} ${fmt(perdi - Math.round(perdi * 0.8))})</small>
+      <small>${tr('Inimigos derrotados')}: ${fmt(matei)} · +${fmt(matei)} ${tr('pontos')} · +${fmt(matei)} XP</small></div>`; })().replace('<div class="muRelL', `<div class="muRelL${cls}`).replace(/<\/div>$/, `${h}</div>`);
+}
+// ---- comandante (sobe de nível com XP do mapa), quartel (capacidade), hospital (feridos) e treino (repor mortos) ----
+const xpNivel = n => 50 * n * (n - 1); // XP total para chegar no nível n (igual ao servidor)
+const custoQuartel = nv => 400 * (nv + 1), custoCura = f => Math.ceil(f / 2), custoTreino = m => m;
+function abrirCmd() {
+  const j = $('#muRel'), h = K.heroi; if (!j || !h) return; j.hidden = false; const H = HEROIS[S.heroi] || HEROIS.lyra, n = h.nivel, max = n >= 30;
+  const de = xpNivel(n), ate = xpNivel(n + 1), f = max ? 1 : (h.xp - de) / (ate - de);
+  const ex = meus().map(e => { const cap = e.cap || 1, fe = e.feridos || 0, mo = e.mortos || 0, bat = emBatalha(e);
+    const tf = fe / (cap * 0.002), tm = mo / (cap * 0.0007);
+    return `<div class="muCmdEx"><b>${tr('Exército')} ${e.slot + 1}</b> <span>${ico('forca')} ${fmt(tropasAgora(e))}/${fmt(cap)}</span>
+      <div class="muCmdL"><span>🏥 ${tr('Hospital')}: <b>${fmt(fe)}</b> ${tr('feridos')}${fe ? `<small>${tr('voltam sozinhos em')} ${tempoTxt(tf)}</small>` : `<small>${tr('ninguém ferido')}</small>`}</span>
+        ${fe ? `<button class="btn verde peq" data-mu="acelerar" data-slot="${e.slot}" data-tipo="cura" ${bat ? 'disabled' : ''}>${tr('Curar já')} ${ico('ouro')}${fmt(custoCura(fe))}</button>` : ''}</div>
+      <div class="muCmdL"><span>⚔️ ${tr('Treino')}: <b>${fmt(mo)}</b> ${tr('soldados novos')}${mo ? `<small>${tr('prontos em')} ${tempoTxt(tm)}</small>` : `<small>${tr('exército completo')}</small>`}</span>
+        ${mo ? `<button class="btn azul peq" data-mu="acelerar" data-slot="${e.slot}" data-tipo="treino" ${bat ? 'disabled' : ''}>${tr('Treinar já')} ${ico('ouro')}${fmt(custoTreino(mo))}</button>` : ''}</div></div>`; }).join('');
+  j.innerHTML = `<div class="cqFim muRelC muCmd"><h2>⭐ ${tr('Comandante')}</h2>
+    <div class="muCmdNv"><b>${H.nome}</b><i>${tr('Nível')} ${n}</i><div class="muXp"><div style="width:${Math.round(f * 100)}%"></div><span>${max ? 'MAX' : `${fmt(h.xp - de)}/${fmt(ate - de)} XP`}</span></div>
+      <small>${tr('Força')} +${(n - 1) * 3}% · ${tr('Capacidade')} +${(n - 1) * 2}%</small><small class="muDica">${tr('Ganhe XP derrotando inimigos, cercando, erguendo bandeiras e conquistando castelos')}</small></div>
+    <div class="muCmdQ"><span>🏰 ${tr('Quartel')} ${h.cap_nv}/20<small>+40 ${tr('tropas por nível em cada exército')}</small></span>
+      ${h.cap_nv < 20 ? `<button class="btn amarelo peq" data-mu="quartel">${tr('Melhorar')} ${ico('ouro')}${fmt(custoQuartel(h.cap_nv))}</button>` : '<b>MAX</b>'}</div>
+    ${ex}<small class="muDica">${tr('Os feridos voltam sozinhos com o tempo; os mortos são repostos pelo treino')}</small>
+    <button class="btn verde grande" data-mu="relOk">OK</button></div>`;
+}
+async function quartel() {
+  const c = custoQuartel(K.heroi?.cap_nv || 0); if ((S.moedas || 0) < c) { som('erro'); toast(`${tr('Precisa de')} ${fmt(c)} ${tr('moedas')}`); return; }
+  try { const nv = await ON.mapaQuartel(); S.moedas -= c; salvar(); K.heroi.cap_nv = nv; sfx('vitoria'); toast(`🏰 ${tr('Quartel')} ${nv}! +40 ${tr('tropas')}`); abrirCmd(); missao('quartel'); await atualizar(); }
+  catch (er) { som('erro'); toast(tr(er.message)); }
+}
+async function acelerar(slot, tipo) {
+  const e = meus().find(q => q.slot === slot); if (!e) return; const c = tipo === 'cura' ? custoCura(e.feridos || 0) : custoTreino(e.mortos || 0);
+  if ((S.moedas || 0) < c) { som('erro'); toast(`${tr('Precisa de')} ${fmt(c)} ${tr('moedas')}`); return; }
+  try { const n = await ON.mapaAcelerar(slot, tipo); S.moedas -= c; salvar(); Object.assign(e, { tropas: n }, tipo === 'cura' ? { feridos: 0 } : { mortos: 0 }); sfx('brilho'); som('moedas');
+    toast(tipo === 'cura' ? tr('Feridos curados!') : tr('Soldados treinados!')); cards(); abrirCmd(); }
+  catch (er) { som('erro'); toast(tr(er.message)); }
+}
+
+// ---- minimapa: terreno, território, bandeiras, castelos e exércitos; tocar leva a câmera até lá ----
+function ligarMini() {
+  const cv = $('#muMini'); if (!cv) return; const fundo = document.createElement('canvas'); fundo.width = fundo.height = N; const g = fundo.getContext('2d');
+  const cores = { [GRAMA]: '#7cc24a', [FLORESTA]: '#4f9a3a', [MONTANHA]: '#9a8a76', [AGUA]: '#3aa8e0', [PONTE]: '#9a6a3a' };
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { g.fillStyle = cores[MAPA.at(x, y)]; g.fillRect(x, y, 1, 1); }
+  K.mini = { cv, fundo };
+  cv.addEventListener('pointerdown', ev => { if (!K) return; ev.stopPropagation(); const r = cv.getBoundingClientRect(), x = (ev.clientX - r.left) / r.width * N, y = (ev.clientY - r.top) / r.height * N;
+    K.cam = { x: wx(x), z: wz(y) + 10 }; som('clique'); });
+}
+function desenharMini() {
+  const m = K.mini; if (!m) return; const g = m.cv.getContext('2d'), k = m.cv.width / N, hex = c => '#' + c.toString(16).padStart(6, '0');
+  g.imageSmoothingEnabled = false; g.drawImage(m.fundo, 0, 0, m.cv.width, m.cv.height);
+  if (K.donoMini) { g.globalAlpha = 0.45; for (let i = 0; i < N * N; i++) { const d = K.donoMini[i]; if (d == null) continue; g.fillStyle = hex(corCla(d)); g.fillRect((i % N) * k, ((i / N) | 0) * k, k, k); } g.globalAlpha = 1; }
+  for (const c of K.castelos) { g.fillStyle = hex(CORES_CLA[(c.cor || 0) % 8]); g.strokeStyle = '#fff'; g.lineWidth = 1.5; g.fillRect(c.x * k - 4, c.y * k - 4, 8, 8); g.strokeRect(c.x * k - 4, c.y * k - 4, 8, 8); }
+  for (const f of K.bandeiras) { g.fillStyle = hex(corCla(f.cla)); g.beginPath(); g.moveTo((f.x + 0.5) * k, (f.y - 0.6) * k); g.lineTo((f.x + 1.6) * k, (f.y + 0.2) * k); g.lineTo((f.x + 0.5) * k, (f.y + 0.9) * k); g.fill(); g.strokeStyle = '#fff'; g.lineWidth = 1; g.stroke(); }
+  for (const m of K.recursos) { g.fillStyle = '#ffd23a'; g.fillRect(m.x * k - 1.5, m.y * k - 1.5, 3, 3); }
+  const meuCla = meus()[0]?.cla;
+  for (const e of K.ex.values()) { if (tropasAgora(e) <= 0) continue; const p = posicao(e); g.fillStyle = e.barb != null ? '#2a1a10' : e.eu ? '#ffd23a' : meuCla != null && e.cla === meuCla ? '#4aa8ff' : '#ff4a3a'; g.beginPath(); g.arc(p.x * k, p.y * k, e.eu ? 3.2 : 2, 0, 7); g.fill(); if (e.eu) { g.strokeStyle = '#000'; g.lineWidth = 1; g.stroke(); } }
+  if (K.cam) { const w = K.zoom / T * 0.55, cx = (K.cam.x - WX) / T + N / 2, cy = (K.cam.z - 10 - WZ) / T + N / 2; g.strokeStyle = '#fff'; g.lineWidth = 1.5; g.strokeRect((cx - w / 2) * k, (cy - w * 0.6) * k, w * k, w * 1.2 * k); }
+}
+
+// ---- Liga da Guerra: pontos da semana (derrotar inimigos, cercar, conquistar castelo, erguer bandeira) ----
+async function abrirLiga(aba = K.abaLiga || 'jog') {
+  const j = $('#muRel'); if (!j) return; K.abaLiga = aba; K.abaRel = 'liga'; j.hidden = false; som('clique');
+  if (!K.liga) j.innerHTML = `<div class="cqFim muRelC"><h2>🏆 ${tr('Liga da Guerra')}</h2><p>${tr('Carregando...')}</p></div>`;
+  try { K.liga = await ON.liga(); } catch (e) { if (!K.liga) { j.innerHTML = `<div class="cqFim muRelC"><h2>🏆 ${tr('Liga da Guerra')}</h2><p>${tr('Sem conexão com o mapa')} 😢</p><button class="btn verde grande" data-mu="relOk">OK</button></div>`; return; } }
+  if (!K || j.hidden) return; const l = K.liga, falta = Math.max(0, l.fim - agora()), d = Math.floor(falta / 86400), h = Math.floor(falta % 86400 / 3600), m = Math.floor(falta % 3600 / 60);
+  const lin = (x, nome) => `<div class="muLgL${x.eu ? ' eu' : ''}"><i>${x.pos <= 3 ? ['🥇', '🥈', '🥉'][x.pos - 1] : x.pos + 'º'}</i><b data-nt>${nome}</b><span>${fmt(x.pontos)}</span><em>${x.premio ? `${ico('ouro')}${fmt(x.premio)}` : ''}</em></div>`;
+  const lista = aba === 'jog' ? l.jogadores.map(x => lin(x, `${x.cla ? `[${esc(x.cla)}] ` : ''}${esc(x.nome)}`)).join('') : l.clas.map(x => lin(x, `[${esc(x.tag)}] ${esc(x.nome)}`)).join('');
+  const ps = l.passada?.jogadores?.length ? `<div class="muLgP">${tr('Campeões da semana passada')}: ${l.passada.jogadores.map((x, i) => `${['🥇', '🥈', '🥉'][i]} <b data-nt>${esc(x.nome)}</b>`).join(' ')}${l.passada.clas?.[0] ? ` · ${tr('Clã')}: <b data-nt>[${esc(l.passada.clas[0].tag)}]</b>` : ''}</div>` : '';
+  j.innerHTML = `<div class="cqFim muRelC muLiga"><h2>🏆 ${tr('Liga da Guerra')}</h2><small class="muLgT">${ico('relogio')} ${tr('Termina em')} ${d ? `${d}d ` : ''}${h}h ${m}min</small>
+    <div class="muLgEu">${l.eu ? `${tr('Você')}: <b>${l.eu.pos}º</b> · ${fmt(l.eu.pontos)} ${tr('pontos')}${l.eu.premio ? ` · ${ico('ouro')}${fmt(l.eu.premio)}` : ` · ${tr('faça 50 pontos para ganhar prêmio')}`}` : tr('Você ainda não pontuou nesta semana')}</div>
+    <div class="abas"><button class="${aba === 'jog' ? 'on' : ''}" data-mu="ligaJog">${tr('Jogadores')}</button><button class="${aba === 'cla' ? 'on' : ''}" data-mu="ligaCla">${ico('guilda')} ${tr('Clãs')}</button></div>
+    <div class="muLgLista">${lista || `<p>${tr('Ninguém pontuou ainda. Seja o primeiro!')}</p>`}</div>${ps}
+    <small class="muDica">${aba === 'jog' ? tr('Pontos: 1 por inimigo derrotado · cerco · 2000 por castelo · 150 por bandeira') : tr('Membros do clã no top 3 também ganham moedas')}</small>
+    <button class="btn verde grande" data-mu="relOk">OK</button></div>`;
+}
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+export function clique(b) {
+  const a = b.dataset.mu, tp = b.dataset.muTipo, ex = b.dataset.muEx;
+  if (tp) { const e = K.ex.get(+tp); if (!e || emBatalha(e)) { som('erro'); return; } const ks = Object.keys(TIPOS); e.tipo = ks[(ks.indexOf(e.tipo) + 1) % ks.length]; som('clique'); toast(tr(TIPOS[e.tipo].nome)); ON.mapaTipo(e.slot, e.tipo).catch(() => {}); cards(); return; }
+  if (a === 'sair') { som('fechar'); op.sair(); return; }
+  if (a === 'reforcar' || a === 'rally') { const e = meus().find(q => q.slot === +b.dataset.slot); $('#muInfo').hidden = true; if (e) { K.sel = e.id; (a === 'rally' ? criarRally : reforcar)(e, b.dataset.tipo, +b.dataset.alvo); } return; }
+  if (a === 'rallyEntrar') { const e = meus().find(q => q.slot === +b.dataset.slot), rl = K.rallies.find(q => q.cla === e?.cla); if (e && rl) entrarRally(e, rl); return; }
+  if (a === 'coletar') { const e = meus().find(q => q.slot === +b.dataset.slot); $('#muInfo').hidden = true; if (e) { K.sel = e.id; coletar(e, +b.dataset.alvo); } return; }
+  if (a === 'irMissao') { irMissao(); return; }
+  if (a === 'pegarMissao') { pegarMissao(); return; }
+  if (a === 'caixa') { som('clique'); abrirCaixa(); return; }
+  if (a === 'cmd') { K.abaRel = 'cmd'; som('clique'); abrirCmd(); return; }
+  if (a === 'quartel') { quartel(); return; }
+  if (a === 'acelerar') { acelerar(+b.dataset.slot, b.dataset.tipo); return; }
+  if (a === 'liga' || a === 'ligaJog' || a === 'ligaCla') { abrirLiga(a === 'ligaCla' ? 'cla' : a === 'ligaJog' ? 'jog' : undefined); return; }
+  if (a === 'relOk') { som('clique'); $('#muRel').hidden = true; K.abaRel = null; return; }
+  if (a === 'recuar') { const e = meus().find(q => q.slot === +b.dataset.slot); if (e) recuar(e); return; }
+  if (a === 'cercar') { const e = meus().find(q => q.slot === +b.dataset.slot); $('#muInfo').hidden = true; if (e) { K.sel = e.id; cercar(e, b.dataset.tipo, +b.dataset.alvo); } return; }
+  if (a === 'atacar') { const e = meus().find(q => q.slot === +b.dataset.slot), alvo = K.ex.get(+b.dataset.alvo); $('#muInfo').hidden = true; if (e && alvo) { K.sel = e.id; atacar(e, alvo); } return; }
+  if (a === 'cancelar') { K.prev = null; $('#muConf').hidden = true; C.descartar(K.linha); K.linha = null; som('fechar'); return; }
+  if (a === 'bandeira' && K.prev) { const { e, alvo, cam } = K.prev; K.prev = null; $('#muConf').hidden = true; C.descartar(K.linha); K.linha = null; erguerBandeira(e, alvo, cam); return; }
+  if (a === 'marchar' && K.prev) { const { e, alvo } = K.prev; K.prev = null; $('#muConf').hidden = true; C.descartar(K.linha); K.linha = null; marchar(e, alvo); return; }
+  if (ex) selecionar(+ex);
+}
+// arrastar = mover a câmera; dois dedos (ou a roda do mouse) = zoom; tocar = escolher
+let toqueEl = null;
+const dn = e => { if (!K) return; K.toques.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, t: performance.now() }); try { toqueEl.setPointerCapture(e.pointerId); } catch (er) {} if (K.toques.size === 2) K.pinca = null; };
+const mv = e => { const P = K?.toques.get(e.pointerId); if (!P) return; const dx = e.clientX - P.x, dy = e.clientY - P.y; P.x = e.clientX; P.y = e.clientY;
+  if (K.toques.size === 2) { const [a, b] = [...K.toques.values()], d = Math.hypot(a.x - b.x, a.y - b.y); if (K.pinca) K.zoom = Math.max(40, Math.min(170, K.zoom * K.pinca / d)); K.pinca = d; return; }
+  if (!K.cam) return; const k = K.zoom / innerHeight * 1.1; K.cam.x -= dx * k; K.cam.z -= dy * k * 1.3; };
+const up = e => { const P = K?.toques.get(e.pointerId); if (!P) return; K.toques.delete(e.pointerId);
+  if (Math.hypot(e.clientX - P.x0, e.clientY - P.y0) < 9 && performance.now() - P.t < 450 && !K.toques.size) tocar(e.clientX, e.clientY); };
+const roda = e => { if (K) K.zoom = Math.max(40, Math.min(170, K.zoom * (e.deltaY > 0 ? 1.1 : 0.9))); };
+function ligarToque() { toqueEl = $('#toque'); toqueEl.addEventListener('pointerdown', dn); toqueEl.addEventListener('pointermove', mv); toqueEl.addEventListener('pointerup', up); toqueEl.addEventListener('pointercancel', up); toqueEl.addEventListener('wheel', roda, { passive: true }); }
+function desligarToque() { if (!toqueEl) return; for (const [ev, f] of [['pointerdown', dn], ['pointermove', mv], ['pointerup', up], ['pointercancel', up], ['wheel', roda]]) toqueEl.removeEventListener(ev, f); toqueEl = null; }
+
+// ---- laço ----
+const SOLD = { esp: 'az', arc: 'arco', lan: 'lanca' };
+function passoBatalhas() { // efeitos de cada segundo da luta: faíscas, números e a habilidade do comandante
+  for (const b of K.bat.values()) {
+    const a = K.ex.get(b.a), cast = b.b < 0 && K.castelos.find(c => c.id === -b.b), d = cast ? { id: b.b, heroi: 'grom', castelo: cast } : K.ex.get(b.b); if (!a || !d) continue; const k = Math.floor(agora() - b.t0);
+    if (k < 1 || k <= b.visto || k >= b.linha.length || agora() > b.fim) continue; b.visto = k;
+    const pa = posicao(a), pd = d.castelo ? { x: d.castelo.x, y: d.castelo.y } : posicao(d), mx = wx((pa.x + pd.x) / 2), mz = wz((pa.y + pd.y) / 2), [ta, tb, ev] = b.linha[k], [ta0, tb0] = b.linha[k - 1];
+    C.faiscas(mx, 1.5, mz, 0xffe0a0, 8, 4);
+    if (ta0 - ta > 0) K.txt.push({ x: wx(pa.x), z: wz(pa.y), y: 4, txt: `-${ta0 - ta}`, cor: '#ff6a5a', t: 0 });
+    if (tb0 - tb > 0) K.txt.push({ x: wx(pd.x), z: wz(pd.y), y: 4, txt: `-${tb0 - tb}`, cor: '#ff6a5a', t: 0 });
+    for (const [bit, e, p] of [[1, a, pa], [2, d, pd]]) if (ev & bit) { const H = HEROIS[e.heroi] || HEROIS.lyra; C.onda(wx(p.x), wz(p.y), 6, 0xffd84a, 0.6); C.faiscas(wx(p.x), 3, wz(p.y), 0xffd84a, 30, 6);
+      K.txt.push({ x: wx(p.x), z: wz(p.y), y: 7, txt: `${H.poder?.nome || tr('Fúria')}!`, cor: '#ffd84a', t: 0, grande: true }); if (e.eu || (e === a ? d : a).eu) sfx('magia'); }
+    if (k === b.linha.length - 1 && (a.eu || d.eu)) { const euA = a.eu, ganhei = euA ? tb === 0 : ta === 0; if (ganhei) { sfx('vitoria'); flashTela('#ffe27a', 0.3); } setTimeout(atualizar, 1500); }
+  }
+}
+export function passo(dt) {
+  if (!K) return; dt = Math.min(dt, 0.1); const t = C.tempo();
+  if ((K.tPoll -= dt) <= 0) { K.tPoll = 4; atualizar(); }
+  if (!K.carregou) return;
+  if (K.cam) { K.cam.x = Math.max(wx(0), Math.min(wx(N), K.cam.x)); K.cam.z = Math.max(wz(0) + 10, Math.min(wz(N) + 18, K.cam.z)); }
+  passoBatalhas(); if ((K.tTerr = (K.tTerr || 0) - dt) <= 0) { K.tTerr = 1; atualizarTerritorio(); }
+  for (const f of K.flags.values()) f.pano.rotation.y = Math.sin(t * 2.2 + f.fase) * 0.3;
+  if ((K.tMini = (K.tMini || 0) - dt) <= 0) { K.tMini = 0.4; desenharMini(); bannerRally(); barraMissao(); }
+  const az = [], vm = [], meuCla = meus()[0]?.cla;
+  for (const e of K.ex.values()) {
+    const p = posicao(e), x = wx(p.x), z = wz(p.y), amigo = e.eu || (meuCla != null && e.cla === meuCla), b = emBatalha(e), n0 = tropasAgora(e);
+    let dir = p.dir; if (b) { const oid = b.a === e.id ? b.b : b.a, o = oid < 0 ? K.castelos.find(c => c.id === -oid) : K.ex.get(oid); if (o) { const q = oid < 0 ? o : posicao(o); dir = Math.atan2(q.x - p.x, q.y - p.y); } }
+    const coleta = e.cercando && e.cerco_tipo === 'rec';
+    if (coleta) { if (Math.random() < dt * 1.5) C.faiscas(x, 1.2, z, 0xffd23a, 4, 2); }
+    else if (e.cercando) { const al = posAlvo(e.cerco_tipo, e.cerco_id); if (al) dir = Math.atan2(al[0] - p.x, al[1] - p.y); if (al && Math.random() < dt * 2) C.faiscas(wx(al[0]), 2, wz(al[1]), 0xffc070, 5, 3); }
+    if (!e.flag) e.flag = bandeira(corDe(e));
+    e.dir = e.dir == null ? dir : e.dir + Math.atan2(Math.sin(dir - e.dir), Math.cos(dir - e.dir)) * Math.min(1, dt * 8);
+    e.flag.position.set(x - Math.sin(e.dir) * 1.6, 0, z - Math.cos(e.dir) * 1.6); e.flag.visible = n0 > 0;
+    if (e.eu && !e.v) { const H = HEROIS[S.heroi] || HEROIS.lyra; e.v = C.heroi(H.visual); e.v.raiz.scale.setScalar(1.6); }
+    if (e.barb != null && e.vHeroi !== e.heroi) { limparEx(e); e.flag = bandeira(corDe(e)); e.vHeroi = e.heroi;
+      const MOD = { orc: 'mg:Orc', tribal: 'mg:Tribal', caveira: 'mg:Orc_Skull', yeti: 'mg:Yeti' }; try { e.v = C.personagem(MOD[e.heroi] || 'mg:Orc', [], 1); e.v.raiz.scale.setScalar(1.6 + e.barb * 0.15); e.v.barb = true; } catch (er) {}
+      e.acamp = [C.objeto('N:tent_detailedOpen', 3.2), C.objeto('N:campfire_logs', 2.4)]; e.acamp[0].position.set(x - 2.6, 0, z - 2.2); e.acamp[0].rotation.y = 0.6; e.acamp[1].position.set(x + 2.2, 0, z - 1.6); }
+    if (e.acamp) for (const o of e.acamp) o.visible = n0 > 0;
+    if (e.v?.barb) { e.v.raiz.visible = n0 > 0; e.v.raiz.position.set(x, 0, z); e.v.raiz.rotation.y = e.dir; e.v.mixer.update(dt); const an = b && e.v.tem('Attack') ? 'Attack' : 'Idle'; if (e.anim !== an) { e.anim = an; e.v.tocar(an); } }
+    else if (e.v) { e.v.raiz.visible = n0 > 0 || p.anda; e.v.raiz.position.set(x, 0, z); e.v.raiz.rotation.y = e.dir; e.v.mixer.update(dt);
+      const an = b || (e.cercando && !coleta) ? (Math.floor(t * 1.5) % 2 ? 'Melee_1H_Attack_Chop' : 'Idle_A') : p.anda ? 'Running_A' : 'Idle_A'; if (e.anim !== an) { e.anim = an; e.v.tocar(e.v.tem(an) ? an : 'Idle_A', b || (e.cercando && !coleta) ? { loop: false, reinicia: true } : undefined); } }
+    // soldados em fileiras atrás do comandante (na batalha, na frente dele, lutando)
+    if (n0 <= 0) continue;
+    const n = Math.min(9, 2 + Math.ceil(n0 / 60)), s = Math.sin(e.dir), c = Math.cos(e.dir), lista = amigo ? az : vm, tipo = SOLD[e.tipo] || 'az';
+    for (let i = 0; i < n; i++) { const fila = 1 + Math.floor(i / 3), col = (i % 3) - 1, ox = col * 1.1, oz = b || (e.cercando && !coleta) ? 0.9 + (fila - 1) * 0.9 : -fila * 1.15 - (e.v ? 0.4 : -0.8);
+      lista.push({ x: x + ox * c + oz * s, z: z - ox * s + oz * c, ph: e.id * 1.7 + i * 0.9 + (p.anda ? 0 : 99), ry: e.dir, tipo, luta: !!b || (!!e.cercando && !coleta) }); }
+    if (e.eu && p.anda) { if (e.linhaCam !== e.cam) { C.descartar(e.linha); const pts = e.cam.map(q => new THREE.Vector3(wx(q[0]), 0.3, wz(q[1]))); e.linha = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineDashedMaterial({ color: e.alvo ? 0xff5a4a : 0xffd84a, dashSize: 1, gapSize: 0.7 })); e.linha.computeLineDistances(); cn().add(e.linha); e.linhaCam = e.cam; } }
+    else if (e.linha) { C.descartar(e.linha); e.linha = null; e.linhaCam = null; }
+  }
+  desenharTropas('az', az, 0, t); desenharTropas('vm', vm, 0, t);
+  if ((K.tCards = (K.tCards || 0) - dt) <= 0) { K.tCards = 0.5; for (const e of meus()) { const m = document.querySelector(`[data-mu-t="${e.id}"]`), nn = document.querySelector(`[data-mu-n="${e.id}"]`); if (nn) nn.textContent = fmt(tropasAgora(e));
+    if (m) { const h = estadoTxt(e); if (m.innerHTML !== h) { m.innerHTML = h; if (!!emBatalha(e) !== !!document.querySelector(`[data-mu=recuar][data-slot="${e.slot}"]`)) cards(); } } } }
+}
+export function vista() { return { foco: K?.cam || { x: WX, z: WZ }, yaw: Math.PI, pitch: 0.95, dist: K?.zoom || 95 }; }
+export function desenharFx(g, dt) {
+  if (!K?.carregou) return; g.textAlign = 'center'; g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,.65)';
+  for (const c of K.castelos) { const q = C.tela(wx(c.x), 13, wz(c.y)); if (!q || q[1] < 60) continue; g.font = '14px Titulo, sans-serif'; const t = `[${c.tag}] ${c.nome}`; g.strokeText(t, q[0], q[1]); g.fillStyle = '#' + CORES_CLA[(c.cor || 0) % 8].toString(16).padStart(6, '0'); g.fillText(t, q[0], q[1]); }
+  if (K.zoom <= 130) for (const e of K.ex.values()) { const p = posicao(e), q = C.tela(wx(p.x), 4.2, wz(p.y)), n0 = tropasAgora(e); if (!q || q[1] < 60 || q[1] > innerHeight - 90 || (n0 <= 0 && !p.anda)) continue; const b = emBatalha(e);
+    if (e.eu) { g.fillStyle = '#ffd23a'; g.beginPath(); g.arc(q[0], q[1] - 4, 9, 0, 7); g.fill(); g.stroke(); g.font = '13px Titulo, sans-serif'; g.fillStyle = '#3a1a08'; g.fillText(e.slot + 1, q[0], q[1] + 1); g.strokeStyle = 'rgba(0,0,0,.65)'; }
+    else { g.font = '11px Titulo, sans-serif'; const nm = e.barb != null ? `🔥 ${tr('Bárbaros')} Nv${e.barb}` : `Nv${e.nivel || 1} ${e.nome}`; g.strokeText(nm, q[0], q[1]); g.fillStyle = '#fff'; g.fillText(nm, q[0], q[1]); }
+    if (b || !e.eu) { const w = 40, f = Math.max(0, n0 / Math.max(1, e.cap || n0)); g.fillStyle = 'rgba(0,0,0,.55)'; g.fillRect(q[0] - w / 2 - 1, q[1] + 6, w + 2, 6); g.fillStyle = e.eu ? '#4ae86a' : '#ff5a4a'; g.fillRect(q[0] - w / 2, q[1] + 7, w * f, 4);
+      g.font = '10px Titulo, sans-serif'; g.fillStyle = '#fff'; g.strokeText(fmt(n0), q[0], q[1] + 22); g.fillText(fmt(n0), q[0], q[1] + 22); }
+    if (K.sel === e.id) { g.strokeStyle = '#ffd84a'; g.lineWidth = 3; g.beginPath(); g.arc(q[0], q[1] + 26, 18, 0, 7); g.stroke(); g.strokeStyle = 'rgba(0,0,0,.65)'; } }
+  for (const b of K.bandeiras) { if (b.pronta > agora()) continue; const q = C.tela(wx(b.x + 0.5), 13.5, wz(b.y + 0.5)); if (!q || q[1] < 60) continue; const c = K.clas.find(x => x.id === b.cla); if (!c) continue;
+    g.font = '13px Titulo, sans-serif'; const t = `🚩 ${c.tag}`; g.strokeText(t, q[0], q[1]); g.fillStyle = '#' + corCla(b.cla).toString(16).padStart(6, '0'); g.fillText(t, q[0], q[1]); }
+  if (K.zoom <= 130) for (const m of K.recursos) { const q = C.tela(wx(m.x), 4.5, wz(m.y)); if (!q || q[1] < 60 || q[1] > innerHeight - 90) continue;
+    g.font = '11px Titulo, sans-serif'; const t = `⛏️ ${fmt(m.resta)}`; g.strokeText(t, q[0], q[1]); g.fillStyle = '#ffd23a'; g.fillText(t, q[0], q[1]); }
+  for (const b of K.bandeiras) if (b.hp < 1000 && b.pronta <= agora()) { const q = C.tela(wx(b.x + 0.5), 8, wz(b.y + 0.5)); if (!q) continue; const w = 44;
+    g.fillStyle = 'rgba(0,0,0,.55)'; g.fillRect(q[0] - w / 2 - 1, q[1] - 1, w + 2, 7); g.fillStyle = '#ffb03a'; g.fillRect(q[0] - w / 2, q[1], w * Math.max(0, b.hp) / 1000, 5); }
+  for (const c of K.castelos) { const q = C.tela(wx(c.x), 13, wz(c.y)); if (!q || q[1] < 60) continue; const prot = (c.protegido || 0) - agora();
+    if (prot > 0) { g.font = '12px Titulo, sans-serif'; const t = `🔥 ${tr('Protegido')} ${tempoTxt(prot)}`; g.strokeText(t, q[0], q[1] + 16); g.fillStyle = '#ffb03a'; g.fillText(t, q[0], q[1] + 16); }
+    else if (c.hp < c.hpMax) { const w = 70; g.fillStyle = 'rgba(0,0,0,.55)'; g.fillRect(q[0] - w / 2 - 1, q[1] + 8, w + 2, 8); g.fillStyle = '#ff5a4a'; g.fillRect(q[0] - w / 2, q[1] + 9, w * c.hp / c.hpMax, 6); } }
+  for (const b of K.bandeiras) { const falta = b.pronta - agora(); if (falta <= 0 || b.id < 0) continue; const q = C.tela(wx(b.x + 0.5), 8, wz(b.y + 0.5)); if (!q) continue;
+    g.font = '12px Titulo, sans-serif'; const t = `${tr('Construindo')} ${tempoTxt(falta)}`; g.strokeText(t, q[0], q[1]); g.fillStyle = '#ffd84a'; g.fillText(t, q[0], q[1]); }
+  for (const b of K.bat.values()) { if (agora() < b.t0 || agora() > b.fim + 1.5) continue; const a = K.ex.get(b.a), cast = b.b < 0 && K.castelos.find(c => c.id === -b.b), d = cast ? null : K.ex.get(b.b); if (!a || (!d && !cast)) continue;
+    const pa = posicao(a), pd = cast ? { x: cast.x, y: cast.y } : posicao(d), q = C.tela(wx((pa.x + pd.x) / 2), 7, wz((pa.y + pd.y) / 2)); if (!q || q[1] < 70) continue;
+    const k = Math.max(0, Math.min(b.linha.length - 1, Math.floor(agora() - b.t0))), [ta, tb] = b.linha[k], meuCla = meus()[0]?.cla, amigo = o => o && (o.eu || (meuCla != null && o.cla === meuCla));
+    const w = 96, fa = ta / Math.max(1, ta + tb), ca = amigo(a) ? '#3a8aff' : '#ff4a3a', cb = cast ? (meuCla === -b.b ? '#3a8aff' : '#ff4a3a') : amigo(d) ? '#3a8aff' : '#ff4a3a';
+    g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(q[0] - w / 2 - 2, q[1] - 2, w + 4, 12); g.fillStyle = ca; g.fillRect(q[0] - w / 2, q[1], w * fa, 8); g.fillStyle = cb; g.fillRect(q[0] - w / 2 + w * fa, q[1], w * (1 - fa), 8);
+    g.font = '13px Titulo, sans-serif'; const t = `⚔️ ${fmt(ta)}  ×  ${fmt(tb)}`; g.strokeText(t, q[0], q[1] - 5); g.fillStyle = '#fff'; g.fillText(t, q[0], q[1] - 5);
+    if (agora() > b.fim) { const ganhou = tb === 0 ? a : ta === 0 ? (cast ? null : d) : null; if (ganhou !== undefined && (tb === 0 || ta === 0)) { const v = (tb === 0 ? amigo(a) : cast ? meuCla === -b.b : amigo(d));
+      g.font = '18px Titulo, sans-serif'; const tt = v ? `🏆 ${tr('VITÓRIA')}` : `💀 ${tr('DERROTA')}`; g.strokeText(tt, q[0], q[1] - 24); g.fillStyle = v ? '#7aff8a' : '#ff8a7a'; g.fillText(tt, q[0], q[1] - 24); } } }
+  for (const t of K.txt) { t.t += dt; const p = C.tela(t.x, t.y + t.t * 3, t.z); if (!p) continue; g.globalAlpha = Math.max(0, 1 - t.t / 1); g.font = `${t.grande ? 18 : 14}px Titulo, sans-serif`; g.strokeText(t.txt, p[0], p[1]); g.fillStyle = t.cor; g.fillText(t.txt, p[0], p[1]); g.globalAlpha = 1; }
+  K.txt = K.txt.filter(t => t.t < 1);
+}
+window.__mu = { K: () => K, caminho, gerarMapa }; // testes
