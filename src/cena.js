@@ -27,6 +27,7 @@ export function iniciar(canvas, q) {
   renderer.setPixelRatio(qualidade === 'baixa' ? 0.8 : Math.min(devicePixelRatio, qualidade === 'alta' ? 2 : 1.5)); // Leve: imagem um pouco menor (bem mais rápido em celular simples)
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.shadowMap.enabled = qualidade !== 'baixa';
+  renderer.debug.checkShaderErrors = false; // a checagem trava o quadro esperando o celular compilar o shader
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   scene = new THREE.Scene();
   const ceu = new THREE.Color(0xa9d4f5);
@@ -162,6 +163,8 @@ export function instancias(m, lista) { // lista: [{x, y, z, ry, s}]
   scene.add(g); return g;
 }
 export function removerGrupo(g) { if (!g) return; scene.remove(g); g.traverse(c => { if (c.isInstancedMesh) c.dispose(); else if (c.isMesh) c.geometry.dispose(); }); } // peças juntadas têm geometria própria (o material é das peças, fica)
+// solta um material, menos o último de cada shader: senão o celular recompila o shader na próxima vez (travadinha no meio da luta)
+export function soltarMat(m) { const p = renderer?.properties.get(m)?.currentProgram; if (p && p.usedTimes <= 1) return; m.dispose(); }
 // tira da cena e libera da memória de vídeo tudo que foi criado só para este grupo (geometrias, materiais e texturas)
 export function descartar(g) { if (!g) return; g.parent?.remove(g); g.traverse(c => { if (!c.isMesh && !c.isLine && !c.isPoints) return; c.geometry?.dispose(); for (const m of [].concat(c.material || [])) { m.map?.dispose(); m.dispose(); } }); }
 // tamanho de uma peça (caixa no chão, sem escala): meia-largura em x e z e o centro
@@ -393,7 +396,7 @@ export function personagem(nome, armas = [], esc = 1) {
 // personagem que saiu de cena: solta a textura dos ossos e os materiais copiados (as texturas do atlas são compartilhadas)
 function liberar(raiz, mats) {
   const vistos = new Set(); raiz.traverse(o => { if (o.isSkinnedMesh && !vistos.has(o.skeleton)) { vistos.add(o.skeleton); o.skeleton.dispose(); } });
-  for (const m of mats) m.dispose();
+  for (const m of mats) soltarMat(m);
 }
 // ---------------- heróis modulares (peças misturáveis + cores) ----------------
 // Todos os aventureiros usam o mesmo esqueleto (mesma pose de bind, só a ordem dos ossos muda):
@@ -762,7 +765,7 @@ export function quadro(dt, foco) {
     if (e.tipo === 'aviso') { if (e.eixo === 'z') e.cheio.scale.set(1, 1, Math.min(1, k)); else e.cheio.scale.setScalar(Math.min(1, k)); }
     if (e.tipo === 'poca') e.o.material.opacity = (k > 0.85 ? (1 - k) / 0.15 : 1) * (0.35 + 0.12 * Math.sin(e.t * 6));
     if (e.tipo === 'clarao') { e.o.scale.setScalar(e.tam * (0.35 + 0.65 * Math.min(1, k * 2.2))); e.o.material.opacity = Math.max(0, 0.95 * (1 - k) ** 1.5); }
-    if (k >= 1 || e.morto) { scene.remove(e.o); if (e.o.isMesh && e.o.material?.dispose) e.o.material.dispose(); efeitos.splice(i, 1); }
+    if (k >= 1 || e.morto) { scene.remove(e.o); if (e.o.isMesh && e.o.material?.dispose) soltarMat(e.o.material); efeitos.splice(i, 1); }
   }
   // partículas
   let n = 0;

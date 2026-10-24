@@ -562,11 +562,12 @@ const LIBERA = [ // [id, fase vencida, nome, ícone, frase]
   ['up', 1, 'Melhorias', 'raio', 'Use suas moedas para deixar o exército mais forte'],
   ['baus', 2, 'Baús', 'bau', 'Vença fases para ganhar baús cheios de prêmios'],
   ['pets', 3, 'Pets', 'pata', 'Pets lutam do seu lado e dão bônus na batalha'],
-  ['cartas', 4, 'Heróis', 'herois', 'Cada herói tem um ataque e um poder diferente'],
+  ['cartas', 4, 'Herói', 'herois', 'Equipe armas e armaduras da sua classe para ficar mais forte'],
   ['missoes', 5, 'Missões', 'missoes', 'Complete missões para ganhar moedas e prêmios'],
   ['conquista', 6, 'Conquista', 'bandeira', 'Seus pets enfrentam equipes de outros jogadores'],
   ['rank', 8, 'Ranking', 'rank', 'Veja sua posição entre os jogadores do mundo'],
   ['dupla', 8, 'Dupla', 'herois', 'Jogue junto com um amigo na mesma ponte'],
+  ['arvore', 8, 'Árvore Sagrada', 'floresta', 'Lute junto com amigos (ou aliados) e ganhe equipamentos e estrelas'],
   ['castelo', 10, 'Castelo', 'h_muralha', 'Defenda a muralha de ondas de inimigos'],
   ['infinito', 10, 'Ponte sem fim', 'estrela', 'Chefes sem parar: até onde você aguenta?'],
   ['cla', 12, 'Clã', 'escudo', 'Entre num clã e ganhe prêmios junto com outros jogadores'],
@@ -580,11 +581,12 @@ const PASSOS_LIB = {
   up: [{ alvo: '[data-aba-lobby=up]', txt: 'Toque em Melhorias' }, { alvo: '.up.pode, .up', txt: 'Cada melhoria deixa o exército mais forte. Toque para comprar!' },
     { txt: 'Seu herói: ataca mais rápido e solta mais projéteis de uma vez (vale em todos os modos). Sua defesa: mais soldados no começo, muralha mais forte e soldados que sobrevivem às lutas.' }],
   pets: [{ alvo: '[data-aba-lobby=pets]', txt: 'Toque em Pets' }, { alvo: '.ptOvo[data-ovo]', txt: 'Você ganhou um ovo! Toque para chocar' }, { txt: 'Os pets da equipe seguem o herói, atiram junto e dão bônus. Junte 3 iguais para ganhar uma estrela!' }],
-  cartas: [{ alvo: '[data-aba-lobby=cartas]', txt: 'Toque em Heróis' }, { txt: 'Cada herói tem um ataque e um poder diferente. Junte cartas para subir o nível dos poderes!' },
-    { txt: 'As tropas (arqueiros, lanceiros e magos) também sobem com cartas e entram na batalha junto com os soldados.' }],
+  cartas: [{ alvo: '[data-aba-lobby=cartas]', txt: 'Toque em Herói' }, { txt: 'Aqui ficam sua classe e seus equipamentos: arma, elmo, armadura, capa, anel e amuleto. Eles valem em todos os modos!' },
+    { txt: 'Ganhe equipamentos vencendo fases, na Árvore Sagrada e na Forja. Com estrelas você faz Desejos e pode tirar Lendários!' }],
   missoes: [{ alvo: '.lbTopo .missoes', txt: 'Toque nas Missões' }, { txt: 'Complete missões para ganhar moedas e subir no passe de prêmios! Novas missões chegam todo dia e toda semana.' }],
   conquista: [{ alvo: '[data-a=modos]', txt: 'Toque em Modos' }, { alvo: '[data-modo=conquista]', txt: 'Na Conquista seus pets lutam sozinhos e juntam moedas até com o jogo fechado!' }],
   rank: [{ alvo: '[data-aba-lobby=rank]', txt: 'Toque em Ranking' }, { txt: 'Suba de fase e vença no modo Sem fim para aparecer no topo do mundo!' }],
+  arvore: [{ alvo: '[data-a=modos]', txt: 'Toque em Modos' }, { alvo: '[data-modo=arvore]', txt: 'Na Árvore Sagrada você luta com amigos ou com aliados e ganha equipamentos e estrelas para os Desejos' }],
   dupla: [{ alvo: '[data-a=modos]', txt: 'Toque em Modos' }, { alvo: '[data-modo=dupla]', txt: 'Na Dupla você joga junto com um amigo: chame pelo WhatsApp!' }],
   castelo: [{ alvo: '[data-a=modos]', txt: 'Toque em Modos' }, { alvo: '[data-modo=castelo]', txt: 'No Castelo você defende a muralha de ondas cada vez mais fortes. E tem a Ponte sem fim também!' }],
   cla: [{ alvo: '[data-aba-lobby=cla]', txt: 'Toque em Clã' }, { txt: 'Num clã vocês atacam um chefe juntos e todos ganham prêmios!' }],
@@ -726,7 +728,7 @@ function desenharLobby() {
 }
 // ---- pets ----
 const fotoPet = (k, tam = 160) => C.retrato(modeloDe(k), { cor: tinta(k), tam });
-const estrelas = k => est(k) ? `<span class="estr" style="color:${ESTRELAS[est(k)].cor}">${'★'.repeat(est(k))}</span>` : '';
+const estrelas = k => est(k) ? `<span class="estr" style="color:${ESTRELAS[est(k)].cor}">${ico('estrela').repeat(est(k))}</span>` : '';
 const bonusHtml = (k, curto) => bonusPet(k).map(([t, v]) => `<span class="bn">${ico(BONUS_PET[t].icone)}${curto ? (BONUS_PET[t].un ? `+${v}` : `${t === 'recarga' || t === 'lento' ? '-' : '+'}${v}%`) : txtBonus(t, v)}</span>`).join('');
 function cardPet(k, cls = '') {
   const D = PETS[base(k)], P = S.pets[base(k)], eq = S.equipe.includes(k), e = est(k), n = qtd(k);
@@ -757,7 +759,7 @@ function mostrarPet(k) {
     ${golpe(k) ? `<div class="ptGolpe">${ico(golpe(k).icone)}<span><b>${golpe(k).nome}</b><small>${golpe(k).desc} · a cada ${Math.round(cdGolpe(k))}s</small></span></div>` : ''}
     <div class="ptStats"><span>${ico('coracao')} ${fmt(A.hp)}</span><span>${ico('forca')} ${fmt(A.atk)}</span><span>Nv <b>${P.nv}</b></span><span>${ico('poder')} ${fmt(forca(A))}</span></div>
     <button class="btn amarelo" data-pet-a="nivel" data-k="${k}" ${max || S.moedas < c ? 'disabled' : ''}>${max ? 'Nível máximo' : `${ico('seta', 'up')} Nível ${P.nv + 1} · ${ico('ouro')} ${fmt(c)}`}</button>
-    ${e < MAX_EST ? `<button class="btn roxo" data-pet-a="juntar" data-k="${k}" ${n >= 3 ? '' : 'disabled'}>Juntar 3 → <span style="color:${ESTRELAS[e + 1].cor}">${'★'.repeat(e + 1)}</span> ${ESTRELAS[e + 1].nome} (${n}/3)</button>` : ''}
+    ${e < MAX_EST ? `<button class="btn roxo" data-pet-a="juntar" data-k="${k}" ${n >= 3 ? '' : 'disabled'}>Juntar 3 → <span class="estr" style="color:${ESTRELAS[e + 1].cor}">${ico('estrela').repeat(e + 1)}</span> ${ESTRELAS[e + 1].nome} (${n}/3)</button>` : ''}
     <button class="btn ${eq ? 'azul' : 'verde'}" data-pet-a="equipar" data-k="${k}">${eq ? 'Tirar da equipe' : `Pôr na equipe${S.equipe.length >= MAX_EQUIPE ? ' (troca o 1º)' : ''}`}</button>
     <button class="fSo" data-a="fecharJanela">Fechar</button></div>`;
 }
@@ -817,7 +819,7 @@ function mostrarConfig(reabrir) {
 // ---- tela de modos: tudo que não é a campanha fica aqui (a tela inicial só tem JOGAR) ----
 function mostrarModos() {
   const j = $('#janela'); j.hidden = false;
-  const DA = { arvore: ['gema', 'estrela', 'ouro'], defesa: ['gema', 'estrela', 'ouro'], dupla: ['ouro', 'bau', 'estrela'], infinito: ['rank', 'estrela', 'ouro'], castelo: ['rank', 'estrela', 'ouro'], conquista: ['ovo', 'ouro', 'estrela'], mundo: ['bandeira'] }; // o que cada modo dá
+  const DA = { arvore: ['c_armas', 'estrela', 'ouro'], defesa: ['c_armas', 'estrela', 'ouro'], dupla: ['ouro', 'bau', 'estrela'], infinito: ['rank', 'estrela', 'ouro'], castelo: ['rank', 'estrela', 'ouro'], conquista: ['ovo', 'ouro', 'estrela'], mundo: ['bandeira'] }; // o que cada modo dá
   const card = (k, cor, icone, nome, desc, info, livre, req) => `<button class="modoC ${livre ? '' : 'bloq'}" data-modo="${k}" style="--c:${cor}">${ico(livre ? icone : 'cadeado')}
     <span><b>${nome}</b><small>${desc}</small><i class="modoDa">${(DA[k] || []).map(n => ico(n)).join('')}</i></span><em>${livre ? info : req}</em></button>`;
   j.innerHTML = `<div class="jOnline jModos"><h2>${ico('dado')} Modos</h2><p class="modoXp">${ico('coroa')} ${tr('Todo modo dá XP para o seu herói')}</p>
@@ -1465,7 +1467,7 @@ function mostrarPerfil() {
   const j = $('#janela'), re = !j.hidden && !!j.querySelector('.jPerfil'); j.hidden = false; const O = ON.conta(); enviarPerfil();
   const med = k => { const M = MEDALHAS[k], nv = nivelMedalha(k), pg = pegas(k), v = M.valor(), prox = M.metas[Math.min(nv, 2)], cor = nv ? NIVEIS_MEDALHA[nv - 1][1] : '#b8b0a4';
     const p = pg < nv ? premioMedalha(pg + 1) : null;
-    return `<div class="pfMed ${nv ? 'tem' : ''}" style="--m:${cor}"><span class="pfMedIco">${ico(M.icone)}</span><div><b>${M.nome}</b><small>${nv ? NIVEIS_MEDALHA[nv - 1][0] : '—'}${'★'.repeat(nv)}</small>
+    return `<div class="pfMed ${nv ? 'tem' : ''}" style="--m:${cor}"><span class="pfMedIco">${ico(M.icone)}</span><div><b>${M.nome}</b><small>${nv ? NIVEIS_MEDALHA[nv - 1][0] : '—'}<span class="estr">${ico('estrela').repeat(nv)}</span></small>
       ${nv < 3 ? `<div class="barra"><i style="width:${Math.min(100, 100 * v / prox)}%"></i><span>${fmt(v)}/${fmt(prox)}</span></div>` : ''}</div>
       ${p ? `<button class="btn verde peq" data-medalha="${k}">${p.ovo ? ico('ovo') : ico('ouro')}${p.moedas ? fmt(p.moedas) : ''}</button>` : ''}</div>`; };
   const vars = Object.keys(S.pets).flatMap(b => S.pets[b].e.map((n, e) => n > 0 ? b + '*'.repeat(e) : null).filter(Boolean));
@@ -1750,7 +1752,7 @@ function montarVagas() {
 function atualizarVagas() {
   for (const v of G.vagas) { const b = document.querySelector(`[data-vaga="${v.i}"]`); if (!b) continue;
     const T = v.tipo && TORRES[v.tipo], c = T ? T.custo[v.nv] : TORRES.balista.custo[0];
-    b.innerHTML = !T ? `+<small>${ico('forca')}${c}</small>` : v.nv >= 3 ? `<i>${'★'.repeat(v.nv)}</i>` : `${ico('seta', 'up')}<small>${ico('forca')}${c}</small>`;
+    b.innerHTML = !T ? `+<small>${ico('forca')}${c}</small>` : v.nv >= 3 ? `<i class="estr">${ico('estrela').repeat(v.nv)}</i>` : `${ico('seta', 'up')}<small>${ico('forca')}${c}</small>`;
     b.classList.toggle('vazia', !T); b.classList.toggle('pode', !!c && v.nv < 3 && G.ouro >= c); b.classList.toggle('max', v.nv >= 3); }
   const m = $('#jMenuT'); if (G.menuVaga == null) { m.hidden = true; return; }
   m.innerHTML = Object.entries(TORRES).map(([k, T]) => `<button data-tor="${k}" class="${G.ouro >= T.custo[0] ? 'pode' : ''}">${ico(T.icone)}<b>${T.nome}</b><small>${ico('forca')}${T.custo[0]}</small></button>`).join('');

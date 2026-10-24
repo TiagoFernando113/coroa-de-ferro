@@ -124,7 +124,7 @@ export const PRECO_DESEJO = 600, PITY = 50;
 const hoje = () => new Date().toISOString().slice(0, 10);
 export const destaque = () => { const ks = lendasDaClasse().map(([k]) => k); return ks[Math.floor((Date.now() / 864e5 + 3) / 7) % ks.length] || 'fenda'; }; // lenda da semana da sua classe
 export const estrelas = () => eq().est || 0;
-export const estrelasPartida = ondas => ondas < 2 ? 0 : Math.max(1, Math.floor(ondas / 3)) * (fimDeSemana() ? 2 : 1);
+export const estrelasPartida = ondas => ondas < 2 ? 0 : Math.max(1, Math.floor(ondas / 4)) * (fimDeSemana() ? 2 : 1);
 export function ganharEstrelas(n) { if (n > 0) { const E = eq(); E.est = (E.est || 0) + n; salvar(); } }
 function desejar() { // Mítico 1,5% (garantido em 50), Lendário+ garantido a cada 10
   const E = eq(), x = Math.random(); E.pity = (E.pity || 0) + 1; E.p4 = (E.p4 || 0) + 1;

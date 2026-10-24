@@ -179,7 +179,7 @@ export function abrir(container, sair, modo = 'caminho') {
   K.visH = EQ.visualHeroi(H.visual, true); K.v = C.heroi(K.visH); K.v.raiz.scale.setScalar(0.8); K.H = H;
   if (K.arma) { const an = { corte: 'Melee_1H_Attack_Chop', martelo: 'Melee_2H_Attack_Chop', cajado: 'Ranged_Magic_Shoot', arco: 'Ranged_Bow_Release' }[K.arma.tipo]; K.animTiro = K.v.tem(an) ? an : K.v.tem('Melee_1H_Attack_Chop') && K.arma.tipo !== 'arco' ? 'Melee_1H_Attack_Chop' : null; }
   K.cena = modo === 'arvore' ? montarArvore() : montarCenario(); C.ceu(0x9ad8f8); C.neblina(90, 220); C.diaNoite(0); intensidade(1); A.comecou(modo === 'arvore' ? 'arvore' : 'defesa');
-  desenhar(); ligarToque(); ligarCamPad(); conectar(); if (modo === 'arvore' && !S.tutArv) { K.tut = 0; mostrarTut(); }
+  desenhar(); ligarToque(); ligarCamPad(); conectar(); if (modo === 'arvore' ? !S.tutArv : !S.tutDef) { K.tut = 0; mostrarTut(); }
 }
 export function fechar() {
   if (!K) return; try { K.canal?.enviar('tchau', { p: K.eu }); } catch (e) {} setTimeout(((c) => () => c?.fechar())(K.canal), 300);
@@ -375,9 +375,11 @@ function passoChefe(u, dt) {
   if ((u.golpeT = (u.golpeT ?? 6) - dt) <= 0) { u.golpeT = 7; const r = 7; K.canal?.enviar('cpa', { x: Math.round(u.x * 10) / 10, z: Math.round(u.z * 10) / 10, r }); avisoPancada(u.x, u.z, r); }
   if (!u.chamou && u.hp < u.max * 0.5) { u.chamou = true; for (let i = 0; i < 6; i++) { const m = criarMob('orc', K.onda, undefined, u.porta); m.s = Math.max(0, u.s - 2 - i); m.off = (i - 2.5) * 1.5; K.mobs.push(m); } K.banner = { txt: 'O CHEFE CHAMOU REFORÇOS!', cor: '#ff6a5a', t: 0 }; }
 }
+// material e forma reaproveitados: criar e destruir a cada pancada obrigava o celular a recompilar o shader (travadinha)
+const MAT_PANCADA = new THREE.MeshBasicMaterial({ color: 0xff2a1a, transparent: true, opacity: 0.35, depthWrite: false }), GEO_PANCADA = {};
 function avisoPancada(x, z, r) { // círculo vermelho por 1,3s; quem ficar dentro apanha
-  const o = new THREE.Mesh(new THREE.CircleGeometry(r, 32).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xff2a1a, transparent: true, opacity: 0.35, depthWrite: false })); o.position.set(x, 0.25, z); cn().add(o); sfx('magia');
-  setTimeout(() => { if (!K) return; cn().remove(o); o.geometry.dispose(); o.material.dispose(); C.onda(x, z, r, 0xff5a3a, 0.4); C.faiscas(x, 1, z, 0xffa03a, 30, 8); C.camera.tremor = Math.max(C.camera.tremor, 0.6); som('pancada');
+  const o = new THREE.Mesh(GEO_PANCADA[r] ||= new THREE.CircleGeometry(r, 32).rotateX(-Math.PI / 2), MAT_PANCADA); o.position.set(x, 0.25, z); cn().add(o); sfx('magia');
+  setTimeout(() => { if (!K) return; cn().remove(o); C.onda(x, z, r, 0xff5a3a, 0.4); C.faiscas(x, 1, z, 0xffa03a, 30, 8); C.camera.tremor = Math.max(C.camera.tremor, 0.6); som('pancada');
     const h = K.heroi; if (!h.morto && !(h.invT > 0) && Math.hypot(h.x - x, h.z - z) < r) { h.hp -= h.hpMax * 0.35 * (1 - K.eqA.def / 100); K.v.brilho(0.6); setTimeout(() => K?.v.brilho(0), 120); flashTela('#ff3a2a', 0.25); }
     for (const b of K.bots || []) if (!b.morto && Math.hypot(b.x - x, b.z - z) < r) b.hp -= b.hpMax * 0.35; }, 1300);
 }
@@ -403,12 +405,16 @@ function ligarCamPad() {
 // ---- tutorial da primeira Árvore ----
 const TUT = [['andar', 'Arraste do lado esquerdo para andar'], ['golpe', 'Toque no botão vermelho para atacar. 3 seguidos fazem um combo!'], ['desvio', 'Toque no botão azul para desviar: você fica invencível por um instante'],
   ['espirito', 'Derrote inimigos: eles soltam espíritos que deixam você mais forte'], ['fim', 'Proteja a árvore! A cada 3 ondas pisem num círculo para escolher um poder. A cada 5 ondas vem um chefe.']];
+// tutorial da primeira Defesa em Grupo
+const TUT_DEF = [['andar', 'Arraste do lado esquerdo para andar'], ['menu', 'Vá até uma base de pedra e toque em Construir torre'], ['torre', 'Escolha uma torre: cada uma tem um jeito de atacar'],
+  ['up', 'Inimigos derrotados dão moedas. Toque na sua torre e melhore: no nível 4 você escolhe um ramo'], ['fim', 'Proteja o castelo junto com o grupo! O botão laranja é o poder do seu herói.']];
+const tutL = () => K.modo === 'arvore' ? TUT : TUT_DEF;
 function tut(ev) {
-  if (K?.tut == null || TUT[K.tut]?.[0] !== ev) return; K.tut++; sfx('brilho'); mostrarTut();
-  if (TUT[K.tut]?.[0] === 'fim') setTimeout(() => { if (K?.tut != null) { K.tut = null; S.tutArv = 1; salvar(); mostrarTut(); } }, 9000);
+  if (K?.tut == null || tutL()[K.tut]?.[0] !== ev) return; K.tut++; sfx('brilho'); mostrarTut();
+  if (tutL()[K.tut]?.[0] === 'fim') setTimeout(() => { if (K?.tut != null) { K.tut = null; if (K.modo === 'arvore') S.tutArv = 1; else S.tutDef = 1; salvar(); mostrarTut(); } }, 9000);
 }
 function mostrarTut() { // tocar no balão passa a dica
-  const e = $('#dfTut'); if (!e) return; const P = K.tut != null && TUT[K.tut]; e.hidden = !P; e.onclick = () => { if (K?.tut != null && TUT[K.tut]) tut(TUT[K.tut][0]); }; if (P) e.innerHTML = `<small>${K.tut + 1}/${TUT.length}</small> ${tr(P[0] === 'golpe' && !K.perto ? 'Seu herói ataca sozinho. Use o botão redondo para girar a câmera' : P[1])} <em>${tr('toque para seguir')}</em>`;
+  const e = $('#dfTut'); if (!e) return; const T = tutL(), P = K.tut != null && T[K.tut]; e.hidden = !P; K.sigAcoes = null; e.onclick = () => { if (K?.tut != null && T[K.tut]) tut(T[K.tut][0]); }; if (P) e.innerHTML = `<small>${K.tut + 1}/${TUT.length}</small> ${tr(P[0] === 'golpe' && !K.perto ? 'Seu herói ataca sozinho. Use o botão redondo para girar a câmera' : P[1])} <em>${tr('toque para seguir')}</em>`;
   $('#dfGolpe')?.classList.toggle('tutAlvo', P?.[0] === 'golpe'); $('#dfCamPad')?.classList.toggle('tutAlvo', P?.[0] === 'golpe'); $('#dfDesvio')?.classList.toggle('tutAlvo', P?.[0] === 'desvio');
 }
 // ---- papel de cada classe no grupo ----
@@ -507,8 +513,8 @@ function acoes() { // botão grande do lado direito: construir ou melhorar a tor
   if (t) { const c = t.nv < 4 ? custoUp(t.tipo, t.nv) : 0, nomeR = t.ramo ? ` · ${tr(RAMOS[t.tipo][t.ramo].nome)}` : '';
     const botoes = t.nv < 3 ? `<button class="btn amarelo" data-df="up" data-pad="${pad}" ${eu < c ? 'disabled' : ''}>${ico('treinar')} ${tr('Melhorar')} ${ico('ouro')}${fmt(c)}</button>`
       : t.nv === 3 ? `<div class="dfRamos">${Object.entries(RAMOS[t.tipo]).map(([r, R]) => `<button class="btn roxo dfRamo" data-df="ramo" data-r="${r}" data-pad="${pad}" ${eu < c ? 'disabled' : ''}><b>${tr(R.nome)}</b><small>${tr(R.desc)}</small><em>${ico('ouro')}${fmt(c)}</em></button>`).join('')}</div>` : `<small>${tr('Nível máximo')}</small>`;
-    a.innerHTML = `<div class="dfTorreInfo"><b>${tr(TORRES[t.tipo].nome)} ${'★'.repeat(t.nv)}${nomeR}</b></div>${botoes}<button class="btn cinza peq" data-df="vender" data-pad="${pad}">${tr('Vender')} +${fmt(Math.round(t.gasto * 0.5))}</button>`; return; }
-  if (!K.menu) { a.innerHTML = `<button class="btn verde grande dfConstruir" data-df="menu">${ico('forja')} ${tr('Construir torre')}</button>`; return; }
+    a.innerHTML = `<div class="dfTorreInfo"><b>${tr(TORRES[t.tipo].nome)} <span class="dfEstr">${ico('estrela').repeat(t.nv)}</span>${nomeR}</b></div>${botoes}<button class="btn cinza peq" data-df="vender" data-pad="${pad}">${tr('Vender')} +${fmt(Math.round(t.gasto * 0.5))}</button>`; return; }
+  if (!K.menu) { a.innerHTML = `<button class="btn verde grande dfConstruir${K.tut != null && tutL()[K.tut]?.[0] === 'menu' ? ' tutAlvo' : ''}" data-df="menu">${ico('forja')} ${tr('Construir torre')}</button>`; return; }
   a.innerHTML = `<div class="dfMenu">${Object.entries(TORRES).map(([k, T]) => `<button class="dfOp" data-df="torre" data-t="${k}" data-pad="${pad}" ${eu < T.custo ? 'disabled' : ''}><b>${tr(T.nome)}</b><small>${tr(T.desc)}</small><em>${ico('ouro')}${T.custo}</em></button>`).join('')}
     <button class="btn cinza peq" data-df="fecharMenu">${ico('fechar')}</button></div>`;
 }
@@ -516,13 +522,13 @@ export function clique(b, toque) {
   if (!K) return; if (!toque && K.pd && performance.now() - K.pd.t < 600) return; // o clique que vem depois do toque não conta (senão abre e já fecha o menu)
   const a = b.dataset.df;
   if (a === 'sair') { som('fechar'); if (K.estado !== 'fim' && K.onda > 1) acabar({ saiu: true }); else aoSair(); return; }
-  if (a === 'menu') { K.menu = true; K.sigAcoes = null; som('clique'); acoes(); return; }
+  if (a === 'menu') { tut('menu'); K.menu = true; K.sigAcoes = null; som('clique'); acoes(); return; }
   if (a === 'fecharMenu') { K.menu = false; K.padSel = null; K.sigAcoes = null; som('fechar'); acoes(); return; }
   if (a === 'torre') { const pad = +b.dataset.pad, t = b.dataset.t; K.menu = false; K.sigAcoes = null; K.padSel = null;
-    if (K.host) { if (!construir(pad, t, K.eu)) som('erro'); } else { if (K.cofre < TORRES[t].custo) { som('erro'); return; } K.canal?.enviar('b', { p: K.eu, pad, t }); som('confirma'); }
+    tut('torre'); if (K.host) { if (!construir(pad, t, K.eu)) som('erro'); } else { if (K.cofre < TORRES[t].custo) { som('erro'); return; } K.canal?.enviar('b', { p: K.eu, pad, t }); som('confirma'); }
     atualizarHud(); return; }
-  if (a === 'ramo') { const pad = +b.dataset.pad, r = b.dataset.r; if (K.host) { if (!melhorar(pad, K.eu, r)) som('erro'); } else { K.canal?.enviar('u', { p: K.eu, pad, r }); som('confirma'); } K.sigAcoes = null; atualizarHud(); return; }
-  if (a === 'up') { const pad = +b.dataset.pad; if (K.host) { if (!melhorar(pad, K.eu)) som('erro'); } else { K.canal?.enviar('u', { p: K.eu, pad }); som('confirma'); } K.sigAcoes = null; atualizarHud(); return; }
+  if (a === 'ramo') { tut('up'); const pad = +b.dataset.pad, r = b.dataset.r; if (K.host) { if (!melhorar(pad, K.eu, r)) som('erro'); } else { K.canal?.enviar('u', { p: K.eu, pad, r }); som('confirma'); } K.sigAcoes = null; atualizarHud(); return; }
+  if (a === 'up') { tut('up'); const pad = +b.dataset.pad; if (K.host) { if (!melhorar(pad, K.eu)) som('erro'); } else { K.canal?.enviar('u', { p: K.eu, pad }); som('confirma'); } K.sigAcoes = null; atualizarHud(); return; }
   if (a === 'hab') { usarHabilidade(); atualizarHud(); return; }
   if (a === 'golpe') { golpear(); return; }
   if (a === 'desviar') { desviar(); atualizarHud(); return; }
@@ -546,13 +552,13 @@ function ligarToque() { el.addEventListener('pointerdown', apertou); toqueEl = $
 function desligarToque() { el?.removeEventListener('pointerdown', apertou); if (toqueEl) for (const [ev, f] of [['pointerdown', dn], ['pointermove', mv], ['pointerup', up], ['pointercancel', up]]) toqueEl.removeEventListener(ev, f); toqueEl = null; removeEventListener('keydown', kd); removeEventListener('keyup', ku); teclas.clear(); }
 
 // ---- laço ----
-export function passo(dt) {
-  if (!K) return; dt = Math.min(dt, 0.1); if (K.hitStop > 0) { K.hitStop -= dt; dt *= 0.08; } const tt = C.tempo(); // golpe forte: o tempo quase para por um instante
+export function passo(dt) { // modo leve: cada inimigo anima um quadro sim, outro não
+  if (!K) return; K.qd = (K.qd || 0) + 1; const leve = C.qualidadeAtual() === 'baixa'; dt = Math.min(dt, 0.1); if (K.hitStop > 0) { K.hitStop -= dt; dt *= 0.08; } const tt = C.tempo(); // golpe forte: o tempo quase para por um instante
   moverHeroi(dt); outrosHerois(dt);
   if (K.host && K.pronto && K.estado !== 'fim') simular(dt);
   else if (!K.host && K.estado !== 'fim') { for (const u of K.mobs) if (!u.morto) { u.s += u.vel * dt * (u.lentoT > 0 ? 0.5 : 1); if (u.L) u.s = Math.min(u.s, u.L); } if (K.pronto && performance.now() - K.ultS > 8000 && K.ultS) acabar({ saiu: true, host: true }); }
   if (K.escudoT > 0) K.escudoT -= dt; for (const u of K.mobs) { if (u.lentoT > 0) u.lentoT -= dt; if (u.marcaT > 0 && K.host) u.marcaT -= dt; const p = posMob(u); u.x = p.x + Math.cos(p.ry) * u.off; u.z = p.z - Math.sin(p.ry) * u.off; u.ry = p.ry;
-    if (u.v) { u.v.mixer.update(dt); u.flash = Math.max(0, (u.flash || 0) - dt); u.v.brilho(u.flash > 0 ? 0.5 : 0); u.v.raiz.position.set(u.x, u.y, u.z); u.v.raiz.rotation.y = u.ry; if (u.morto) { u.tm += dt; if (u.tm > 1.2) u.v.raiz.visible = false; } } }
+    if (u.v) { if (!leve || (u.id + K.qd) % 2 === 0) u.v.mixer.update(leve ? dt * 2 : dt); u.flash = Math.max(0, (u.flash || 0) - dt); u.v.brilho(u.flash > 0 ? 0.5 : 0); u.v.raiz.position.set(u.x, u.y, u.z); u.v.raiz.rotation.y = u.ry; if (u.morto) { u.tm += dt; if (u.tm > 1.2) u.v.raiz.visible = false; } } }
   for (const u of K.mobs) if (u.morto && u.v && u.tm >= 1.3) u.v.remover();
   K.mobs = K.mobs.filter(u => !u.morto || (u.v && u.tm < 1.3));
   desenharTropas('vm', K.mobs.filter(u => !u.v && !u.morto), 0, tt); passoVoo(dt);
@@ -743,10 +749,12 @@ function abrirBuffs() { K.estado = 'buff'; K.buffT = 15; K.buffOnda = K.onda; K.
 function montarCirculos() {
   limparCirculos(); sfx('brilho');
   K.circ = K.cartas.map((k, i) => { const [x, z] = posCirculo(i), g = new THREE.Group(), cor = CORES_BUFF[i];
-    g.add(new THREE.Mesh(GEO_CIRC, new THREE.MeshBasicMaterial({ color: cor, transparent: true, opacity: 0.85, depthWrite: false })), new THREE.Mesh(GEO_LUZ, new THREE.MeshBasicMaterial({ color: cor, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false })));
+    const M = MATS_CIRC[i] ||= [new THREE.MeshBasicMaterial({ color: cor, transparent: true, opacity: 0.85, depthWrite: false }), new THREE.MeshBasicMaterial({ color: cor, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false })]; M[1].opacity = 0.16;
+    g.add(new THREE.Mesh(GEO_CIRC, M[0]), new THREE.Mesh(GEO_LUZ, M[1]));
     g.position.set(x, 0.2, z); cn().add(g); C.onda(x, z, 4, cor, 0.5); return { k, x, z, g, n: 0 }; });
 }
-function limparCirculos() { for (const c of K.circ || []) { cn().remove(c.g); c.g.traverse(o => o.material?.dispose()); } K.circ = null; }
+const MATS_CIRC = []; // materiais dos círculos reaproveitados (sem recompilar shader a cada 3 ondas)
+function limparCirculos() { for (const c of K.circ || []) cn().remove(c.g); K.circ = null; }
 function passoCirculos() {
   if (!K.circ) return; const quem = [K.heroi, ...K.jogs.values()].filter(h => !h.morto && !h.caido && h.x != null), t = C.tempo();
   for (const c of K.circ) { if (K.host) c.n = quem.filter(h => Math.hypot(h.x - c.x, h.z - c.z) < 3.2).length; c.g.scale.setScalar(1 + (c.n ? 0.12 : 0) + 0.04 * Math.sin(t * 4)); c.g.children[1].material.opacity = c.n ? 0.32 : 0.16; }
